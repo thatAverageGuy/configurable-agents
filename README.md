@@ -1,2 +1,1 @@
-# configurable-agents
-fully config based agents
+Runtime config based agent workflows
