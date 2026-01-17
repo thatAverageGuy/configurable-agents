@@ -4,11 +4,11 @@ flow:
   name: "article_generation_flow"
   description: "Research a topic and generate a validated article"
 
-# Global LLM defaults
+# Global LLM defaults (uses MODEL env var by default)
 defaults:
   llm:
-    provider: "openai"
-    model: "gpt-4o"
+    provider: "google"
+    # model not specified here, will use MODEL env var
     temperature: 0.7
     max_tokens: 4000
 
@@ -46,8 +46,6 @@ steps:
 crews:
   research_crew:
     llm:
-      provider: "openai"
-      model: "gpt-4o-mini"
       temperature: 0.5
     
     agents:
@@ -75,8 +73,6 @@ crews:
 
   writer_crew:
     llm:
-      provider: "openai"
-      model: "gpt-4o"
       temperature: 0.8
     
     agents:
@@ -125,8 +121,7 @@ crews:
         description: >
           Analyze the article for AI writing patterns and provide a humanness assessment.
           
-          Article to validate:
-          {write_article.output}
+          The article has been written and is available from the previous task output.
           
           Evaluation criteria:
           1. Natural flow and readability
@@ -138,10 +133,11 @@ crews:
           7. Absence of common AI phrases/clichés
           
           Provide:
+          - The complete article text
           - Detailed feedback on what makes it sound human or AI-like
           - Specific examples of issues if found
           - A humanness score from 1-10 (1=obviously AI, 10=indistinguishable from human)
-        expected_output: "Validation results with feedback and humanness score"
+        expected_output: "Validation results with article, feedback and humanness score"
         agent: "humanness_validator"
         output_model:
           name: "ArticleValidationOutput"
