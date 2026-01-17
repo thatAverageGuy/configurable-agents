@@ -20,7 +20,6 @@ state:
     - execution_message
     - timestamp
     - current_step
-  custom_var: {}  # Runtime dictionary for dynamic data
 
 # Flow execution steps
 steps:
