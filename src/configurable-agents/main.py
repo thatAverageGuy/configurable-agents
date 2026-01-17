@@ -11,7 +11,7 @@ from pathlib import Path
 from typing import Dict, Any
 import os
 from dotenv import load_dotenv
-from core.flow_builder import build_flow_class
+from configurable_agents.core.flow_builder import build_flow_class
 
 load_dotenv()
 
