@@ -189,40 +189,26 @@ def build_llm(llm_config: dict) -> Any:
         llm_config: LLM configuration dictionary
         
     Returns:
-        LLM instance (LangChain LLM object)
+        ChatGoogleGenerativeAI instance
     """
-    # provider = llm_config.get('provider', 'openai')
-    # model = llm_config.get('model', 'gpt-4o')
-    # temperature = llm_config.get('temperature', 0.7)
-    # max_tokens = llm_config.get('max_tokens')
+    from langchain_google_genai import ChatGoogleGenerativeAI
     
-    # if provider == 'openai':
-    #     from langchain_openai import ChatOpenAI
-        
-    #     llm_kwargs = {
-    #         'model': model,
-    #         'temperature': temperature
-    #     }
-    #     if max_tokens:
-    #         llm_kwargs['max_tokens'] = max_tokens
-        
-    #     return ChatOpenAI(**llm_kwargs)
+    # Get model from config, fallback to env var, then default
+    model = llm_config.get('model', os.getenv('MODEL', 'gemini-2.5-flash-lite'))
+    temperature = llm_config.get('temperature', 0.7)
+    max_tokens = llm_config.get('max_tokens')
     
-    # elif provider == 'anthropic':
-    #     from langchain_anthropic import ChatAnthropic
-        
-    #     llm_kwargs = {
-    #         'model': model,
-    #         'temperature': temperature
-    #     }
-    #     if max_tokens:
-    #         llm_kwargs['max_tokens'] = max_tokens
-        
-    #     return ChatAnthropic(**llm_kwargs)
+    # Build LLM instance
+    llm_kwargs = {
+        'model': model,
+        'temperature': temperature,
+        'google_api_key': os.getenv('GOOGLE_API_KEY')
+    }
     
-    # else:
-    #     raise ValueError(f"Unsupported LLM provider: {provider}")
-    model = os.getenv("MODEL")
+    if max_tokens:
+        llm_kwargs['max_output_tokens'] = max_tokens
+    
+    return ChatGoogleGenerativeAI(**llm_kwargs)
 
 
 def resolve_template_string(template: str, inputs: Dict[str, Any]) -> str:
