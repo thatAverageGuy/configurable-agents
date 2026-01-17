@@ -37,11 +37,13 @@ def build_crew(crew_config: dict, inputs: Dict[str, Any]) -> Crew:
         agents.append(agent)
         agents_map[agent_config['id']] = agent
     
-    # Build tasks
+    # Build tasks (with context support)
     tasks = []
+    tasks_map = {}  # Track built tasks for context references
     for task_config in crew_config.get('tasks', []):
-        task = build_task(task_config, agents_map, crew_llm_config, inputs)
+        task = build_task(task_config, agents_map, crew_llm_config, inputs, tasks_map)
         tasks.append(task)
+        tasks_map[task_config['id']] = task  # Store for later context references
     
     # Get execution configuration
     execution_config = crew_config.get('execution', {})
@@ -130,7 +132,8 @@ def build_agent(agent_config: dict, crew_llm_config: dict, inputs: Dict[str, Any
 
 
 def build_task(task_config: dict, agents_map: Dict[str, Agent], 
-               crew_llm_config: dict, inputs: Dict[str, Any]) -> Task:
+               crew_llm_config: dict, inputs: Dict[str, Any],
+               tasks_map: Dict[str, Task] = None) -> Task:
     """
     Build a Task from configuration.
     
@@ -139,6 +142,7 @@ def build_task(task_config: dict, agents_map: Dict[str, Agent],
         agents_map: Map of agent IDs to Agent instances
         crew_llm_config: Crew-level LLM configuration
         inputs: Input values for template resolution
+        tasks_map: Map of task IDs to already-built Task instances (for context)
         
     Returns:
         Configured Task instance
@@ -163,6 +167,18 @@ def build_task(task_config: dict, agents_map: Dict[str, Agent],
     task_llm_config = task_config.get('llm', crew_llm_config)
     llm = build_llm(task_llm_config) if task_llm_config else None
     
+    # Get context tasks if specified
+    context_task_ids = task_config.get('context', [])
+    context_tasks = []
+    if context_task_ids and tasks_map:
+        for context_task_id in context_task_ids:
+            if context_task_id not in tasks_map:
+                raise ValueError(
+                    f"Context task '{context_task_id}' not found. "
+                    f"Make sure it's defined before task '{task_config.get('id')}'"
+                )
+            context_tasks.append(tasks_map[context_task_id])
+    
     # Build task
     task_kwargs = {
         'description': description,
@@ -175,6 +191,9 @@ def build_task(task_config: dict, agents_map: Dict[str, Agent],
     
     if llm:
         task_kwargs['llm'] = llm
+    
+    if context_tasks:
+        task_kwargs['context'] = context_tasks
     
     task = Task(**task_kwargs)
     
