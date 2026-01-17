@@ -84,7 +84,7 @@ crews:
           connects with readers while maintaining accuracy and depth.
         tools: []
         llm:
-          temperature: 0.9  # Higher creativity for writing
+          temperature: 0.9
         
       - id: "humanness_validator"
         role: "AI Writing Pattern Detector"
@@ -96,7 +96,7 @@ crews:
           detailed feedback and accurate humanness scores.
         tools: []
         llm:
-          temperature: 0.3  # Lower temperature for analytical task
+          temperature: 0.3
         
     tasks:
       - id: "write_article"
@@ -120,8 +120,6 @@ crews:
         description: >
           Analyze the article for AI writing patterns and provide a humanness assessment.
           
-          The article has been written and is available from the previous task output.
-          
           Evaluation criteria:
           1. Natural flow and readability
           2. Presence of personal voice and style
@@ -138,6 +136,7 @@ crews:
           - A humanness score from 1-10 (1=obviously AI, 10=indistinguishable from human)
         expected_output: "Validation results with article, feedback and humanness score"
         agent: "humanness_validator"
+        context: ["write_article"]  # ← NEW: Automatically receive article from previous task
         output_model:
           name: "ArticleValidationOutput"
           fields:
