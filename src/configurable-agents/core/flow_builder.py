@@ -87,8 +87,8 @@ def _create_state_class(state_config: dict) -> Type[BaseModel]:
         fields['current_step'] = (str, Field(default=''))
     
     # Add custom_var as a dictionary
-    if 'custom_var' in common_vars:
-        fields['custom_var'] = (Dict[str, Any], Field(default_factory=dict))
+    # ALWAYS add custom_var - it's the runtime data dictionary
+    fields['custom_var'] = (Dict[str, Any], Field(default_factory=dict))
     
     # Create the state class dynamically
     StateClass = type(
