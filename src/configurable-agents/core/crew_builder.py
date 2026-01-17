@@ -9,9 +9,9 @@ import os
 from typing import Dict, Any, List, Optional
 from crewai import Agent, Task, Crew, Process
 from pydantic import BaseModel
-from core.tool_registry import get_tool
-from core.model_builder import build_pydantic_model
-from core.utils import resolve_template
+from configurable_agents.core.tool_registry import get_tool
+from configurable_agents.core.model_builder import build_pydantic_model
+from configurable_agents.core.utils import resolve_template
 from dotenv import load_dotenv
 load_dotenv()
 

@@ -184,8 +184,8 @@ def _create_step_method(step_config: dict, crews_config: dict, steps_config: lis
     
     def step_method(self):
         """Dynamically generated step method"""
-        from core.crew_builder import build_crew
-        from core.utils import resolve_template
+        from configurable_agents.core.crew_builder import build_crew
+        from configurable_agents.core.utils import resolve_template
         
         print(f"[Flow] Executing step: {step_id}")
         
