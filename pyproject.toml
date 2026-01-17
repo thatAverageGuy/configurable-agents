@@ -1,7 +1,7 @@
 [project]
-name = "configurable-agents"
+name = "configurable_agents"
 version = "0.1.0"
-description = "configurable-agents using crewAI"
+description = "configurable agents using crewAI"
 authors = [{ name = "Yogesh Singh", email = "yogesh.singh893@gmail.com" }]
 requires-python = ">=3.10,<3.14"
 dependencies = [
@@ -23,4 +23,4 @@ build-backend = "hatchling.build"
 type = "flow"
 
 [tool.hatch.build.targets.wheel]
-packages = ["src/configurable-agents"]
+packages = ["src/configurable_agents"]
