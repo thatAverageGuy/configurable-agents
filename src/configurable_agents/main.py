@@ -17,7 +17,7 @@ load_dotenv()
 
 def load_config(config_path: str) -> dict:
     """Load YAML configuration from file."""
-    with open(config_path, 'r') as f:
+    with open(config_path, 'r', encoding="utf-8") as f:
         config = yaml.safe_load(f)
     return config
 
