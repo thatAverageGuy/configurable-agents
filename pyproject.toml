@@ -10,10 +10,10 @@ dependencies = [
 ]
 
 [project.scripts]
-kickoff = "configurable-agents.main:kickoff"
-run_crew = "configurable-agents.main:kickoff"
-plot = "configurable-agents.main:plot"
-run_with_trigger = "configurable-agents.main:run_with_trigger"
+kickoff = "configurable_agents.main:kickoff"
+run_crew = "configurable_agents.main:kickoff"
+plot = "configurable_agents.main:plot"
+run_with_trigger = "configurable_agents.main:run_with_trigger"
 
 [build-system]
 requires = ["hatchling"]
