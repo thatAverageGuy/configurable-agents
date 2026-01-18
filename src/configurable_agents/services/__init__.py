@@ -8,7 +8,7 @@ Services coordinate between domain models, core execution, and UI.
 from .config_service import ConfigService
 from .execution_service import ExecutionService, FlowResult
 from .validation_service import ValidationService
-from .state_service import StateService
+from .state_service import StateService, get_state_service
 
 __all__ = [
     "ConfigService",
@@ -16,4 +16,5 @@ __all__ = [
     "FlowResult",
     "ValidationService",
     "StateService",
+    "get_state_service"
 ]
