@@ -8,8 +8,7 @@ dependencies = [
     "crewai[tools]==1.8.1",
     "gradio>=6.3.0",
     "langchain-google-genai>=2.0.0",
-    "streamlit>=1.53.0",
-    "streamlit-mermaid>=0.3.0",
+    "python-json-logger>=4.0.0",
 ]
 
 [project.scripts]

@@ -175,7 +175,7 @@ def launch_app(
         server_port=server_port,
         share=share,
         auth=auth,
-        show_api=True,  # Enable API mode for future Phase 6
+        # show_api=True,  # Enable API mode for future Phase 6
         prevent_thread_lock=False
     )
 
