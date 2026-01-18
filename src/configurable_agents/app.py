@@ -95,7 +95,6 @@ def validate_config(config: dict) -> tuple[bool, list[str]]:
     is_valid = len(issues) == 0
     return is_valid, issues
 
-
 def show_validation_status(config: dict):
     """Display validation status with warnings."""
     is_valid, issues = validate_config(config)
@@ -118,7 +117,84 @@ def show_validation_status(config: dict):
             """)
         
         return False
+
+def generate_unique_id(base_name: str, existing_ids: list[str]) -> str:
+    """
+    Generate a unique ID by appending numbers if needed.
     
+    Args:
+        base_name: Base name for the ID (e.g., 'new_agent')
+        existing_ids: List of existing IDs to check against
+        
+    Returns:
+        Unique ID string
+    """
+    if base_name not in existing_ids:
+        return base_name
+    
+    counter = 1
+    while f"{base_name}_{counter}" in existing_ids:
+        counter += 1
+    
+    return f"{base_name}_{counter}"
+
+def create_default_agent(agent_id: str) -> dict:
+    """
+    Create a default agent configuration.
+    
+    Args:
+        agent_id: ID for the new agent
+        
+    Returns:
+        Agent configuration dictionary
+    """
+    return {
+        'id': agent_id,
+        'role': 'New Agent Role',
+        'goal': 'Define what this agent should achieve',
+        'backstory': 'Add background and expertise for this agent',
+        'tools': [],
+        'llm': {}
+    }
+
+def create_default_task(task_id: str, default_agent: str = '') -> dict:
+    """
+    Create a default task configuration.
+    
+    Args:
+        task_id: ID for the new task
+        default_agent: Default agent to assign (if available)
+        
+    Returns:
+        Task configuration dictionary
+    """
+    return {
+        'id': task_id,
+        'description': 'Describe what this task should accomplish',
+        'expected_output': 'Describe the expected output format and content',
+        'agent': default_agent,
+        'llm': {}
+    }
+
+def can_delete_agent(agent_id: str, tasks: list[dict]) -> tuple[bool, list[str]]:
+    """
+    Check if an agent can be safely deleted.
+    
+    Args:
+        agent_id: ID of the agent to delete
+        tasks: List of tasks in the crew
+        
+    Returns:
+        (can_delete, list_of_dependent_tasks)
+    """
+    dependent_tasks = []
+    for task in tasks:
+        if task.get('agent') == agent_id:
+            dependent_tasks.append(task.get('id', 'unknown'))
+    
+    can_delete = len(dependent_tasks) == 0
+    return can_delete, dependent_tasks
+
 # Initialize session state
 if 'config' not in st.session_state:
     st.session_state.config = load_default_config()
@@ -340,12 +416,54 @@ with tab2:
             # Agents editing
             st.markdown("### Agents")
             agents = crew_config.get('agents', [])
-            
+
+            # Add Agent Button
+            col1, col2 = st.columns([3, 1])
+            with col2:
+                if st.button(f"➕ Add Agent", key=f"add_agent_{crew_name}", use_container_width=True):
+                    # Generate unique agent ID
+                    existing_agent_ids = [a.get('id', '') for a in agents]
+                    new_agent_id = generate_unique_id('new_agent', existing_agent_ids)
+                    
+                    # Create new agent with default values
+                    new_agent = create_default_agent(new_agent_id)
+                    agents.append(new_agent)
+                    
+                    st.success(f"✅ Added agent: {new_agent_id}")
+                    st.rerun()
+
+            st.markdown("---")
+
+            # Edit existing agents
             for idx, agent in enumerate(agents):
                 agent_id = agent.get('id', f'agent_{idx}')
                 
                 with st.container():
-                    st.markdown(f"**Agent:** `{agent_id}` - {agent.get('role', 'Unknown Role')}")
+                    # Agent header with delete button
+                    col1, col2 = st.columns([4, 1])
+                    
+                    with col1:
+                        st.markdown(f"**Agent:** `{agent_id}` - {agent.get('role', 'Unknown Role')}")
+                    
+                    with col2:
+                        # Check if agent can be deleted
+                        tasks = crew_config.get('tasks', [])
+                        can_delete, dependent_tasks = can_delete_agent(agent_id, tasks)
+                        
+                        delete_button_disabled = not can_delete
+                        delete_help = f"⚠️ Cannot delete: Tasks {', '.join(dependent_tasks)} depend on this agent" if not can_delete else "Delete this agent"
+                        
+                        if st.button(
+                            "🗑️ Delete", 
+                            key=f"delete_agent_{crew_name}_{agent_id}",
+                            use_container_width=True,
+                            disabled=delete_button_disabled,
+                            help=delete_help
+                        ):
+                            # Confirm deletion
+                            agents.remove(agent)
+                            st.success(f"✅ Deleted agent: {agent_id}")
+                            st.rerun()
                     
                     # Agent role
                     agent_role = st.text_input(
@@ -376,7 +494,7 @@ with tab2:
                     )
                     agent['backstory'] = agent_backstory
                     
-                    # Tool selection
+                    # Tool selection (your existing code)
                     st.markdown("**Tools**")
                     from configurable_agents.core.tool_registry import list_available_tools
 
@@ -385,13 +503,12 @@ with tab2:
                         current_tools = agent.get('tools', [])
                         
                         if available_tools:
-                            # Create columns for better layout (3 tools per row)
                             num_cols = 3
                             cols = st.columns(num_cols)
                             
                             selected_tools = []
-                            for idx, tool_name in enumerate(available_tools):
-                                col_idx = idx % num_cols
+                            for tool_idx, tool_name in enumerate(available_tools):
+                                col_idx = tool_idx % num_cols
                                 with cols[col_idx]:
                                     is_selected = st.checkbox(
                                         tool_name,
@@ -402,10 +519,8 @@ with tab2:
                                     if is_selected:
                                         selected_tools.append(tool_name)
                             
-                            # Update agent tools
                             agent['tools'] = selected_tools
                             
-                            # Show current selection
                             if selected_tools:
                                 st.caption(f"✅ Selected: {', '.join(selected_tools)}")
                             else:
@@ -415,9 +530,8 @@ with tab2:
                             
                     except Exception as e:
                         st.error(f"Error loading tools: {str(e)}")
-                    # ============ END Tool SECTION ============
-
-                    # Agent LLM settings (optional override)
+                    
+                    # Agent LLM settings (your existing code)
                     with st.expander(f"⚙️ LLM Settings for {agent_id}", expanded=False):
                         agent_llm = agent.get('llm', {})
                         
@@ -451,12 +565,50 @@ with tab2:
             # Tasks editing
             st.markdown("### Tasks")
             tasks = crew_config.get('tasks', [])
-            
+
+            # Add Task Button
+            col1, col2 = st.columns([3, 1])
+            with col2:
+                if st.button(f"➕ Add Task", key=f"add_task_{crew_name}", use_container_width=True):
+                    # Generate unique task ID
+                    existing_task_ids = [t.get('id', '') for t in tasks]
+                    new_task_id = generate_unique_id('new_task', existing_task_ids)
+                    
+                    # Get first available agent as default
+                    agent_ids = [a.get('id', '') for a in agents]
+                    default_agent = agent_ids[0] if agent_ids else ''
+                    
+                    # Create new task with default values
+                    new_task = create_default_task(new_task_id, default_agent)
+                    tasks.append(new_task)
+                    
+                    st.success(f"✅ Added task: {new_task_id}")
+                    st.rerun()
+
+            st.markdown("---")
+
+            # Edit existing tasks
             for idx, task in enumerate(tasks):
                 task_id = task.get('id', f'task_{idx}')
                 
                 with st.container():
-                    st.markdown(f"**Task:** `{task_id}`")
+                    # Task header with delete button
+                    col1, col2 = st.columns([4, 1])
+                    
+                    with col1:
+                        st.markdown(f"**Task:** `{task_id}`")
+                    
+                    with col2:
+                        if st.button(
+                            "🗑️ Delete", 
+                            key=f"delete_task_{crew_name}_{task_id}",
+                            use_container_width=True,
+                            help="Delete this task"
+                        ):
+                            # Confirm deletion
+                            tasks.remove(task)
+                            st.success(f"✅ Deleted task: {task_id}")
+                            st.rerun()
                     
                     # Task description
                     task_desc = st.text_area(
@@ -482,16 +634,20 @@ with tab2:
                     agent_ids = [a.get('id', '') for a in agents]
                     current_agent = task.get('agent', agent_ids[0] if agent_ids else '')
                     
-                    task_agent = st.selectbox(
-                        "Assigned Agent",
-                        options=agent_ids,
-                        index=agent_ids.index(current_agent) if current_agent in agent_ids else 0,
-                        key=f"{crew_name}_{task_id}_agent",
-                        help="Which agent executes this task"
-                    )
-                    task['agent'] = task_agent
+                    if agent_ids:
+                        task_agent = st.selectbox(
+                            "Assigned Agent",
+                            options=agent_ids,
+                            index=agent_ids.index(current_agent) if current_agent in agent_ids else 0,
+                            key=f"{crew_name}_{task_id}_agent",
+                            help="Which agent executes this task"
+                        )
+                        task['agent'] = task_agent
+                    else:
+                        st.warning("⚠️ No agents available. Add an agent first!")
+                        task['agent'] = ''
                     
-                    # Task LLM settings (optional override)
+                    # Task LLM settings (your existing code)
                     with st.expander(f"⚙️ LLM Settings for {task_id}", expanded=False):
                         task_llm = task.get('llm', {})
                         
