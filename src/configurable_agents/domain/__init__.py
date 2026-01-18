@@ -7,6 +7,8 @@ Models are pure Python dataclasses with no dependencies on external frameworks.
 
 from .config import (
     FlowConfig,
+    FlowMetadata,
+    StateConfig,
     StepConfig,
     CrewConfig,
     AgentConfig,
@@ -29,11 +31,15 @@ from .exceptions import (
     AgentDependencyError,
     CrewDependencyError,
     StepDependencyError,
+    InvalidYAMLError,
+    ExecutionError
 )
 
 __all__ = [
     # Config models
     "FlowConfig",
+    "FlowMetadata",
+    "StateConfig",
     "StepConfig",
     "CrewConfig",
     "AgentConfig",
@@ -54,4 +60,6 @@ __all__ = [
     "AgentDependencyError",
     "CrewDependencyError",
     "StepDependencyError",
+    "InvalidYAMLError",
+    "ExecutionError"
 ]
