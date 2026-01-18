@@ -47,6 +47,78 @@ def load_default_config():
     with open(config_path, 'r', encoding='utf-8') as f:
         return yaml.safe_load(f)
 
+def validate_config(config: dict) -> tuple[bool, list[str]]:
+    """
+    Validate configuration for broken dependencies.
+    
+    Returns:
+        (is_valid, list_of_issues)
+    """
+    issues = []
+    
+    crews = config.get('crews', {})
+    steps = config.get('steps', [])
+    
+    # Validate steps reference valid crews
+    for step in steps:
+        step_id = step.get('id', 'unknown')
+        crew_ref = step.get('crew_ref')
+        
+        if crew_ref and crew_ref not in crews:
+            issues.append(f"❌ Step '{step_id}' references non-existent crew '{crew_ref}'")
+    
+    # Validate tasks reference valid agents
+    for crew_name, crew_config in crews.items():
+        agents = crew_config.get('agents', [])
+        tasks = crew_config.get('tasks', [])
+        agent_ids = [a.get('id') for a in agents]
+        
+        for task in tasks:
+            task_id = task.get('id', 'unknown')
+            task_agent = task.get('agent')
+            
+            if task_agent and task_agent not in agent_ids:
+                issues.append(f"❌ Task '{task_id}' in '{crew_name}' references non-existent agent '{task_agent}'")
+    
+    # Validate at least one start step exists
+    has_start = any(step.get('is_start', False) for step in steps)
+    if not has_start:
+        issues.append("❌ No step marked as 'is_start: true'")
+    
+    # Validate step routing (next_step references)
+    step_ids = [s.get('id') for s in steps]
+    for step in steps:
+        next_step = step.get('next_step')
+        if next_step and next_step not in step_ids:
+            issues.append(f"❌ Step '{step.get('id')}' routes to non-existent step '{next_step}'")
+    
+    is_valid = len(issues) == 0
+    return is_valid, issues
+
+
+def show_validation_status(config: dict):
+    """Display validation status with warnings."""
+    is_valid, issues = validate_config(config)
+    
+    if is_valid:
+        st.success("✅ Configuration is valid and ready to execute")
+        return True
+    else:
+        st.error("⚠️ Configuration has issues that must be fixed before execution:")
+        for issue in issues:
+            st.warning(issue)
+        
+        with st.expander("🔧 How to Fix", expanded=True):
+            st.markdown("""
+            **Common fixes:**
+            - If a step references a deleted crew: reassign it to an existing crew or delete the step
+            - If a task references a deleted agent: reassign it to an existing agent or delete the task
+            - If routing is broken: update the 'next_step' value or set it to null for the final step
+            - Make sure at least one step has 'is_start: true'
+            """)
+        
+        return False
+    
 # Initialize session state
 if 'config' not in st.session_state:
     st.session_state.config = load_default_config()
@@ -172,6 +244,21 @@ with tab2:
     st.header("⚙️ Configuration Editor")
     st.caption("Edit agent behaviors, task descriptions, and LLM settings")
     
+    # ============ ADD THIS ============
+    # Show validation status
+    is_valid, issues = validate_config(st.session_state.config)
+    
+    if is_valid:
+        st.success("✅ Configuration is valid")
+    else:
+        st.error(f"⚠️ Found {len(issues)} issue(s) - fix before execution")
+        with st.expander("❌ Issues Found", expanded=False):
+            for issue in issues:
+                st.warning(issue)
+    
+    st.markdown("---")
+    # ============ END ADDITION ============
+
     # Get config for editing
     config = st.session_state.config
     crews = config.get('crews', {})
@@ -289,6 +376,47 @@ with tab2:
                     )
                     agent['backstory'] = agent_backstory
                     
+                    # Tool selection
+                    st.markdown("**Tools**")
+                    from configurable_agents.core.tool_registry import list_available_tools
+
+                    try:
+                        available_tools = list_available_tools()
+                        current_tools = agent.get('tools', [])
+                        
+                        if available_tools:
+                            # Create columns for better layout (3 tools per row)
+                            num_cols = 3
+                            cols = st.columns(num_cols)
+                            
+                            selected_tools = []
+                            for idx, tool_name in enumerate(available_tools):
+                                col_idx = idx % num_cols
+                                with cols[col_idx]:
+                                    is_selected = st.checkbox(
+                                        tool_name,
+                                        value=tool_name in current_tools,
+                                        key=f"{crew_name}_{agent_id}_tool_{tool_name}",
+                                        help=f"Enable {tool_name} for this agent"
+                                    )
+                                    if is_selected:
+                                        selected_tools.append(tool_name)
+                            
+                            # Update agent tools
+                            agent['tools'] = selected_tools
+                            
+                            # Show current selection
+                            if selected_tools:
+                                st.caption(f"✅ Selected: {', '.join(selected_tools)}")
+                            else:
+                                st.caption("⚠️ No tools selected")
+                        else:
+                            st.warning("No tools available in registry")
+                            
+                    except Exception as e:
+                        st.error(f"Error loading tools: {str(e)}")
+                    # ============ END Tool SECTION ============
+
                     # Agent LLM settings (optional override)
                     with st.expander(f"⚙️ LLM Settings for {agent_id}", expanded=False):
                         agent_llm = agent.get('llm', {})
@@ -505,9 +633,20 @@ with tab4:
         st.info(f"**Current Topic:** {topic}")
         st.caption(f"Model: {selected_model} | Temperature: {temperature} | Max Tokens: {max_tokens}")
     
+    # ============ ADD VALIDATION CHECK ============
+    # Validate configuration before showing run button
+    is_valid = show_validation_status(st.session_state.config)
+    # ============ END ADDITION ============
+
     with col2:
-        run_button = st.button("▶️ Run Flow", type="primary", use_container_width=True)
-    
+        run_button = st.button(
+            "▶️ Run Flow", 
+            type="primary", 
+            use_container_width=True,
+            disabled=not is_valid,  # ← ADD THIS
+            help="Fix configuration issues before running" if not is_valid else "Execute the flow"  # ← ADD THIS
+        )
+
     # Execute flow
     if run_button:
         st.session_state.execution_complete = False
