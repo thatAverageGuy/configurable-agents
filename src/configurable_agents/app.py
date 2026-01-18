@@ -59,13 +59,30 @@ def validate_config(config: dict) -> tuple[bool, list[str]]:
     crews = config.get('crews', {})
     steps = config.get('steps', [])
     
+    # Validate exactly one start step
+    start_steps = [s for s in steps if s.get('is_start', False)]
+    if len(start_steps) == 0:
+        issues.append("❌ No step marked as 'is_start: true'")
+    elif len(start_steps) > 1:
+        start_step_ids = [s.get('id', 'unknown') for s in start_steps]
+        issues.append(f"❌ Multiple start steps found: {', '.join(start_step_ids)}. Only one is allowed.")
+    
     # Validate steps reference valid crews
     for step in steps:
         step_id = step.get('id', 'unknown')
         crew_ref = step.get('crew_ref')
         
-        if crew_ref and crew_ref not in crews:
+        if not crew_ref:
+            issues.append(f"❌ Step '{step_id}' has no crew assigned")
+        elif crew_ref not in crews:
             issues.append(f"❌ Step '{step_id}' references non-existent crew '{crew_ref}'")
+    
+    # Validate step routing (next_step references)
+    step_ids = [s.get('id') for s in steps]
+    for step in steps:
+        next_step = step.get('next_step')
+        if next_step and next_step not in step_ids:
+            issues.append(f"❌ Step '{step.get('id')}' routes to non-existent step '{next_step}'")
     
     # Validate tasks reference valid agents
     for crew_name, crew_config in crews.items():
@@ -77,20 +94,10 @@ def validate_config(config: dict) -> tuple[bool, list[str]]:
             task_id = task.get('id', 'unknown')
             task_agent = task.get('agent')
             
-            if task_agent and task_agent not in agent_ids:
+            if not task_agent:
+                issues.append(f"❌ Task '{task_id}' in '{crew_name}' has no agent assigned")
+            elif task_agent not in agent_ids:
                 issues.append(f"❌ Task '{task_id}' in '{crew_name}' references non-existent agent '{task_agent}'")
-    
-    # Validate at least one start step exists
-    has_start = any(step.get('is_start', False) for step in steps)
-    if not has_start:
-        issues.append("❌ No step marked as 'is_start: true'")
-    
-    # Validate step routing (next_step references)
-    step_ids = [s.get('id') for s in steps]
-    for step in steps:
-        next_step = step.get('next_step')
-        if next_step and next_step not in step_ids:
-            issues.append(f"❌ Step '{step.get('id')}' routes to non-existent step '{next_step}'")
     
     is_valid = len(issues) == 0
     return is_valid, issues
@@ -236,6 +243,61 @@ def can_delete_crew(crew_name: str, steps: list[dict]) -> tuple[bool, list[str]]
     
     can_delete = len(dependent_steps) == 0
     return can_delete, dependent_steps
+
+def create_default_step(step_id: str, available_crews: list[str]) -> dict:
+    """
+    Create a default step configuration.
+    
+    Args:
+        step_id: ID for the new step
+        available_crews: List of available crew names
+        
+    Returns:
+        Step configuration dictionary
+    """
+    return {
+        'id': step_id,
+        'is_start': False,
+        'type': 'crew',
+        'crew_ref': available_crews[0] if available_crews else '',
+        'next_step': None,  # End of flow by default
+        'inputs': {},
+        'output_to_state': f'state.custom_var.{step_id}_output'
+    }
+
+def can_delete_step(step_id: str, steps: list[dict]) -> tuple[bool, list[str]]:
+    """
+    Check if a step can be safely deleted.
+    
+    Args:
+        step_id: ID of the step to delete
+        steps: List of all steps in the flow
+        
+    Returns:
+        (can_delete, list_of_dependent_steps)
+    """
+    dependent_steps = []
+    for step in steps:
+        if step.get('next_step') == step_id:
+            dependent_steps.append(step.get('id', 'unknown'))
+    
+    can_delete = len(dependent_steps) == 0
+    return can_delete, dependent_steps
+
+def get_start_step_id(steps: list[dict]) -> str:
+    """
+    Get the ID of the current start step.
+    
+    Args:
+        steps: List of all steps
+        
+    Returns:
+        ID of start step or empty string if none found
+    """
+    for step in steps:
+        if step.get('is_start', False):
+            return step.get('id', '')
+    return ''
 
 # Initialize session state
 if 'config' not in st.session_state:
@@ -404,6 +466,182 @@ with tab2:
     
     st.markdown("---")
     
+    # ============ ADD THIS NEW SECTION ============
+    # Steps Configuration
+    st.subheader("📋 Steps Configuration")
+    st.caption("Define the execution flow and routing between steps")
+
+    steps = config.get('steps', [])
+    crews = config.get('crews', {})
+    crew_names = list(crews.keys())
+
+    # Add Step Button
+    col1, col2 = st.columns([3, 1])
+    with col2:
+        if st.button("➕ Add Step", key="add_step_btn", use_container_width=True):
+            # Generate unique step ID
+            existing_step_ids = [s.get('id', '') for s in steps]
+            new_step_id = generate_unique_id('new_step', existing_step_ids)
+            
+            # Create new step with default values
+            new_step = create_default_step(new_step_id, crew_names)
+            steps.append(new_step)
+            
+            st.success(f"✅ Added step: {new_step_id}")
+            st.rerun()
+
+    st.markdown("---")
+
+    # Edit existing steps
+    for idx, step in enumerate(steps):
+        step_id = step.get('id', f'step_{idx}')
+        
+        with st.expander(f"📍 Step: {step_id}", expanded=False):
+            # Step header with delete button
+            col1, col2 = st.columns([4, 1])
+            
+            with col1:
+                st.markdown(f"**Step ID:** `{step_id}`")
+            
+            with col2:
+                # Check if step can be deleted
+                can_delete, dependent_steps = can_delete_step(step_id, steps)
+                
+                delete_button_disabled = not can_delete
+                delete_help = f"⚠️ Cannot delete: Steps {', '.join(dependent_steps)} route to this step" if not can_delete else "Delete this step"
+                
+                if st.button(
+                    "🗑️ Delete",
+                    key=f"delete_step_{step_id}",
+                    use_container_width=True,
+                    disabled=delete_button_disabled,
+                    help=delete_help
+                ):
+                    # Remove step
+                    steps.remove(step)
+                    st.success(f"✅ Deleted step: {step_id}")
+                    st.rerun()
+            
+            # Is Start checkbox
+            current_start_step = get_start_step_id(steps)
+            is_current_start = step.get('is_start', False)
+            
+            is_start = st.checkbox(
+                "⭐ Start Step",
+                value=is_current_start,
+                key=f"step_{step_id}_is_start",
+                help="Mark this as the starting step of the flow (only one allowed)"
+            )
+            
+            # Handle start step logic
+            if is_start and not is_current_start:
+                # User just checked this step as start
+                # Uncheck all other steps
+                for s in steps:
+                    s['is_start'] = False
+                step['is_start'] = True
+            elif not is_start and is_current_start:
+                # User unchecked the start step
+                step['is_start'] = False
+            else:
+                step['is_start'] = is_start
+            
+            # Step type
+            step_type = st.selectbox(
+                "Step Type",
+                options=['crew'],
+                index=0,
+                key=f"step_{step_id}_type",
+                help="Type of step (currently only 'crew' is supported)"
+            )
+            step['type'] = step_type
+            
+            # Crew assignment
+            if crew_names:
+                current_crew = step.get('crew_ref', crew_names[0])
+                crew_index = crew_names.index(current_crew) if current_crew in crew_names else 0
+                
+                crew_ref = st.selectbox(
+                    "Assigned Crew",
+                    options=crew_names,
+                    index=crew_index,
+                    key=f"step_{step_id}_crew_ref",
+                    help="Which crew executes this step"
+                )
+                step['crew_ref'] = crew_ref
+            else:
+                st.warning("⚠️ No crews available. Add a crew first!")
+                step['crew_ref'] = ''
+            
+            # Next step routing
+            available_next_steps = [s.get('id', '') for s in steps if s.get('id') != step_id]
+            available_next_steps.insert(0, 'None (End of Flow)')
+            
+            current_next_step = step.get('next_step')
+            if current_next_step is None:
+                next_step_display = 'None (End of Flow)'
+            else:
+                next_step_display = current_next_step
+            
+            next_step_index = 0
+            if next_step_display in available_next_steps:
+                next_step_index = available_next_steps.index(next_step_display)
+            
+            next_step_selection = st.selectbox(
+                "Next Step",
+                options=available_next_steps,
+                index=next_step_index,
+                key=f"step_{step_id}_next_step",
+                help="Which step runs after this one (or end the flow)"
+            )
+            
+            if next_step_selection == 'None (End of Flow)':
+                step['next_step'] = None
+            else:
+                step['next_step'] = next_step_selection
+            
+            # Inputs and outputs (collapsible for simplicity)
+            with st.expander("🔧 Input/Output Configuration", expanded=False):
+                st.markdown("**Inputs**")
+                st.caption("Define inputs as key-value pairs. Use template syntax like {state.custom_var.topic}")
+                
+                # Show current inputs
+                inputs = step.get('inputs', {})
+                
+                # Simple text area for editing inputs as JSON-like format
+                inputs_str = '\n'.join([f"{k}: {v}" for k, v in inputs.items()])
+                inputs_text = st.text_area(
+                    "Inputs (key: value format)",
+                    value=inputs_str,
+                    height=100,
+                    key=f"step_{step_id}_inputs",
+                    help="Enter inputs as 'key: value' pairs, one per line"
+                )
+                
+                # Parse inputs back into dictionary
+                new_inputs = {}
+                for line in inputs_text.split('\n'):
+                    if ':' in line:
+                        key, value = line.split(':', 1)
+                        new_inputs[key.strip()] = value.strip()
+                step['inputs'] = new_inputs
+                
+                st.markdown("---")
+                
+                st.markdown("**Output**")
+                output_to_state = st.text_input(
+                    "Output Path",
+                    value=step.get('output_to_state', ''),
+                    key=f"step_{step_id}_output",
+                    help="Where to store the output (e.g., state.custom_var.result)"
+                )
+                step['output_to_state'] = output_to_state
+            
+            st.markdown("---")
+
+    st.markdown("---")
+    # ============ END NEW SECTION ============
+
     # Crew-level editing
     st.subheader("👥 Crews Configuration")
 
