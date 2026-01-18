@@ -128,7 +128,7 @@ if st.sidebar.button("📄 View Full YAML Config"):
         st.code(yaml.dump(st.session_state.config, default_flow_style=False), language="yaml")
 
 # Main area - Tabs
-tab1, tab2, tab3, tab4 = st.tabs(["📊 Overview", "🎨 Flow Diagram", "🚀 Execute", "📊 Results"])
+tab1, tab2, tab3, tab4, tab5 = st.tabs(["📊 Overview", "⚙️ Config Editor", "🎨 Flow Diagram", "🚀 Execute", "📊 Results"])
 
 # ==================== TAB 1: OVERVIEW ====================
 with tab1:
@@ -167,8 +167,261 @@ with tab1:
     st.info(f"**Topic:** {topic}")
     st.caption(f"Model: {selected_model} | Temperature: {temperature} | Max Tokens: {max_tokens}")
 
-# ==================== TAB 2: FLOW DIAGRAM ====================
+# ==================== TAB 2: CONFIG EDITOR ====================
 with tab2:
+    st.header("⚙️ Configuration Editor")
+    st.caption("Edit agent behaviors, task descriptions, and LLM settings")
+    
+    # Get config for editing
+    config = st.session_state.config
+    crews = config.get('crews', {})
+    
+    # Flow-level settings
+    with st.expander("🎯 Flow Settings", expanded=False):
+        col1, col2 = st.columns(2)
+        
+        with col1:
+            flow_name = st.text_input(
+                "Flow Name",
+                value=config['flow']['name'],
+                help="Name of the flow"
+            )
+            config['flow']['name'] = flow_name
+        
+        with col2:
+            flow_desc = st.text_area(
+                "Flow Description",
+                value=config['flow']['description'],
+                height=100,
+                help="Description of what this flow does"
+            )
+            config['flow']['description'] = flow_desc
+    
+    st.markdown("---")
+    
+    # Crew-level editing
+    st.subheader("👥 Crews Configuration")
+    
+    for crew_name, crew_config in crews.items():
+        with st.expander(f"🔍 {crew_name.replace('_', ' ').title()}", expanded=True):
+            st.markdown(f"**Crew:** `{crew_name}`")
+            
+            # Crew-level LLM settings
+            st.markdown("**Crew LLM Settings**")
+            col1, col2, col3 = st.columns(3)
+            
+            crew_llm = crew_config.get('llm', {})
+            
+            with col1:
+                crew_temp = st.number_input(
+                    "Temperature",
+                    min_value=0.0,
+                    max_value=1.0,
+                    value=crew_llm.get('temperature', 0.7),
+                    step=0.1,
+                    key=f"{crew_name}_temp",
+                    help="Crew-level temperature override"
+                )
+                if 'llm' not in crew_config:
+                    crew_config['llm'] = {}
+                crew_config['llm']['temperature'] = crew_temp
+            
+            with col2:
+                crew_model = st.text_input(
+                    "Model Override",
+                    value=crew_llm.get('model', ''),
+                    key=f"{crew_name}_model",
+                    help="Leave empty to use global model"
+                )
+                if crew_model:
+                    crew_config['llm']['model'] = crew_model
+            
+            with col3:
+                crew_max_tokens = st.number_input(
+                    "Max Tokens",
+                    min_value=100,
+                    max_value=8000,
+                    value=crew_llm.get('max_tokens', 4000),
+                    step=100,
+                    key=f"{crew_name}_tokens",
+                    help="Max tokens for this crew"
+                )
+                crew_config['llm']['max_tokens'] = crew_max_tokens
+            
+            st.markdown("---")
+            
+            # Agents editing
+            st.markdown("### Agents")
+            agents = crew_config.get('agents', [])
+            
+            for idx, agent in enumerate(agents):
+                agent_id = agent.get('id', f'agent_{idx}')
+                
+                with st.container():
+                    st.markdown(f"**Agent:** `{agent_id}` - {agent.get('role', 'Unknown Role')}")
+                    
+                    # Agent role
+                    agent_role = st.text_input(
+                        "Role",
+                        value=agent.get('role', ''),
+                        key=f"{crew_name}_{agent_id}_role",
+                        help="Agent's role/title"
+                    )
+                    agent['role'] = agent_role
+                    
+                    # Agent goal
+                    agent_goal = st.text_area(
+                        "Goal",
+                        value=agent.get('goal', ''),
+                        height=80,
+                        key=f"{crew_name}_{agent_id}_goal",
+                        help="What this agent is trying to achieve"
+                    )
+                    agent['goal'] = agent_goal
+                    
+                    # Agent backstory
+                    agent_backstory = st.text_area(
+                        "Backstory",
+                        value=agent.get('backstory', ''),
+                        height=100,
+                        key=f"{crew_name}_{agent_id}_backstory",
+                        help="Agent's background and expertise"
+                    )
+                    agent['backstory'] = agent_backstory
+                    
+                    # Agent LLM settings (optional override)
+                    with st.expander(f"⚙️ LLM Settings for {agent_id}", expanded=False):
+                        agent_llm = agent.get('llm', {})
+                        
+                        col1, col2 = st.columns(2)
+                        with col1:
+                            agent_temp = st.number_input(
+                                "Temperature Override",
+                                min_value=0.0,
+                                max_value=1.0,
+                                value=agent_llm.get('temperature', 0.7),
+                                step=0.1,
+                                key=f"{crew_name}_{agent_id}_llm_temp",
+                                help="Agent-specific temperature"
+                            )
+                            if 'llm' not in agent:
+                                agent['llm'] = {}
+                            agent['llm']['temperature'] = agent_temp
+                        
+                        with col2:
+                            agent_model = st.text_input(
+                                "Model Override",
+                                value=agent_llm.get('model', ''),
+                                key=f"{crew_name}_{agent_id}_llm_model",
+                                help="Leave empty to use crew/global model"
+                            )
+                            if agent_model:
+                                agent['llm']['model'] = agent_model
+                    
+                    st.markdown("---")
+            
+            # Tasks editing
+            st.markdown("### Tasks")
+            tasks = crew_config.get('tasks', [])
+            
+            for idx, task in enumerate(tasks):
+                task_id = task.get('id', f'task_{idx}')
+                
+                with st.container():
+                    st.markdown(f"**Task:** `{task_id}`")
+                    
+                    # Task description
+                    task_desc = st.text_area(
+                        "Description",
+                        value=task.get('description', ''),
+                        height=120,
+                        key=f"{crew_name}_{task_id}_desc",
+                        help="What this task should accomplish"
+                    )
+                    task['description'] = task_desc
+                    
+                    # Expected output
+                    task_output = st.text_area(
+                        "Expected Output",
+                        value=task.get('expected_output', ''),
+                        height=80,
+                        key=f"{crew_name}_{task_id}_output",
+                        help="Description of expected output format/content"
+                    )
+                    task['expected_output'] = task_output
+                    
+                    # Agent assignment
+                    agent_ids = [a.get('id', '') for a in agents]
+                    current_agent = task.get('agent', agent_ids[0] if agent_ids else '')
+                    
+                    task_agent = st.selectbox(
+                        "Assigned Agent",
+                        options=agent_ids,
+                        index=agent_ids.index(current_agent) if current_agent in agent_ids else 0,
+                        key=f"{crew_name}_{task_id}_agent",
+                        help="Which agent executes this task"
+                    )
+                    task['agent'] = task_agent
+                    
+                    # Task LLM settings (optional override)
+                    with st.expander(f"⚙️ LLM Settings for {task_id}", expanded=False):
+                        task_llm = task.get('llm', {})
+                        
+                        col1, col2 = st.columns(2)
+                        with col1:
+                            task_temp = st.number_input(
+                                "Temperature Override",
+                                min_value=0.0,
+                                max_value=1.0,
+                                value=task_llm.get('temperature', 0.7),
+                                step=0.1,
+                                key=f"{crew_name}_{task_id}_llm_temp",
+                                help="Task-specific temperature"
+                            )
+                            if 'llm' not in task:
+                                task['llm'] = {}
+                            task['llm']['temperature'] = task_temp
+                        
+                        with col2:
+                            task_model = st.text_input(
+                                "Model Override",
+                                value=task_llm.get('model', ''),
+                                key=f"{crew_name}_{task_id}_llm_model",
+                                help="Leave empty to use agent/crew/global model"
+                            )
+                            if task_model:
+                                task['llm']['model'] = task_model
+                    
+                    st.markdown("---")
+    
+    # Actions
+    st.markdown("---")
+    st.subheader("💾 Actions")
+    
+    col1, col2, col3 = st.columns(3)
+    
+    with col1:
+        if st.button("🔄 Reset to Default", use_container_width=True):
+            st.session_state.config = load_default_config()
+            st.success("✅ Reset to default configuration!")
+            st.rerun()
+    
+    with col2:
+        # Download current config
+        yaml_str = yaml.dump(st.session_state.config, default_flow_style=False, sort_keys=False)
+        st.download_button(
+            label="📥 Download YAML",
+            data=yaml_str,
+            file_name="custom_flow_config.yaml",
+            mime="text/yaml",
+            use_container_width=True
+        )
+    
+    with col3:
+        st.info("Upload coming in Phase 2!")
+
+# ==================== TAB 3: FLOW DIAGRAM ====================
+with tab3:
     st.header("🎨 Flow Visualization")
     
     # Generate and display main flow diagram
@@ -241,8 +494,8 @@ with tab2:
             except Exception as e:
                 st.error(f"Error generating crew diagram: {str(e)}")
 
-# ==================== TAB 3: EXECUTE ====================
-with tab3:
+# ==================== TAB 4: EXECUTE ====================
+with tab4:
     st.header("🚀 Execute Flow")
     
     # Configuration summary
@@ -314,8 +567,8 @@ with tab3:
                 st.error(f"❌ Flow execution failed: {str(e)}")
                 st.exception(e)
 
-# ==================== TAB 4: RESULTS ====================
-with tab4:
+# ==================== TAB 5: RESULTS ====================
+with tab5:
     st.header("📊 Results")
     
     if st.session_state.execution_complete and st.session_state.result:
