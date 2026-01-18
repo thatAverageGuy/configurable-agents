@@ -195,6 +195,48 @@ def can_delete_agent(agent_id: str, tasks: list[dict]) -> tuple[bool, list[str]]
     can_delete = len(dependent_tasks) == 0
     return can_delete, dependent_tasks
 
+def create_default_crew(crew_name: str) -> dict:
+    """
+    Create a default crew configuration.
+    
+    Args:
+        crew_name: Name for the new crew
+        
+    Returns:
+        Crew configuration dictionary
+    """
+    return {
+        'llm': {
+            'temperature': 0.7,
+            'max_tokens': 4000
+        },
+        'agents': [],
+        'tasks': [],
+        'execution': {
+            'type': 'sequential',
+            'tasks': []
+        }
+    }
+
+def can_delete_crew(crew_name: str, steps: list[dict]) -> tuple[bool, list[str]]:
+    """
+    Check if a crew can be safely deleted.
+    
+    Args:
+        crew_name: Name of the crew to delete
+        steps: List of steps in the flow
+        
+    Returns:
+        (can_delete, list_of_dependent_steps)
+    """
+    dependent_steps = []
+    for step in steps:
+        if step.get('crew_ref') == crew_name:
+            dependent_steps.append(step.get('id', 'unknown'))
+    
+    can_delete = len(dependent_steps) == 0
+    return can_delete, dependent_steps
+
 # Initialize session state
 if 'config' not in st.session_state:
     st.session_state.config = load_default_config()
@@ -364,10 +406,52 @@ with tab2:
     
     # Crew-level editing
     st.subheader("👥 Crews Configuration")
-    
+
+    # Add Crew Button
+    col1, col2 = st.columns([3, 1])
+    with col2:
+        if st.button("➕ Add Crew", key="add_crew_btn", use_container_width=True):
+            # Generate unique crew name
+            existing_crew_names = list(crews.keys())
+            new_crew_name = generate_unique_id('new_crew', existing_crew_names)
+            
+            # Create new crew with default values
+            new_crew = create_default_crew(new_crew_name)
+            crews[new_crew_name] = new_crew
+            
+            st.success(f"✅ Added crew: {new_crew_name}")
+            st.rerun()
+
+    st.markdown("---")
+
+    # Edit existing crews
     for crew_name, crew_config in crews.items():
         with st.expander(f"🔍 {crew_name.replace('_', ' ').title()}", expanded=True):
-            st.markdown(f"**Crew:** `{crew_name}`")
+            # Crew header with delete button
+            col1, col2 = st.columns([4, 1])
+            
+            with col1:
+                st.markdown(f"**Crew:** `{crew_name}`")
+            
+            with col2:
+                # Check if crew can be deleted
+                steps = config.get('steps', [])
+                can_delete, dependent_steps = can_delete_crew(crew_name, steps)
+                
+                delete_button_disabled = not can_delete
+                delete_help = f"⚠️ Cannot delete: Steps {', '.join(dependent_steps)} reference this crew" if not can_delete else "Delete this crew"
+                
+                if st.button(
+                    "🗑️ Delete Crew",
+                    key=f"delete_crew_{crew_name}",
+                    use_container_width=True,
+                    disabled=delete_button_disabled,
+                    help=delete_help
+                ):
+                    # Delete the crew
+                    del crews[crew_name]
+                    st.success(f"✅ Deleted crew: {crew_name}")
+                    st.rerun()
             
             # Crew-level LLM settings
             st.markdown("**Crew LLM Settings**")
@@ -494,7 +578,7 @@ with tab2:
                     )
                     agent['backstory'] = agent_backstory
                     
-                    # Tool selection (your existing code)
+                    # Tool selection
                     st.markdown("**Tools**")
                     from configurable_agents.core.tool_registry import list_available_tools
 
@@ -531,7 +615,7 @@ with tab2:
                     except Exception as e:
                         st.error(f"Error loading tools: {str(e)}")
                     
-                    # Agent LLM settings (your existing code)
+                    # Agent LLM settings
                     with st.expander(f"⚙️ LLM Settings for {agent_id}", expanded=False):
                         agent_llm = agent.get('llm', {})
                         
@@ -647,7 +731,7 @@ with tab2:
                         st.warning("⚠️ No agents available. Add an agent first!")
                         task['agent'] = ''
                     
-                    # Task LLM settings (your existing code)
+                    # Task LLM settings
                     with st.expander(f"⚙️ LLM Settings for {task_id}", expanded=False):
                         task_llm = task.get('llm', {})
                         
