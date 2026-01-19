@@ -91,23 +91,30 @@ class ConfigEditorTab(BaseTab):
         error_count = len(cached_validation.errors)
         warning_count = len(cached_validation.warnings)
         
+        # Use format_validation_badge utility
+        badge = format_validation_badge(
+            cached_validation.is_valid,
+            error_count,
+            warning_count
+        )
+        
         if cached_validation.is_valid:
             if warning_count > 0:
                 return f"""
                 <div style="background: #fff3e0; border: 1px solid #ffb74d; padding: 12px; border-radius: 6px; margin: 10px 0;">
-                    ⚠️ <strong>Configuration Valid</strong> with {warning_count} warning(s)
+                    {badge} <strong>Configuration Valid</strong> with {warning_count} warning(s)
                 </div>
                 """
             else:
-                return """
+                return f"""
                 <div style="background: #e8f5e9; border: 1px solid #66bb6a; padding: 12px; border-radius: 6px; margin: 10px 0;">
-                    ✅ <strong>Configuration is Valid</strong> - Ready to execute
+                    {badge} <strong>Configuration is Valid</strong> - Ready to execute
                 </div>
                 """
         else:
             return f"""
             <div style="background: #ffebee; border: 1px solid #ef5350; padding: 12px; border-radius: 6px; margin: 10px 0;">
-                ❌ <strong>Configuration has {error_count} error(s)</strong> - Fix before executing
+                {badge} <strong>Configuration has errors</strong> - Fix before executing
             </div>
             """
     
@@ -193,7 +200,12 @@ class ConfigEditorTab(BaseTab):
             refresh_step_btn = gr.Button("🔄", scale=1)
         
         self.step_status = gr.HTML()
-        
+        # Real-time validation feedback
+        self.step_validation_feedback = gr.HTML(
+            value="",
+            label="Validation Status"
+        )
+
         gr.Markdown("---")
         gr.Markdown("### Step Configuration")
         
@@ -254,7 +266,8 @@ class ConfigEditorTab(BaseTab):
             fn=self.load_step,
             inputs=[self.step_selector],
             outputs=[self.step_id, self.step_is_start, self.step_crew, 
-                     self.step_next, self.step_inputs, self.step_output]
+                    self.step_next, self.step_inputs, self.step_output,
+                    self.step_validation_feedback]  # ADD THIS
         )
         
         save_step_btn.click(
@@ -686,26 +699,35 @@ class ConfigEditorTab(BaseTab):
     def load_step(self, step_id):
         """Load step into editor form."""
         if not step_id:
-            return ("", False, None, "None (End)", "", "")
+            return ("", False, None, "None (End)", "", "", "")
         
         config = self.get_current_config()
         if not config:
-            return ("", False, None, "None (End)", "", "")
+            return ("", False, None, "None (End)", "", "", "")
         
         step = config.get_step(step_id)
         if not step:
-            return ("", False, None, "None (End)", "", "")
+            return ("", False, None, "None (End)", "", "", "")
         
         inputs_text = "\n".join([f"{k}: {v}" for k, v in step.inputs.items()])
         next_display = step.next_step if step.next_step else "None (End)"
         
+        # Get validation feedback
+        validation_feedback = get_real_time_validation_feedback(
+            self.validation_service,
+            config,
+            'step',
+            step_id
+        )
+
         return (
             step.id,
             step.is_start,
             step.crew_ref,
             next_display,
             inputs_text,
-            step.output_to_state
+            step.output_to_state,
+            validation_feedback
         )
     
     @ui_error_handler("Failed to save step")
@@ -742,6 +764,23 @@ class ConfigEditorTab(BaseTab):
         self.set_current_config(config, trigger_validation=True)
         UIFeedback.success(f"Saved step: {step.id}")
         return self.show_success(f"✅ Saved step: {step.id}")
+    
+    @ui_error_handler("Failed to get step feedback")
+    def get_step_validation_feedback(self, step_id):
+        """Get real-time validation feedback for a step being edited."""
+        if not step_id:
+            return ""
+        
+        config = self.get_current_config()
+        if not config:
+            return ""
+        
+        return get_real_time_validation_feedback(
+            self.validation_service,
+            config,
+            'step',
+            step_id
+        )
     
     # ========== CREW METHODS ==========
     
