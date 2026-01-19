@@ -27,9 +27,41 @@ from .tabs import (
 logger = get_logger(__name__)
 
 
-def create_app() -> gr.Blocks:
+def load_default_config_on_startup(config_service, state_service):
+    """
+    Load default configuration on application startup.
+    
+    Looks for article_generation_flow.yaml and loads it automatically.
+    
+    Args:
+        config_service: ConfigService instance
+        state_service: StateService instance
+    """
+    try:
+        # Look for default config
+        default_path = Path(__file__).parent.parent / "article_generation_flow.yaml"
+        
+        if default_path.exists():
+            logger.info(f"Loading default config from: {default_path}")
+            config = config_service.load_from_file(str(default_path))
+            state_service.set('current_config', config)
+            logger.info(f"Default config loaded: {config.flow.name}")
+            return True
+        else:
+            logger.info("No default config found at startup")
+            return False
+    
+    except Exception as e:
+        logger.error(f"Failed to load default config on startup: {e}")
+        return False
+
+
+def create_app(load_default: bool = True) -> gr.Blocks:
     """
     Create the Gradio application.
+    
+    Args:
+        load_default: If True, attempts to load default config on startup
     
     Returns:
         Configured Gradio Blocks application
@@ -41,6 +73,12 @@ def create_app() -> gr.Blocks:
     state_service = get_state_service()
     
     logger.info("Initializing Gradio application...")
+    
+    # Load default config if requested
+    if load_default:
+        default_loaded = load_default_config_on_startup(config_service, state_service)
+        if default_loaded:
+            logger.info("✅ Default configuration loaded on startup")
     
     # Create Gradio app
     with gr.Blocks(
@@ -122,8 +160,8 @@ def create_app() -> gr.Blocks:
         gr.Markdown("""
         <div style="text-align: center; color: #666; font-size: 0.9em;">
             Built with ❤️ using CrewAI Flows | 
-            <a href="https://docs.claude.com" target="_blank">Documentation</a> | 
-            <a href="https://github.com" target="_blank">GitHub</a>
+            <a href="https://docs.anthropic.com" target="_blank">Documentation</a> | 
+            <a href="https://github.com/yourusername/configurable-agents" target="_blank">GitHub</a>
         </div>
         """)
     
@@ -136,7 +174,8 @@ def launch_app(
     server_name: str = "0.0.0.0",
     server_port: int = None,
     share: bool = False,
-    auth: tuple = None
+    auth: tuple = None,
+    load_default: bool = True
 ) -> None:
     """
     Launch the Gradio application.
@@ -146,6 +185,7 @@ def launch_app(
         server_port: Server port (default: from settings or 7860)
         share: Whether to create a public share link
         auth: Optional tuple of (username, password) for authentication
+        load_default: If True, loads default config on startup
     """
     # Setup logging
     settings = get_settings()
@@ -164,11 +204,12 @@ def launch_app(
         auth = settings.app.ui_auth
     
     # Create and launch app
-    app = create_app()
+    app = create_app(load_default=load_default)
     
     logger.info(f"Launching Gradio app on {server_name}:{server_port}")
     logger.info(f"Share mode: {share}")
     logger.info(f"Authentication: {'Enabled' if auth else 'Disabled'}")
+    logger.info(f"Default config loading: {'Enabled' if load_default else 'Disabled'}")
     
     app.launch(
         server_name=server_name,
@@ -209,6 +250,11 @@ def main():
         metavar=("USERNAME", "PASSWORD"),
         help="Enable authentication with username and password"
     )
+    parser.add_argument(
+        "--no-default-config",
+        action="store_true",
+        help="Don't load default config on startup"
+    )
     
     args = parser.parse_args()
     
@@ -219,7 +265,8 @@ def main():
         server_name=args.host,
         server_port=args.port,
         share=args.share,
-        auth=auth
+        auth=auth,
+        load_default=not args.no_default_config
     )
 
 

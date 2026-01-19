@@ -2,11 +2,15 @@
 Results Tab
 
 Displays results from flow execution.
-Shows output, metrics, and provides download options.
+Shows output, metrics, and provides download options with error handling.
 """
 
 import gradio as gr
 from .base_tab import BaseTab
+from ..error_handler import ui_error_handler, track_performance
+from ..utils import UIFeedback, safe_file_operation
+import tempfile
+import json
 
 
 class ResultsTab(BaseTab):
@@ -94,6 +98,8 @@ class ResultsTab(BaseTab):
                 outputs=[self.download_file]
             )
     
+    @ui_error_handler("Failed to refresh results")
+    @track_performance("Refresh Results")
     def refresh_results(self):
         """
         Refresh results display with latest execution.
@@ -104,6 +110,7 @@ class ResultsTab(BaseTab):
         result = self.state_service.get('last_execution_result')
         
         if not result:
+            UIFeedback.info("No execution results available yet")
             return (
                 "No execution yet",
                 "N/A",
@@ -112,23 +119,28 @@ class ResultsTab(BaseTab):
                 ""
             )
         
-        # Extract output
-        output_text = "No output"
-        if result.output:
-            # Try to format output nicely
-            if hasattr(result.output, 'dict'):
-                import json
-                output_text = json.dumps(result.output.dict(), indent=2)
-            elif hasattr(result.output, '__dict__'):
-                import json
-                output_text = json.dumps(result.output.__dict__, indent=2)
-            else:
-                output_text = str(result.output)
+        with self.with_loading("Loading results..."):
+            # Extract output
+            output_text = "No output"
+            if result.output:
+                # Try to format output nicely
+                try:
+                    if hasattr(result.output, 'dict'):
+                        output_text = json.dumps(result.output.dict(), indent=2)
+                    elif hasattr(result.output, '__dict__'):
+                        output_text = json.dumps(result.output.__dict__, indent=2)
+                    else:
+                        output_text = str(result.output)
+                except Exception as e:
+                    self.logger.warning(f"Could not format output as JSON: {e}")
+                    output_text = str(result.output)
+            
+            # Error display
+            error_html = ""
+            if result.status == 'error':
+                error_html = self.show_error(f"Error: {result.error}", include_suggestion=True)
         
-        # Error display
-        error_html = ""
-        if result.status == 'error':
-            error_html = self.show_error(f"Error: {result.error}")
+        UIFeedback.success("Results refreshed")
         
         return (
             result.execution_id,
@@ -138,28 +150,40 @@ class ResultsTab(BaseTab):
             error_html
         )
     
+    @ui_error_handler("Failed to prepare download")
+    @track_performance("Prepare Download")
     def prepare_download(self):
         """
         Prepare output for download.
         
         Returns:
-            File path for download
+            File path for download or None
         """
         result = self.state_service.get('last_execution_result')
         
         if not result or not result.output:
+            UIFeedback.warning("No output available to download")
             return None
         
-        # Create temp file with output
-        import tempfile
-        import json
-        
-        with tempfile.NamedTemporaryFile(mode='w', suffix='.json', delete=False) as f:
-            if hasattr(result.output, 'dict'):
-                json.dump(result.output.dict(), f, indent=2)
-            elif hasattr(result.output, '__dict__'):
-                json.dump(result.output.__dict__, f, indent=2)
-            else:
-                f.write(str(result.output))
+        with self.with_loading("Preparing download..."):
+            # Create temp file with output
+            def create_output_file():
+                with tempfile.NamedTemporaryFile(mode='w', suffix='.json', delete=False) as f:
+                    if hasattr(result.output, 'dict'):
+                        json.dump(result.output.dict(), f, indent=2)
+                    elif hasattr(result.output, '__dict__'):
+                        json.dump(result.output.__dict__, f, indent=2)
+                    else:
+                        f.write(str(result.output))
+                    return f.name
             
-            return f.name
+            file_path = safe_file_operation(
+                create_output_file,
+                None,  # No file path argument needed
+                "Failed to create download file"
+            )
+        
+        if file_path:
+            UIFeedback.success("Download prepared")
+        
+        return file_path

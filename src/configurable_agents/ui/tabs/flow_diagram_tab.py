@@ -2,12 +2,14 @@
 Flow Diagram Tab
 
 Visualizes the flow structure using Mermaid diagrams.
-Shows execution flow and crew details.
+Shows execution flow and crew details with error handling.
 """
 
 import gradio as gr
 from .base_tab import BaseTab
 from ...core.flow_visualizer import generate_mermaid_diagram, generate_crew_diagram
+from ..error_handler import ui_error_handler, track_performance
+from ..utils import UIFeedback
 
 
 class FlowDiagramTab(BaseTab):
@@ -59,6 +61,8 @@ class FlowDiagramTab(BaseTab):
                 outputs=[self.flow_diagram, self.crew_diagrams]
             )
     
+    @ui_error_handler("Failed to refresh diagrams")
+    @track_performance("Refresh Diagrams")
     def refresh_diagrams(self):
         """
         Refresh flow and crew diagrams.
@@ -69,69 +73,78 @@ class FlowDiagramTab(BaseTab):
         config = self.get_current_config()
         
         if not config:
+            UIFeedback.warning("No configuration loaded")
             return (
                 "graph TD\n    Start([No Config Loaded])",
-                "<p style='color: orange;'>⚠️ No configuration loaded</p>"
+                "<p style='color: orange;'>⚠️ No configuration loaded. Load a config in the Config Editor tab.</p>"
             )
         
-        # Convert FlowConfig to dict format for visualizer
-        config_dict = self.config_service.to_dict(config)
-        
-        # Generate main flow diagram
-        try:
-            flow_diagram = generate_mermaid_diagram(config_dict)
-        except Exception as e:
-            self.logger.error(f"Error generating flow diagram: {e}")
-            flow_diagram = f"graph TD\n    Error[Error: {str(e)}]"
-        
-        # Generate crew diagrams
-        crew_diagrams_html = "<div>"
-        
-        for crew_name, crew_config in config.crews.items():
-            # Convert crew to dict format
-            crew_dict = {
-                'agents': [
-                    {
-                        'id': agent.id,
-                        'role': agent.role,
-                        'tools': agent.tools
-                    }
-                    for agent in crew_config.agents
-                ],
-                'tasks': [
-                    {
-                        'id': task.id,
-                        'agent': task.agent
-                    }
-                    for task in crew_config.tasks
-                ],
-                'execution': {
-                    'type': crew_config.execution.type,
-                    'tasks': crew_config.execution.tasks
-                }
-            }
+        with self.with_loading("Generating diagrams..."):
+            # Convert FlowConfig to dict format for visualizer
+            config_dict = self.config_service.to_dict(config)
             
+            # Generate main flow diagram
             try:
-                crew_diagram = generate_crew_diagram(crew_dict, crew_name)
-                
-                crew_diagrams_html += f"""
-                <details style="margin: 10px 0; padding: 10px; border: 1px solid #ddd; border-radius: 5px;">
-                    <summary style="cursor: pointer; font-weight: bold;">
-                        🔍 {crew_name.replace('_', ' ').title()}
-                    </summary>
-                    <pre style="background: #f5f5f5; padding: 10px; border-radius: 5px; margin-top: 10px;">
-{crew_diagram}
-                    </pre>
-                </details>
-                """
+                flow_diagram = generate_mermaid_diagram(config_dict)
+                self.logger.info("Generated main flow diagram")
             except Exception as e:
-                self.logger.error(f"Error generating crew diagram for {crew_name}: {e}")
-                crew_diagrams_html += f"""
-                <div style="color: red; padding: 10px;">
-                    Error generating diagram for {crew_name}: {str(e)}
-                </div>
-                """
+                self.logger.error(f"Error generating flow diagram: {e}", exc_info=True)
+                flow_diagram = f"graph TD\n    Error[Error: {str(e)}]"
+                UIFeedback.error("Failed to generate flow diagram")
+            
+            # Generate crew diagrams
+            crew_diagrams_html = "<div>"
+            
+            for crew_name, crew_config in config.crews.items():
+                # Convert crew to dict format
+                crew_dict = {
+                    'agents': [
+                        {
+                            'id': agent.id,
+                            'role': agent.role,
+                            'tools': agent.tools
+                        }
+                        for agent in crew_config.agents
+                    ],
+                    'tasks': [
+                        {
+                            'id': task.id,
+                            'agent': task.agent
+                        }
+                        for task in crew_config.tasks
+                    ],
+                    'execution': {
+                        'type': crew_config.execution.type,
+                        'tasks': crew_config.execution.tasks
+                    }
+                }
+                
+                try:
+                    crew_diagram = generate_crew_diagram(crew_dict, crew_name)
+                    
+                    crew_diagrams_html += f"""
+                    <details style="margin: 10px 0; padding: 10px; border: 1px solid #ddd; border-radius: 5px;">
+                        <summary style="cursor: pointer; font-weight: bold;">
+                            🔍 {crew_name.replace('_', ' ').title()}
+                        </summary>
+                        <pre style="background: #f5f5f5; padding: 10px; border-radius: 5px; margin-top: 10px; overflow-x: auto;">
+{crew_diagram}
+                        </pre>
+                        <p style="font-size: 0.9em; color: #666; margin-top: 10px;">
+                            📝 Copy this Mermaid code to <a href="https://mermaid.live" target="_blank">mermaid.live</a> to visualize
+                        </p>
+                    </details>
+                    """
+                except Exception as e:
+                    self.logger.error(f"Error generating crew diagram for {crew_name}: {e}", exc_info=True)
+                    crew_diagrams_html += f"""
+                    <div style="color: red; padding: 10px; margin: 10px 0; border: 1px solid red; border-radius: 5px;">
+                        ❌ Error generating diagram for {crew_name}: {str(e)}
+                    </div>
+                    """
+            
+            crew_diagrams_html += "</div>"
         
-        crew_diagrams_html += "</div>"
+        UIFeedback.success("Diagrams refreshed")
         
         return (flow_diagram, crew_diagrams_html)

@@ -2,12 +2,14 @@
 Overview Tab
 
 Displays summary information about the current flow configuration.
-Shows metrics, flow details, and current settings.
+Shows metrics, flow details, and validation status with error handling.
 """
 
 import gradio as gr
 from .base_tab import BaseTab
 from ...core.flow_visualizer import get_flow_summary
+from ..error_handler import ui_error_handler, track_performance
+from ..utils import UIFeedback
 
 
 class OverviewTab(BaseTab):
@@ -101,6 +103,8 @@ class OverviewTab(BaseTab):
                 ]
             )
     
+    @ui_error_handler("Failed to refresh overview")
+    @track_performance("Refresh Overview")
     def refresh_overview(self):
         """
         Refresh overview with current config.
@@ -111,40 +115,39 @@ class OverviewTab(BaseTab):
         config = self.get_current_config()
         
         if not config:
+            UIFeedback.warning("No configuration loaded")
             return (
                 "0", "0", "0", "0",
                 "No config loaded",
                 "",
                 "",
-                self.show_warning("No configuration loaded. Load or create a config to get started.")
+                self.show_warning("Load a config in the Config Editor tab to get started")
             )
         
-        # Get summary
-        summary = get_flow_summary({'flow': {'name': config.flow.name, 'description': config.flow.description}, 'steps': [], 'crews': {}})
+        with self.with_loading("Refreshing overview..."):
+            # Get summary
+            summary = get_flow_summary({
+                'flow': {
+                    'name': config.flow.name,
+                    'description': config.flow.description
+                },
+                'steps': [],
+                'crews': {}
+            })
+            
+            # Calculate metrics
+            num_steps = len(config.steps)
+            num_crews = len(config.crews)
+            num_agents = config.count_agents()
+            num_tasks = config.count_tasks()
+            
+            # Get crew names
+            crew_names = ", ".join(config.get_crew_names())
+            
+            # Validate config
+            is_valid, validation_html = self.validate_current_config()
         
-        # Calculate metrics
-        num_steps = len(config.steps)
-        num_crews = len(config.crews)
-        num_agents = config.count_agents()
-        num_tasks = config.count_tasks()
-        
-        # Get crew names
-        crew_names = ", ".join(config.get_crew_names())
-        
-        # Validate config
-        validation_result = self.validation_service.validate_config(config)
-        
-        if validation_result.is_valid:
-            if validation_result.warnings:
-                validation_html = self.show_warning(
-                    f"Valid with {len(validation_result.warnings)} warning(s)"
-                )
-            else:
-                validation_html = self.show_success("Configuration is valid")
-        else:
-            validation_html = self.show_error(
-                f"Configuration has {len(validation_result.errors)} error(s)"
-            )
+        UIFeedback.success("Overview refreshed")
         
         return (
             str(num_steps),
