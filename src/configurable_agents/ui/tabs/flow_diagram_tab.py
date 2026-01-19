@@ -34,7 +34,7 @@ class FlowDiagramTab(BaseTab):
             
             self.flow_diagram = gr.Code(
                 label="Flow Diagram (Mermaid)",
-                language="mermaid",
+                language="markdown",
                 value="graph TD\n    Start([No Config Loaded])",
                 lines=15
             )
