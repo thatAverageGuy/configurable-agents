@@ -1,8 +1,8 @@
+# src/configurable_agents/ui/tabs/execute_tab.py
 """
-Execute Tab
+Execute Tab - Enhanced with Reactive Validation
 
-Allows users to configure inputs and execute flows.
-Simple key-value input approach matching main.py pattern.
+Real-time validation checks before execution.
 """
 
 import gradio as gr
@@ -14,7 +14,7 @@ from ...utils.id_generator import parse_key_value_text
 
 
 class ExecuteTab(BaseTab):
-    """Execute tab for running flows with flexible key-value inputs."""
+    """Execute tab with reactive validation status."""
     
     def render(self) -> None:
         """Render execute tab content."""
@@ -25,10 +25,10 @@ class ExecuteTab(BaseTab):
             
             gr.Markdown("---")
             
-            # Validation status
+            # Pre-flight validation status
             gr.Markdown("### ✅ Pre-flight Check")
             self.preflight_status = gr.HTML(
-                value=self.show_info("Load a configuration to see validation status")
+                value=self._get_preflight_status()
             )
             
             gr.Markdown("---")
@@ -39,13 +39,13 @@ class ExecuteTab(BaseTab):
             Provide inputs as **key: value** pairs, one per line.
             
             **Example:**
-            ```
+```
             topic: AI in Healthcare
             company: Anthropic
             year: 2024
-            ```
+```
             
-            These will be available in your flow as `{state.custom_var.topic}`, `{state.custom_var.company}`, etc.
+            These will be available in your flow as `{state.custom_var.topic}`, etc.
             """)
             
             self.inputs_text = gr.TextArea(
@@ -60,23 +60,16 @@ class ExecuteTab(BaseTab):
             with gr.Accordion("📝 Quick Examples", open=False):
                 gr.Markdown("""
                 **Article Generation:**
-                ```
+```
                 topic: AI in Healthcare
-                ```
+```
                 
                 **Company Analysis:**
-                ```
+```
                 company: Anthropic
                 industry: AI
                 year: 2024
-                ```
-                
-                **Research Report:**
-                ```
-                topic: Climate Change
-                depth: comprehensive
-                sources: 10
-                ```
+```
                 
                 **No Inputs:**
                 Leave empty if your flow doesn't need inputs
@@ -107,15 +100,57 @@ class ExecuteTab(BaseTab):
                 outputs=[self.execution_status]
             )
     
+    def on_config_changed(self, new_config) -> None:
+        """AUTO-UPDATE pre-flight status when config changes."""
+        self.logger.info("Config changed - updating pre-flight status")
+        try:
+            self.preflight_status.value = self._get_preflight_status()
+        except Exception as e:
+            self.logger.error(f"Error updating pre-flight: {e}", exc_info=True)
+    
+    def _get_preflight_status(self) -> str:
+        """Get current pre-flight validation status."""
+        config = self.get_current_config()
+        
+        if not config:
+            return """
+            <div style="background: #ffebee; border: 1px solid #ef5350; padding: 12px; border-radius: 6px;">
+                ❌ No configuration loaded - cannot execute
+            </div>
+            """
+        
+        # Get cached validation
+        cached_validation = self.state_service.get('last_validation')
+        if not cached_validation:
+            cached_validation = self.validation_service.validate_config(config)
+            self.state_service.set('last_validation', cached_validation)
+        
+        if cached_validation.is_valid:
+            if cached_validation.warnings:
+                return f"""
+                <div style="background: #fff3e0; border: 1px solid #ffb74d; padding: 12px; border-radius: 6px;">
+                    ⚠️ Ready to execute (with {len(cached_validation.warnings)} warning(s))
+                </div>
+                """
+            else:
+                return """
+                <div style="background: #e8f5e9; border: 1px solid #66bb6a; padding: 12px; border-radius: 6px;">
+                    ✅ Ready to execute
+                </div>
+                """
+        else:
+            error_count = len(cached_validation.errors)
+            return f"""
+            <div style="background: #ffebee; border: 1px solid #ef5350; padding: 12px; border-radius: 6px;">
+                ❌ Cannot execute - {error_count} validation error(s) detected
+                <br><small>Fix errors in Config Editor tab first</small>
+            </div>
+            """
+    
     @ui_error_handler("Validation check failed")
     @track_performance("Validate Config")
     def validate_config(self):
-        """
-        Validate the current configuration.
-        
-        Returns:
-            HTML formatted validation status
-        """
+        """Validate the current configuration."""
         config = self.get_current_config()
         
         if not config:
@@ -123,33 +158,15 @@ class ExecuteTab(BaseTab):
             return self.show_error("No configuration loaded. Please load a config first.")
         
         with self.with_loading("Validating configuration..."):
+            # Force fresh validation
             validation_result = self.validation_service.validate_config(config)
+            self.state_service.set('last_validation', validation_result)
         
-        if validation_result.is_valid:
-            if validation_result.warnings:
-                summary = self.validation_service.get_validation_summary(validation_result)
-                UIFeedback.warning(f"Valid with {len(validation_result.warnings)} warning(s)")
-                return self.show_warning(f"Valid with warnings:\n{summary}")
-            else:
-                UIFeedback.success("Configuration is valid!")
-                return self.show_success("✅ Configuration is valid and ready to execute!")
-        else:
-            summary = self.validation_service.get_validation_summary(validation_result)
-            UIFeedback.error(f"Configuration has {len(validation_result.errors)} error(s)")
-            return self.show_error(f"Configuration has errors:\n{summary}", include_suggestion=True)
+        # Update pre-flight display
+        return self._get_preflight_status()
     
     def parse_inputs(self, inputs_text: str) -> Dict[str, Any]:
-        """
-        Parse input text into dictionary.
-        
-        Uses the parse_key_value_text utility from utils module.
-        
-        Args:
-            inputs_text: Text with key: value pairs
-            
-        Returns:
-            Dictionary of parsed inputs
-        """
+        """Parse input text into dictionary."""
         if not inputs_text or not inputs_text.strip():
             return {}
         
@@ -164,15 +181,7 @@ class ExecuteTab(BaseTab):
     @ui_error_handler("Flow execution failed")
     @track_performance("Execute Flow")
     def execute_flow(self, inputs_text: str):
-        """
-        Execute the flow with given inputs.
-        
-        Args:
-            inputs_text: Input text in key: value format
-            
-        Returns:
-            HTML formatted execution status
-        """
+        """Execute the flow with given inputs."""
         config = self.get_current_config()
         
         if not config:
@@ -180,8 +189,11 @@ class ExecuteTab(BaseTab):
             return self.show_error("No configuration loaded. Please load a config first.")
         
         # Validate first
-        validation_result = self.validation_service.validate_config(config)
-        if not validation_result.is_valid:
+        cached_validation = self.state_service.get('last_validation')
+        if not cached_validation:
+            cached_validation = self.validation_service.validate_config(config)
+        
+        if not cached_validation.is_valid:
             UIFeedback.error("Cannot execute - configuration has errors")
             return self.show_error(
                 "Cannot execute - configuration has validation errors. Fix them first.",
@@ -197,10 +209,7 @@ class ExecuteTab(BaseTab):
                 f"Invalid input format: {str(e)}\n\n"
                 f"Expected format:\n"
                 f"key1: value1\n"
-                f"key2: value2\n\n"
-                f"Example:\n"
-                f"topic: AI in Healthcare\n"
-                f"company: Anthropic"
+                f"key2: value2"
             )
         
         try:
@@ -213,19 +222,16 @@ class ExecuteTab(BaseTab):
             else:
                 UIFeedback.info("Starting flow execution (no inputs)")
             
-            # Execute flow with loading state
-            # This matches the pattern in main.py:
-            # flow_instance.state.custom_var.update(initial_inputs)
+            # Execute flow
             with self.with_loading("Executing flow... This may take a few minutes"):
                 result = self.execution_service.execute_flow(config, inputs)
             
-            # Store result in state for Results tab
+            # Store result for Results tab
             self.state_service.set('last_execution_result', result)
             
             if result.status == 'success':
                 UIFeedback.success("Flow completed successfully!")
                 
-                # Format inputs display
                 inputs_display = "\n".join([f"  - {k}: {v}" for k, v in inputs.items()]) if inputs else "  (none)"
                 
                 return self.show_success(

@@ -1,19 +1,18 @@
+# src/configurable_agents/ui/tabs/overview_tab.py
 """
-Overview Tab
+Overview Tab - Enhanced with Auto-Refresh
 
-Displays summary information about the current flow configuration.
-Shows metrics, flow details, and validation status with error handling.
+Displays summary with automatic updates when config changes.
 """
 
 import gradio as gr
 from .base_tab import BaseTab
-from ...core.flow_visualizer import get_flow_summary
 from ..error_handler import ui_error_handler, track_performance
 from ..utils import UIFeedback
 
 
 class OverviewTab(BaseTab):
-    """Overview tab showing flow summary and metrics."""
+    """Overview tab with reactive auto-refresh."""
     
     def render(self) -> None:
         """Render overview tab content."""
@@ -87,7 +86,7 @@ class OverviewTab(BaseTab):
             with gr.Row():
                 refresh_btn = gr.Button("🔄 Refresh Overview", variant="primary")
             
-            # Wire up refresh
+            # Wire up manual refresh
             refresh_btn.click(
                 fn=self.refresh_overview,
                 inputs=[],
@@ -102,6 +101,44 @@ class OverviewTab(BaseTab):
                     self.validation_status
                 ]
             )
+            
+            # ========== NEW: Auto-refresh setup ==========
+            # Store components for auto-refresh
+            self._output_components = [
+                self.steps_metric,
+                self.crews_metric,
+                self.agents_metric,
+                self.tasks_metric,
+                self.flow_name,
+                self.flow_description,
+                self.crew_list,
+                self.validation_status
+            ]
+            
+            # Initial load
+            self.load_and_display_overview()
+    
+    def on_config_changed(self, new_config) -> None:
+        """
+        AUTO-REFRESH when config changes.
+        
+        This is called automatically by BaseTab when StateService
+        notifies of config changes.
+        """
+        self.logger.info("Config changed - auto-refreshing overview")
+        self.load_and_display_overview()
+    
+    def load_and_display_overview(self) -> None:
+        """Load overview data and update all components."""
+        try:
+            values = self.refresh_overview()
+            
+            # Update all components
+            for component, value in zip(self._output_components, values):
+                component.value = value
+                
+        except Exception as e:
+            self.logger.error(f"Error in auto-refresh: {e}", exc_info=True)
     
     @ui_error_handler("Failed to refresh overview")
     @track_performance("Refresh Overview")
@@ -125,16 +162,6 @@ class OverviewTab(BaseTab):
             )
         
         with self.with_loading("Refreshing overview..."):
-            # Get summary
-            summary = get_flow_summary({
-                'flow': {
-                    'name': config.flow.name,
-                    'description': config.flow.description
-                },
-                'steps': [],
-                'crews': {}
-            })
-            
             # Calculate metrics
             num_steps = len(config.steps)
             num_crews = len(config.crews)
@@ -144,7 +171,7 @@ class OverviewTab(BaseTab):
             # Get crew names
             crew_names = ", ".join(config.get_crew_names())
             
-            # Validate config
+            # Validate config (uses cached validation if available)
             is_valid, validation_html = self.validate_current_config()
         
         UIFeedback.success("Overview refreshed")

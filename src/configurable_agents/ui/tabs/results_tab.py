@@ -1,8 +1,8 @@
+# src/configurable_agents/ui/tabs/results_tab.py
 """
-Results Tab
+Results Tab - Enhanced with Auto-Refresh
 
-Displays results from flow execution.
-Shows output, metrics, and provides download options with error handling.
+Displays results with automatic updates when execution completes.
 """
 
 import gradio as gr
@@ -14,7 +14,7 @@ import json
 
 
 class ResultsTab(BaseTab):
-    """Results tab for displaying execution output."""
+    """Results tab with reactive result updates."""
     
     def render(self) -> None:
         """Render results tab content."""
@@ -97,16 +97,46 @@ class ResultsTab(BaseTab):
                 inputs=[],
                 outputs=[self.download_file]
             )
+            
+            # Store components for auto-refresh
+            self._output_components = [
+                self.exec_id,
+                self.exec_status,
+                self.exec_duration,
+                self.output_display,
+                self.error_display
+            ]
+            
+            # Subscribe to execution results
+            self._setup_result_subscription()
+    
+    def _setup_result_subscription(self) -> None:
+        """Subscribe to execution result changes for auto-refresh."""
+        def handle_result_change(event):
+            if event.key == 'last_execution_result':
+                self.logger.info("Execution result changed - auto-refreshing")
+                try:
+                    self.load_and_display_results()
+                except Exception as e:
+                    self.logger.error(f"Error auto-refreshing results: {e}", exc_info=True)
+        
+        self.state_service.subscribe('last_execution_result', handle_result_change)
+    
+    def load_and_display_results(self) -> None:
+        """Load result data and update all components."""
+        try:
+            values = self.refresh_results()
+            
+            for component, value in zip(self._output_components, values):
+                component.value = value
+                
+        except Exception as e:
+            self.logger.error(f"Error in auto-refresh: {e}", exc_info=True)
     
     @ui_error_handler("Failed to refresh results")
     @track_performance("Refresh Results")
     def refresh_results(self):
-        """
-        Refresh results display with latest execution.
-        
-        Returns:
-            Tuple of updated values
-        """
+        """Refresh results display with latest execution."""
         result = self.state_service.get('last_execution_result')
         
         if not result:
@@ -123,7 +153,6 @@ class ResultsTab(BaseTab):
             # Extract output
             output_text = "No output"
             if result.output:
-                # Try to format output nicely
                 try:
                     if hasattr(result.output, 'dict'):
                         output_text = json.dumps(result.output.dict(), indent=2)
@@ -153,12 +182,7 @@ class ResultsTab(BaseTab):
     @ui_error_handler("Failed to prepare download")
     @track_performance("Prepare Download")
     def prepare_download(self):
-        """
-        Prepare output for download.
-        
-        Returns:
-            File path for download or None
-        """
+        """Prepare output for download."""
         result = self.state_service.get('last_execution_result')
         
         if not result or not result.output:
@@ -166,7 +190,6 @@ class ResultsTab(BaseTab):
             return None
         
         with self.with_loading("Preparing download..."):
-            # Create temp file with output
             def create_output_file():
                 with tempfile.NamedTemporaryFile(mode='w', suffix='.json', delete=False) as f:
                     if hasattr(result.output, 'dict'):
@@ -179,7 +202,7 @@ class ResultsTab(BaseTab):
             
             file_path = safe_file_operation(
                 create_output_file,
-                None,  # No file path argument needed
+                None,
                 "Failed to create download file"
             )
         

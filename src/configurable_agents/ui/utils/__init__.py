@@ -17,6 +17,11 @@ from .utils import (
     create_metric_card,
     create_status_badge,
 )
+from .validation_helpers import (
+    format_validation_badge,
+    check_delete_safety,
+    get_real_time_validation_feedback,
+)
 
 __all__ = [
     "UIFeedback",
@@ -30,4 +35,7 @@ __all__ = [
     "create_progress_html",
     "create_metric_card",
     "create_status_badge",
+    "format_validation_badge",
+    "check_delete_safety",
+    "get_real_time_validation_feedback",
 ]
