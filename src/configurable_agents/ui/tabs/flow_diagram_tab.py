@@ -1,8 +1,7 @@
 """
-Flow Diagram Tab
+Flow Diagram Tab - Enhanced with Auto-Refresh
 
-Visualizes the flow structure using Mermaid diagrams.
-Shows execution flow and crew details with error handling.
+Visualizes flow with automatic updates when config changes.
 """
 
 import gradio as gr
@@ -13,7 +12,7 @@ from ..utils import UIFeedback
 
 
 class FlowDiagramTab(BaseTab):
-    """Flow diagram tab for visualizing workflow structure."""
+    """Flow diagram tab with reactive auto-refresh."""
     
     def render(self) -> None:
         """Render flow diagram tab content."""
@@ -54,22 +53,39 @@ class FlowDiagramTab(BaseTab):
                 value="<p>Load a configuration to see crew diagrams</p>"
             )
             
-            # Wire up refresh
+            # Wire up manual refresh
             refresh_btn.click(
                 fn=self.refresh_diagrams,
                 inputs=[],
                 outputs=[self.flow_diagram, self.crew_diagrams]
             )
+            
+            # ========== NEW: Auto-refresh setup ==========
+            self._output_components = [self.flow_diagram, self.crew_diagrams]
+            
+            # Initial load
+            self.load_and_display_diagrams()
+    
+    def on_config_changed(self, new_config) -> None:
+        """AUTO-REFRESH when config changes."""
+        self.logger.info("Config changed - auto-refreshing diagrams")
+        self.load_and_display_diagrams()
+    
+    def load_and_display_diagrams(self) -> None:
+        """Load diagram data and update all components."""
+        try:
+            values = self.refresh_diagrams()
+            
+            for component, value in zip(self._output_components, values):
+                component.value = value
+                
+        except Exception as e:
+            self.logger.error(f"Error in auto-refresh: {e}", exc_info=True)
     
     @ui_error_handler("Failed to refresh diagrams")
     @track_performance("Refresh Diagrams")
     def refresh_diagrams(self):
-        """
-        Refresh flow and crew diagrams.
-        
-        Returns:
-            Tuple of (flow_diagram, crew_diagrams_html)
-        """
+        """Refresh flow and crew diagrams."""
         config = self.get_current_config()
         
         if not config:
@@ -80,7 +96,6 @@ class FlowDiagramTab(BaseTab):
             )
         
         with self.with_loading("Generating diagrams..."):
-            # Convert FlowConfig to dict format for visualizer
             config_dict = self.config_service.to_dict(config)
             
             # Generate main flow diagram
@@ -96,21 +111,13 @@ class FlowDiagramTab(BaseTab):
             crew_diagrams_html = "<div>"
             
             for crew_name, crew_config in config.crews.items():
-                # Convert crew to dict format
                 crew_dict = {
                     'agents': [
-                        {
-                            'id': agent.id,
-                            'role': agent.role,
-                            'tools': agent.tools
-                        }
+                        {'id': agent.id, 'role': agent.role, 'tools': agent.tools}
                         for agent in crew_config.agents
                     ],
                     'tasks': [
-                        {
-                            'id': task.id,
-                            'agent': task.agent
-                        }
+                        {'id': task.id, 'agent': task.agent}
                         for task in crew_config.tasks
                     ],
                     'execution': {

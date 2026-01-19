@@ -1,8 +1,8 @@
+# src/configurable_agents/ui/tabs/config_editor_tab.py
 """
-Config Editor Tab
+Config Editor Tab - Enhanced with Real-Time Validation
 
-Full visual configuration editor with CRUD for flows, crews, agents, tasks, and steps.
-This replaces the minimal config_editor_tab.py with comprehensive functionality.
+Full visual configuration editor with CRUD and real-time validation feedback.
 """
 
 import gradio as gr
@@ -15,50 +15,101 @@ from ...domain import (
     LLMConfig, ExecutionConfig, FlowMetadata, StateConfig
 )
 from ..error_handler import ui_error_handler, track_performance
-from ..utils import UIFeedback, validate_file_upload, safe_file_operation
+from ..utils import (
+    UIFeedback, 
+    validate_file_upload, 
+    safe_file_operation,
+    check_delete_safety,
+    get_real_time_validation_feedback,
+    format_validation_badge
+)
 from ...utils.id_generator import generate_unique_id, parse_key_value_text
 from ...core.tool_registry import list_available_tools
 import tempfile
 
 
 class ConfigEditorTab(BaseTab):
-    """Config editor tab with full visual CRUD operations."""
+    """Config editor with real-time validation and dependency checking."""
     
     def render(self) -> None:
-        """Render complete config editor with all tabs and functionality."""
+        """Render complete config editor with validation integration."""
         
         with gr.Column():
             gr.Markdown("## ⚙️ Configuration Editor")
             gr.Markdown("Visual editor for complete workflow configuration")
             
-            # Validation status banner
-            self.validation_status = gr.HTML(value="")
+            # Global validation banner
+            self.global_validation_banner = gr.HTML(
+                value=self._get_validation_banner()
+            )
             
             gr.Markdown("---")
             
             # Main editing tabs
             with gr.Tabs() as self.main_tabs:
                 
-                # FLOW SETTINGS TAB
                 with gr.Tab("🎯 Flow Settings"):
                     self._render_flow_settings_tab()
                 
-                # STEPS TAB
                 with gr.Tab("📋 Steps"):
                     self._render_steps_tab()
                 
-                # CREWS TAB
                 with gr.Tab("👥 Crews"):
                     self._render_crews_tab()
                 
-                # YAML VIEW TAB
                 with gr.Tab("📄 YAML View"):
                     self._render_yaml_tab()
             
             gr.Markdown("---")
             
-            # Global action buttons
             self._render_global_actions()
+    
+    def on_config_changed(self, new_config) -> None:
+        """AUTO-UPDATE validation banner when config changes."""
+        self.logger.info("Config changed - updating validation banner")
+        try:
+            self.global_validation_banner.value = self._get_validation_banner()
+        except Exception as e:
+            self.logger.error(f"Error updating validation banner: {e}", exc_info=True)
+    
+    def _get_validation_banner(self) -> str:
+        """Get current validation status as HTML banner."""
+        config = self.get_current_config()
+        
+        if not config:
+            return """
+            <div style="background: #fff3e0; border: 1px solid #ffb74d; padding: 12px; border-radius: 6px; margin: 10px 0;">
+                ⚠️ No configuration loaded
+            </div>
+            """
+        
+        cached_validation = self.state_service.get('last_validation')
+        if not cached_validation:
+            cached_validation = self.validation_service.validate_config(config)
+            self.state_service.set('last_validation', cached_validation)
+        
+        error_count = len(cached_validation.errors)
+        warning_count = len(cached_validation.warnings)
+        
+        if cached_validation.is_valid:
+            if warning_count > 0:
+                return f"""
+                <div style="background: #fff3e0; border: 1px solid #ffb74d; padding: 12px; border-radius: 6px; margin: 10px 0;">
+                    ⚠️ <strong>Configuration Valid</strong> with {warning_count} warning(s)
+                </div>
+                """
+            else:
+                return """
+                <div style="background: #e8f5e9; border: 1px solid #66bb6a; padding: 12px; border-radius: 6px; margin: 10px 0;">
+                    ✅ <strong>Configuration is Valid</strong> - Ready to execute
+                </div>
+                """
+        else:
+            return f"""
+            <div style="background: #ffebee; border: 1px solid #ef5350; padding: 12px; border-radius: 6px; margin: 10px 0;">
+                ❌ <strong>Configuration has {error_count} error(s)</strong> - Fix before executing
+            </div>
+            """
     
     # ========== FLOW SETTINGS TAB ==========
     
@@ -107,7 +158,6 @@ class ConfigEditorTab(BaseTab):
         
         self.flow_settings_status = gr.HTML()
         
-        # Wire up buttons
         save_flow_btn.click(
             fn=self.save_flow_settings,
             inputs=[self.flow_name, self.flow_description, self.default_temperature, 
@@ -130,7 +180,6 @@ class ConfigEditorTab(BaseTab):
         gr.Markdown("### Steps - Execution Flow")
         gr.Markdown("Define the sequence of execution steps")
         
-        # Step selector and actions
         with gr.Row():
             self.step_selector = gr.Dropdown(
                 label="Select Step",
@@ -185,7 +234,6 @@ class ConfigEditorTab(BaseTab):
         
         save_step_btn = gr.Button("💾 Save Step", variant="primary")
         
-        # Event handlers
         add_step_btn.click(
             fn=self.add_step,
             outputs=[self.step_status, self.step_selector, self.step_crew, self.step_next]
@@ -223,7 +271,6 @@ class ConfigEditorTab(BaseTab):
         
         gr.Markdown("### Crews - Agent Teams")
         
-        # Crew selector
         with gr.Row():
             self.crew_selector = gr.Dropdown(
                 label="Select Crew",
@@ -240,7 +287,6 @@ class ConfigEditorTab(BaseTab):
         
         gr.Markdown("---")
         
-        # Crew configuration tabs
         with gr.Tabs():
             
             with gr.Tab("⚙️ Crew Settings"):
@@ -252,7 +298,6 @@ class ConfigEditorTab(BaseTab):
             with gr.Tab("📋 Tasks"):
                 self._render_tasks_editor()
         
-        # Wire up crew-level events
         add_crew_btn.click(
             fn=self.add_crew,
             outputs=[self.crew_status, self.crew_selector]
@@ -294,7 +339,6 @@ class ConfigEditorTab(BaseTab):
             outputs=[self.crew_settings_status]
         )
         
-        # Auto-load when crew changes
         self.crew_selector.change(
             fn=self.load_crew_settings,
             inputs=[self.crew_selector],
@@ -339,7 +383,6 @@ class ConfigEditorTab(BaseTab):
         
         save_agent_btn = gr.Button("💾 Save Agent", variant="primary")
         
-        # Events
         add_agent_btn.click(
             fn=self.add_agent,
             inputs=[self.crew_selector],
@@ -405,7 +448,6 @@ class ConfigEditorTab(BaseTab):
         
         save_task_btn = gr.Button("💾 Save Task", variant="primary")
         
-        # Events
         add_task_btn.click(
             fn=self.add_task,
             inputs=[self.crew_selector],
@@ -433,7 +475,6 @@ class ConfigEditorTab(BaseTab):
             outputs=[self.task_status]
         )
         
-        # Update agent choices when crew changes
         self.crew_selector.change(
             fn=self.get_crew_agents,
             inputs=[self.crew_selector],
@@ -491,10 +532,9 @@ class ConfigEditorTab(BaseTab):
             visible=False
         )
         
-        # Wire up
         self.validate_all_btn.click(
             fn=self.validate_all,
-            outputs=[self.validation_status]
+            outputs=[self.global_validation_banner]
         )
         
         self.download_yaml_btn.click(
@@ -510,16 +550,15 @@ class ConfigEditorTab(BaseTab):
         self.upload_file.upload(
             fn=self.load_uploaded_config,
             inputs=[self.upload_file],
-            outputs=[self.validation_status]
+            outputs=[self.global_validation_banner]
         )
         
         self.reset_default_btn.click(
             fn=self.load_default_config,
-            outputs=[self.validation_status]
+            outputs=[self.global_validation_banner]
         )
     
-    # ========== IMPLEMENTATION METHODS ==========
-    # All the @ui_error_handler decorated methods follow...
+    # ========== FLOW SETTINGS METHODS ==========
     
     @ui_error_handler("Failed to save flow settings")
     @track_performance("Save Flow Settings")
@@ -529,14 +568,13 @@ class ConfigEditorTab(BaseTab):
         if not config:
             return self.show_error("No config loaded")
         
-        # Update config
         config.flow.name = name or "unnamed_flow"
         config.flow.description = desc or ""
         config.defaults.temperature = temp
         config.defaults.max_tokens = int(tokens) if tokens else None
         config.defaults.model = model if model else None
         
-        self.set_current_config(config)
+        self.set_current_config(config, trigger_validation=True)
         UIFeedback.success("Flow settings saved")
         return self.show_success("✅ Flow settings saved")
     
@@ -555,7 +593,7 @@ class ConfigEditorTab(BaseTab):
             config.defaults.model or ""
         )
     
-    # ===== STEP METHODS =====
+    # ========== STEP METHODS ==========
     
     @ui_error_handler("Failed to add step")
     def add_step(self):
@@ -564,26 +602,23 @@ class ConfigEditorTab(BaseTab):
         if not config:
             return self.show_error("No config loaded"), gr.update(), gr.update(), gr.update()
         
-        # Generate unique ID
         existing_ids = [s.id for s in config.steps]
         new_id = generate_unique_id("new_step", existing_ids)
         
-        # Get first crew if available
         crew_ref = list(config.crews.keys())[0] if config.crews else ""
         
-        # Create step
         new_step = StepConfig(
             id=new_id,
             type="crew",
             crew_ref=crew_ref,
-            is_start=len(config.steps) == 0,  # First step is start
+            is_start=len(config.steps) == 0,
             next_step=None,
             inputs={},
             output_to_state=f"state.custom_var.{new_id}_output"
         )
         
         config.steps.append(new_step)
-        self.set_current_config(config)
+        self.set_current_config(config, trigger_validation=True)
         
         UIFeedback.success(f"Added step: {new_id}")
         
@@ -608,22 +643,19 @@ class ConfigEditorTab(BaseTab):
         if not config:
             return self.show_error("No config loaded"), gr.update()
         
-        # Check dependencies
-        can_delete, dependent_steps = self.validation_service.can_delete_step(config, step_id)
+        can_delete, safety_html = check_delete_safety(
+            self.validation_service,
+            config,
+            'step',
+            step_id
+        )
         
         if not can_delete:
-            UIFeedback.error(f"Cannot delete - used by {len(dependent_steps)} steps")
-            return (
-                self.show_error(
-                    f"Cannot delete step '{step_id}' - "
-                    f"these steps route to it: {', '.join(dependent_steps)}"
-                ),
-                gr.update()
-            )
+            UIFeedback.error("Cannot delete step - has dependencies")
+            return safety_html, gr.update()
         
-        # Delete step
         config.steps = [s for s in config.steps if s.id != step_id]
-        self.set_current_config(config)
+        self.set_current_config(config, trigger_validation=True)
         
         UIFeedback.success(f"Deleted step: {step_id}")
         
@@ -664,10 +696,7 @@ class ConfigEditorTab(BaseTab):
         if not step:
             return ("", False, None, "None (End)", "", "")
         
-        # Format inputs
         inputs_text = "\n".join([f"{k}: {v}" for k, v in step.inputs.items()])
-        
-        # Format next_step
         next_display = step.next_step if step.next_step else "None (End)"
         
         return (
@@ -689,18 +718,15 @@ class ConfigEditorTab(BaseTab):
         if not config:
             return self.show_error("No config loaded")
         
-        # Find step
         step = config.get_step(old_id)
         if not step:
             return self.show_error(f"Step '{old_id}' not found")
         
-        # Parse inputs
         try:
             inputs_dict = parse_key_value_text(inputs_text) if inputs_text else {}
         except Exception as e:
             return self.show_error(f"Invalid inputs format: {e}")
         
-        # Update step
         step.id = new_id or old_id
         step.is_start = is_start
         step.crew_ref = crew_ref or ""
@@ -708,17 +734,16 @@ class ConfigEditorTab(BaseTab):
         step.inputs = inputs_dict
         step.output_to_state = output or ""
         
-        # If marked as start, unmark others
         if is_start:
             for s in config.steps:
                 if s.id != step.id:
                     s.is_start = False
         
-        self.set_current_config(config)
+        self.set_current_config(config, trigger_validation=True)
         UIFeedback.success(f"Saved step: {step.id}")
         return self.show_success(f"✅ Saved step: {step.id}")
     
-    # ===== CREW METHODS =====
+    # ========== CREW METHODS ==========
     
     @ui_error_handler("Failed to add crew")
     def add_crew(self):
@@ -727,11 +752,9 @@ class ConfigEditorTab(BaseTab):
         if not config:
             return self.show_error("No config loaded"), gr.update()
         
-        # Generate unique name
         existing_names = list(config.crews.keys())
         new_name = generate_unique_id("new_crew", existing_names)
         
-        # Create crew with defaults
         new_crew = CrewConfig(
             agents=[],
             tasks=[],
@@ -740,7 +763,7 @@ class ConfigEditorTab(BaseTab):
         )
         
         config.crews[new_name] = new_crew
-        self.set_current_config(config)
+        self.set_current_config(config, trigger_validation=True)
         
         UIFeedback.success(f"Added crew: {new_name}")
         
@@ -760,22 +783,19 @@ class ConfigEditorTab(BaseTab):
         if not config:
             return self.show_error("No config loaded"), gr.update()
         
-        # Check dependencies
-        can_delete, dependent_steps = self.validation_service.can_delete_crew(config, crew_name)
+        can_delete, safety_html = check_delete_safety(
+            self.validation_service,
+            config,
+            'crew',
+            crew_name
+        )
         
         if not can_delete:
-            UIFeedback.error(f"Cannot delete - used by {len(dependent_steps)} steps")
-            return (
-                self.show_error(
-                    f"Cannot delete crew '{crew_name}' - "
-                    f"these steps reference it: {', '.join(dependent_steps)}"
-                ),
-                gr.update()
-            )
+            UIFeedback.error("Cannot delete crew - has dependencies")
+            return safety_html, gr.update()
         
-        # Delete crew
         del config.crews[crew_name]
-        self.set_current_config(config)
+        self.set_current_config(config, trigger_validation=True)
         
         UIFeedback.success(f"Deleted crew: {crew_name}")
         
@@ -808,7 +828,6 @@ class ConfigEditorTab(BaseTab):
         if not crew:
             return self.show_error(f"Crew '{crew_name}' not found")
         
-        # Update LLM config
         if not crew.llm:
             crew.llm = LLMConfig()
         
@@ -816,7 +835,7 @@ class ConfigEditorTab(BaseTab):
         crew.llm.max_tokens = int(tokens) if tokens else None
         crew.llm.model = model if model else None
         
-        self.set_current_config(config)
+        self.set_current_config(config, trigger_validation=True)
         UIFeedback.success(f"Saved settings for {crew_name}")
         return self.show_success(f"✅ Saved {crew_name} settings")
     
@@ -840,7 +859,7 @@ class ConfigEditorTab(BaseTab):
             crew.llm.model or ""
         )
     
-    # ===== AGENT METHODS =====
+    # ========== AGENT METHODS ==========
     
     @ui_error_handler("Failed to add agent")
     def add_agent(self, crew_name):
@@ -853,11 +872,9 @@ class ConfigEditorTab(BaseTab):
         if not crew:
             return self.show_error(f"Crew '{crew_name}' not found"), gr.update()
         
-        # Generate unique ID
         existing_ids = [a.id for a in crew.agents]
         new_id = generate_unique_id("new_agent", existing_ids)
         
-        # Create agent
         new_agent = AgentConfig(
             id=new_id,
             role="New Agent",
@@ -868,7 +885,7 @@ class ConfigEditorTab(BaseTab):
         )
         
         crew.agents.append(new_agent)
-        self.set_current_config(config)
+        self.set_current_config(config, trigger_validation=True)
         
         UIFeedback.success(f"Added agent: {new_id}")
         
@@ -889,22 +906,20 @@ class ConfigEditorTab(BaseTab):
         if not crew:
             return self.show_error(f"Crew '{crew_name}' not found"), gr.update()
         
-        # Check dependencies
-        can_delete, dependent_tasks = self.validation_service.can_delete_agent(crew, agent_id)
+        can_delete, safety_html = check_delete_safety(
+            self.validation_service,
+            config,
+            'agent',
+            agent_id,
+            crew_name=crew_name
+        )
         
         if not can_delete:
-            UIFeedback.error(f"Cannot delete - used by {len(dependent_tasks)} tasks")
-            return (
-                self.show_error(
-                    f"Cannot delete agent '{agent_id}' - "
-                    f"these tasks depend on it: {', '.join(dependent_tasks)}"
-                ),
-                gr.update()
-            )
+            UIFeedback.error("Cannot delete agent - has dependencies")
+            return safety_html, gr.update()
         
-        # Delete agent
         crew.agents = [a for a in crew.agents if a.id != agent_id]
-        self.set_current_config(config)
+        self.set_current_config(config, trigger_validation=True)
         
         UIFeedback.success(f"Deleted agent: {agent_id}")
         
@@ -954,25 +969,23 @@ class ConfigEditorTab(BaseTab):
         if not agent:
             return self.show_error(f"Agent '{old_id}' not found")
         
-        # Update agent
         agent.id = new_id or old_id
         agent.role = role or "New Agent"
         agent.goal = goal or "Define goal"
         agent.backstory = backstory or "Define backstory"
         agent.tools = tools or []
         
-        # Update LLM if specified
         if temp != 0.7 or model:
             if not agent.llm:
                 agent.llm = LLMConfig()
             agent.llm.temperature = temp
             agent.llm.model = model if model else None
         
-        self.set_current_config(config)
+        self.set_current_config(config, trigger_validation=True)
         UIFeedback.success(f"Saved agent: {agent.id}")
         return self.show_success(f"✅ Saved agent: {agent.id}")
     
-    # ===== TASK METHODS =====
+    # ========== TASK METHODS ==========
     
     @ui_error_handler("Failed to add task")
     def add_task(self, crew_name):
@@ -985,14 +998,11 @@ class ConfigEditorTab(BaseTab):
         if not crew:
             return self.show_error(f"Crew '{crew_name}' not found"), gr.update()
         
-        # Get first agent if available
         agent_id = crew.agents[0].id if crew.agents else ""
         
-        # Generate unique ID
         existing_ids = [t.id for t in crew.tasks]
         new_id = generate_unique_id("new_task", existing_ids)
         
-        # Create task
         new_task = TaskConfig(
             id=new_id,
             description="Define task description",
@@ -1004,11 +1014,9 @@ class ConfigEditorTab(BaseTab):
         )
         
         crew.tasks.append(new_task)
-        
-        # Add to execution order
         crew.execution.tasks.append(new_id)
         
-        self.set_current_config(config)
+        self.set_current_config(config, trigger_validation=True)
         
         UIFeedback.success(f"Added task: {new_id}")
         
@@ -1029,13 +1037,10 @@ class ConfigEditorTab(BaseTab):
         if not crew:
             return self.show_error(f"Crew '{crew_name}' not found"), gr.update()
         
-        # Delete task
         crew.tasks = [t for t in crew.tasks if t.id != task_id]
-        
-        # Remove from execution order
         crew.execution.tasks = [t for t in crew.execution.tasks if t != task_id]
         
-        self.set_current_config(config)
+        self.set_current_config(config, trigger_validation=True)
         
         UIFeedback.success(f"Deleted task: {task_id}")
         
@@ -1084,20 +1089,18 @@ class ConfigEditorTab(BaseTab):
         if not task:
             return self.show_error(f"Task '{old_id}' not found")
         
-        # Update task
         task.id = new_id or old_id
         task.description = desc or "Define description"
         task.expected_output = expected or "Define output"
         task.agent = agent or ""
         
-        # Update LLM if specified
         if temp != 0.7 or model:
             if not task.llm:
                 task.llm = LLMConfig()
             task.llm.temperature = temp
             task.llm.model = model if model else None
         
-        self.set_current_config(config)
+        self.set_current_config(config, trigger_validation=True)
         UIFeedback.success(f"Saved task: {task.id}")
         return self.show_success(f"✅ Saved task: {task.id}")
     
@@ -1121,7 +1124,7 @@ class ConfigEditorTab(BaseTab):
             gr.update(choices=task_choices)
         )
     
-    # ===== YAML AND VALIDATION METHODS =====
+    # ========== YAML AND VALIDATION METHODS ==========
     
     @ui_error_handler("Failed to refresh YAML")
     def refresh_yaml(self):
@@ -1143,7 +1146,7 @@ class ConfigEditorTab(BaseTab):
         try:
             data = yaml.safe_load(yaml_text)
             config = self.config_service.load_from_dict(data)
-            self.set_current_config(config)
+            self.set_current_config(config, trigger_validation=True)
             
             UIFeedback.success("Loaded from YAML")
             return self.show_success("✅ Loaded configuration from YAML")
@@ -1153,9 +1156,17 @@ class ConfigEditorTab(BaseTab):
     
     @ui_error_handler("Failed to validate")
     def validate_all(self):
-        """Validate entire configuration."""
-        is_valid, validation_html = self.validate_current_config()
-        return validation_html
+        """Validate entire configuration and update banner."""
+        config = self.get_current_config()
+        if not config:
+            return self._get_validation_banner()
+        
+        # Force fresh validation
+        validation_result = self.validation_service.validate_config(config)
+        self.state_service.set('last_validation', validation_result)
+        
+        # Update and return banner
+        return self._get_validation_banner()
     
     @ui_error_handler("Failed to prepare download")
     def prepare_download(self):
@@ -1190,7 +1201,7 @@ class ConfigEditorTab(BaseTab):
     def load_uploaded_config(self, file_obj):
         """Load uploaded YAML file."""
         if not file_obj:
-            return self.show_warning("No file uploaded")
+            return self._get_validation_banner()
         
         is_valid, error_msg = validate_file_upload(
             file_obj,
@@ -1200,18 +1211,18 @@ class ConfigEditorTab(BaseTab):
         
         if not is_valid:
             UIFeedback.error(error_msg)
-            return self.show_error(error_msg)
+            return self._get_validation_banner()
         
         try:
             with self.with_loading("Loading configuration..."):
                 config = self.config_service.load_from_file(file_obj)
-                self.set_current_config(config)
+                self.set_current_config(config, trigger_validation=True)
             
             UIFeedback.success(f"Loaded: {config.flow.name}")
-            return self.show_success(f"✅ Loaded: {config.flow.name}")
+            return self._get_validation_banner()
         except Exception as e:
             UIFeedback.error("Failed to load config")
-            return self.show_error(f"Error: {e}")
+            return self._get_validation_banner()
     
     @ui_error_handler("Failed to load default config")
     def load_default_config(self):
@@ -1221,13 +1232,14 @@ class ConfigEditorTab(BaseTab):
                 default_path = Path(__file__).parent.parent.parent / "article_generation_flow.yaml"
                 
                 if not default_path.exists():
-                    return self.show_error("Default config not found")
+                    UIFeedback.error("Default config not found")
+                    return self._get_validation_banner()
                 
                 config = self.config_service.load_from_file(str(default_path))
-                self.set_current_config(config)
+                self.set_current_config(config, trigger_validation=True)
             
             UIFeedback.success("Default config loaded")
-            return self.show_success(f"✅ Loaded: {config.flow.name}")
+            return self._get_validation_banner()
         except Exception as e:
             UIFeedback.error("Failed to load default")
-            return self.show_error(f"Error: {e}")
+            return self._get_validation_banner()
