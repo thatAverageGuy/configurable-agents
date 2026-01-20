@@ -48,7 +48,7 @@ def run_flow(config: Dict[str, Any], initial_inputs: Dict[str, Any] = None) -> A
         print(f"[Main] Flow completed successfully")
         print(f"[Main] Final state: {flow_instance.state.dict()}")
         
-        return result
+        return flow_instance.state.custom_var
         
     except Exception as e:
         flow_instance.state.execution_status = "error"
