@@ -23,7 +23,7 @@ async def kickoff(request: TriggerRequest):
     try:
         # Re-use existing logic to run the flow
         print(f"Triggering flow with inputs: {request.inputs}")
-        result = run_flow_from_file(CONFIG_PATH, request.inputs)
+        result = await run_flow_from_file(CONFIG_PATH, request.inputs)
         
         # Handle CrewAI output types safely
         final_output = result.raw if hasattr(result, 'raw') else str(result)

@@ -3,7 +3,7 @@ Main Entry Point for Configurable Agents
 
 This module loads YAML configuration and executes dynamically built flows.
 """
-
+import asyncio
 import yaml
 from datetime import datetime
 import uuid
@@ -22,7 +22,7 @@ def load_config(config_path: str) -> dict:
     return config
 
 
-def run_flow(config: Dict[str, Any], initial_inputs: Dict[str, Any] = None) -> Any:
+async def run_flow(config: Dict[str, Any], initial_inputs: Dict[str, Any] = None) -> Any:
     """Run a flow from configuration."""
     FlowClass = build_flow_class(config)
     flow_instance = FlowClass()
@@ -41,7 +41,7 @@ def run_flow(config: Dict[str, Any], initial_inputs: Dict[str, Any] = None) -> A
     print(f"[Main] Initial inputs: {initial_inputs}")
     
     try:
-        result = flow_instance.kickoff()
+        result = await flow_instance.kickoff_async()
         flow_instance.state.execution_status = "success"
         flow_instance.state.execution_message = "Flow completed successfully"
         
@@ -57,14 +57,14 @@ def run_flow(config: Dict[str, Any], initial_inputs: Dict[str, Any] = None) -> A
         raise
 
 
-def run_flow_from_file(config_path: str, initial_inputs: Dict[str, Any] = None) -> Any:
+async def run_flow_from_file(config_path: str, initial_inputs: Dict[str, Any] = None) -> Any:
     """Load config from file and run flow."""
     config = load_config(config_path)
-    return run_flow(config, initial_inputs)
+    return await run_flow(config, initial_inputs)
 
 
 # ========== NEW: Standard CrewAI entry point ==========
-def kickoff():
+async def kickoff():
     """
     Standard entry point for 'crewai run' command.
     
@@ -94,7 +94,7 @@ def kickoff():
     print(f"[kickoff] Inputs: {initial_inputs}")
     
     # Run the flow
-    result = run_flow_from_file(str(config_path), initial_inputs)
+    result = await run_flow_from_file(str(config_path), initial_inputs)
     
     print("\n" + "="*80)
     print("FLOW EXECUTION COMPLETE")
@@ -104,7 +104,7 @@ def kickoff():
     return result
 
 
-def main():
+async def main():
     """Main function for CLI execution."""
     import sys
     
@@ -131,7 +131,7 @@ def main():
             i += 1
     
     # Run the flow
-    result = run_flow_from_file(config_path, initial_inputs)
+    result = await run_flow_from_file(config_path, initial_inputs)
     
     print("\n" + "="*80)
     print("FLOW EXECUTION COMPLETE")
@@ -140,4 +140,4 @@ def main():
 
 
 if __name__ == "__main__":
-    main()
+    asyncio.run(main())
