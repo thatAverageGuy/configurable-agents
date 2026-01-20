@@ -4,7 +4,7 @@ import json
 import sys
 import os
 from dotenv import load_dotenv
-
+import asyncio
 # Ensure we can import from the package if running from src root
 current_dir = os.path.dirname(os.path.abspath(__file__))
 src_dir = os.path.dirname(os.path.dirname(current_dir))
@@ -90,7 +90,7 @@ with col2:
                     st.write("Initializing Flow...")
                     
                     # 3. Execute using main.py's logic
-                    result = run_flow(config, inputs)
+                    result = asyncio.run(run_flow(config, inputs))
                     
                     status.update(label="✅ Flow Completed", state="complete")
                 
