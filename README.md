@@ -1,1 +1,1 @@
-Runtime config based agent workflows
+Config-driven agent orchestration engine.
