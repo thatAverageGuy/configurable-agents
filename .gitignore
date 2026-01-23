@@ -3,3 +3,7 @@ __pycache__/
 lib/
 .DS_Store
 .venv/
+.cursor/*
+.vscode/*
+docs/*
+CLAUDE.md
