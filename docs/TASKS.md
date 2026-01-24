@@ -73,7 +73,7 @@ Supports both YAML (.yaml, .yml) and JSON (.json) formats with automatic detecti
 - [x] Handle file not found errors
 - [x] Support both absolute and relative paths
 - [x] Class-based architecture with convenience functions
-- [x] Unit tests for valid and invalid YAML/JSON (24 tests created)
+- [x] Unit tests for valid and invalid YAML/JSON (18 tests created)
 
 **Files**:
 - `src/configurable_agents/config/parser.py`
