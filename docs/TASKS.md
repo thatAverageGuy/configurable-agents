@@ -113,48 +113,53 @@ def parse_config_file(config_path: str) -> dict:
 ---
 
 ### T-003: Config Schema (Pydantic Models) - EXPANDED
-**Status**: TODO
+**Status**: DONE ✅
 **Priority**: P0
 **Dependencies**: T-001
-**Estimated Effort**: 2 weeks
+**Completed**: 2026-01-24
+**Actual Effort**: 1 day (implementation highly efficient)
 
 **Description**:
 Define complete Pydantic models for Schema v1.0. Full schema from day one (see ADR-009).
 
 **Acceptance Criteria**:
-- [ ] `WorkflowConfig` (top-level)
-- [ ] `FlowMetadata` (name, version, description)
-- [ ] `StateSchema` with:
-  - [ ] Basic types (str, int, float, bool)
-  - [ ] Collection types (list, dict, list[str], etc.)
-  - [ ] Nested objects (object with schema)
-  - [ ] Required/default fields
-  - [ ] Field descriptions
-- [ ] `NodeConfig` with:
-  - [ ] Input mapping (dict)
-  - [ ] Output schema (object or simple type)
-  - [ ] Tools list
-  - [ ] Node-level optimization config
-  - [ ] Node-level LLM overrides
-- [ ] `EdgeConfig` with:
-  - [ ] Linear edges (from, to)
-  - [ ] Conditional routes (list of conditions)
-- [ ] `OptimizationConfig` (DSPy settings - v0.3+)
-- [ ] `GlobalConfig` (LLM, execution, observability)
-- [ ] JSON Schema export (for IDE autocomplete)
-- [ ] Comprehensive unit tests:
-  - [ ] Valid configs pass
-  - [ ] Invalid configs fail with good errors
-  - [ ] Nested structures validated
-  - [ ] Type validation works
-  - [ ] Optional fields work
-  - [ ] Future features (optimization, conditionals) validate
+- [x] `WorkflowConfig` (top-level)
+- [x] `FlowMetadata` (name, version, description)
+- [x] `StateSchema` with:
+  - [x] Basic types (str, int, float, bool)
+  - [x] Collection types (list, dict, list[str], etc.)
+  - [x] Nested objects (object with schema)
+  - [x] Required/default fields
+  - [x] Field descriptions
+- [x] `NodeConfig` with:
+  - [x] Input mapping (dict)
+  - [x] Output schema (object or simple type)
+  - [x] Tools list
+  - [x] Node-level optimization config
+  - [x] Node-level LLM overrides
+- [x] `EdgeConfig` with:
+  - [x] Linear edges (from, to)
+  - [x] Conditional routes (list of conditions)
+- [x] `OptimizationConfig` (DSPy settings - v0.3+)
+- [x] `GlobalConfig` (LLM, execution, observability)
+- [ ] JSON Schema export (for IDE autocomplete) - Deferred to later
+- [x] Comprehensive unit tests:
+  - [x] Valid configs pass
+  - [x] Invalid configs fail with good errors
+  - [x] Nested structures validated
+  - [x] Type validation works
+  - [x] Optional fields work
+  - [x] Future features (optimization, conditionals) validate
 
-**Files**:
-- `src/configurable_agents/config/schema.py`
+**Files Created**:
+- `src/configurable_agents/config/schema.py` (13 Pydantic models)
 - `src/configurable_agents/config/types.py` (type parsing utilities)
-- `tests/config/test_schema.py`
-- `tests/config/test_types.py`
+- `tests/config/test_schema.py` (67 tests)
+- `tests/config/test_types.py` (31 tests)
+- `tests/config/test_schema_integration.py` (5 integration tests)
+
+**Tests**: 103 tests created (31 type + 67 schema + 5 integration)
+**Total Project Tests**: 124 (up from 21)
 
 **Interface**:
 ```python
@@ -878,12 +883,12 @@ T-019 -> T-020 (Structured Output + DSPy - NEW)
 
 **Last Updated**: 2026-01-24
 
-### v0.1 Progress: 2/20 tasks complete (10%)
+### v0.1 Progress: 3/20 tasks complete (15%)
 
-**Phase 1: Foundation (2/7 complete)**
+**Phase 1: Foundation (3/7 complete)**
 - ✅ T-001: Project Setup
 - ✅ T-002: Config Parser
-- ⏳ T-003: Config Schema (Pydantic Models)
+- ✅ T-003: Config Schema (Pydantic Models)
 - ⏳ T-004: Config Validator
 - ⏳ T-004.5: Runtime Feature Gating
 - ⏳ T-005: Type System
@@ -909,8 +914,8 @@ T-019 -> T-020 (Structured Output + DSPy - NEW)
 - ⏳ T-019: DSPy Integration Test
 - ⏳ T-020: Structured Output + DSPy Test
 
-**Current Sprint**: Foundation Phase (T-003 next)
-**Test Status**: 21 tests passing (18 parser + 3 setup)
+**Current Sprint**: Foundation Phase (T-004 next)
+**Test Status**: 124 tests passing (67 schema + 31 types + 18 parser + 5 integration + 3 setup)
 
 ---
 
