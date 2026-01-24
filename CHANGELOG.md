@@ -26,8 +26,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Handles both absolute and relative file paths
 - Comprehensive error handling with helpful messages
 - Convenience function `parse_config_file()` for simple use cases
-- Created 24 comprehensive unit tests (all pass)
+- Created 18 comprehensive unit tests (all pass)
 - Test fixtures for valid/invalid YAML and JSON
+- **Automated setup scripts** for one-command venv setup (Windows & Unix)
+- Setup scripts check if venv exists to avoid redundant installations
 
 **Files Created**:
 ```
@@ -37,12 +39,17 @@ src/configurable_agents/config/
 
 tests/config/
 ├── __init__.py
-├── test_parser.py (24 tests)
+├── test_parser.py (18 test functions)
 └── fixtures/
     ├── valid_config.yaml
     ├── valid_config.json
     ├── invalid_syntax.yaml
     └── invalid_syntax.json
+
+Development Setup:
+├── setup.bat (Windows automated setup)
+├── setup.sh (Unix/Linux/macOS automated setup)
+└── SETUP.md (updated with Quick Setup section)
 ```
 
 **How to Verify**:
@@ -77,10 +84,21 @@ tests/config/
    # Expected: ConfigParseError: Invalid YAML syntax...
    ```
 
-6. **Run full test suite** (once pytest installed):
+6. **Run automated setup** (recommended - installs venv & dependencies):
    ```bash
-   pytest tests/config/test_parser.py -v
-   # Expected: 24 passed
+   # Windows
+   setup.bat
+
+   # Unix/Linux/macOS
+   ./setup.sh
+   # Expected: Virtual environment created, dependencies installed
+   ```
+
+7. **Run full test suite** (after running setup script):
+   ```bash
+   .venv/Scripts/pytest tests/config/test_parser.py -v  # Windows
+   .venv/bin/pytest tests/config/test_parser.py -v      # Unix
+   # Expected: 18 passed in ~0.4s
    ```
 
 **What to Expect**:
@@ -140,15 +158,16 @@ git commit -m "T-002: Config parser - YAML and JSON support
 - Support for .yaml, .yml, and .json file extensions
 - Comprehensive error handling (FileNotFoundError, ConfigParseError)
 - Both absolute and relative path support
-- Created 24 unit tests with valid/invalid fixtures
+- Created 18 unit tests with valid/invalid fixtures
 - Exported public API from config module
+- Added automated setup scripts (setup.bat, setup.sh)
+- Setup scripts check for existing venv to avoid redundant installs
+- Updated SETUP.md with Quick Setup section
 
-Manual verification:
-  python -c \"import sys; sys.path.insert(0, 'src'); \\
-    from configurable_agents.config import parse_config_file; \\
-    config = parse_config_file('tests/config/fixtures/valid_config.yaml'); \\
-    print('Loaded:', config['flow']['name'])\"
-  Expected: Loaded: test_workflow
+Verification:
+  ./setup.sh  # or setup.bat on Windows
+  .venv/Scripts/pytest tests/config/test_parser.py -v
+  Expected: 18 passed
 
 Progress: 2/20 tasks (10%) - Foundation phase
 Next: T-003 (Config Schema - Pydantic Models)"
