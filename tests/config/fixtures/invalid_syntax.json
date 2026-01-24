@@ -1,0 +1,7 @@
+{
+  "flow": {
+    "name": "test",
+    "missing_comma": "value"
+    "another": "field"
+  }
+}

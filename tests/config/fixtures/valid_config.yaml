@@ -1,0 +1,25 @@
+schema_version: "1.0"
+
+flow:
+  name: test_workflow
+  description: Test workflow for parser
+
+state:
+  fields:
+    input:
+      type: str
+      required: true
+    output:
+      type: str
+      default: ""
+
+nodes:
+  - id: process
+    prompt: "Process: {state.input}"
+    outputs: [output]
+
+edges:
+  - from: START
+    to: process
+  - from: process
+    to: END

@@ -56,32 +56,54 @@ Set up project structure, dependencies, and development environment.
 ---
 
 ### T-002: Config Parser
-**Status**: TODO
+**Status**: DONE ✅
 **Priority**: P0
 **Dependencies**: T-001
-**Estimated Effort**: 2-3 days
+**Completed**: 2026-01-24
 
 **Description**:
 Implement YAML/JSON config parser that loads config files into Python dicts.
+Supports both YAML (.yaml, .yml) and JSON (.json) formats with automatic detection.
 
 **Acceptance Criteria**:
-- [ ] Load YAML file from path
-- [ ] Load JSON file from path
-- [ ] Handle YAML/JSON syntax errors gracefully
-- [ ] Return parsed dict
-- [ ] Handle file not found errors
-- [ ] Support both absolute and relative paths
-- [ ] Unit tests for valid and invalid YAML/JSON
+- [x] Load YAML file from path (auto-detect .yaml/.yml)
+- [x] Load JSON file from path (auto-detect .json)
+- [x] Handle YAML/JSON syntax errors gracefully
+- [x] Return parsed dict
+- [x] Handle file not found errors
+- [x] Support both absolute and relative paths
+- [x] Class-based architecture with convenience functions
+- [x] Unit tests for valid and invalid YAML/JSON (24 tests created)
 
 **Files**:
 - `src/configurable_agents/config/parser.py`
 - `tests/config/test_parser.py`
 
-**Interface**:
+**Architecture**:
 ```python
-def load_config(config_path: str) -> dict:
+class ConfigLoader:
+    """Load workflow configurations from files or dicts"""
+
+    def load_file(self, path: str) -> dict:
+        """Load config from YAML or JSON file"""
+        # Auto-detects format from extension
+        pass
+
+    def _parse_file(self, path: str) -> dict:
+        """Parse YAML or JSON to dict"""
+        pass
+
+# Convenience functions for users
+def parse_config_file(config_path: str) -> dict:
     """Load YAML or JSON config from file path"""
+    return ConfigLoader().load_file(config_path)
 ```
+
+**Design Decisions**:
+- Both YAML and JSON supported from day one (minimal complexity, ~3 lines)
+- Class structure for organization and future extensibility
+- Function wrappers for user convenience
+- Format detection via file extension (.yaml/.yml → YAML, .json → JSON)
 
 ---
 
@@ -851,11 +873,11 @@ T-019 -> T-020 (Structured Output + DSPy - NEW)
 
 **Last Updated**: 2026-01-24
 
-### v0.1 Progress: 1/20 tasks complete (5%)
+### v0.1 Progress: 2/20 tasks complete (10%)
 
-**Phase 1: Foundation (1/7 complete)**
+**Phase 1: Foundation (2/7 complete)**
 - ✅ T-001: Project Setup
-- ⏳ T-002: Config Parser
+- ✅ T-002: Config Parser
 - ⏳ T-003: Config Schema (Pydantic Models)
 - ⏳ T-004: Config Validator
 - ⏳ T-004.5: Runtime Feature Gating

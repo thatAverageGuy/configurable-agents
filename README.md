@@ -81,14 +81,15 @@ configurable-agents run article_writer.yaml --input topic="AI Safety"
 ## 🗺️ Roadmap
 
 ### v0.1 - Foundation ⏳ (Current - Week 1 of 6-8)
-**Status**: 5% complete (1/20 tasks) | **Target**: March 2026
+**Status**: 10% complete (2/20 tasks) | **Target**: March 2026
 
 **What's working**:
 - ✅ Project setup and structure
 - ✅ Development environment ready
+- ✅ Config parser (YAML + JSON support)
 
 **In progress**:
-- ⏳ Config parser and validator
+- ⏳ Config schema and validation
 - ⏳ State management
 - ⏳ LLM integration (Google Gemini)
 - ⏳ Linear workflow execution
@@ -233,9 +234,9 @@ See [Architecture Decision Records](docs/adr/) for detailed design choices.
 
 ## 📊 Current Progress
 
-### Phase 1: Foundation (1/7 complete)
+### Phase 1: Foundation (2/7 complete)
 - ✅ T-001: Project Setup
-- ⏳ T-002: Config Parser
+- ✅ T-002: Config Parser
 - ⏳ T-003: Config Schema (Pydantic Models)
 - ⏳ T-004: Config Validator
 - ⏳ T-005: Type System

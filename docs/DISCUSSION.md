@@ -293,6 +293,18 @@ nodes:
    - Q4: Per-node tool config deferred to v0.2+
    - Q5: Local variables take precedence (revisit uniformity in v0.2)
 
+3. **T-002 Implementation Decisions** (2026-01-24):
+   - **JSON + YAML**: Support both formats from day one
+     - Minimal complexity (~3 lines), shared validation path
+     - Auto-detect from file extension (.yaml/.yml vs .json)
+   - **Architecture**: Class-based (ConfigLoader) with function wrappers
+     - Internal: ConfigLoader class for organization
+     - User-facing: parse_config_file() convenience function
+     - Easy to extend (add load_string() for UI later)
+   - **File Paths**: Support both absolute and relative
+     - Resolved from cwd for relative paths
+     - No special handling needed (pathlib handles it)
+
 ---
 
 ## What You Need to Review
