@@ -26,7 +26,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Handles both absolute and relative file paths
 - Comprehensive error handling with helpful messages
 - Convenience function `parse_config_file()` for simple use cases
-- Created 18 comprehensive unit tests (all pass)
+- Created 18 comprehensive unit tests for parser (all pass)
+- Created 3 setup verification tests
+- Total: 21 tests passing
 - Test fixtures for valid/invalid YAML and JSON
 - **Automated setup scripts** for one-command venv setup (Windows & Unix)
 - Setup scripts check if venv exists to avoid redundant installations
@@ -98,7 +100,7 @@ Development Setup:
    ```bash
    .venv/Scripts/pytest tests/config/test_parser.py -v  # Windows
    .venv/bin/pytest tests/config/test_parser.py -v      # Unix
-   # Expected: 18 passed in ~0.4s
+   # Expected: 18 passed in ~0.1s
    ```
 
 **What to Expect**:
