@@ -1,6 +1,37 @@
 # Development Setup
 
-## Installation
+## Quick Setup (Recommended)
+
+**Automated setup script** - Creates venv, installs dependencies:
+
+```bash
+# Windows
+setup.bat
+
+# macOS/Linux
+./setup.sh
+```
+
+The script will:
+- ✅ Check if `.venv` exists (skips creation if already present)
+- ✅ Create virtual environment if needed
+- ✅ Activate the environment
+- ✅ Install all dependencies (core + dev)
+
+Then activate the virtual environment:
+```bash
+# Windows
+.venv\Scripts\activate
+
+# macOS/Linux
+source .venv/bin/activate
+```
+
+---
+
+## Manual Installation
+
+If you prefer to set up manually or the script doesn't work:
 
 ### 1. Clone the repository
 ```bash
