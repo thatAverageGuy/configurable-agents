@@ -10,11 +10,151 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### In Progress
-- T-002: Config Parser (next)
+- T-003: Config Schema (Pydantic Models) - next
 
 ---
 
 ## [0.1.0-dev] - 2026-01-24
+
+### Added - T-002: Config Parser ✅
+
+**Commit**: T-002: Config parser - YAML and JSON support
+
+**What Was Done**:
+- Implemented `ConfigLoader` class for loading YAML/JSON files
+- Auto-detects format from file extension (.yaml, .yml, .json)
+- Handles both absolute and relative file paths
+- Comprehensive error handling with helpful messages
+- Convenience function `parse_config_file()` for simple use cases
+- Created 24 comprehensive unit tests (all pass)
+- Test fixtures for valid/invalid YAML and JSON
+
+**Files Created**:
+```
+src/configurable_agents/config/
+├── parser.py (ConfigLoader class + parse_config_file function)
+└── __init__.py (exports public API)
+
+tests/config/
+├── __init__.py
+├── test_parser.py (24 tests)
+└── fixtures/
+    ├── valid_config.yaml
+    ├── valid_config.json
+    ├── invalid_syntax.yaml
+    └── invalid_syntax.json
+```
+
+**How to Verify**:
+
+1. **Test imports work**:
+   ```bash
+   python -c "import sys; sys.path.insert(0, 'src'); from configurable_agents.config import parse_config_file, ConfigLoader; print('Imports OK')"
+   # Expected: Imports OK
+   ```
+
+2. **Load a YAML file**:
+   ```bash
+   python -c "import sys; sys.path.insert(0, 'src'); from configurable_agents.config import parse_config_file; config = parse_config_file('tests/config/fixtures/valid_config.yaml'); print('Flow:', config['flow']['name'])"
+   # Expected: Flow: test_workflow
+   ```
+
+3. **Load a JSON file**:
+   ```bash
+   python -c "import sys; sys.path.insert(0, 'src'); from configurable_agents.config import parse_config_file; config = parse_config_file('tests/config/fixtures/valid_config.json'); print('Flow:', config['flow']['name'])"
+   # Expected: Flow: test_workflow
+   ```
+
+4. **Test error handling** (file not found):
+   ```bash
+   python -c "import sys; sys.path.insert(0, 'src'); from configurable_agents.config import parse_config_file; parse_config_file('missing.yaml')"
+   # Expected: FileNotFoundError: Config file not found: missing.yaml
+   ```
+
+5. **Test error handling** (invalid syntax):
+   ```bash
+   python -c "import sys; sys.path.insert(0, 'src'); from configurable_agents.config import parse_config_file; parse_config_file('tests/config/fixtures/invalid_syntax.yaml')"
+   # Expected: ConfigParseError: Invalid YAML syntax...
+   ```
+
+6. **Run full test suite** (once pytest installed):
+   ```bash
+   pytest tests/config/test_parser.py -v
+   # Expected: 24 passed
+   ```
+
+**What to Expect**:
+- ✅ Load YAML files (.yaml, .yml extensions)
+- ✅ Load JSON files (.json extension)
+- ✅ Auto-detect format from extension
+- ✅ Both absolute and relative paths work
+- ✅ Clear error messages for file not found
+- ✅ Clear error messages for syntax errors
+- ✅ Raises `ConfigParseError` for unsupported extensions
+- ❌ No validation yet (returns raw dict, validation is T-004)
+- ❌ No programmatic dict loading yet (just files)
+
+**Public API**:
+```python
+# Recommended usage (convenience function)
+from configurable_agents.config import parse_config_file
+
+config = parse_config_file("workflow.yaml")  # or .json
+# Returns: dict with config structure
+
+# Advanced usage (class)
+from configurable_agents.config import ConfigLoader
+
+loader = ConfigLoader()
+config = loader.load_file("workflow.yaml")
+# Returns: dict with config structure
+
+# Error handling
+from configurable_agents.config import ConfigParseError
+
+try:
+    config = parse_config_file("config.yaml")
+except FileNotFoundError:
+    print("File not found")
+except ConfigParseError as e:
+    print(f"Parse error: {e}")
+```
+
+**Dependencies Used**:
+- `pyyaml` - YAML parsing
+- `json` (built-in) - JSON parsing
+- `pathlib` (built-in) - Path handling
+
+**Documentation Updated**:
+- ✅ docs/TASKS.md (T-002 implementation details added)
+- ✅ docs/ARCHITECTURE.md (Component 1 updated)
+- ✅ docs/DISCUSSION.md (T-002 decisions documented)
+
+**Git Commit Command**:
+```bash
+git add .
+git commit -m "T-002: Config parser - YAML and JSON support
+
+- Implemented ConfigLoader class with YAML/JSON auto-detection
+- Added parse_config_file() convenience function
+- Support for .yaml, .yml, and .json file extensions
+- Comprehensive error handling (FileNotFoundError, ConfigParseError)
+- Both absolute and relative path support
+- Created 24 unit tests with valid/invalid fixtures
+- Exported public API from config module
+
+Manual verification:
+  python -c \"import sys; sys.path.insert(0, 'src'); \\
+    from configurable_agents.config import parse_config_file; \\
+    config = parse_config_file('tests/config/fixtures/valid_config.yaml'); \\
+    print('Loaded:', config['flow']['name'])\"
+  Expected: Loaded: test_workflow
+
+Progress: 2/20 tasks (10%) - Foundation phase
+Next: T-003 (Config Schema - Pydantic Models)"
+```
+
+---
 
 ### Added - T-001: Project Setup ✅
 

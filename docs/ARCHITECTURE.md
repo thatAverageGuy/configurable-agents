@@ -46,12 +46,37 @@ The system transforms YAML configuration into executable agent workflows.
 ## Component Architecture (v0.1)
 
 ### 1. Config Parser
-**Responsibility**: Load and parse YAML into Python dict
+**Responsibility**: Load and parse YAML/JSON into Python dict
 
 **Implementation**:
-- Use `pyyaml` for YAML parsing
+- Use `pyyaml` for YAML parsing (.yaml, .yml files)
+- Use built-in `json` for JSON parsing (.json files)
+- Auto-detect format from file extension
 - No validation at this layer (just syntax checking)
 - Return raw dict structure
+- Class-based with convenience function wrappers
+
+**Architecture**:
+```python
+class ConfigLoader:
+    def load_file(self, path: str) -> dict:
+        """Load from YAML or JSON file (auto-detect)"""
+
+    def _parse_file(self, path: str) -> dict:
+        """Parse file to dict based on extension"""
+
+# User-facing convenience function
+def parse_config_file(path: str) -> dict:
+    return ConfigLoader().load_file(path)
+```
+
+**Supported Formats**:
+- YAML: `.yaml`, `.yml` (primary format)
+- JSON: `.json` (alternative format, same schema)
+
+**Path Handling**:
+- Absolute paths: `/full/path/to/config.yaml`
+- Relative paths: `./config.yaml` (resolved from cwd)
 
 **Files**:
 - `config/parser.py`
