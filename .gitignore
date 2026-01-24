@@ -5,5 +5,5 @@ lib/
 .venv/
 .cursor/*
 .vscode/*
-docs/*
-CLAUDE.md
+# docs/*
+# CLAUDE.md
