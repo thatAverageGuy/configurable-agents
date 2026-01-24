@@ -8,10 +8,10 @@
 
 ## 🎯 Current Status
 
-### Implementation Progress: 10% Complete (2/20 tasks)
+### Implementation Progress: 15% Complete (3/20 tasks)
 
 **Active Phase**: Foundation
-**Current Task**: T-003 (Config Schema - Pydantic Models)
+**Current Task**: T-004 (Config Validator)
 **Next Milestone**: Complete Phase 1 (7 tasks) - Foundation
 
 ---
@@ -52,56 +52,68 @@
 - ✅ Error handling with helpful messages
 - ✅ Class-based architecture with convenience functions
 - ✅ 18 parser tests passing
-- ✅ 21 total tests passing (18 parser + 3 setup)
 
 **Files Created**:
 - `src/configurable_agents/config/parser.py`
 - `tests/config/test_parser.py`
 - `tests/config/fixtures/` (test configs)
 
-**Architecture**:
-```python
-class ConfigLoader:
-    def load_file(path: str) -> dict
+---
 
-def parse_config_file(path: str) -> dict  # Convenience function
+### T-003: Config Schema (Pydantic Models) ✅
+**Completed**: 2026-01-24
+**Commit**: (pending)
+
+**Deliverables**:
+- ✅ Type system for parsing type strings (str, int, float, bool, list, dict, nested)
+- ✅ 13 Pydantic models for complete Schema v1.0
+- ✅ Full Schema Day One (ADR-009) - supports features through v0.3
+- ✅ Field validation, cross-field validation, model-level validation
+- ✅ YAML/JSON round-trip support
+- ✅ 103 new tests (31 type + 67 schema + 5 integration)
+- ✅ 124 total tests passing (up from 21)
+
+**Files Created**:
+- `src/configurable_agents/config/types.py` (type parsing)
+- `src/configurable_agents/config/schema.py` (13 Pydantic models)
+- `tests/config/test_types.py` (31 tests)
+- `tests/config/test_schema.py` (67 tests)
+- `tests/config/test_schema_integration.py` (5 tests)
+
+**Models Created**:
+```python
+WorkflowConfig
+├── FlowMetadata
+├── StateSchema + StateFieldConfig
+├── NodeConfig
+│   ├── OutputSchema + OutputSchemaField
+│   ├── OptimizeConfig
+│   └── LLMConfig
+├── EdgeConfig + Route + RouteCondition
+├── OptimizationConfig
+└── GlobalConfig
+    ├── ExecutionConfig
+    └── ObservabilityConfig
+        ├── ObservabilityMLFlowConfig
+        └── ObservabilityLoggingConfig
 ```
 
 ---
 
 ## 🚧 In Progress
 
-### T-003: Config Schema (Pydantic Models)
-**Status**: TODO
+### T-004: Config Validator
+**Status**: Next
 **Priority**: P0 (Critical)
-**Dependencies**: T-001
+**Dependencies**: T-002, T-003
 **Estimated Effort**: 2 weeks
 
 **Scope**:
-- Define complete Pydantic models for Schema v1.0
-- All planned features (v0.1, v0.2, v0.3) in structure
-- Support basic types, collection types, nested objects
-- Node configurations with input/output mappings
-- Edge configurations (linear + conditional structure)
-- Optimization config (DSPy settings for v0.3)
-- Global config (LLM, execution, observability)
-
-**Deliverables**:
-- `src/configurable_agents/config/schema.py`
-- `src/configurable_agents/config/types.py`
-- `tests/config/test_schema.py`
-- JSON Schema export for IDE autocomplete
-
-**Key Models**:
-```python
-WorkflowConfig
-├── FlowMetadata
-├── StateSchema
-├── NodeConfig[]
-├── EdgeConfig[]
-├── OptimizationConfig (optional)
-└── GlobalConfig (optional)
-```
+- Cross-reference validation (outputs match state, node IDs exist)
+- Graph validation (reachability, cycles, START/END)
+- Type alignment validation (output types match state types)
+- Helpful error messages with suggestions
+- "Did you mean...?" for typos
 
 ---
 
@@ -109,20 +121,20 @@ WorkflowConfig
 
 ### Next 5 Tasks
 
-1. **T-003**: Config Schema (Pydantic Models) - IN PLANNING
-2. **T-004**: Config Validator - Comprehensive validation
-3. **T-004.5**: Runtime Feature Gating - Reject unsupported features
-4. **T-005**: Type System - Parse type strings
-5. **T-006**: State Schema Builder - Dynamic Pydantic models
+1. **T-004**: Config Validator - Comprehensive validation
+2. **T-004.5**: Runtime Feature Gating - Reject unsupported features
+3. **T-005**: Type System - Parse type strings (partially done in T-003)
+4. **T-006**: State Schema Builder - Dynamic Pydantic models
+5. **T-007**: Output Schema Builder - Dynamic output models
 
 ---
 
 ## 📊 Phase Breakdown
 
-### Phase 1: Foundation (2/7 complete)
+### Phase 1: Foundation (3/7 complete)
 - ✅ T-001: Project Setup
 - ✅ T-002: Config Parser
-- ⏳ T-003: Config Schema (Pydantic Models)
+- ✅ T-003: Config Schema (Pydantic Models)
 - ⏳ T-004: Config Validator
 - ⏳ T-004.5: Runtime Feature Gating
 - ⏳ T-005: Type System
@@ -194,47 +206,54 @@ Following ADR-009 "Full Schema Day One":
 ## 🎯 Current Focus Areas
 
 ### Week 1 Priorities
-1. **Complete T-003**: Pydantic schema models
-   - Define complete WorkflowConfig
-   - Support all types (basic, collection, nested)
-   - Export JSON Schema for IDE support
+1. ~~**Complete T-003**: Pydantic schema models~~ ✅
+   - ~~Define complete WorkflowConfig~~ ✅
+   - ~~Support all types (basic, collection, nested)~~ ✅
+   - ~~Export JSON Schema for IDE support~~ (deferred)
 
-2. **Begin T-004**: Config validator
+2. **Begin T-004**: Config validator (current)
    - Validate structure, references, types
    - Helpful error messages
    - "Did you mean...?" suggestions
 
-3. **Testing**: Maintain 100% test coverage
-   - Unit tests for each component
-   - Clear test organization
-   - Fast test execution
+3. **Testing**: Maintain high test coverage ✅
+   - Unit tests for each component ✅
+   - Clear test organization ✅
+   - Fast test execution ✅ (124 tests in 0.18s)
 
 ---
 
 ## 🚀 What Works Now
 
 ### Features Available
-```bash
+```python
 # Parse YAML configs
 from configurable_agents.config import parse_config_file
-config = parse_config_file("workflow.yaml")
+config_dict = parse_config_file("workflow.yaml")
 
-# Parse JSON configs
-config = parse_config_file("workflow.json")
+# Parse into Pydantic models (validated)
+from configurable_agents.config import WorkflowConfig
+config = WorkflowConfig(**config_dict)
 
-# Error handling
-try:
-    config = parse_config_file("missing.yaml")
-except FileNotFoundError as e:
-    print(f"Config not found: {e}")
+# Access validated data
+print(f"Flow: {config.flow.name}")
+print(f"Nodes: {len(config.nodes)}")
+
+# Type system
+from configurable_agents.config import parse_type_string
+type_info = parse_type_string("list[str]")
+# Returns: {"kind": "list", "item_type": {...}}
 ```
 
 ### Test Coverage
 ```bash
 $ pytest tests/ -v
-===================== 21 passed in 0.14s =====================
+=================== 124 passed in 0.18s ===================
 
 Tests:
+- Schema models: 67 tests (Pydantic validation)
+- Type system: 31 tests (type parsing)
+- Integration: 5 tests (YAML → Pydantic)
 - Config parser: 18 tests (YAML, JSON, errors)
 - Setup: 3 tests (imports, version, logging)
 ```
@@ -313,8 +332,11 @@ Tests:
 ### 2026-01-24 (Today)
 - ✅ Completed T-001: Project setup
 - ✅ Completed T-002: Config parser (YAML + JSON)
-- ✅ 21 tests passing (18 parser + 3 setup)
-- ✅ Converted DISCUSSION.md to project status doc
+- ✅ Completed T-003: Config schema (Pydantic models)
+- ✅ 124 tests passing (67 schema + 31 types + 18 parser + 5 integration + 3 setup)
+- ✅ Type system implementation (str, int, float, bool, list, dict, object)
+- ✅ 13 Pydantic models for complete Schema v1.0
+- ✅ Full Schema Day One (ADR-009) - future-proof design
 - 📝 Commit: `d7b1453` - Resolved test count documentation
 - 📝 Commit: `069d6f3` - Added setup files
 - 📝 Commit: `ba6c15e` - Config parser implementation

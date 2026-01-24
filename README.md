@@ -81,16 +81,18 @@ configurable-agents run article_writer.yaml --input topic="AI Safety"
 ## 🗺️ Roadmap
 
 ### v0.1 - Foundation ⏳ (Current - Week 1 of 6-8)
-**Status**: 10% complete (2/20 tasks) | **Target**: March 2026
+**Status**: 15% complete (3/20 tasks) | **Target**: March 2026
 
 **What's working**:
 - ✅ T-001: Project setup and structure
 - ✅ T-002: Config parser (YAML + JSON support)
-- ✅ 21 tests passing (18 parser + 3 setup)
+- ✅ T-003: Config schema (Pydantic models - Full Schema v1.0)
+- ✅ 124 tests passing (67 schema + 31 types + 18 parser + 5 integration + 3 setup)
 
 **In progress**:
-- ⏳ T-003: Config schema (Pydantic models)
-- ⏳ Config validation
+- ⏳ T-004: Config validation (cross-reference, graph validation)
+- ⏳ T-004.5: Runtime feature gating
+- ⏳ T-005: Type system (partially complete)
 - ⏳ State management
 - ⏳ LLM integration (Google Gemini)
 - ⏳ Linear workflow execution
@@ -235,10 +237,10 @@ See [Architecture Decision Records](docs/adr/) for detailed design choices.
 
 ## 📊 Current Progress
 
-### Phase 1: Foundation (2/7 complete)
+### Phase 1: Foundation (3/7 complete)
 - ✅ T-001: Project Setup
 - ✅ T-002: Config Parser
-- ⏳ T-003: Config Schema (Pydantic Models)
+- ✅ T-003: Config Schema (Pydantic Models)
 - ⏳ T-004: Config Validator
 - ⏳ T-005: Type System
 - ⏳ T-006: State Schema Builder
@@ -263,7 +265,7 @@ See [Architecture Decision Records](docs/adr/) for detailed design choices.
 - ⏳ T-019: DSPy Integration Test
 - ⏳ T-020: Structured Output + DSPy
 
-**Next up**: T-003 (Config Schema - Pydantic Models)
+**Next up**: T-004 (Config Validator - Cross-reference validation)
 
 Full task breakdown: [docs/TASKS.md](docs/TASKS.md)
 
