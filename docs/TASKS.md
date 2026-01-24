@@ -42,6 +42,7 @@ Set up project structure, dependencies, and development environment.
 - [x] Create basic `.gitignore`
 - [x] Verify imports work: `from configurable_agents import ...`
 - [x] Set up logging configuration
+- [x] Create 3 setup tests (test_package_version, test_imports, test_logging_config)
 
 **Files Created**:
 - `pyproject.toml`
@@ -52,6 +53,8 @@ Set up project structure, dependencies, and development environment.
 - `.gitignore` (updated)
 - `tests/__init__.py`, `tests/conftest.py`, `tests/test_setup.py`
 - `SETUP.md`
+
+**Tests**: 3 setup tests created
 
 ---
 
@@ -73,11 +76,13 @@ Supports both YAML (.yaml, .yml) and JSON (.json) formats with automatic detecti
 - [x] Handle file not found errors
 - [x] Support both absolute and relative paths
 - [x] Class-based architecture with convenience functions
-- [x] Unit tests for valid and invalid YAML/JSON (18 tests created)
+- [x] Unit tests for valid and invalid YAML/JSON (18 parser tests created)
 
 **Files**:
 - `src/configurable_agents/config/parser.py`
 - `tests/config/test_parser.py`
+
+**Tests**: 18 parser tests created (21 total project tests: 18 parser + 3 setup from T-001)
 
 **Architecture**:
 ```python
@@ -904,7 +909,8 @@ T-019 -> T-020 (Structured Output + DSPy - NEW)
 - ⏳ T-019: DSPy Integration Test
 - ⏳ T-020: Structured Output + DSPy Test
 
-**Current Sprint**: Foundation Phase (T-002 next)
+**Current Sprint**: Foundation Phase (T-003 next)
+**Test Status**: 21 tests passing (18 parser + 3 setup)
 
 ---
 

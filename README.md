@@ -84,12 +84,13 @@ configurable-agents run article_writer.yaml --input topic="AI Safety"
 **Status**: 10% complete (2/20 tasks) | **Target**: March 2026
 
 **What's working**:
-- ✅ Project setup and structure
-- ✅ Development environment ready
-- ✅ Config parser (YAML + JSON support)
+- ✅ T-001: Project setup and structure
+- ✅ T-002: Config parser (YAML + JSON support)
+- ✅ 21 tests passing (18 parser + 3 setup)
 
 **In progress**:
-- ⏳ Config schema and validation
+- ⏳ T-003: Config schema (Pydantic models)
+- ⏳ Config validation
 - ⏳ State management
 - ⏳ LLM integration (Google Gemini)
 - ⏳ Linear workflow execution
@@ -262,7 +263,7 @@ See [Architecture Decision Records](docs/adr/) for detailed design choices.
 - ⏳ T-019: DSPy Integration Test
 - ⏳ T-020: Structured Output + DSPy
 
-**Next up**: T-002 (Config Parser)
+**Next up**: T-003 (Config Schema - Pydantic Models)
 
 Full task breakdown: [docs/TASKS.md](docs/TASKS.md)
 
@@ -270,12 +271,53 @@ Full task breakdown: [docs/TASKS.md](docs/TASKS.md)
 
 ## 📚 Documentation
 
-- **[PROJECT_VISION.md](docs/PROJECT_VISION.md)**: Long-term vision and philosophy
-- **[ARCHITECTURE.md](docs/ARCHITECTURE.md)**: System design overview
-- **[SPEC.md](docs/SPEC.md)**: Complete config schema specification
-- **[Architecture Decision Records](docs/adr/)**: Design decisions and rationale
-- **[TASKS.md](docs/TASKS.md)**: Detailed work breakdown
-- **[SETUP.md](SETUP.md)**: Development setup guide
+### Core Documentation
+
+- **[PROJECT_VISION.md](docs/PROJECT_VISION.md)** - Long-term vision and philosophy
+  - *What we're building and why*
+  - Success metrics and non-goals
+  - 3-year roadmap and phases
+  - Core design principles
+
+- **[ARCHITECTURE.md](docs/ARCHITECTURE.md)** - System design overview
+  - *How the system works (target v0.1)*
+  - Component architecture and data flow
+  - Technology stack decisions
+  - File paths reference future implementation
+
+- **[SPEC.md](docs/SPEC.md)** - Complete config schema specification
+  - *The contract: Schema v1.0*
+  - Every field documented with examples
+  - Type system reference
+  - Validation rules
+
+- **[TASKS.md](docs/TASKS.md)** - Detailed work breakdown
+  - *What's being built, task by task*
+  - All 20 tasks for v0.1 with acceptance criteria
+  - Dependencies and estimates
+  - Current progress tracker (2/20 complete)
+
+- **[DISCUSSION.md](docs/DISCUSSION.md)** - Project status (living document)
+  - *Current state and recent changes*
+  - What works now vs. in progress
+  - Known issues and blockers
+  - Updated weekly
+
+### Architecture Decisions
+
+- **[Architecture Decision Records](docs/adr/)** - Design decisions and rationale
+  - *Why we made specific choices*
+  - 9 ADRs covering all major decisions
+  - Immutable history (append-only)
+  - Alternatives considered with tradeoffs
+
+### Getting Started
+
+- **[SETUP.md](SETUP.md)** - Development setup guide
+  - *How to get the project running*
+  - Environment setup
+  - Dependencies installation
+  - Running tests
 
 ---
 
