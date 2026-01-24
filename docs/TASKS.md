@@ -19,17 +19,17 @@
 ## Phase 1: Foundation (v0.1)
 
 ### T-001: Project Setup
-**Status**: TODO
+**Status**: DONE ✅
 **Priority**: P0 (Critical)
 **Dependencies**: None
-**Estimated Effort**: 2-3 days
+**Completed**: 2026-01-24
 
 **Description**:
 Set up project structure, dependencies, and development environment.
 
 **Acceptance Criteria**:
-- [ ] Create proper Python package structure (`src/configurable_agents/`)
-- [ ] Set up `pyproject.toml` with dependencies:
+- [x] Create proper Python package structure (`src/configurable_agents/`)
+- [x] Set up `pyproject.toml` with dependencies:
   - `pydantic >= 2.0`
   - `pyyaml`
   - `langgraph`
@@ -37,18 +37,21 @@ Set up project structure, dependencies, and development environment.
   - `langchain-google-genai`
   - `pytest`
   - `python-dotenv`
-- [ ] Create `.env.example` with required environment variables
-- [ ] Set up pytest configuration
-- [ ] Create basic `.gitignore`
-- [ ] Verify imports work: `from configurable_agents import ...`
-- [ ] Set up logging configuration
+- [x] Create `.env.example` with required environment variables
+- [x] Set up pytest configuration
+- [x] Create basic `.gitignore`
+- [x] Verify imports work: `from configurable_agents import ...`
+- [x] Set up logging configuration
 
-**Files**:
+**Files Created**:
 - `pyproject.toml`
-- `src/configurable_agents/__init__.py`
+- `src/configurable_agents/__init__.py` (+ all submodule `__init__.py`)
+- `src/configurable_agents/logging_config.py`
 - `.env.example`
 - `pytest.ini`
-- `.gitignore`
+- `.gitignore` (updated)
+- `tests/__init__.py`, `tests/conftest.py`, `tests/test_setup.py`
+- `SETUP.md`
 
 ---
 
@@ -841,6 +844,45 @@ T-004, T-013 -> T-018 (Error Messages)
 T-009, T-011 -> T-019 (DSPy Integration Test - NEW)
 T-019 -> T-020 (Structured Output + DSPy - NEW)
 ```
+
+---
+
+## Progress Tracker
+
+**Last Updated**: 2026-01-24
+
+### v0.1 Progress: 1/20 tasks complete (5%)
+
+**Phase 1: Foundation (1/7 complete)**
+- ✅ T-001: Project Setup
+- ⏳ T-002: Config Parser
+- ⏳ T-003: Config Schema (Pydantic Models)
+- ⏳ T-004: Config Validator
+- ⏳ T-004.5: Runtime Feature Gating
+- ⏳ T-005: Type System
+- ⏳ T-006: State Schema Builder
+- ⏳ T-007: Output Schema Builder
+
+**Phase 2: Core Execution (0/6 complete)**
+- ⏳ T-008: Tool Registry
+- ⏳ T-009: LLM Provider
+- ⏳ T-010: Prompt Template Resolver
+- ⏳ T-011: Node Executor
+- ⏳ T-012: Graph Builder
+- ⏳ T-013: Runtime Executor
+
+**Phase 3: Polish & UX (0/5 complete)**
+- ⏳ T-014: CLI Interface
+- ⏳ T-015: Example Configs
+- ⏳ T-016: Documentation
+- ⏳ T-017: Integration Tests
+- ⏳ T-018: Error Message Improvements
+
+**Phase 4: DSPy Verification (0/2 complete)**
+- ⏳ T-019: DSPy Integration Test
+- ⏳ T-020: Structured Output + DSPy Test
+
+**Current Sprint**: Foundation Phase (T-002 next)
 
 ---
 
