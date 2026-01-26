@@ -81,7 +81,7 @@ configurable-agents run article_writer.yaml --input topic="AI Safety"
 ## 🗺️ Roadmap
 
 ### v0.1 - Foundation ⏳ (Current - Week 2-3 of 6-8)
-**Status**: 50% complete (10/20 tasks) 🎯 **HALFWAY MILESTONE!** | **Target**: March 2026
+**Status**: 55% complete (11/20 tasks) | **Target**: March 2026
 
 **Phase 1 COMPLETE** ✅:
 - ✅ T-001: Project setup and structure
@@ -93,15 +93,15 @@ configurable-agents run article_writer.yaml --input topic="AI Safety"
 - ✅ T-006: State schema builder (dynamic Pydantic models from config)
 - ✅ T-007: Output schema builder (type-enforced LLM outputs)
 
-**Phase 2 IN PROGRESS** (2/6 complete):
+**Phase 2 IN PROGRESS** (3/6 complete):
 - ✅ T-008: Tool registry (web search - serper_search)
 - ✅ T-009: LLM provider (Google Gemini with structured outputs)
-- ⏳ T-010: Prompt template resolver
+- ✅ T-010: Prompt template resolver (variable substitution)
 - ⏳ T-011: Node executor
 - ⏳ T-012: Graph builder
 - ⏳ T-013: Runtime executor
 
-**Test Coverage**: 300 tests passing (32 llm + 37 tools + 29 output + 30 state + 29 validator + 19 runtime + 67 schema + 31 types + 18 parser + 5 integration + 3 setup)
+**Test Coverage**: 344 tests passing (44 template + 32 llm + 37 tools + 29 output + 30 state + 29 validator + 19 runtime + 67 schema + 31 types + 18 parser + 5 integration + 3 setup)
 
 **Capabilities when complete**:
 - Define workflows in YAML
@@ -252,10 +252,10 @@ See [Architecture Decision Records](docs/adr/) for detailed design choices.
 - ✅ T-006: State Schema Builder
 - ✅ T-007: Output Schema Builder
 
-### Phase 2: Core Execution (2/6 complete) - IN PROGRESS
+### Phase 2: Core Execution (3/6 complete) - IN PROGRESS
 - ✅ T-008: Tool Registry
 - ✅ T-009: LLM Provider
-- ⏳ T-010: Prompt Template Resolver
+- ✅ T-010: Prompt Template Resolver
 - ⏳ T-011: Node Executor
 - ⏳ T-012: Graph Builder
 - ⏳ T-013: Runtime Executor

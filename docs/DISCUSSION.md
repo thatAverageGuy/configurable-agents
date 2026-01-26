@@ -8,12 +8,12 @@
 
 ## 🎯 Current Status
 
-### Implementation Progress: 50% Complete (10/20 tasks)
+### Implementation Progress: 55% Complete (11/20 tasks)
 
-**Active Phase**: Phase 2 - Core Execution (2/6 complete)
+**Active Phase**: Phase 2 - Core Execution (3/6 complete)
 **Previous Milestone**: ✅ Phase 1 (Foundation) Complete - 8/8 tasks done
-**Latest Completion**: ✅ T-009 (LLM Provider) - Google Gemini integration
-**Current Task**: T-010 (Prompt Template Resolver)
+**Latest Completion**: ✅ T-010 (Prompt Template Resolver) - Variable substitution
+**Current Task**: T-011 (Node Executor)
 **Next Milestone**: Complete Phase 2 - Core execution working
 
 ---
@@ -369,6 +369,65 @@ T-008 starts Phase 2 (Core Execution) - 1/6 tasks complete!
 
 ---
 
+### T-010: Prompt Template Resolver ✅
+**Completed**: 2026-01-26
+**Commit**: (pending)
+
+**Deliverables**:
+- ✅ Prompt template resolution with {variable} placeholders
+- ✅ Input mappings override state fields (explicit precedence)
+- ✅ Nested state access ({metadata.author}, {metadata.flags.level})
+- ✅ Deeply nested access (3+ levels)
+- ✅ Type conversion (int, bool → string)
+- ✅ Comprehensive error handling with "Did you mean?" suggestions
+- ✅ Edit distance algorithm for typo detection (≤ 2 edits)
+- ✅ 44 comprehensive tests
+- ✅ 344 total tests passing (up from 300)
+
+**Files Created**:
+- `src/configurable_agents/core/template.py`
+- `tests/core/test_template.py`
+
+**Template Resolution**:
+```python
+from configurable_agents.core import resolve_prompt, TemplateResolutionError
+
+# Resolve variables from inputs and state
+resolved = resolve_prompt(
+    prompt_template="Hello {name}, discuss {topic}",
+    inputs={"name": "Alice"},  # Override state
+    state=state_model,          # Workflow state
+)
+# Returns: "Hello Alice, discuss AI Safety"
+
+# Nested access
+resolved = resolve_prompt(
+    "Author: {metadata.author}, Level: {metadata.flags.level}",
+    {},
+    state_model,
+)
+# Returns: "Author: Bob, Level: 5"
+```
+
+**Features**:
+- Variable extraction with regex (supports {a.b.c} syntax)
+- Input priority (inputs override state)
+- Nested state access (dot notation)
+- Type conversion automatic
+- Fail-fast with helpful errors
+- "Did you mean X?" suggestions (Levenshtein distance ≤ 2)
+- Available variables listed in errors
+
+**Error Handling**:
+- TemplateResolutionError - Variable not found with suggestions
+- Clear error messages with available inputs and state fields
+- Edit distance suggestions for typos
+
+**Phase 2 Progress**:
+T-010 completes 3/6 tasks in Phase 2 (Core Execution)!
+
+---
+
 ### T-009: LLM Provider ✅
 **Completed**: 2026-01-26
 **Commit**: (pending)
@@ -469,10 +528,10 @@ T-009 completes 2/6 tasks in Phase 2 (Core Execution)!
 - ✅ T-006: State Schema Builder
 - ✅ T-007: Output Schema Builder
 
-### Phase 2: Core Execution (2/6 complete) - IN PROGRESS
+### Phase 2: Core Execution (3/6 complete) - IN PROGRESS
 - ✅ T-008: Tool Registry
 - ✅ T-009: LLM Provider
-- ⏳ T-010: Prompt Template Resolver
+- ✅ T-010: Prompt Template Resolver
 - ⏳ T-011: Node Executor
 - ⏳ T-012: Graph Builder
 - ⏳ T-013: Runtime Executor
@@ -627,17 +686,28 @@ config = LLMConfig(model="gemini-1.5-flash", temperature=0.7)
 llm = create_llm(config)
 result = call_llm_structured(llm, "Say hello", Output)
 print(result.result)
+
+# Template resolver
+from configurable_agents.core import resolve_prompt
+
+resolved = resolve_prompt(
+    prompt_template="Hello {name}, discuss {topic}",
+    inputs={"name": "Alice"},
+    state=state_model,
+)
+# Returns: "Hello Alice, discuss AI Safety"
 ```
 
 ### Test Coverage
 ```bash
 $ pytest tests/ -v -m "not integration"
-=================== 300 passed in 1.38s ===================
+=================== 344 passed in 1.73s ===================
 
 Tests:
+- Template resolver: 44 tests (variable resolution, nested access, errors) ✨ NEW
 - Schema models: 67 tests (Pydantic validation)
-- LLM provider: 19 tests (factory, config merging, structured calls) ✨ NEW
 - Tool registry: 22 tests (registration, retrieval, errors)
+- LLM provider: 19 tests (factory, config merging, structured calls)
 - Type system: 31 tests (type parsing)
 - State builder: 30 tests (dynamic models)
 - Output builder: 29 tests (LLM output models)
@@ -645,7 +715,7 @@ Tests:
 - Runtime gates: 19 tests (feature gating)
 - Config parser: 18 tests (YAML, JSON, errors)
 - Serper tool: 15 tests (creation, validation, behavior)
-- Google Gemini: 13 tests (LLM creation, configuration) ✨ NEW
+- Google Gemini: 13 tests (LLM creation, configuration)
 - Integration: 5 tests (YAML → Pydantic)
 - Setup: 3 tests (imports, version, logging)
 - Integration tests (slow): 4 tests (2 serper + 2 gemini - marked with @pytest.mark.integration)
@@ -722,17 +792,23 @@ Tests:
 
 ## 📝 Recent Changes
 
-### 2026-01-26 (Today) - LLM Provider Complete! 🎉
+### 2026-01-26 (Today) - Template Resolver Complete! 🎉
+- ✅ Completed T-010: Prompt template resolver
+- ✅ 344 tests passing (44 template + 300 existing)
+- ✅ Variable resolution from inputs and state
+- ✅ Nested state access ({metadata.author}, 3+ levels)
+- ✅ Input priority (overrides state)
+- ✅ Type conversion (int, bool → string)
+- ✅ "Did you mean?" suggestions (edit distance ≤ 2)
+- ✅ **Phase 2 (Core Execution) 3/6 COMPLETE** - halfway through Phase 2!
+- 📝 Progress: 11/20 tasks (55%) complete
+- 📝 Next: T-011 (Node Executor) - First executable node!
+
+**Earlier today - LLM Provider Complete**:
 - ✅ Completed T-009: LLM provider with Google Gemini
-- ✅ 300 tests passing (32 llm + 268 existing)
 - ✅ LLM provider factory with structured output calling
-- ✅ Google Gemini integration (multiple models supported)
-- ✅ Configuration merging (node overrides global)
+- ✅ Google Gemini integration (multiple models)
 - ✅ Automatic retry on validation failures and rate limits
-- ✅ Comprehensive error handling with helpful messages
-- ✅ **Phase 2 (Core Execution) 2/6 COMPLETE** - halfway through Phase 2!
-- 📝 Progress: 10/20 tasks (50%) complete - **HALFWAY MILESTONE** 🎯
-- 📝 Next: T-010 (Prompt Template Resolver)
 
 **Earlier today - Tool Registry Complete**:
 - ✅ Completed T-008: Tool registry with web search
