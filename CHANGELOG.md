@@ -183,6 +183,110 @@ Next: T-005 (Type System - mostly done in T-003)"
 
 ---
 
+### Added - T-005: Type System ✅
+
+**Commit**: T-005: Type system - Formal closure (implemented in T-003)
+
+**What Was Done**:
+- Formally closed T-005 by documenting existing type system implementation
+- Type system was already implemented as part of T-003 (Config Schema)
+- 31 comprehensive tests already passing
+- All acceptance criteria met
+
+**Type System Features**:
+- ✅ Parse basic types: `str`, `int`, `float`, `bool`
+- ✅ Parse collection types: `list`, `dict`, `list[str]`, `dict[str, int]`
+- ✅ Parse nested object types: `object` (with schema in StateFieldConfig)
+- ✅ Convert type strings to Python types
+- ✅ Validate type strings (with TypeParseError for invalid types)
+- ✅ Support type descriptions (via StateFieldConfig.description field)
+- ✅ Comprehensive error messages for invalid types
+
+**Files** (created in T-003):
+```
+src/configurable_agents/config/
+└── types.py (type parsing and validation utilities)
+
+tests/config/
+└── test_types.py (31 comprehensive tests)
+```
+
+**Public API**:
+```python
+from configurable_agents.config.types import (
+    TypeParseError,              # Exception for invalid types
+    parse_type_string,           # Parse type string to dict
+    validate_type_string,        # Validate type string
+    get_python_type,             # Convert to Python type
+)
+```
+
+**How to Verify**:
+
+1. **Test type system**:
+   ```bash
+   pytest tests/config/test_types.py -v
+   # Expected: 31 passed
+   ```
+
+2. **Run full test suite**:
+   ```bash
+   pytest -v
+   # Expected: 172 passed (no change from T-004.5)
+   ```
+
+3. **Use type parsing**:
+   ```python
+   from configurable_agents.config.types import parse_type_string, get_python_type
+
+   # Parse type string
+   parsed = parse_type_string("list[str]")
+   print(parsed)  # {"kind": "list", "item_type": {...}, "name": "list[str]"}
+
+   # Get Python type
+   py_type = get_python_type("list[str]")
+   print(py_type)  # <class 'list'>
+
+   # Validate
+   from configurable_agents.config.types import validate_type_string
+   assert validate_type_string("dict[str, int]") is True
+   assert validate_type_string("unknown_type") is False
+   ```
+
+**What to Expect**:
+
+- ✅ All type strings used in configs are validated
+- ✅ Invalid types raise TypeParseError with helpful messages
+- ✅ Type descriptions supported at field level (StateFieldConfig)
+- ✅ Type system fully integrated with Pydantic schema validation
+
+**Note**: Files are in `config/` package (not `core/` as originally specified in task). Type descriptions are handled via `StateFieldConfig.description` field in schema.py, not in the type system itself.
+
+**Documentation Updated**:
+- ✅ CHANGELOG.md (this file)
+- ✅ docs/TASKS.md (T-005 marked DONE, progress updated to 6/20)
+- ✅ README.md (progress statistics updated)
+
+**Git Commit Command**:
+```bash
+git add docs/
+git commit -m "T-005: Type system - Formal closure
+
+- Type system already implemented in T-003
+- 31 tests passing (parse_type_string, validate_type_string, get_python_type)
+- All acceptance criteria met
+- Type descriptions supported via StateFieldConfig.description
+
+Verification:
+  pytest tests/config/test_types.py -v
+  Expected: 31 passed
+
+Progress: 6/20 tasks (30%) - Foundation phase 6/7 complete
+Next: T-006 (State Schema Builder)"
+```
+
+---
+
 ### Added - T-004: Config Validator ✅
 
 **Commit**: T-004: Config validator - Comprehensive validation
