@@ -298,35 +298,42 @@ def validate_runtime_support(config: WorkflowConfig) -> None:
 ---
 
 ### T-005: Type System
-**Status**: TODO
+**Status**: DONE ✅
 **Priority**: P0
 **Dependencies**: T-001
 **Estimated Effort**: 1 week
+**Actual Effort**: <1 day (implemented as part of T-003)
+**Completed**: 2026-01-26
 
 **Description**:
 Implement type parsing and validation for config type strings.
 
 **Acceptance Criteria**:
-- [ ] Parse basic types: `str`, `int`, `float`, `bool`
-- [ ] Parse collection types: `list`, `dict`, `list[str]`, `list[int]`, `dict[str, int]`
-- [ ] Parse nested object type with schema
-- [ ] Convert type strings to Python types
-- [ ] Validate type strings are valid
-- [ ] Support type descriptions
-- [ ] Unit tests for all supported types
-- [ ] Error messages for invalid types
+- [x] Parse basic types: `str`, `int`, `float`, `bool`
+- [x] Parse collection types: `list`, `dict`, `list[str]`, `list[int]`, `dict[str, int]`
+- [x] Parse nested object type with schema
+- [x] Convert type strings to Python types
+- [x] Validate type strings are valid
+- [x] Support type descriptions (handled via `StateFieldConfig.description`)
+- [x] Unit tests for all supported types (31 tests)
+- [x] Error messages for invalid types
 
-**Files**:
-- `src/configurable_agents/core/types.py`
-- `tests/core/test_types.py`
+**Files Created**:
+- `src/configurable_agents/config/types.py` (type parsing utilities)
+- `tests/config/test_types.py` (31 comprehensive tests)
+
+**Note**: Files are in `config/` package instead of `core/` as originally specified. Type descriptions are supported at the field level via `StateFieldConfig.description` in schema.py, not at the type system level.
 
 **Interface**:
 ```python
-def parse_type(type_str: str) -> Type:
-    """Convert type string to Python type"""
+def parse_type_string(type_str: str) -> Dict[str, Any]:
+    """Parse type string into structured representation"""
 
 def validate_type_string(type_str: str) -> bool:
     """Check if type string is valid"""
+
+def get_python_type(type_str: str) -> Type:
+    """Convert type string to Python type"""
 ```
 
 ---
@@ -887,15 +894,15 @@ T-019 -> T-020 (Structured Output + DSPy - NEW)
 
 **Last Updated**: 2026-01-26
 
-### v0.1 Progress: 5/20 tasks complete (25%)
+### v0.1 Progress: 6/20 tasks complete (30%)
 
-**Phase 1: Foundation (5/7 complete)**
+**Phase 1: Foundation (6/7 complete)**
 - ✅ T-001: Project Setup
 - ✅ T-002: Config Parser
 - ✅ T-003: Config Schema (Pydantic Models)
 - ✅ T-004: Config Validator
 - ✅ T-004.5: Runtime Feature Gating
-- ⏳ T-005: Type System
+- ✅ T-005: Type System
 - ⏳ T-006: State Schema Builder
 - ⏳ T-007: Output Schema Builder
 
@@ -918,7 +925,7 @@ T-019 -> T-020 (Structured Output + DSPy - NEW)
 - ⏳ T-019: DSPy Integration Test
 - ⏳ T-020: Structured Output + DSPy Test
 
-**Current Sprint**: Foundation Phase (T-005 next)
+**Current Sprint**: Foundation Phase (T-006 next)
 **Test Status**: 172 tests passing (67 schema + 31 types + 29 validator + 19 runtime + 18 parser + 5 integration + 3 setup)
 
 ---

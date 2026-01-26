@@ -8,10 +8,10 @@
 
 ## 🎯 Current Status
 
-### Implementation Progress: 25% Complete (5/20 tasks)
+### Implementation Progress: 30% Complete (6/20 tasks)
 
 **Active Phase**: Foundation
-**Current Task**: T-005 (Type System - mostly complete)
+**Current Task**: T-006 (State Schema Builder)
 **Next Milestone**: Complete Phase 1 (7 tasks) - Foundation
 
 ---
@@ -181,20 +181,57 @@ except UnsupportedFeatureError as e:
 
 ---
 
+### T-005: Type System ✅
+**Completed**: 2026-01-26
+**Commit**: (pending)
+
+**Deliverables**:
+- ✅ Type parsing for all supported types (str, int, float, bool, list, dict, object)
+- ✅ Collection types with generics (list[str], dict[str, int])
+- ✅ Type string validation
+- ✅ Python type conversion
+- ✅ Type descriptions via StateFieldConfig.description
+- ✅ 31 comprehensive tests
+- ✅ 172 total tests (no change - type tests already included in T-003 count)
+
+**Files** (created in T-003):
+- `src/configurable_agents/config/types.py`
+- `tests/config/test_types.py`
+
+**Type Parsing**:
+```python
+from configurable_agents.config.types import parse_type_string, validate_type_string
+
+# Parse type strings
+parsed = parse_type_string("list[str]")  # {"kind": "list", "item_type": {...}}
+parsed = parse_type_string("dict[str, int]")  # {"kind": "dict", ...}
+
+# Validate type strings
+assert validate_type_string("str") is True
+assert validate_type_string("unknown") is False
+
+# Get Python type
+from configurable_agents.config.types import get_python_type
+assert get_python_type("list[str]") == list
+```
+
+**Note**: Implementation already complete as part of T-003. Formally closed by documenting acceptance criteria met. Files are in `config/` package (not `core/` as originally specified).
+
+---
+
 ## 🚧 In Progress
 
-### T-005: Type System
-**Status**: Next (mostly complete in T-003)
+### T-006: State Schema Builder
+**Status**: Next
 **Priority**: P0 (Critical)
-**Dependencies**: T-002, T-003
-**Estimated Effort**: 2 weeks
+**Dependencies**: T-005
+**Estimated Effort**: 1 week
 
 **Scope**:
-- Cross-reference validation (outputs match state, node IDs exist)
-- Graph validation (reachability, cycles, START/END)
-- Type alignment validation (output types match state types)
-- Helpful error messages with suggestions
-- "Did you mean...?" for typos
+- Dynamic Pydantic state model generation from config
+- Support all type system types
+- Handle required fields and defaults
+- Support nested objects
 
 ---
 
@@ -202,23 +239,23 @@ except UnsupportedFeatureError as e:
 
 ### Next 5 Tasks
 
-1. **T-005**: Type System - Parse type strings (mostly done in T-003)
-2. **T-006**: State Schema Builder - Dynamic Pydantic models
-3. **T-007**: Output Schema Builder - Dynamic output models
-4. **T-008**: Tool Registry - Load tools by name
-5. **T-009**: LLM Provider - Google Gemini integration
+1. **T-006**: State Schema Builder - Dynamic Pydantic models
+2. **T-007**: Output Schema Builder - Dynamic output models
+3. **T-008**: Tool Registry - Load tools by name
+4. **T-009**: LLM Provider - Google Gemini integration
+5. **T-010**: Prompt Template Resolver - Variable substitution
 
 ---
 
 ## 📊 Phase Breakdown
 
-### Phase 1: Foundation (5/7 complete)
+### Phase 1: Foundation (6/7 complete)
 - ✅ T-001: Project Setup
 - ✅ T-002: Config Parser
 - ✅ T-003: Config Schema (Pydantic Models)
 - ✅ T-004: Config Validator
 - ✅ T-004.5: Runtime Feature Gating
-- ⏳ T-005: Type System
+- ✅ T-005: Type System
 - ⏳ T-006: State Schema Builder
 - ⏳ T-007: Output Schema Builder
 
@@ -422,7 +459,7 @@ Tests:
 - ✅ Linear flow enforcement (no cycles, no conditional routing)
 - ✅ Runtime feature gating (hard/soft blocks for v0.2+/v0.3+ features)
 - ✅ "Did you mean...?" suggestions for typos
-- 📝 Progress: 5/20 tasks (25%) complete
+- 📝 Progress: 6/20 tasks (30%) complete
 
 ### 2026-01-24
 - ✅ Completed T-001: Project setup
