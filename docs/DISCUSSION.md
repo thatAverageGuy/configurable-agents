@@ -8,10 +8,10 @@
 
 ## 🎯 Current Status
 
-### Implementation Progress: 20% Complete (4/20 tasks)
+### Implementation Progress: 25% Complete (5/20 tasks)
 
 **Active Phase**: Foundation
-**Current Task**: T-004.5 (Runtime Feature Gating)
+**Current Task**: T-005 (Type System - mostly complete)
 **Next Milestone**: Complete Phase 1 (7 tasks) - Foundation
 
 ---
@@ -143,10 +143,48 @@ except ValidationError as e:
 
 ---
 
+### T-004.5: Runtime Feature Gating ✅
+**Completed**: 2026-01-26
+**Commit**: (pending)
+
+**Deliverables**:
+- ✅ Runtime feature gating for v0.2+ and v0.3+ features
+- ✅ Hard blocks for incompatible features (conditional routing)
+- ✅ Soft blocks with warnings for future features (optimization, MLFlow)
+- ✅ Feature support query API
+- ✅ 19 comprehensive tests
+- ✅ 172 total tests passing (up from 153)
+
+**Files Created**:
+- `src/configurable_agents/runtime/feature_gate.py`
+- `tests/runtime/test_feature_gate.py`
+- `tests/runtime/__init__.py`
+
+**Feature Gating**:
+```python
+from configurable_agents.runtime import validate_runtime_support, UnsupportedFeatureError
+
+try:
+    validate_runtime_support(config)
+except UnsupportedFeatureError as e:
+    print(f"Feature: {e.feature}")
+    print(f"Available in: {e.available_in}")
+    print(f"Timeline: {e.timeline}")
+    print(f"Workaround: {e.workaround}")
+```
+
+**Blocks**:
+- Hard: Conditional routing (v0.2+) → raises error
+- Soft: DSPy optimization (v0.3+) → warns, continues
+- Soft: MLFlow observability (v0.2+) → warns, continues
+- Allowed: Basic logging (v0.1) → no warning
+
+---
+
 ## 🚧 In Progress
 
-### T-004.5: Runtime Feature Gating
-**Status**: Next
+### T-005: Type System
+**Status**: Next (mostly complete in T-003)
 **Priority**: P0 (Critical)
 **Dependencies**: T-002, T-003
 **Estimated Effort**: 2 weeks
@@ -164,22 +202,22 @@ except ValidationError as e:
 
 ### Next 5 Tasks
 
-1. **T-004.5**: Runtime Feature Gating - Reject unsupported features
-2. **T-005**: Type System - Parse type strings (partially done in T-003)
-3. **T-006**: State Schema Builder - Dynamic Pydantic models
-4. **T-007**: Output Schema Builder - Dynamic output models
-5. **T-008**: Tool Registry - Load tools by name
+1. **T-005**: Type System - Parse type strings (mostly done in T-003)
+2. **T-006**: State Schema Builder - Dynamic Pydantic models
+3. **T-007**: Output Schema Builder - Dynamic output models
+4. **T-008**: Tool Registry - Load tools by name
+5. **T-009**: LLM Provider - Google Gemini integration
 
 ---
 
 ## 📊 Phase Breakdown
 
-### Phase 1: Foundation (4/7 complete)
+### Phase 1: Foundation (5/7 complete)
 - ✅ T-001: Project Setup
 - ✅ T-002: Config Parser
 - ✅ T-003: Config Schema (Pydantic Models)
 - ✅ T-004: Config Validator
-- ⏳ T-004.5: Runtime Feature Gating
+- ✅ T-004.5: Runtime Feature Gating
 - ⏳ T-005: Type System
 - ⏳ T-006: State Schema Builder
 - ⏳ T-007: Output Schema Builder
@@ -291,12 +329,13 @@ type_info = parse_type_string("list[str]")
 ### Test Coverage
 ```bash
 $ pytest tests/ -v
-=================== 153 passed in 0.50s ===================
+=================== 172 passed in 0.24s ===================
 
 Tests:
 - Schema models: 67 tests (Pydantic validation)
 - Type system: 31 tests (type parsing)
 - Validator: 29 tests (comprehensive validation)
+- Runtime gates: 19 tests (feature gating)
 - Config parser: 18 tests (YAML, JSON, errors)
 - Integration: 5 tests (YAML → Pydantic)
 - Setup: 3 tests (imports, version, logging)
@@ -375,13 +414,15 @@ Tests:
 
 ### 2026-01-26 (Today)
 - ✅ Completed T-004: Config validator
-- ✅ 153 tests passing (29 validator + 124 existing)
+- ✅ Completed T-004.5: Runtime feature gating
+- ✅ 172 tests passing (19 runtime + 29 validator + 124 existing)
 - ✅ Comprehensive validation with fail-fast error handling
 - ✅ Cross-reference validation (nodes, state, outputs, types)
 - ✅ Graph structure validation (connectivity, reachability)
 - ✅ Linear flow enforcement (no cycles, no conditional routing)
+- ✅ Runtime feature gating (hard/soft blocks for v0.2+/v0.3+ features)
 - ✅ "Did you mean...?" suggestions for typos
-- 📝 Progress: 4/20 tasks (20%) complete
+- 📝 Progress: 5/20 tasks (25%) complete
 
 ### 2026-01-24
 - ✅ Completed T-001: Project setup

@@ -81,17 +81,18 @@ configurable-agents run article_writer.yaml --input topic="AI Safety"
 ## 🗺️ Roadmap
 
 ### v0.1 - Foundation ⏳ (Current - Week 1 of 6-8)
-**Status**: 20% complete (4/20 tasks) | **Target**: March 2026
+**Status**: 25% complete (5/20 tasks) | **Target**: March 2026
 
 **What's working**:
 - ✅ T-001: Project setup and structure
 - ✅ T-002: Config parser (YAML + JSON support)
 - ✅ T-003: Config schema (Pydantic models - Full Schema v1.0)
 - ✅ T-004: Config validator (comprehensive validation with helpful errors)
-- ✅ 153 tests passing (67 schema + 31 types + 29 validator + 18 parser + 5 integration + 3 setup)
+- ✅ T-004.5: Runtime feature gating (version checks, hard/soft blocks)
+- ✅ 172 tests passing (67 schema + 31 types + 29 validator + 19 runtime + 18 parser + 5 integration + 3 setup)
 
 **In progress**:
-- ⏳ T-004.5: Runtime feature gating
+- ⏳ T-005: Type system (mostly complete in T-003)
 - ⏳ T-005: Type system (partially complete)
 - ⏳ State management
 - ⏳ LLM integration (Google Gemini)
@@ -237,11 +238,12 @@ See [Architecture Decision Records](docs/adr/) for detailed design choices.
 
 ## 📊 Current Progress
 
-### Phase 1: Foundation (4/7 complete)
+### Phase 1: Foundation (5/7 complete)
 - ✅ T-001: Project Setup
 - ✅ T-002: Config Parser
 - ✅ T-003: Config Schema (Pydantic Models)
 - ✅ T-004: Config Validator
+- ✅ T-004.5: Runtime Feature Gating
 - ⏳ T-005: Type System
 - ⏳ T-006: State Schema Builder
 - ⏳ T-007: Output Schema Builder
@@ -265,7 +267,7 @@ See [Architecture Decision Records](docs/adr/) for detailed design choices.
 - ⏳ T-019: DSPy Integration Test
 - ⏳ T-020: Structured Output + DSPy
 
-**Next up**: T-004.5 (Runtime Feature Gating - Reject unsupported features)
+**Next up**: T-005 (Type System - mostly complete in T-003)
 
 Full task breakdown: [docs/TASKS.md](docs/TASKS.md)
 

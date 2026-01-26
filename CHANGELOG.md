@@ -9,6 +9,180 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added - T-004.5: Runtime Feature Gating ✅
+
+**Commit**: T-004.5: Runtime feature gating - Version checks
+
+**What Was Done**:
+- Implemented runtime feature gating to reject unsupported v0.2+ and v0.3+ features
+- Hard blocks for incompatible features (conditional routing)
+- Soft blocks with warnings for future features (optimization, MLFlow)
+- Helpful error messages with version timelines and workarounds
+- Feature support query API
+- 19 comprehensive tests for all feature gates
+- Total: 172 tests passing (up from 153)
+
+**Files Created**:
+```
+src/configurable_agents/runtime/
+└── feature_gate.py (runtime version checks and feature gating)
+
+tests/runtime/
+├── __init__.py
+└── test_feature_gate.py (19 comprehensive tests)
+```
+
+**Feature Gating System**:
+
+**Hard Blocks (UnsupportedFeatureError)**:
+- ✅ Conditional routing (edge routes) - v0.2+ feature
+  - Raises error with timeline and workaround
+  - Suggests using linear edges instead
+  - Points to roadmap
+
+**Soft Blocks (UserWarning)**:
+- ✅ Global DSPy optimization (optimization.enabled) - v0.3+ feature
+  - Warns that feature will be IGNORED
+  - Workflow runs without optimization
+- ✅ Node-level optimization (node.optimize.enabled) - v0.3+ feature
+  - Warns per-node that optimization ignored
+- ✅ MLFlow observability (config.observability.mlflow) - v0.2+ feature
+  - Warns that only console logging available
+  - MLFlow tracking ignored
+
+**Supported in v0.1**:
+- ✅ Basic logging (config.observability.logging)
+- ✅ Linear workflows
+- ✅ All core features (state, nodes, LLM, tools)
+
+**How to Verify**:
+
+1. **Test feature gates**:
+   ```bash
+   pytest tests/runtime/test_feature_gate.py -v
+   # Expected: 19 passed
+   ```
+
+2. **Run full test suite**:
+   ```bash
+   pytest -v
+   # Expected: 172 passed (19 runtime + 153 existing)
+   ```
+
+3. **Use feature gating**:
+   ```python
+   from configurable_agents.config import parse_config_file, WorkflowConfig
+   from configurable_agents.runtime import validate_runtime_support, UnsupportedFeatureError
+
+   # Load config
+   config_dict = parse_config_file("workflow.yaml")
+   config = WorkflowConfig(**config_dict)
+
+   # Check runtime support (raises if unsupported features)
+   try:
+       validate_runtime_support(config)
+       print("✅ Config is compatible with v0.1 runtime")
+   except UnsupportedFeatureError as e:
+       print(f"❌ {e}")
+       print(f"   Available in: {e.available_in}")
+       print(f"   Timeline: {e.timeline}")
+       print(f"   Workaround: {e.workaround}")
+   ```
+
+4. **Query feature support**:
+   ```python
+   from configurable_agents.runtime import check_feature_support
+
+   # Check if a feature is supported
+   result = check_feature_support("Conditional routing (if/else)")
+   print(f"Supported: {result['supported']}")
+   print(f"Available in: {result['version']}")
+   print(f"Timeline: {result['timeline']}")
+   ```
+
+**What to Expect**:
+
+- ✅ Configs with v0.2+ features are rejected at runtime with clear errors
+- ✅ Configs with v0.3+ features trigger warnings but still run (degraded mode)
+- ✅ Error messages include version info, timeline, and workarounds
+- ✅ Valid v0.1 configs pass without errors or warnings
+- ✅ Feature support can be queried programmatically
+
+**Example Error Messages**:
+
+```python
+# Hard block - conditional routing
+UnsupportedFeatureError: Feature 'Conditional routing (edge routes)' is not supported in v0.1
+Available in: v0.2
+Estimated timeline: 8-12 weeks from initial release
+
+Workaround: Use linear edges (from/to) instead. For decision logic, create multiple separate workflows and chain them externally.
+
+See roadmap: docs/PROJECT_VISION.md
+
+# Soft block - optimization
+UserWarning: DSPy optimization (optimization.enabled=true) is not supported in v0.1.
+This setting will be IGNORED. Available in: v0.3 (12-16 weeks from initial release).
+Your workflow will run without optimization. See docs/PROJECT_VISION.md for roadmap.
+```
+
+**Public API**:
+```python
+# From configurable_agents.runtime
+
+from configurable_agents.runtime import (
+    UnsupportedFeatureError,      # Exception for hard blocks
+    validate_runtime_support,      # Main validation function
+    get_supported_features,        # Get feature list
+    check_feature_support,         # Check specific feature
+)
+```
+
+**Documentation Updated**:
+- ✅ CHANGELOG.md (this file)
+- ✅ docs/TASKS.md (T-004.5 marked DONE, progress updated to 5/20)
+- ✅ docs/DISCUSSION.md (status updated)
+- ✅ README.md (progress statistics updated)
+
+**Git Commit Command**:
+```bash
+git add .
+git commit -m "T-004.5: Runtime feature gating - Version checks
+
+- Implemented feature gating for v0.2+ and v0.3+ features
+  - Hard blocks: Conditional routing (UnsupportedFeatureError)
+  - Soft blocks: Optimization, MLFlow (UserWarning)
+  - Clear error messages with timelines and workarounds
+
+- Feature support query API
+  - get_supported_features() - list all features
+  - check_feature_support(name) - check specific feature
+  - Returns version, timeline, support status
+
+- Comprehensive error messages
+  - Feature name and version when available
+  - Timeline estimate (8-12 weeks, 12-16 weeks, etc.)
+  - Workarounds for v0.1
+  - Links to roadmap documentation
+
+- Created 19 comprehensive tests
+  - Valid v0.1 configs pass
+  - Conditional routing blocked (hard)
+  - Optimization warned (soft)
+  - MLFlow observability warned (soft)
+  - Multiple feature combinations
+  - Feature query API
+
+Verification:
+  pytest -v
+  Expected: 172 passed (19 runtime + 153 existing)
+
+Progress: 5/20 tasks (25%) - Foundation phase
+Next: T-005 (Type System - mostly done in T-003)"
+```
+
+---
+
 ### Added - T-004: Config Validator ✅
 
 **Commit**: T-004: Config validator - Comprehensive validation
