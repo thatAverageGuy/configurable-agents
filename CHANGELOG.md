@@ -9,6 +9,83 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added - T-011: Node Executor ✅
+
+**Commit**: T-011: Node executor - Execute nodes with LLM + tools
+
+**What Was Done**:
+- Implemented node executor that integrates all Phase 2 components
+- Input mapping resolution from state
+- Prompt template resolution with {state.field} preprocessing helper
+- Tool loading and binding to LLM
+- LLM configuration merging (node-level overrides global)
+- Structured output enforcement using Pydantic models
+- Copy-on-write state updates (immutable pattern)
+- Comprehensive error handling with NodeExecutionError
+- 23 comprehensive tests covering all scenarios
+- Total: 367 tests passing (up from 344)
+
+**Node Executor Features**:
+- ✅ Execute workflow nodes with LLM + tools
+- ✅ Resolve input mappings: `{local: "{template}"}` from state
+- ✅ Resolve prompts with variable substitution
+- ✅ Handle {state.field} syntax via preprocessing (_strip_state_prefix)
+- ✅ Load and bind tools to LLM (serper_search, etc.)
+- ✅ Merge node-level and global LLM configurations
+- ✅ Enforce output schema with Pydantic validation
+- ✅ Update state immutably (copy-on-write pattern)
+- ✅ Retry logic via LLM provider (max_retries from config)
+- ✅ Logging at INFO level (execution success/failure)
+- ✅ Wrap all errors in NodeExecutionError with node_id context
+
+**Files Created**:
+```
+src/configurable_agents/core/
+└── node_executor.py (execute_node, NodeExecutionError, _strip_state_prefix)
+
+tests/core/
+└── test_node_executor.py (23 comprehensive tests)
+```
+
+**Public API**:
+```python
+from configurable_agents.core import (
+    execute_node,              # Main execution function
+    NodeExecutionError,        # Error type for node failures
+)
+
+# Execute a node
+updated_state = execute_node(
+    node_config,      # NodeConfig
+    state,            # Current workflow state (Pydantic model)
+    global_config,    # Optional[GlobalConfig]
+)
+# Returns: Updated state (new Pydantic instance)
+```
+
+**Design Decisions**:
+- Copy-on-write state updates: Returns new state instance (immutable pattern)
+- Input mapping semantics: Template strings resolved against state
+- State prefix preprocessing: `_strip_state_prefix` converts {state.X} → {X}
+  - TODO T-011.1: Update template resolver to handle {state.X} natively
+- Error wrapping: All failures wrapped in NodeExecutionError with context
+- Retry delegation: LLM provider handles retries (max_retries from global config)
+- Logging strategy: INFO for success/failure, DEBUG for detailed steps
+
+**Known Technical Debt**:
+- **T-011.1** (Future): Template resolver should handle {state.field} syntax natively
+  - Current: Validator (T-004) and SPEC.md use {state.field} syntax
+  - Current: Template resolver (T-010) expects {field} without prefix
+  - Workaround: `_strip_state_prefix` helper preprocesses prompts/inputs
+  - Impact: Low (preprocessing works fine, just not elegant)
+  - Resolution: Update template resolver in v0.2+ to accept both syntaxes
+
+**Progress**:
+- Phase 2 (Core Execution): 4/6 tasks complete (67%)
+- Overall v0.1 progress: 12/20 tasks complete (60%)
+
+---
+
 ### Added - T-010: Prompt Template Resolver ✅
 
 **Commit**: T-010: Prompt template resolver - Variable substitution

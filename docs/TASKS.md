@@ -654,45 +654,104 @@ resolved = resolve_prompt(
 ---
 
 ### T-011: Node Executor
-**Status**: TODO
+**Status**: DONE ✅
 **Priority**: P0
 **Dependencies**: T-007, T-008, T-009, T-010
 **Estimated Effort**: 1.5 weeks
+**Actual Effort**: <1 day (highly efficient implementation)
+**Completed**: 2026-01-27
 
 **Description**:
 Execute a single node (LLM call with tools, type-enforced output).
 
 **Acceptance Criteria**:
-- [ ] Resolve input mappings from state
-- [ ] Resolve prompt from state/inputs
-- [ ] Load tools from registry
-- [ ] Configure LLM (merge global + node config)
-- [ ] Call LLM with structured output (Pydantic model)
-- [ ] Validate output against schema
-- [ ] Retry on validation failure (with clarified prompt)
-- [ ] Update state with outputs
-- [ ] Handle errors:
-  - [ ] LLM timeout
-  - [ ] Tool failure
-  - [ ] Schema mismatch (retry)
-  - [ ] Type validation failure
-- [ ] Log node execution (inputs, outputs, time, cost)
-- [ ] Unit tests (mock LLM, tools)
-- [ ] Integration tests with real LLM
+- [x] Resolve input mappings from state
+- [x] Resolve prompt from state/inputs
+- [x] Load tools from registry
+- [x] Configure LLM (merge global + node config)
+- [x] Call LLM with structured output (Pydantic model)
+- [x] Validate output against schema (handled by T-009 retries)
+- [x] Retry on validation failure (handled by T-009)
+- [x] Update state with outputs (copy-on-write pattern)
+- [x] Handle errors:
+  - [x] LLM timeout (via T-009)
+  - [x] Tool failure
+  - [x] Schema mismatch (via T-009 retry)
+  - [x] Type validation failure
+- [x] Log node execution (INFO level logging)
+- [x] Unit tests (23 comprehensive tests - all mocked)
+- [ ] Integration tests with real LLM (deferred to T-017)
 
-**Files**:
-- `src/configurable_agents/core/node_executor.py`
-- `tests/core/test_node_executor.py`
+**Files Created**:
+- `src/configurable_agents/core/node_executor.py` (execute_node, NodeExecutionError, _strip_state_prefix)
+- `tests/core/test_node_executor.py` (23 tests)
+
+**Tests**: 23 tests created (367 total project tests: 23 node executor + 344 existing)
 
 **Interface**:
 ```python
+from configurable_agents.core import execute_node, NodeExecutionError
+
 def execute_node(
     node_config: NodeConfig,
     state: BaseModel,
-    global_config: GlobalConfig
+    global_config: Optional[GlobalConfig] = None
 ) -> BaseModel:
-    """Execute node and return updated state"""
+    """Execute node and return updated state (new instance)"""
 ```
+
+**Features Implemented**:
+- Input mapping resolution with template syntax
+- Prompt template resolution with {state.field} preprocessing
+- Tool loading and binding to LLM
+- LLM configuration merging (node overrides global)
+- Structured output enforcement (Pydantic models from T-007)
+- Copy-on-write state updates (immutable pattern)
+- Comprehensive error handling with NodeExecutionError
+- Logging at INFO level (execution success/failure)
+
+**Design Decisions**:
+1. **Copy-on-write state**: Returns new state instance (immutable pattern)
+2. **Input mapping semantics**: `inputs: {local: "{template}"}` resolves template against state
+3. **State prefix preprocessing**: `_strip_state_prefix` converts `{state.field}` → `{field}`
+   - **TODO T-011.1**: Update template resolver to handle {state.X} natively and remove preprocessing
+4. **Error wrapping**: All errors wrapped in NodeExecutionError with node_id context
+5. **Retry logic**: Delegated to LLM provider (T-009) - max_retries from global config
+6. **Logging**: INFO for success/failure, DEBUG for detailed execution steps
+7. **Tool binding**: Tools loaded lazily per node execution
+
+**Known Issues / Future Work**:
+- **T-011.1 (Future Enhancement)**: Template resolver should handle {state.field} syntax natively
+  - Current workaround: `_strip_state_prefix` helper preprocesses prompts
+  - Validator (T-004) and SPEC.md both use {state.field} syntax
+  - Template resolver (T-010) expects {field} without prefix
+  - Resolution: Update template resolver in v0.2+ to accept both syntaxes
+  - Location: `src/configurable_agents/core/template.py`
+  - Impact: Low (preprocessing works fine, just not elegant)
+
+**Error Messages**:
+```python
+# Input mapping error
+NodeExecutionError: Node 'test': Failed to resolve input mapping 'query' from '{unknown}': Variable 'unknown' not found
+
+# Prompt resolution error
+NodeExecutionError: Node 'test': Prompt template resolution failed: Variable 'unknown' not found
+
+# Tool loading error
+NodeExecutionError: Node 'test': Tool loading failed: Tool 'unknown_tool' not found
+
+# LLM creation error
+NodeExecutionError: Node 'test': LLM creation failed: GOOGLE_API_KEY not set
+
+# Output model error
+NodeExecutionError: Node 'test': Output model creation failed: Invalid schema
+
+# LLM call error
+NodeExecutionError: Node 'test': LLM call failed: API timeout
+```
+
+**Phase 2 Progress**:
+T-011 completes 4/6 tasks in Phase 2 (Core Execution) - 67% complete!
 
 ---
 
@@ -1023,9 +1082,9 @@ T-019 -> T-020 (Structured Output + DSPy - NEW)
 
 ## Progress Tracker
 
-**Last Updated**: 2026-01-26
+**Last Updated**: 2026-01-27
 
-### v0.1 Progress: 11/20 tasks complete (55%)
+### v0.1 Progress: 12/20 tasks complete (60%)
 
 **Phase 1: Foundation (8/8 complete) ✅ COMPLETE**
 - ✅ T-001: Project Setup
@@ -1037,12 +1096,12 @@ T-019 -> T-020 (Structured Output + DSPy - NEW)
 - ✅ T-006: State Schema Builder
 - ✅ T-007: Output Schema Builder
 
-**Phase 2: Core Execution (3/6 complete) - IN PROGRESS**
+**Phase 2: Core Execution (4/6 complete) - IN PROGRESS**
 - ✅ T-008: Tool Registry
 - ✅ T-009: LLM Provider
 - ✅ T-010: Prompt Template Resolver
-- ⏳ T-011: Node Executor (NEXT)
-- ⏳ T-012: Graph Builder
+- ✅ T-011: Node Executor
+- ⏳ T-012: Graph Builder (NEXT)
 - ⏳ T-013: Runtime Executor
 
 **Phase 3: Polish & UX (0/5 complete)**
@@ -1056,8 +1115,8 @@ T-019 -> T-020 (Structured Output + DSPy - NEW)
 - ⏳ T-019: DSPy Integration Test
 - ⏳ T-020: Structured Output + DSPy Test
 
-**Current Sprint**: Phase 2 - Core Execution (3/6 complete)
-**Test Status**: 344 tests passing (44 template + 32 llm + 37 tools + 29 output + 30 state + 29 validator + 19 runtime + 67 schema + 31 types + 18 parser + 5 integration + 3 setup)
+**Current Sprint**: Phase 2 - Core Execution (4/6 complete)
+**Test Status**: 367 tests passing (23 node executor + 44 template + 32 llm + 37 tools + 29 output + 30 state + 29 validator + 19 runtime + 67 schema + 31 types + 18 parser + 5 integration + 3 setup)
 
 ---
 
