@@ -1,6 +1,6 @@
 # Project Status
 
-**Last Updated**: 2026-01-24
+**Last Updated**: 2026-01-26
 **Version**: v0.1.0-dev
 **Phase**: Foundation (Week 1 of 6-8)
 
@@ -8,10 +8,10 @@
 
 ## 🎯 Current Status
 
-### Implementation Progress: 15% Complete (3/20 tasks)
+### Implementation Progress: 20% Complete (4/20 tasks)
 
 **Active Phase**: Foundation
-**Current Task**: T-004 (Config Validator)
+**Current Task**: T-004.5 (Runtime Feature Gating)
 **Next Milestone**: Complete Phase 1 (7 tasks) - Foundation
 
 ---
@@ -62,7 +62,7 @@
 
 ### T-003: Config Schema (Pydantic Models) ✅
 **Completed**: 2026-01-24
-**Commit**: (pending)
+**Commit**: `dc9ef89`
 
 **Deliverables**:
 - ✅ Type system for parsing type strings (str, int, float, bool, list, dict, nested)
@@ -100,9 +100,52 @@ WorkflowConfig
 
 ---
 
+### T-004: Config Validator ✅
+**Completed**: 2026-01-26
+**Commit**: (pending)
+
+**Deliverables**:
+- ✅ Comprehensive validation beyond Pydantic schema checks
+- ✅ Cross-reference validation (node IDs, state fields, output types)
+- ✅ Graph structure validation (connectivity, reachability)
+- ✅ Linear flow enforcement (no cycles, no conditional routing)
+- ✅ Fail-fast error handling with helpful suggestions
+- ✅ "Did you mean...?" suggestions for typos
+- ✅ 29 comprehensive validator tests
+- ✅ 153 total tests passing (up from 124)
+
+**Files Created**:
+- `src/configurable_agents/config/validator.py`
+- `tests/config/test_validator.py`
+
+**Validation Features**:
+```python
+# Main validation function
+from configurable_agents.config import validate_config, ValidationError
+
+try:
+    validate_config(config)
+except ValidationError as e:
+    # Helpful error with context and suggestions
+    print(e.message)
+    print(e.suggestion)
+```
+
+**8 Validation Stages**:
+1. Edge references (nodes exist)
+2. Node outputs (state fields exist)
+3. Output schema alignment (schema ↔ outputs)
+4. Type alignment (output types ↔ state types)
+5. Prompt placeholders (valid references)
+6. State types (valid type strings)
+7. Linear flow constraints (v0.1 specific)
+8. Graph structure (connectivity)
+
+---
+
 ## 🚧 In Progress
 
-### T-004: Config Validator
+### T-004.5: Runtime Feature Gating
 **Status**: Next
 **Priority**: P0 (Critical)
 **Dependencies**: T-002, T-003
@@ -121,21 +164,21 @@ WorkflowConfig
 
 ### Next 5 Tasks
 
-1. **T-004**: Config Validator - Comprehensive validation
-2. **T-004.5**: Runtime Feature Gating - Reject unsupported features
-3. **T-005**: Type System - Parse type strings (partially done in T-003)
-4. **T-006**: State Schema Builder - Dynamic Pydantic models
-5. **T-007**: Output Schema Builder - Dynamic output models
+1. **T-004.5**: Runtime Feature Gating - Reject unsupported features
+2. **T-005**: Type System - Parse type strings (partially done in T-003)
+3. **T-006**: State Schema Builder - Dynamic Pydantic models
+4. **T-007**: Output Schema Builder - Dynamic output models
+5. **T-008**: Tool Registry - Load tools by name
 
 ---
 
 ## 📊 Phase Breakdown
 
-### Phase 1: Foundation (3/7 complete)
+### Phase 1: Foundation (4/7 complete)
 - ✅ T-001: Project Setup
 - ✅ T-002: Config Parser
 - ✅ T-003: Config Schema (Pydantic Models)
-- ⏳ T-004: Config Validator
+- ✅ T-004: Config Validator
 - ⏳ T-004.5: Runtime Feature Gating
 - ⏳ T-005: Type System
 - ⏳ T-006: State Schema Builder
@@ -248,13 +291,14 @@ type_info = parse_type_string("list[str]")
 ### Test Coverage
 ```bash
 $ pytest tests/ -v
-=================== 124 passed in 0.18s ===================
+=================== 153 passed in 0.50s ===================
 
 Tests:
 - Schema models: 67 tests (Pydantic validation)
 - Type system: 31 tests (type parsing)
-- Integration: 5 tests (YAML → Pydantic)
+- Validator: 29 tests (comprehensive validation)
 - Config parser: 18 tests (YAML, JSON, errors)
+- Integration: 5 tests (YAML → Pydantic)
 - Setup: 3 tests (imports, version, logging)
 ```
 
@@ -329,7 +373,17 @@ Tests:
 
 ## 📝 Recent Changes
 
-### 2026-01-24 (Today)
+### 2026-01-26 (Today)
+- ✅ Completed T-004: Config validator
+- ✅ 153 tests passing (29 validator + 124 existing)
+- ✅ Comprehensive validation with fail-fast error handling
+- ✅ Cross-reference validation (nodes, state, outputs, types)
+- ✅ Graph structure validation (connectivity, reachability)
+- ✅ Linear flow enforcement (no cycles, no conditional routing)
+- ✅ "Did you mean...?" suggestions for typos
+- 📝 Progress: 4/20 tasks (20%) complete
+
+### 2026-01-24
 - ✅ Completed T-001: Project setup
 - ✅ Completed T-002: Config parser (YAML + JSON)
 - ✅ Completed T-003: Config schema (Pydantic models)
@@ -337,6 +391,7 @@ Tests:
 - ✅ Type system implementation (str, int, float, bool, list, dict, object)
 - ✅ 13 Pydantic models for complete Schema v1.0
 - ✅ Full Schema Day One (ADR-009) - future-proof design
+- 📝 Commit: `dc9ef89` - Config schema implementation
 - 📝 Commit: `d7b1453` - Resolved test count documentation
 - 📝 Commit: `069d6f3` - Added setup files
 - 📝 Commit: `ba6c15e` - Config parser implementation
