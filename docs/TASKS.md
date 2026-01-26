@@ -339,37 +339,50 @@ def get_python_type(type_str: str) -> Type:
 ---
 
 ### T-006: State Schema Builder
-**Status**: TODO
+**Status**: DONE ✅
 **Priority**: P0
 **Dependencies**: T-005
 **Estimated Effort**: 1 week
+**Actual Effort**: <1 day (highly efficient implementation)
+**Completed**: 2026-01-26
 
 **Description**:
 Dynamically generate Pydantic state models from config. Supports nested objects.
 
 **Acceptance Criteria**:
-- [ ] Create Pydantic `BaseModel` from state config
-- [ ] Support all type system types
-- [ ] Handle required fields
-- [ ] Handle default values
-- [ ] Support nested objects (recursive schema building)
-- [ ] Validate state at instantiation
-- [ ] Include field descriptions in model
-- [ ] Unit tests with various state schemas:
-  - [ ] Simple flat state
-  - [ ] Nested state (1 level)
-  - [ ] Deeply nested state (3+ levels)
-  - [ ] All type combinations
+- [x] Create Pydantic `BaseModel` from state config
+- [x] Support all type system types
+- [x] Handle required fields
+- [x] Handle default values
+- [x] Support nested objects (recursive schema building)
+- [x] Validate state at instantiation
+- [x] Include field descriptions in model
+- [x] Unit tests with various state schemas:
+  - [x] Simple flat state (4 tests)
+  - [x] Nested state (1 level) (3 tests)
+  - [x] Deeply nested state (3+ levels) (2 tests)
+  - [x] All type combinations (1 kitchen sink test)
+- [x] Additional comprehensive test coverage (30 total tests)
 
-**Files**:
-- `src/configurable_agents/core/state_builder.py`
-- `tests/core/test_state_builder.py`
+**Files Created**:
+- `src/configurable_agents/core/state_builder.py` (dynamic model builder, 207 lines)
+- `tests/core/test_state_builder.py` (30 comprehensive tests)
+- `tests/core/__init__.py`
 
 **Interface**:
 ```python
 def build_state_model(state_config: StateSchema) -> Type[BaseModel]:
     """Create Pydantic state model from config"""
+    # Returns dynamic WorkflowState class
+
+# Raises StateBuilderError on build failures
 ```
+
+**Features**:
+- Recursive nested object support with meaningful names (WorkflowState_metadata)
+- No redundant validation (leverages T-004)
+- Supports both simple and full schema formats
+- Fail-fast error handling with clear messages
 
 ---
 
@@ -894,16 +907,16 @@ T-019 -> T-020 (Structured Output + DSPy - NEW)
 
 **Last Updated**: 2026-01-26
 
-### v0.1 Progress: 6/20 tasks complete (30%)
+### v0.1 Progress: 7/20 tasks complete (35%)
 
-**Phase 1: Foundation (6/7 complete)**
+**Phase 1: Foundation (7/8 complete)**
 - ✅ T-001: Project Setup
 - ✅ T-002: Config Parser
 - ✅ T-003: Config Schema (Pydantic Models)
 - ✅ T-004: Config Validator
 - ✅ T-004.5: Runtime Feature Gating
-- ✅ T-005: Type System
-- ⏳ T-006: State Schema Builder
+- ✅ T-005: Type System (already complete in T-003)
+- ✅ T-006: State Schema Builder
 - ⏳ T-007: Output Schema Builder
 
 **Phase 2: Core Execution (0/6 complete)**
@@ -925,8 +938,8 @@ T-019 -> T-020 (Structured Output + DSPy - NEW)
 - ⏳ T-019: DSPy Integration Test
 - ⏳ T-020: Structured Output + DSPy Test
 
-**Current Sprint**: Foundation Phase (T-006 next)
-**Test Status**: 172 tests passing (67 schema + 31 types + 29 validator + 19 runtime + 18 parser + 5 integration + 3 setup)
+**Current Sprint**: Foundation Phase - Final task (T-007 next)
+**Test Status**: 202 tests passing (67 schema + 31 types + 30 state builder + 29 validator + 19 runtime + 18 parser + 5 integration + 3 setup)
 
 ---
 
