@@ -80,8 +80,8 @@ configurable-agents run article_writer.yaml --input topic="AI Safety"
 
 ## 🗺️ Roadmap
 
-### v0.1 - Foundation ⏳ (Current - Week 1 of 6-8)
-**Status**: 40% complete (8/20 tasks) | **Target**: March 2026
+### v0.1 - Foundation ⏳ (Current - Week 2 of 6-8)
+**Status**: 45% complete (9/20 tasks) | **Target**: March 2026
 
 **Phase 1 COMPLETE** ✅:
 - ✅ T-001: Project setup and structure
@@ -92,13 +92,16 @@ configurable-agents run article_writer.yaml --input topic="AI Safety"
 - ✅ T-005: Type system (complete - parse, validate, convert type strings)
 - ✅ T-006: State schema builder (dynamic Pydantic models from config)
 - ✅ T-007: Output schema builder (type-enforced LLM outputs)
-- ✅ 231 tests passing (29 output + 30 state + 29 validator + 19 runtime + 67 schema + 31 types + 18 parser + 5 integration + 3 setup)
 
-**In progress**:
-- ⏳ T-008: Tool registry (web search)
+**Phase 2 IN PROGRESS** (1/6 complete):
+- ✅ T-008: Tool registry (web search - serper_search)
 - ⏳ T-009: LLM integration (Google Gemini)
 - ⏳ T-010: Prompt template resolver
-- ⏳ Linear workflow execution
+- ⏳ T-011: Node executor
+- ⏳ T-012: Graph builder
+- ⏳ T-013: Runtime executor
+
+**Test Coverage**: 268 tests passing (37 tools + 29 output + 30 state + 29 validator + 19 runtime + 67 schema + 31 types + 18 parser + 5 integration + 3 setup)
 
 **Capabilities when complete**:
 - Define workflows in YAML
@@ -249,8 +252,8 @@ See [Architecture Decision Records](docs/adr/) for detailed design choices.
 - ✅ T-006: State Schema Builder
 - ✅ T-007: Output Schema Builder
 
-### Phase 2: Core Execution (0/6 complete) - NEXT
-- ⏳ T-008: Tool Registry
+### Phase 2: Core Execution (1/6 complete) - IN PROGRESS
+- ✅ T-008: Tool Registry
 - ⏳ T-009: LLM Provider
 - ⏳ T-010: Prompt Template Resolver
 - ⏳ T-011: Node Executor
@@ -268,7 +271,7 @@ See [Architecture Decision Records](docs/adr/) for detailed design choices.
 - ⏳ T-019: DSPy Integration Test
 - ⏳ T-020: Structured Output + DSPy
 
-**Next up**: T-008 (Tool Registry) - Start of Phase 2
+**Next up**: T-009 (LLM Provider - Google Gemini integration)
 
 Full task breakdown: [docs/TASKS.md](docs/TASKS.md)
 

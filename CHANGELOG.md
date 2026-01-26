@@ -9,6 +9,189 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added - T-008: Tool Registry ✅
+
+**Commit**: T-008: Tool registry - Web search tool integration
+
+**What Was Done**:
+- Implemented centralized tool registry for loading tools by name
+- Created registry-based architecture with factory functions for lazy loading
+- Implemented `serper_search` web search tool using Google Serper API
+- Comprehensive error handling with helpful messages
+- Added langchain-community dependency for tool integrations
+- 37 comprehensive tests covering all scenarios
+- Total: 268 tests passing (up from 231)
+
+**Tool Registry Features**:
+- ✅ Get tool by name: `get_tool(name) -> BaseTool`
+- ✅ List available tools: `list_tools() -> list[str]`
+- ✅ Check tool exists: `has_tool(name) -> bool`
+- ✅ Register custom tools: `register_tool(name, factory)`
+- ✅ Lazy loading - tools created on demand
+- ✅ API key validation from environment variables
+- ✅ Fail loudly with helpful errors if tool not found
+- ✅ Fail loudly with setup instructions if API key missing
+- ✅ Factory-based design for extensibility
+
+**Serper Search Tool**:
+- ✅ Web search using Google Search via Serper API
+- ✅ Reads SERPER_API_KEY from environment
+- ✅ Clear error messages with setup instructions
+- ✅ LangChain Tool wrapper for compatibility
+- ✅ Helpful description for LLM tool selection
+
+**Files Created**:
+```
+src/configurable_agents/tools/
+├── registry.py (tool registry with global instance)
+└── serper.py (Serper web search implementation)
+
+tests/tools/
+├── __init__.py
+├── test_registry.py (22 registry tests)
+└── test_serper.py (15 serper tests + 2 integration tests)
+```
+
+**Public API**:
+```python
+from configurable_agents.tools import get_tool, list_tools, has_tool
+
+# List available tools
+tools = list_tools()  # ['serper_search']
+
+# Check if tool exists
+if has_tool("serper_search"):
+    # Get tool instance
+    search = get_tool("serper_search")
+    results = search.run("Python programming")
+```
+
+**Error Handling**:
+```python
+# Tool not found
+>>> get_tool("unknown_tool")
+ToolNotFoundError: Tool 'unknown_tool' not found in registry.
+Available tools: serper_search
+Suggestion: Check the tool name for typos. Tools are case-sensitive.
+
+# Missing API key
+>>> get_tool("serper_search")
+ToolConfigError: Tool 'serper_search' configuration failed:
+SERPER_API_KEY environment variable not set
+
+Set the environment variable: SERPER_API_KEY
+Example: export SERPER_API_KEY=your-api-key-here
+```
+
+**How to Verify**:
+
+1. **Test tool registry**:
+   ```bash
+   pytest tests/tools/test_registry.py -v
+   # Expected: 22 passed
+   ```
+
+2. **Test serper tool**:
+   ```bash
+   pytest tests/tools/test_serper.py -v -m "not integration"
+   # Expected: 15 passed
+   ```
+
+3. **Run full test suite**:
+   ```bash
+   pytest -v -m "not integration"
+   # Expected: 268 passed (37 new + 231 existing)
+   ```
+
+4. **Use tool registry**:
+   ```python
+   import os
+   os.environ["SERPER_API_KEY"] = "your-key-here"
+
+   from configurable_agents.tools import get_tool, list_tools
+
+   # List tools
+   print(list_tools())  # ['serper_search']
+
+   # Get and use tool
+   search = get_tool("serper_search")
+   results = search.run("artificial intelligence news")
+   print(results)
+   ```
+
+**What to Expect**:
+
+- ✅ Tool registry loads tools by name from config
+- ✅ Serper search tool works with valid API key
+- ✅ Helpful error messages for missing tools or API keys
+- ✅ Tools are LangChain BaseTool instances
+- ✅ Registry is extensible for custom tools
+- ✅ Lazy loading - tools created only when requested
+- ⚠️ Only `serper_search` available in v0.1 (more tools in v0.2+)
+
+**Design Decisions**:
+
+1. **Factory pattern**: Tools created via factory functions for lazy loading
+2. **Global registry**: Single global instance for convenience
+3. **Fail loudly**: Clear errors with actionable messages
+4. **LangChain integration**: Tools use LangChain BaseTool interface
+5. **Environment-based config**: API keys from environment variables
+6. **Case-sensitive names**: Tool names match config exactly
+
+**Phase 2 Progress**:
+With T-008 done, **Phase 2 (Core Execution) is 1/6 complete**:
+- ✅ T-008: Tool Registry
+- ⏳ T-009: LLM Provider (Google Gemini)
+- ⏳ T-010: Prompt Template Resolver
+- ⏳ T-011: Node Executor
+- ⏳ T-012: Graph Builder
+- ⏳ T-013: Runtime Executor
+
+**Documentation Updated**:
+- ✅ CHANGELOG.md (this file)
+- ✅ docs/TASKS.md (T-008 marked DONE, progress updated to 9/20)
+- ✅ docs/DISCUSSION.md (status updated)
+- ✅ README.md (progress statistics updated)
+
+**Dependencies Added**:
+- `langchain-community>=0.0.20` (for GoogleSerperAPIWrapper)
+
+**Git Commit Command**:
+```bash
+git add .
+git commit -m "T-008: Tool registry - Web search tool integration
+
+- Implemented tool registry with factory-based lazy loading
+  - get_tool(name) - Get tool by name
+  - list_tools() - List available tools
+  - has_tool(name) - Check if tool exists
+  - register_tool(name, factory) - Register custom tools
+  - Fail loudly if tool not found or API key missing
+
+- Implemented serper_search web search tool
+  - Google Search via Serper API
+  - Reads SERPER_API_KEY from environment
+  - Clear error messages with setup instructions
+  - LangChain Tool wrapper for compatibility
+
+- Added langchain-community dependency
+- Created 37 comprehensive tests
+  - 22 registry tests (registration, retrieval, errors)
+  - 15 serper tests (creation, validation, behavior)
+  - 2 integration tests (marked with @pytest.mark.integration)
+
+Verification:
+  pytest -v -m 'not integration'
+  Expected: 268 passed (37 tools + 231 existing)
+
+Progress: 9/20 tasks (45%) - Phase 2 (Core Execution) 1/6 complete
+Next: T-009 (LLM Provider - Google Gemini)
+
+Co-Authored-By: Claude Sonnet 4.5 <noreply@anthropic.com>"
+```
+
+---
+
 ### Added - T-007: Output Schema Builder ✅
 
 **Commit**: T-007: Output schema builder - Type-enforced LLM outputs
