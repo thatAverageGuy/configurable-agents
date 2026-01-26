@@ -252,10 +252,12 @@ def validate_config(config: WorkflowConfig) -> list[ValidationError]:
 ---
 
 ### T-004.5: Runtime Feature Gating - NEW
-**Status**: TODO
+**Status**: DONE ✅
 **Priority**: P0
 **Dependencies**: T-003, T-004
 **Estimated Effort**: 2-3 days
+**Actual Effort**: <1 day (highly efficient implementation)
+**Completed**: 2026-01-26
 
 **Description**:
 Implement runtime checks for unsupported features in v0.1. Reject configs with features not yet implemented, with helpful error messages.
@@ -885,14 +887,14 @@ T-019 -> T-020 (Structured Output + DSPy - NEW)
 
 **Last Updated**: 2026-01-26
 
-### v0.1 Progress: 4/20 tasks complete (20%)
+### v0.1 Progress: 5/20 tasks complete (25%)
 
-**Phase 1: Foundation (4/7 complete)**
+**Phase 1: Foundation (5/7 complete)**
 - ✅ T-001: Project Setup
 - ✅ T-002: Config Parser
 - ✅ T-003: Config Schema (Pydantic Models)
 - ✅ T-004: Config Validator
-- ⏳ T-004.5: Runtime Feature Gating
+- ✅ T-004.5: Runtime Feature Gating
 - ⏳ T-005: Type System
 - ⏳ T-006: State Schema Builder
 - ⏳ T-007: Output Schema Builder
@@ -916,8 +918,8 @@ T-019 -> T-020 (Structured Output + DSPy - NEW)
 - ⏳ T-019: DSPy Integration Test
 - ⏳ T-020: Structured Output + DSPy Test
 
-**Current Sprint**: Foundation Phase (T-004.5 next)
-**Test Status**: 153 tests passing (67 schema + 31 types + 29 validator + 18 parser + 5 integration + 3 setup)
+**Current Sprint**: Foundation Phase (T-005 next)
+**Test Status**: 172 tests passing (67 schema + 31 types + 29 validator + 19 runtime + 18 parser + 5 integration + 3 setup)
 
 ---
 
