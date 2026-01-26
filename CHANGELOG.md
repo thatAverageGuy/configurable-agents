@@ -9,6 +9,187 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added - T-006: State Schema Builder ✅
+
+**Commit**: T-006: State schema builder - Dynamic Pydantic models
+
+**What Was Done**:
+- Implemented dynamic Pydantic model generation from StateSchema configs
+- Supports all type system types (basic, collections, nested objects)
+- Recursive nested object handling with meaningful model names
+- Required/optional fields with proper validation
+- Default values preserved and enforced
+- Field descriptions included in generated models
+- 30 comprehensive tests covering all scenarios
+- Total: 202 tests passing (up from 172)
+
+**State Builder Features**:
+- ✅ Build runtime Pydantic BaseModel from config
+- ✅ Basic types (str, int, float, bool)
+- ✅ Collection types (list, dict, list[T], dict[K,V])
+- ✅ Nested objects (1 level deep)
+- ✅ Deeply nested objects (3+ levels)
+- ✅ Required field validation
+- ✅ Optional fields (default to None)
+- ✅ Default values
+- ✅ Field descriptions preserved
+- ✅ Fail-fast error handling with clear messages
+- ✅ No redundant validation (leverages T-004 validator)
+
+**Files Created**:
+```
+src/configurable_agents/core/
+└── state_builder.py (dynamic Pydantic model builder)
+
+tests/core/
+├── __init__.py
+└── test_state_builder.py (30 comprehensive tests)
+```
+
+**Public API**:
+```python
+from configurable_agents.core import build_state_model, StateBuilderError
+
+# Build dynamic state model
+StateModel = build_state_model(state_config)
+
+# Create state instance
+state = StateModel(topic="AI Safety", score=95)
+```
+
+**How to Verify**:
+
+1. **Test state builder**:
+   ```bash
+   pytest tests/core/test_state_builder.py -v
+   # Expected: 30 passed
+   ```
+
+2. **Run full test suite**:
+   ```bash
+   pytest -v
+   # Expected: 202 passed (30 new + 172 existing)
+   ```
+
+3. **Use state builder**:
+   ```python
+   from configurable_agents.config import StateSchema, StateFieldConfig
+   from configurable_agents.core import build_state_model
+
+   # Define state config
+   state_config = StateSchema(
+       fields={
+           "topic": StateFieldConfig(type="str", required=True),
+           "score": StateFieldConfig(type="int", default=0),
+           "tags": StateFieldConfig(type="list[str]", default=[]),
+           "metadata": StateFieldConfig(
+               type="object",
+               required=False,
+               schema={"author": "str", "timestamp": "int"},
+           ),
+       }
+   )
+
+   # Build model
+   StateModel = build_state_model(state_config)
+
+   # Create instance (minimal)
+   state1 = StateModel(topic="AI Safety")
+   assert state1.topic == "AI Safety"
+   assert state1.score == 0
+   assert state1.tags == []
+   assert state1.metadata is None
+
+   # Create instance (full)
+   state2 = StateModel(
+       topic="AI Safety",
+       score=95,
+       tags=["ai", "safety"],
+       metadata={"author": "Alice", "timestamp": 1234567890},
+   )
+   assert state2.metadata.author == "Alice"
+   assert state2.metadata.timestamp == 1234567890
+   ```
+
+**What to Expect**:
+
+- ✅ Dynamic Pydantic models generated from configs
+- ✅ All type system types supported (basic, collections, nested objects)
+- ✅ Required fields enforced (ValidationError if missing)
+- ✅ Optional fields default to None
+- ✅ Default values work correctly
+- ✅ Field descriptions included in model schema
+- ✅ Nested objects have meaningful names (WorkflowState_metadata, etc.)
+- ✅ Type validation enforced by Pydantic
+- ✅ Clear error messages for invalid configs
+
+**Example Error Messages**:
+
+```python
+# Missing required field
+ValidationError: 1 validation error for WorkflowState
+topic
+  Field required [type=missing, input_value={}, input_type=dict]
+
+# Wrong type
+ValidationError: 1 validation error for WorkflowState
+score
+  Input should be a valid integer [type=int_type, input_value='not_a_number', input_type=str]
+
+# Object without schema
+StateBuilderError: Field 'metadata' has type 'object' but no 'schema' defined
+
+# Empty nested schema
+StateBuilderError: Field 'data' has type 'object' with empty schema
+```
+
+**Design Decisions**:
+
+1. **Model naming**: All models named `WorkflowState` for readability (not hashes)
+2. **Nested model naming**: Uses descriptive names like `WorkflowState_metadata_flags`
+3. **No redundant validation**: Assumes config already validated by T-004
+4. **Fail-fast**: Clear StateBuilderError for builder-specific issues
+5. **Supports both schema formats**:
+   - Simple: `{"name": "str", "age": "int"}`
+   - Full: `{"name": {"type": "str", "required": true}}`
+
+**Documentation Updated**:
+- ✅ CHANGELOG.md (this file)
+- ✅ docs/TASKS.md (T-006 marked DONE, progress updated to 7/20)
+- ✅ docs/DISCUSSION.md (status updated)
+- ✅ README.md (progress statistics updated)
+
+**Git Commit Command**:
+```bash
+git add .
+git commit -m "T-006: State schema builder - Dynamic Pydantic models
+
+- Implemented dynamic Pydantic model generation from StateSchema
+- Supports all type system types (basic, collections, nested objects)
+- Recursive nested object handling with meaningful names
+- Required/optional fields, defaults, descriptions
+- No redundant validation (leverages T-004)
+- Fail-fast error handling
+
+- Created 30 comprehensive tests
+  - Basic types (str, int, float, bool)
+  - Collection types (list, dict, list[T], dict[K,V])
+  - Nested objects (1 level and 3+ levels deep)
+  - Required/optional/default fields
+  - Field descriptions
+  - Error handling
+  - Model reuse
+
+Verification:
+  pytest -v
+  Expected: 202 passed (30 core + 172 existing)
+
+Progress: 7/20 tasks (35%) - Foundation phase 7/7 complete!
+Next: T-007 (Output Schema Builder)"
+```
+
+---
+
 ### Added - T-004.5: Runtime Feature Gating ✅
 
 **Commit**: T-004.5: Runtime feature gating - Version checks

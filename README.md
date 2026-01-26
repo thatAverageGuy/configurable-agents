@@ -81,7 +81,7 @@ configurable-agents run article_writer.yaml --input topic="AI Safety"
 ## 🗺️ Roadmap
 
 ### v0.1 - Foundation ⏳ (Current - Week 1 of 6-8)
-**Status**: 30% complete (6/20 tasks) | **Target**: March 2026
+**Status**: 35% complete (7/20 tasks) | **Target**: March 2026
 
 **What's working**:
 - ✅ T-001: Project setup and structure
@@ -90,15 +90,14 @@ configurable-agents run article_writer.yaml --input topic="AI Safety"
 - ✅ T-004: Config validator (comprehensive validation with helpful errors)
 - ✅ T-004.5: Runtime feature gating (version checks, hard/soft blocks)
 - ✅ T-005: Type system (complete - parse, validate, convert type strings)
-- ✅ 172 tests passing (67 schema + 31 types + 29 validator + 19 runtime + 18 parser + 5 integration + 3 setup)
+- ✅ T-006: State schema builder (dynamic Pydantic models from config)
+- ✅ 202 tests passing (67 schema + 31 types + 30 state builder + 29 validator + 19 runtime + 18 parser + 5 integration + 3 setup)
 
 **In progress**:
-- ⏳ T-006: State schema builder
 - ⏳ T-007: Output schema builder
-- ⏳ State management
-- ⏳ LLM integration (Google Gemini)
+- ⏳ T-008: Tool registry (web search)
+- ⏳ T-009: LLM integration (Google Gemini)
 - ⏳ Linear workflow execution
-- ⏳ Tool registry (web search)
 
 **Capabilities when complete**:
 - Define workflows in YAML
@@ -239,14 +238,14 @@ See [Architecture Decision Records](docs/adr/) for detailed design choices.
 
 ## 📊 Current Progress
 
-### Phase 1: Foundation (6/7 complete)
+### Phase 1: Foundation (7/8 complete)
 - ✅ T-001: Project Setup
 - ✅ T-002: Config Parser
 - ✅ T-003: Config Schema (Pydantic Models)
 - ✅ T-004: Config Validator
 - ✅ T-004.5: Runtime Feature Gating
-- ✅ T-005: Type System
-- ⏳ T-006: State Schema Builder
+- ✅ T-005: Type System (already complete in T-003)
+- ✅ T-006: State Schema Builder
 - ⏳ T-007: Output Schema Builder
 
 ### Phase 2: Core Execution (0/6 complete)
@@ -268,7 +267,7 @@ See [Architecture Decision Records](docs/adr/) for detailed design choices.
 - ⏳ T-019: DSPy Integration Test
 - ⏳ T-020: Structured Output + DSPy
 
-**Next up**: T-006 (State Schema Builder)
+**Next up**: T-007 (Output Schema Builder)
 
 Full task breakdown: [docs/TASKS.md](docs/TASKS.md)
 
