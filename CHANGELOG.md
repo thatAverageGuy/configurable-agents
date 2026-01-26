@@ -9,6 +9,200 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added - T-010: Prompt Template Resolver ✅
+
+**Commit**: T-010: Prompt template resolver - Variable substitution
+
+**What Was Done**:
+- Implemented prompt template resolution with {variable} placeholder support
+- Input mappings override state fields (explicit precedence)
+- Support for nested state access ({metadata.author}, {metadata.flags.level})
+- Comprehensive error handling with "Did you mean?" suggestions
+- Edit distance algorithm for typo detection (max 2 edits)
+- Automatic type conversion (int, bool, etc. → string)
+- 44 comprehensive tests covering all scenarios
+- Total: 344 tests passing (up from 300)
+
+**Template Resolver Features**:
+- ✅ Resolve {variable} placeholders from inputs or state
+- ✅ Input mappings take priority over state fields
+- ✅ Nested state access: {metadata.author}, {flags.enabled}
+- ✅ Deeply nested access (3+ levels): {metadata.flags.level}
+- ✅ Multiple variables in single template
+- ✅ Type conversion (non-string values converted to strings)
+- ✅ Empty templates handled gracefully
+- ✅ Templates without variables returned unchanged
+- ✅ Fail-fast with helpful error messages
+- ✅ "Did you mean X?" suggestions for typos (edit distance ≤ 2)
+
+**Files Created**:
+```
+src/configurable_agents/core/
+└── template.py (prompt template resolver)
+
+tests/core/
+└── test_template.py (44 comprehensive tests)
+```
+
+**Public API**:
+```python
+from configurable_agents.core import (
+    resolve_prompt,             # Main resolution function
+    extract_variables,          # Extract {variable} references
+    TemplateResolutionError,    # Resolution error exception
+)
+
+# Resolve prompt template
+resolved = resolve_prompt(
+    prompt_template="Hello {name}, discuss {topic}",
+    inputs={"name": "Alice"},  # Node-level inputs (override state)
+    state=state_model,         # Workflow state (Pydantic model)
+)
+# Returns: "Hello Alice, discuss AI Safety"
+
+# Extract variable references
+variables = extract_variables("Author: {metadata.author}")
+# Returns: {"metadata.author"}
+```
+
+**Error Handling**:
+```python
+# Missing variable
+>>> resolve_prompt("Hello {unknown}", {}, state)
+TemplateResolutionError: Variable 'unknown' not found in inputs or state
+Suggestion: Did you mean 'topic'?
+Available inputs: []
+Available state fields: ['topic', 'score']
+
+# Nested variable not found
+>>> resolve_prompt("{metadata.author}", {}, state)
+TemplateResolutionError: Variable 'metadata.author' not found in inputs or state
+Available inputs: []
+Available state fields: ['topic', 'score']
+```
+
+**How to Verify**:
+
+1. **Test template resolver**:
+   ```bash
+   pytest tests/core/test_template.py -v
+   # Expected: 44 passed
+   ```
+
+2. **Run full test suite**:
+   ```bash
+   pytest -v -m "not integration"
+   # Expected: 344 passed (44 template + 300 existing)
+   ```
+
+3. **Use template resolver**:
+   ```python
+   from configurable_agents.core import resolve_prompt
+   from pydantic import BaseModel
+
+   class State(BaseModel):
+       topic: str
+       score: int
+
+   state = State(topic="AI Safety", score=95)
+   inputs = {"name": "Alice"}
+
+   # Simple resolution
+   result = resolve_prompt("Hello {name}", inputs, state)
+   assert result == "Hello Alice"
+
+   # State field
+   result = resolve_prompt("Topic: {topic}", {}, state)
+   assert result == "Topic: AI Safety"
+
+   # Input overrides state
+   inputs = {"topic": "Robotics"}
+   result = resolve_prompt("Topic: {topic}", inputs, state)
+   assert result == "Topic: Robotics"
+   ```
+
+**What to Expect**:
+
+- ✅ Prompt templates resolve variables from inputs and state
+- ✅ Input mappings override state fields (explicit precedence)
+- ✅ Nested state access works (dot notation)
+- ✅ Multiple variables in single template
+- ✅ Type conversion automatic (int → "95", bool → "True")
+- ✅ Helpful error messages with suggestions
+- ✅ "Did you mean X?" for typos (edit distance ≤ 2)
+- ✅ Available variables listed in error messages
+- ✅ Fast and efficient (regex-based extraction)
+
+**Design Decisions**:
+
+1. **Input priority**: Inputs override state (node-level control)
+2. **Dot notation**: Nested access via {a.b.c} syntax
+3. **Type conversion**: Automatic str() conversion for all values
+4. **Fail-fast**: Error on first missing variable encountered
+5. **Edit distance**: Max 2 edits for suggestions (Levenshtein distance)
+6. **Simple syntax**: Only {variable} supported (no format strings yet)
+7. **No escaping**: Literal braces not supported in v0.1 (can add if needed)
+
+**Phase 2 Progress**:
+With T-010 done, **Phase 2 (Core Execution) is 3/6 complete**:
+- ✅ T-008: Tool Registry
+- ✅ T-009: LLM Provider
+- ✅ T-010: Prompt Template Resolver
+- ⏳ T-011: Node Executor
+- ⏳ T-012: Graph Builder
+- ⏳ T-013: Runtime Executor
+
+**Documentation Updated**:
+- ✅ CHANGELOG.md (this file)
+- ⏳ docs/TASKS.md (T-010 marked DONE, progress updated to 11/20)
+- ⏳ docs/DISCUSSION.md (status updated)
+- ⏳ README.md (progress statistics updated)
+
+**Git Commit Command**:
+```bash
+git add .
+git commit -m "T-010: Prompt template resolver - Variable substitution
+
+- Implemented prompt template resolution with {variable} placeholders
+  - resolve_prompt(template, inputs, state) - Main resolution function
+  - extract_variables(template) - Extract variable references
+  - Input mappings override state fields (explicit precedence)
+  - Fail loudly if variable not found
+
+- Support for nested state access
+  - Dot notation: {metadata.author}, {metadata.flags.level}
+  - Works with Pydantic models and dicts
+  - Deeply nested access (3+ levels)
+  - Automatic type conversion (int, bool → string)
+
+- Comprehensive error handling
+  - \"Did you mean?\" suggestions for typos (edit distance ≤ 2)
+  - Available inputs and state fields listed
+  - Clear error messages with context
+  - TemplateResolutionError exception
+
+- Created 44 comprehensive tests
+  - Simple variable resolution (inputs, state)
+  - Input override priority
+  - Nested state access (1 level, 3+ levels)
+  - Multiple variables, type conversion
+  - Error cases with suggestions
+  - Helper functions (extract, get_nested_value)
+  - Edit distance algorithm
+  - Integration scenarios
+
+Verification:
+  pytest -v -m 'not integration'
+  Expected: 344 passed (44 template + 300 existing)
+
+Progress: 11/20 tasks (55%) - Phase 2 (Core Execution) 3/6 complete
+Next: T-011 (Node Executor)
+
+Co-Authored-By: Claude Sonnet 4.5 <noreply@anthropic.com>"
+```
+
+---
+
 ### Added - T-009: LLM Provider ✅
 
 **Commit**: T-009: LLM provider - Google Gemini integration
