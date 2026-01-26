@@ -9,6 +9,226 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added - T-009: LLM Provider ✅
+
+**Commit**: T-009: LLM provider - Google Gemini integration
+
+**What Was Done**:
+- Implemented LLM provider factory with Google Gemini support
+- Created structured output calling with Pydantic schema enforcement
+- Comprehensive error handling and retry logic
+- Configuration merging (node-level overrides global settings)
+- API key validation with helpful setup instructions
+- 32 comprehensive tests covering all scenarios
+- Total: 300 tests passing (up from 268)
+
+**LLM Provider Features**:
+- ✅ Create LLM from config: `create_llm(config) -> BaseChatModel`
+- ✅ Structured output calling: `call_llm_structured(llm, prompt, OutputModel)`
+- ✅ Configuration merging: `merge_llm_config(node_config, global_config)`
+- ✅ Provider validation (v0.1: Google Gemini only)
+- ✅ Model defaults (gemini-1.5-flash)
+- ✅ Temperature and max_tokens configuration
+- ✅ Automatic retry on validation failures
+- ✅ Exponential backoff on rate limits
+- ✅ Tool binding support
+- ✅ Fail loudly with helpful error messages
+
+**Google Gemini Integration**:
+- ✅ ChatGoogleGenerativeAI wrapper
+- ✅ Reads GOOGLE_API_KEY from environment
+- ✅ Supports multiple models (gemini-1.5-flash, gemini-1.5-pro, gemini-pro, gemini-pro-vision)
+- ✅ Clear error messages with API key setup instructions
+- ✅ Configuration validation
+- ✅ Integration tests (marked as slow/integration)
+
+**Files Created**:
+```
+src/configurable_agents/llm/
+├── provider.py (LLM factory and core functionality)
+├── google.py (Google Gemini implementation)
+└── __init__.py (public API exports)
+
+tests/llm/
+├── __init__.py
+├── test_provider.py (19 provider tests)
+└── test_google.py (13 Google tests + 2 integration tests)
+```
+
+**Public API**:
+```python
+from configurable_agents.llm import (
+    create_llm,              # Create LLM from config
+    call_llm_structured,     # Call LLM with structured output
+    merge_llm_config,        # Merge node and global configs
+    LLMConfigError,          # Configuration error exception
+    LLMProviderError,        # Provider not supported exception
+    LLMAPIError,             # API call failure exception
+)
+
+# Create LLM
+config = LLMConfig(provider="google", model="gemini-pro", temperature=0.7)
+llm = create_llm(config)
+
+# Call with structured output
+class Article(BaseModel):
+    title: str
+    content: str
+
+result = call_llm_structured(llm, "Write an article about AI", Article)
+print(result.title)
+```
+
+**Error Handling**:
+```python
+# Missing API key
+>>> create_llm(LLMConfig(provider="google"))
+LLMConfigError: LLM configuration failed for provider 'google':
+GOOGLE_API_KEY environment variable not set
+
+Suggestion: Set the environment variable: GOOGLE_API_KEY
+Get your API key from: https://ai.google.dev/
+Example: export GOOGLE_API_KEY=your-api-key-here
+
+# Unsupported provider
+>>> create_llm(LLMConfig(provider="openai"))
+LLMProviderError: LLM provider 'openai' is not supported.
+Supported providers: google
+
+Note: v0.1 only supports Google Gemini. Additional providers coming in v0.2+ (8-12 weeks).
+
+# Retry on rate limit
+# Automatically retries with exponential backoff (1s, 2s, 4s, etc.)
+
+# Retry on validation error
+# Clarifies prompt and retries up to max_retries times
+```
+
+**How to Verify**:
+
+1. **Test LLM provider**:
+   ```bash
+   pytest tests/llm/test_provider.py -v
+   # Expected: 19 passed
+   ```
+
+2. **Test Google Gemini**:
+   ```bash
+   pytest tests/llm/test_google.py -v -m "not integration"
+   # Expected: 13 passed
+   ```
+
+3. **Run full test suite**:
+   ```bash
+   pytest -v -m "not integration"
+   # Expected: 300 passed (32 llm + 268 existing)
+   ```
+
+4. **Use LLM provider**:
+   ```python
+   import os
+   os.environ["GOOGLE_API_KEY"] = "your-key-here"
+
+   from configurable_agents.llm import create_llm, call_llm_structured
+   from configurable_agents.config import LLMConfig
+   from pydantic import BaseModel
+
+   # Create LLM
+   config = LLMConfig(model="gemini-1.5-flash", temperature=0.7)
+   llm = create_llm(config)
+
+   # Call with structured output
+   class Greeting(BaseModel):
+       message: str
+
+   result = call_llm_structured(llm, "Say hello", Greeting)
+   print(result.message)
+   ```
+
+**What to Expect**:
+
+- ✅ LLM instances created from config
+- ✅ Structured outputs with Pydantic validation
+- ✅ Node config overrides global config
+- ✅ Automatic retries on failures
+- ✅ Helpful error messages with setup instructions
+- ✅ Tool binding for LLM calls
+- ✅ Rate limit handling with exponential backoff
+- ⚠️ Only Google Gemini supported in v0.1 (more providers in v0.2+)
+- ⚠️ Integration tests require GOOGLE_API_KEY
+
+**Design Decisions**:
+
+1. **Factory pattern**: LLMs created via factory functions for flexibility
+2. **Config merging**: Node-level settings override global (explicit precedence)
+3. **Fail loudly**: Clear errors with actionable messages
+4. **Retry logic**: Automatic retry on validation errors and rate limits
+5. **Structured outputs**: Pydantic schema binding for type enforcement
+6. **Provider abstraction**: Easy to add providers in future versions
+7. **Environment-based config**: API keys from environment variables
+
+**Phase 2 Progress**:
+With T-009 done, **Phase 2 (Core Execution) is 2/6 complete**:
+- ✅ T-008: Tool Registry
+- ✅ T-009: LLM Provider
+- ⏳ T-010: Prompt Template Resolver
+- ⏳ T-011: Node Executor
+- ⏳ T-012: Graph Builder
+- ⏳ T-013: Runtime Executor
+
+**Documentation Updated**:
+- ✅ CHANGELOG.md (this file)
+- ⏳ docs/TASKS.md (T-009 marked DONE, progress updated to 10/20)
+- ⏳ docs/DISCUSSION.md (status updated)
+- ⏳ README.md (progress statistics updated)
+
+**Git Commit Command**:
+```bash
+git add .
+git commit -m "T-009: LLM provider - Google Gemini integration
+
+- Implemented LLM provider factory for creating LLM instances
+  - create_llm(config) - Create LLM from config
+  - call_llm_structured(llm, prompt, OutputModel) - Structured outputs
+  - merge_llm_config(node, global) - Config merging
+  - Fail loudly if provider not supported or API key missing
+
+- Implemented Google Gemini LLM provider
+  - ChatGoogleGenerativeAI integration
+  - Reads GOOGLE_API_KEY from environment
+  - Supports gemini-1.5-flash, gemini-1.5-pro, gemini-pro models
+  - Temperature and max_tokens configuration
+  - Clear error messages with setup instructions
+
+- Structured output calling with retry logic
+  - Pydantic schema binding for type enforcement
+  - Automatic retry on ValidationError (up to max_retries)
+  - Exponential backoff on rate limits
+  - Clarified prompts on validation failures
+  - Tool binding support
+
+- Configuration merging
+  - Node-level LLM config overrides global config
+  - Explicit precedence rules
+  - Handles None configs gracefully
+
+- Created 32 comprehensive tests
+  - 19 provider tests (factory, merging, structured calls, retries)
+  - 13 Google tests (creation, validation, configuration)
+  - 2 integration tests (marked with @pytest.mark.integration)
+
+Verification:
+  pytest -v -m 'not integration'
+  Expected: 300 passed (32 llm + 268 existing)
+
+Progress: 10/20 tasks (50%) - Phase 2 (Core Execution) 2/6 complete
+Next: T-010 (Prompt Template Resolver)
+
+Co-Authored-By: Claude Sonnet 4.5 <noreply@anthropic.com>"
+```
+
+---
+
 ### Added - T-008: Tool Registry ✅
 
 **Commit**: T-008: Tool registry - Web search tool integration

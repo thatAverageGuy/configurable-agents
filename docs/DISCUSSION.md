@@ -8,12 +8,12 @@
 
 ## 🎯 Current Status
 
-### Implementation Progress: 45% Complete (9/20 tasks)
+### Implementation Progress: 50% Complete (10/20 tasks)
 
-**Active Phase**: Phase 2 - Core Execution (1/6 complete)
+**Active Phase**: Phase 2 - Core Execution (2/6 complete)
 **Previous Milestone**: ✅ Phase 1 (Foundation) Complete - 8/8 tasks done
-**Latest Completion**: ✅ T-008 (Tool Registry) - Web search integration
-**Current Task**: T-009 (LLM Provider - Google Gemini integration)
+**Latest Completion**: ✅ T-009 (LLM Provider) - Google Gemini integration
+**Current Task**: T-010 (Prompt Template Resolver)
 **Next Milestone**: Complete Phase 2 - Core execution working
 
 ---
@@ -369,19 +369,79 @@ T-008 starts Phase 2 (Core Execution) - 1/6 tasks complete!
 
 ---
 
+### T-009: LLM Provider ✅
+**Completed**: 2026-01-26
+**Commit**: (pending)
+
+**Deliverables**:
+- ✅ LLM provider factory with Google Gemini support
+- ✅ Structured output calling with Pydantic schema enforcement
+- ✅ Configuration merging (node-level overrides global)
+- ✅ Automatic retry on validation failures and rate limits
+- ✅ Comprehensive error handling with helpful messages
+- ✅ 32 comprehensive tests (19 provider + 13 Google)
+- ✅ 300 total tests passing (up from 268)
+
+**Files Created**:
+- `src/configurable_agents/llm/provider.py`
+- `src/configurable_agents/llm/google.py`
+- `src/configurable_agents/llm/__init__.py`
+- `tests/llm/__init__.py`
+- `tests/llm/test_provider.py`
+- `tests/llm/test_google.py`
+
+**LLM Provider**:
+```python
+from configurable_agents.llm import create_llm, call_llm_structured
+from configurable_agents.config import LLMConfig
+from pydantic import BaseModel
+
+# Create LLM
+config = LLMConfig(model="gemini-1.5-flash", temperature=0.7)
+llm = create_llm(config)
+
+# Call with structured output
+class Article(BaseModel):
+    title: str
+    content: str
+
+result = call_llm_structured(llm, "Write an article about AI", Article)
+print(result.title)
+```
+
+**Features**:
+- Factory pattern for LLM creation
+- Google Gemini provider (multiple models supported)
+- Structured output with Pydantic schema binding
+- Automatic retry on ValidationError (with clarified prompts)
+- Exponential backoff on rate limits
+- Configuration merging (node overrides global)
+- Tool binding support
+- Environment-based API key configuration
+
+**Error Handling**:
+- LLMConfigError - Missing API key or invalid configuration
+- LLMProviderError - Unsupported provider (v0.1: Google only)
+- LLMAPIError - API call failures with retry logic
+
+**Phase 2 Progress**:
+T-009 completes 2/6 tasks in Phase 2 (Core Execution)!
+
+---
+
 ## 🚧 In Progress
 
-### T-009: LLM Provider
+### T-010: Prompt Template Resolver
 **Status**: Next
 **Priority**: P0
-**Dependencies**: T-001, T-007
-**Estimated Effort**: 1 week
+**Dependencies**: T-006
+**Estimated Effort**: 3-4 days
 
 **Scope**:
-- Google Gemini LLM integration
-- Structured outputs with Pydantic models
-- API key management from environment
-- Error handling and retries
+- Resolve {variable} placeholders in prompts
+- Support input mappings and state references
+- Handle nested state access
+- Error handling for missing variables
 
 ---
 
@@ -389,11 +449,11 @@ T-008 starts Phase 2 (Core Execution) - 1/6 tasks complete!
 
 ### Next 5 Tasks
 
-1. **T-009**: LLM Provider - Google Gemini integration (Phase 2) ⬅️ NEXT
-2. **T-010**: Prompt Template Resolver - Variable substitution (Phase 2)
-3. **T-011**: Node Executor - Execute nodes with LLM + tools (Phase 2)
-4. **T-012**: Graph Builder - Build LangGraph from config (Phase 2)
-5. **T-013**: Runtime Executor - Execute complete workflows (Phase 2)
+1. **T-010**: Prompt Template Resolver - Variable substitution (Phase 2) ⬅️ NEXT
+2. **T-011**: Node Executor - Execute nodes with LLM + tools (Phase 2)
+3. **T-012**: Graph Builder - Build LangGraph from config (Phase 2)
+4. **T-013**: Runtime Executor - Execute complete workflows (Phase 2)
+5. **T-014**: CLI Interface - Run and validate workflows (Phase 3)
 
 ---
 
@@ -409,9 +469,9 @@ T-008 starts Phase 2 (Core Execution) - 1/6 tasks complete!
 - ✅ T-006: State Schema Builder
 - ✅ T-007: Output Schema Builder
 
-### Phase 2: Core Execution (1/6 complete) - IN PROGRESS
+### Phase 2: Core Execution (2/6 complete) - IN PROGRESS
 - ✅ T-008: Tool Registry
-- ⏳ T-009: LLM Provider
+- ✅ T-009: LLM Provider
 - ⏳ T-010: Prompt Template Resolver
 - ⏳ T-011: Node Executor
 - ⏳ T-012: Graph Builder
@@ -437,12 +497,12 @@ T-008 starts Phase 2 (Core Execution) - 1/6 tasks complete!
 - ✅ **Pydantic 2.x**: Schema validation (dependency installed)
 - ✅ **PyYAML**: YAML parsing (implemented)
 - ✅ **json**: JSON parsing (implemented)
-- ✅ **pytest**: Testing (21 tests passing)
+- ✅ **pytest**: Testing (300 tests passing)
+- ✅ **LangChain**: LLM abstractions (implemented)
+- ✅ **Google Gemini**: LLM provider (implemented via langchain-google-genai)
 
 ### Technology Stack (Planned)
 - ⏳ **LangGraph**: Execution engine (v0.0.20+)
-- ⏳ **LangChain**: LLM abstractions
-- ⏳ **Google Gemini**: LLM provider (v0.1)
 - ⏳ **DSPy**: Prompt optimization (v0.3)
 
 ### Design Philosophy
@@ -479,23 +539,37 @@ Following ADR-009 "Full Schema Day One":
    - ~~231 tests passing~~ ✅
    - ~~All foundation infrastructure in place~~ ✅
 
-### Week 2 Priorities (Starting Phase 2)
-1. **T-008**: Tool Registry
-   - Registry interface to get tool by name
-   - Implement `serper_search` tool
-   - Load API keys from environment
-   - Helpful error messages
+### Week 2 Complete ✅
+1. ~~**T-008**: Tool Registry~~ ✅
+   - ~~Registry interface to get tool by name~~ ✅
+   - ~~Implement `serper_search` tool~~ ✅
+   - ~~Load API keys from environment~~ ✅
+   - ~~Helpful error messages~~ ✅
 
-2. **T-009**: LLM Provider
-   - Google Gemini integration
-   - Structured outputs with Pydantic
-   - Handle API errors gracefully
-   - Retry on rate limit
+2. ~~**T-009**: LLM Provider~~ ✅
+   - ~~Google Gemini integration~~ ✅
+   - ~~Structured outputs with Pydantic~~ ✅
+   - ~~Handle API errors gracefully~~ ✅
+   - ~~Retry on rate limit~~ ✅
+   - ~~Configuration merging~~ ✅
 
 3. **Testing**: Maintain high test coverage ✅
    - Unit tests for each component ✅
    - Clear test organization ✅
-   - Fast test execution ✅ (231 tests in 0.35s)
+   - Fast test execution ✅ (300 tests in 1.38s)
+
+### Week 3 Priorities (Continuing Phase 2)
+1. **T-010**: Prompt Template Resolver ⬅️ NEXT
+   - Resolve {variable} placeholders
+   - Support input mappings
+   - Handle nested state access
+   - Error handling for missing variables
+
+2. **T-011**: Node Executor
+   - Execute nodes with LLM + tools
+   - Integrate all components
+   - State management
+   - Output validation
 
 ---
 
@@ -540,26 +614,41 @@ from configurable_agents.tools import get_tool, list_tools
 tools = list_tools()  # ['serper_search']
 search = get_tool("serper_search")
 results = search.run("Python programming")
+
+# LLM provider
+from configurable_agents.llm import create_llm, call_llm_structured
+from configurable_agents.config import LLMConfig
+from pydantic import BaseModel
+
+class Output(BaseModel):
+    result: str
+
+config = LLMConfig(model="gemini-1.5-flash", temperature=0.7)
+llm = create_llm(config)
+result = call_llm_structured(llm, "Say hello", Output)
+print(result.result)
 ```
 
 ### Test Coverage
 ```bash
 $ pytest tests/ -v -m "not integration"
-=================== 268 passed in 0.95s ===================
+=================== 300 passed in 1.38s ===================
 
 Tests:
 - Schema models: 67 tests (Pydantic validation)
-- Tool registry: 22 tests (registration, retrieval, errors) ✨ NEW
+- LLM provider: 19 tests (factory, config merging, structured calls) ✨ NEW
+- Tool registry: 22 tests (registration, retrieval, errors)
 - Type system: 31 tests (type parsing)
 - State builder: 30 tests (dynamic models)
 - Output builder: 29 tests (LLM output models)
 - Validator: 29 tests (comprehensive validation)
 - Runtime gates: 19 tests (feature gating)
 - Config parser: 18 tests (YAML, JSON, errors)
-- Serper tool: 15 tests (creation, validation, behavior) ✨ NEW
+- Serper tool: 15 tests (creation, validation, behavior)
+- Google Gemini: 13 tests (LLM creation, configuration) ✨ NEW
 - Integration: 5 tests (YAML → Pydantic)
 - Setup: 3 tests (imports, version, logging)
-- Integration tests (slow): 2 tests (marked with @pytest.mark.integration)
+- Integration tests (slow): 4 tests (2 serper + 2 gemini - marked with @pytest.mark.integration)
 ```
 
 ---
@@ -602,7 +691,8 @@ Tests:
 
 **Weekly Goals**:
 - Week 1 (complete): T-001 ✅ T-002 ✅ T-003 ✅ T-004 ✅ T-004.5 ✅ T-005 ✅ T-006 ✅ T-007 ✅
-- Week 2-3: T-008 through T-013 (Core execution)
+- Week 2 (complete): T-008 ✅ T-009 ✅
+- Week 3: T-010 through T-013 (Core execution)
 - Week 4-5: T-014 through T-018 (Polish & UX)
 - Week 5-6: T-019, T-020 (DSPy verification)
 - Week 6-7: Integration testing, documentation, release prep
@@ -632,16 +722,24 @@ Tests:
 
 ## 📝 Recent Changes
 
-### 2026-01-26 (Today) - Tool Registry Complete! 🎉
+### 2026-01-26 (Today) - LLM Provider Complete! 🎉
+- ✅ Completed T-009: LLM provider with Google Gemini
+- ✅ 300 tests passing (32 llm + 268 existing)
+- ✅ LLM provider factory with structured output calling
+- ✅ Google Gemini integration (multiple models supported)
+- ✅ Configuration merging (node overrides global)
+- ✅ Automatic retry on validation failures and rate limits
+- ✅ Comprehensive error handling with helpful messages
+- ✅ **Phase 2 (Core Execution) 2/6 COMPLETE** - halfway through Phase 2!
+- 📝 Progress: 10/20 tasks (50%) complete - **HALFWAY MILESTONE** 🎯
+- 📝 Next: T-010 (Prompt Template Resolver)
+
+**Earlier today - Tool Registry Complete**:
 - ✅ Completed T-008: Tool registry with web search
-- ✅ 268 tests passing (37 tools + 231 existing)
 - ✅ Factory-based tool registry with lazy loading
 - ✅ Serper web search tool integration
-- ✅ Comprehensive error handling with helpful messages
 - ✅ LangChain BaseTool integration
-- ✅ **Phase 2 (Core Execution) STARTED** - 1/6 tasks done
-- 📝 Progress: 9/20 tasks (45%) complete
-- 📝 Next: T-009 (LLM Provider - Google Gemini)
+- ✅ **Phase 2 (Core Execution) STARTED**
 
 **Earlier today - Phase 1 Complete**:
 - ✅ Completed T-006: State schema builder
