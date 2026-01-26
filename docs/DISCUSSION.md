@@ -1,6 +1,6 @@
 # Project Status
 
-**Last Updated**: 2026-01-26
+**Last Updated**: 2026-01-27
 **Version**: v0.1.0-dev
 **Phase**: Phase 2 (Core Execution) - IN PROGRESS
 
@@ -8,12 +8,12 @@
 
 ## 🎯 Current Status
 
-### Implementation Progress: 55% Complete (11/20 tasks)
+### Implementation Progress: 60% Complete (12/20 tasks)
 
-**Active Phase**: Phase 2 - Core Execution (3/6 complete)
+**Active Phase**: Phase 2 - Core Execution (4/6 complete)
 **Previous Milestone**: ✅ Phase 1 (Foundation) Complete - 8/8 tasks done
-**Latest Completion**: ✅ T-010 (Prompt Template Resolver) - Variable substitution
-**Current Task**: T-011 (Node Executor)
+**Latest Completion**: ✅ T-011 (Node Executor) - Execute nodes with LLM + tools
+**Current Task**: T-012 (Graph Builder)
 **Next Milestone**: Complete Phase 2 - Core execution working
 
 ---
@@ -488,19 +488,96 @@ T-009 completes 2/6 tasks in Phase 2 (Core Execution)!
 
 ---
 
+### T-011: Node Executor ✅
+**Completed**: 2026-01-27
+**Commit**: (pending)
+
+**Deliverables**:
+- ✅ Node executor with LLM + tools integration
+- ✅ Input mapping resolution from state
+- ✅ Prompt template resolution with {state.field} preprocessing
+- ✅ Tool loading and binding to LLM
+- ✅ LLM configuration merging (node overrides global)
+- ✅ Structured output enforcement
+- ✅ Copy-on-write state updates
+- ✅ Comprehensive error handling
+- ✅ 23 comprehensive tests
+- ✅ 367 total tests passing (up from 344)
+
+**Files Created**:
+- `src/configurable_agents/core/node_executor.py`
+- `tests/core/test_node_executor.py`
+
+**Node Executor**:
+```python
+from configurable_agents.core import execute_node, NodeExecutionError
+
+# Execute a node
+updated_state = execute_node(
+    node_config,      # NodeConfig
+    state,            # Current state (Pydantic model)
+    global_config,    # Global config (optional)
+)
+# Returns: Updated state (new Pydantic instance)
+```
+
+**Features**:
+- Integrates all Phase 2 components (template, LLM, tools, output builder)
+- Input mappings: `{local: "{template}"}` resolved against state
+- State prefix preprocessing: `{state.field}` → `{field}` for template resolver
+- Copy-on-write state updates (immutable pattern)
+- Error wrapping with NodeExecutionError (includes node_id context)
+- Logging at INFO level (execution success/failure)
+- Retry logic delegated to LLM provider (max_retries from global config)
+
+**Design Decision - State Prefix Preprocessing**:
+```python
+def _strip_state_prefix(template: str) -> str:
+    """
+    Strip {state.field} → {field} for template resolver compatibility.
+
+    Temporary workaround until template resolver updated.
+    TODO T-011.1: Update template resolver to handle {state.X} natively.
+    """
+    return re.sub(r'\{state\.([^}]+)\}', r'{\1}', template)
+```
+
+**Known Issue**:
+- **T-011.1** (Future Enhancement): Template resolver should handle `{state.field}` syntax natively
+  - Current: Validator (T-004) and SPEC.md use `{state.field}` syntax
+  - Current: Template resolver (T-010) expects `{field}` without prefix
+  - Workaround: `_strip_state_prefix` helper preprocesses prompts/inputs
+  - Resolution: Update template resolver in v0.2+ to accept both syntaxes
+  - Impact: Low (preprocessing works fine, just not elegant)
+
+**Error Handling**:
+- NodeExecutionError - All errors wrapped with node_id context
+- Clear error messages for each failure mode:
+  - Input mapping resolution failure
+  - Prompt template resolution failure
+  - Tool loading failure
+  - LLM creation failure
+  - Output model creation failure
+  - LLM API call failure
+
+**Phase 2 Progress**:
+T-011 completes 4/6 tasks in Phase 2 (Core Execution) - 67% complete!
+
+---
+
 ## 🚧 In Progress
 
-### T-010: Prompt Template Resolver
+### T-012: Graph Builder
 **Status**: Next
 **Priority**: P0
-**Dependencies**: T-006
-**Estimated Effort**: 3-4 days
+**Dependencies**: T-011
+**Estimated Effort**: 1.5 weeks
 
 **Scope**:
-- Resolve {variable} placeholders in prompts
-- Support input mappings and state references
-- Handle nested state access
-- Error handling for missing variables
+- Build LangGraph StateGraph from config
+- Add nodes and edges (linear only in v0.1)
+- Validate graph structure
+- Compile graph
 
 ---
 
@@ -508,11 +585,11 @@ T-009 completes 2/6 tasks in Phase 2 (Core Execution)!
 
 ### Next 5 Tasks
 
-1. **T-010**: Prompt Template Resolver - Variable substitution (Phase 2) ⬅️ NEXT
-2. **T-011**: Node Executor - Execute nodes with LLM + tools (Phase 2)
-3. **T-012**: Graph Builder - Build LangGraph from config (Phase 2)
-4. **T-013**: Runtime Executor - Execute complete workflows (Phase 2)
-5. **T-014**: CLI Interface - Run and validate workflows (Phase 3)
+1. **T-012**: Graph Builder - Build LangGraph from config (Phase 2) ⬅️ NEXT
+2. **T-013**: Runtime Executor - Execute complete workflows (Phase 2)
+3. **T-014**: CLI Interface - Run and validate workflows (Phase 3)
+4. **T-015**: Example Configs - Working workflow examples (Phase 3)
+5. **T-016**: Documentation - User-facing docs (Phase 3)
 
 ---
 
@@ -528,11 +605,11 @@ T-009 completes 2/6 tasks in Phase 2 (Core Execution)!
 - ✅ T-006: State Schema Builder
 - ✅ T-007: Output Schema Builder
 
-### Phase 2: Core Execution (3/6 complete) - IN PROGRESS
+### Phase 2: Core Execution (4/6 complete) - IN PROGRESS
 - ✅ T-008: Tool Registry
 - ✅ T-009: LLM Provider
 - ✅ T-010: Prompt Template Resolver
-- ⏳ T-011: Node Executor
+- ✅ T-011: Node Executor
 - ⏳ T-012: Graph Builder
 - ⏳ T-013: Runtime Executor
 
@@ -696,15 +773,27 @@ resolved = resolve_prompt(
     state=state_model,
 )
 # Returns: "Hello Alice, discuss AI Safety"
+
+# Node executor
+from configurable_agents.core import execute_node
+
+# Execute a node with LLM + tools
+updated_state = execute_node(
+    node_config,      # NodeConfig
+    state,            # Current workflow state
+    global_config,    # Global config (optional)
+)
+# Returns: Updated state (new Pydantic instance)
 ```
 
 ### Test Coverage
 ```bash
 $ pytest tests/ -v -m "not integration"
-=================== 344 passed in 1.73s ===================
+=================== 367 passed in 1.42s ===================
 
 Tests:
-- Template resolver: 44 tests (variable resolution, nested access, errors) ✨ NEW
+- Node executor: 23 tests (execution, input mappings, tools, errors, state updates) ✨ NEW
+- Template resolver: 44 tests (variable resolution, nested access, errors)
 - Schema models: 67 tests (Pydantic validation)
 - Tool registry: 22 tests (registration, retrieval, errors)
 - LLM provider: 19 tests (factory, config merging, structured calls)
@@ -792,17 +881,27 @@ Tests:
 
 ## 📝 Recent Changes
 
-### 2026-01-26 (Today) - Template Resolver Complete! 🎉
+### 2026-01-27 (Today) - Node Executor Complete! 🎉
+- ✅ Completed T-011: Node executor
+- ✅ 367 tests passing (23 node executor + 344 existing)
+- ✅ Execute nodes with LLM + tools integration
+- ✅ Input mapping resolution from state
+- ✅ Prompt template resolution with {state.field} preprocessing
+- ✅ Tool loading and binding to LLM
+- ✅ LLM configuration merging (node overrides global)
+- ✅ Structured output enforcement
+- ✅ Copy-on-write state updates (immutable pattern)
+- ✅ Comprehensive error handling with NodeExecutionError
+- ✅ **Phase 2 (Core Execution) 4/6 COMPLETE** - 67% through Phase 2!
+- 📝 Progress: 12/20 tasks (60%) complete
+- 📝 Next: T-012 (Graph Builder) - Build LangGraph from config!
+- ⚠️ Technical Debt: T-011.1 - Template resolver should handle {state.X} natively
+
+**Yesterday - Template Resolver Complete**:
 - ✅ Completed T-010: Prompt template resolver
 - ✅ 344 tests passing (44 template + 300 existing)
 - ✅ Variable resolution from inputs and state
 - ✅ Nested state access ({metadata.author}, 3+ levels)
-- ✅ Input priority (overrides state)
-- ✅ Type conversion (int, bool → string)
-- ✅ "Did you mean?" suggestions (edit distance ≤ 2)
-- ✅ **Phase 2 (Core Execution) 3/6 COMPLETE** - halfway through Phase 2!
-- 📝 Progress: 11/20 tasks (55%) complete
-- 📝 Next: T-011 (Node Executor) - First executable node!
 
 **Earlier today - LLM Provider Complete**:
 - ✅ Completed T-009: LLM provider with Google Gemini

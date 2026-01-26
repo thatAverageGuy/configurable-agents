@@ -13,6 +13,10 @@ from configurable_agents.core.template import (
     resolve_prompt,
     extract_variables,
 )
+from configurable_agents.core.node_executor import (
+    NodeExecutionError,
+    execute_node,
+)
 
 __all__ = [
     "build_state_model",
@@ -22,4 +26,6 @@ __all__ = [
     "resolve_prompt",
     "extract_variables",
     "TemplateResolutionError",
+    "execute_node",
+    "NodeExecutionError",
 ]
