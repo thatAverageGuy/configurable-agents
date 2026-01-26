@@ -176,10 +176,12 @@ class WorkflowConfig(BaseModel):
 ---
 
 ### T-004: Config Validator - EXPANDED
-**Status**: TODO
+**Status**: DONE ✅
 **Priority**: P0
 **Dependencies**: T-002, T-003
 **Estimated Effort**: 2 weeks
+**Actual Effort**: 1 day (highly efficient implementation)
+**Completed**: 2026-01-26
 
 **Description**:
 Implement comprehensive validation logic that checks config correctness beyond Pydantic schema validation.
@@ -881,15 +883,15 @@ T-019 -> T-020 (Structured Output + DSPy - NEW)
 
 ## Progress Tracker
 
-**Last Updated**: 2026-01-24
+**Last Updated**: 2026-01-26
 
-### v0.1 Progress: 3/20 tasks complete (15%)
+### v0.1 Progress: 4/20 tasks complete (20%)
 
-**Phase 1: Foundation (3/7 complete)**
+**Phase 1: Foundation (4/7 complete)**
 - ✅ T-001: Project Setup
 - ✅ T-002: Config Parser
 - ✅ T-003: Config Schema (Pydantic Models)
-- ⏳ T-004: Config Validator
+- ✅ T-004: Config Validator
 - ⏳ T-004.5: Runtime Feature Gating
 - ⏳ T-005: Type System
 - ⏳ T-006: State Schema Builder
@@ -914,8 +916,8 @@ T-019 -> T-020 (Structured Output + DSPy - NEW)
 - ⏳ T-019: DSPy Integration Test
 - ⏳ T-020: Structured Output + DSPy Test
 
-**Current Sprint**: Foundation Phase (T-004 next)
-**Test Status**: 124 tests passing (67 schema + 31 types + 18 parser + 5 integration + 3 setup)
+**Current Sprint**: Foundation Phase (T-004.5 next)
+**Test Status**: 153 tests passing (67 schema + 31 types + 29 validator + 18 parser + 5 integration + 3 setup)
 
 ---
 

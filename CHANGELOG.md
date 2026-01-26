@@ -9,8 +9,173 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-### In Progress
-- T-004: Config Validator - next
+### Added - T-004: Config Validator ✅
+
+**Commit**: T-004: Config validator - Comprehensive validation
+
+**What Was Done**:
+- Implemented comprehensive config validation beyond Pydantic schema checks
+- Cross-reference validation (node IDs, state fields, output types)
+- Graph structure validation (connectivity, reachability)
+- Linear flow enforcement (v0.1 constraints: no cycles, no conditional routing)
+- Fail-fast error handling with helpful suggestions
+- "Did you mean...?" suggestions for typos using edit distance
+- Context-aware error messages with clear guidance
+- 29 comprehensive validator tests
+- Total: 153 tests passing (up from 124)
+
+**Files Created**:
+```
+src/configurable_agents/config/
+└── validator.py (validation engine with 8 validation stages)
+
+tests/config/
+└── test_validator.py (29 comprehensive tests)
+```
+
+**Validation Features**:
+- ✅ Edge reference validation (from/to point to valid nodes)
+- ✅ Node output validation (outputs exist in state fields)
+- ✅ Output schema alignment (schema fields match outputs list)
+- ✅ Type alignment (output types match state field types)
+- ✅ Prompt placeholder validation ({variable} references valid fields)
+- ✅ State type validation (all type strings are valid)
+- ✅ Graph structure (START/END connectivity, no orphaned nodes)
+- ✅ Linear flow constraints (no cycles, no conditional routing, single entry point)
+
+**How to Verify**:
+
+1. **Test validation**:
+   ```bash
+   pytest tests/config/test_validator.py -v
+   # Expected: 29 passed
+   ```
+
+2. **Run full test suite**:
+   ```bash
+   pytest -v
+   # Expected: 153 passed (18 parser + 67 schema + 31 types + 5 integration + 29 validator + 3 setup)
+   ```
+
+3. **Validate a config programmatically**:
+   ```python
+   from configurable_agents.config import parse_config_file, WorkflowConfig, validate_config
+
+   # Load and parse YAML/JSON
+   config_dict = parse_config_file("workflow.yaml")
+   config = WorkflowConfig(**config_dict)
+
+   # Validate (raises ValidationError if invalid)
+   validate_config(config)
+   print("Config is valid!")
+   ```
+
+**What to Expect**:
+- ✅ Comprehensive validation catches common errors early
+- ✅ Helpful error messages with context and suggestions
+- ✅ "Did you mean 'process'?" for typos (edit distance ≤ 2)
+- ✅ Fail-fast: stops at first error category
+- ✅ Clear distinction between v0.1 features vs v0.2+ (with timeline info)
+- ✅ Graph validation ensures all nodes reachable and can reach END
+- ✅ Type safety: output types must match state field types
+- ✅ No hidden surprises: placeholders validated at parse time
+
+**Example Error Messages**:
+```python
+# Missing state field
+ValidationError: Node 'process': output 'missing_field' not found in state fields
+Suggestion: Add 'missing_field' to state.fields or check spelling. Available fields: ['input', 'output']
+
+# Typo in node reference
+ValidationError: Edge 0: 'to' references unknown node 'proces'
+Suggestion: Did you mean 'process'?
+
+# Cycle detected
+ValidationError: Cycle detected in workflow: step1 -> step2 -> step1
+Suggestion: Remove edges to break the cycle. Linear workflows cannot have loops (loops available in v0.2+)
+Context: v0.1 supports linear flows only
+
+# Conditional routing (v0.2+ feature)
+ValidationError: Edge 0: Conditional routing not supported in v0.1
+Suggestion: Use linear edges (from/to) instead. Conditional routing available in v0.2+ (8-12 weeks)
+Context: Edge: START -> routes. See docs/PROJECT_VISION.md for roadmap
+```
+
+**Validation Stages** (fail-fast order):
+1. Edge references (nodes exist)
+2. Node outputs (state fields exist)
+3. Output schema alignment (schema ↔ outputs)
+4. Type alignment (output types ↔ state types)
+5. Prompt placeholders (valid references)
+6. State types (valid type strings)
+7. Linear flow constraints (v0.1 specific)
+8. Graph structure (connectivity)
+
+**Public API Updated**:
+```python
+# From configurable_agents.config
+
+# Validator (T-004)
+from configurable_agents.config import (
+    ValidationError,   # Custom exception with helpful messages
+    validate_config,   # Main validation function
+)
+
+# Usage
+try:
+    validate_config(config)
+except ValidationError as e:
+    print(e)  # Includes message, context, and suggestion
+```
+
+**Documentation Updated**:
+- ✅ CHANGELOG.md (this file)
+- ✅ docs/TASKS.md (T-004 marked DONE, progress updated to 4/20)
+- ✅ docs/DISCUSSION.md (status updated)
+- ✅ README.md (progress statistics updated)
+
+**Git Commit Command**:
+```bash
+git add .
+git commit -m "T-004: Config validator - Comprehensive validation
+
+- Implemented cross-reference validation
+  - Node IDs, state fields, output types
+  - Prompt placeholders, type alignment
+  - 'Did you mean?' suggestions for typos
+
+- Implemented graph validation
+  - START/END connectivity
+  - All nodes reachable from START
+  - All nodes have path to END
+  - No orphaned nodes
+
+- Implemented linear flow enforcement (v0.1)
+  - No conditional routing (v0.2+ feature)
+  - No cycles in graph
+  - Each node has at most one outgoing edge
+  - Single entry point from START
+
+- Fail-fast error handling
+  - Stops at first error category
+  - Context-aware messages
+  - Helpful suggestions with alternatives
+
+- Created 29 comprehensive tests
+  - Valid config tests
+  - Edge reference validation
+  - Cross-reference validation
+  - Type alignment validation
+  - Graph structure validation
+  - Linear flow constraint tests
+
+Verification:
+  pytest -v
+  Expected: 153 passed (29 validator + 124 existing)
+
+Progress: 4/20 tasks (20%) - Foundation phase
+Next: T-004.5 (Runtime Feature Gating)"
+```
 
 ---
 

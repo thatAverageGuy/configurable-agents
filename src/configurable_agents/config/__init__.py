@@ -31,6 +31,10 @@ from configurable_agents.config.types import (
     parse_type_string,
     validate_type_string,
 )
+from configurable_agents.config.validator import (
+    ValidationError,
+    validate_config,
+)
 
 __all__ = [
     # Parser
@@ -61,4 +65,7 @@ __all__ = [
     "parse_type_string",
     "validate_type_string",
     "get_python_type",
+    # Validator
+    "ValidationError",
+    "validate_config",
 ]
