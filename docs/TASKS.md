@@ -459,38 +459,59 @@ output = OutputModel(article="...", word_count=500)
 ---
 
 ### T-008: Tool Registry
-**Status**: TODO
+**Status**: DONE ✅
 **Priority**: P1
 **Dependencies**: T-001
 **Estimated Effort**: 1 week
+**Actual Effort**: <1 day (highly efficient implementation)
+**Completed**: 2026-01-26
 
 **Description**:
 Implement tool registry that loads tools by name. v0.1 includes `serper_search`.
 
 **Acceptance Criteria**:
-- [ ] Registry interface to get tool by name
-- [ ] Implement `serper_search` tool using LangChain
-- [ ] Load API keys from environment
-- [ ] Fail loudly if tool not found
-- [ ] Fail loudly if API key missing (with helpful message)
-- [ ] List available tools
-- [ ] Unit tests (mock tool loading)
-- [ ] Integration test with real Serper API (optional, slow)
+- [x] Registry interface to get tool by name
+- [x] Implement `serper_search` tool using LangChain
+- [x] Load API keys from environment
+- [x] Fail loudly if tool not found
+- [x] Fail loudly if API key missing (with helpful message)
+- [x] List available tools
+- [x] Unit tests (mock tool loading)
+- [x] Integration test with real Serper API (optional, slow)
 
-**Files**:
-- `src/configurable_agents/tools/registry.py`
-- `src/configurable_agents/tools/serper.py`
-- `tests/tools/test_registry.py`
-- `tests/tools/test_serper.py`
+**Files Created**:
+- `src/configurable_agents/tools/registry.py` (ToolRegistry + global API)
+- `src/configurable_agents/tools/serper.py` (Serper search implementation)
+- `tests/tools/__init__.py`
+- `tests/tools/test_registry.py` (22 tests)
+- `tests/tools/test_serper.py` (15 tests + 2 integration tests)
+
+**Tests**: 37 tests created (268 total project tests: 37 tools + 231 existing)
 
 **Interface**:
 ```python
-def get_tool(tool_name: str) -> BaseTool:
-    """Get tool by name from registry"""
+from configurable_agents.tools import (
+    get_tool,        # Get tool by name
+    list_tools,      # List available tools
+    has_tool,        # Check if tool exists
+    register_tool,   # Register custom tools
+    ToolNotFoundError,    # Tool not found exception
+    ToolConfigError,      # Tool config error exception
+)
 
-def list_tools() -> list[str]:
-    """List all available tool names"""
+# Usage
+tools = list_tools()  # ['serper_search']
+search = get_tool("serper_search")
+results = search.run("Python programming")
 ```
+
+**Features Implemented**:
+- Factory-based lazy loading (tools created on demand)
+- Global registry instance for convenience
+- Comprehensive error messages with setup instructions
+- LangChain BaseTool integration
+- Environment-based API key configuration
+- Extensible design for custom tool registration
 
 ---
 

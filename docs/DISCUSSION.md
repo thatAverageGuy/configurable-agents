@@ -2,17 +2,18 @@
 
 **Last Updated**: 2026-01-26
 **Version**: v0.1.0-dev
-**Phase**: Phase 1 Complete ✅ - Starting Phase 2 (Core Execution)
+**Phase**: Phase 2 (Core Execution) - IN PROGRESS
 
 ---
 
 ## 🎯 Current Status
 
-### Implementation Progress: 40% Complete (8/20 tasks)
+### Implementation Progress: 45% Complete (9/20 tasks)
 
-**Active Phase**: Phase 2 - Core Execution (0/6 complete)
+**Active Phase**: Phase 2 - Core Execution (1/6 complete)
 **Previous Milestone**: ✅ Phase 1 (Foundation) Complete - 8/8 tasks done
-**Current Task**: T-008 (Tool Registry - first Phase 2 task)
+**Latest Completion**: ✅ T-008 (Tool Registry) - Web search integration
+**Current Task**: T-009 (LLM Provider - Google Gemini integration)
 **Next Milestone**: Complete Phase 2 - Core execution working
 
 ---
@@ -318,19 +319,69 @@ assert get_python_type("list[str]") == list
 
 ---
 
+### T-008: Tool Registry ✅
+**Completed**: 2026-01-26
+**Commit**: (pending)
+
+**Deliverables**:
+- ✅ Tool registry with factory-based lazy loading
+- ✅ Get tool by name, list tools, check if tool exists
+- ✅ Custom tool registration support
+- ✅ Serper web search tool implementation
+- ✅ Environment-based API key configuration
+- ✅ Comprehensive error handling with helpful messages
+- ✅ 37 comprehensive tests (22 registry + 15 serper)
+- ✅ 268 total tests passing (up from 231)
+
+**Files Created**:
+- `src/configurable_agents/tools/registry.py`
+- `src/configurable_agents/tools/serper.py`
+- `tests/tools/__init__.py`
+- `tests/tools/test_registry.py`
+- `tests/tools/test_serper.py`
+
+**Tool Registry**:
+```python
+from configurable_agents.tools import get_tool, list_tools, has_tool
+
+# List available tools
+tools = list_tools()  # ['serper_search']
+
+# Get tool instance
+search = get_tool("serper_search")
+results = search.run("Python programming")
+```
+
+**Features**:
+- Factory-based lazy loading (tools created on demand)
+- Global registry for convenience
+- Fail loudly with helpful error messages
+- LangChain BaseTool integration
+- API key validation from environment
+- Extensible design for custom tools
+
+**Error Handling**:
+- ToolNotFoundError - Tool not in registry with suggestions
+- ToolConfigError - Missing API key with setup instructions
+
+**Phase 2 Progress**:
+T-008 starts Phase 2 (Core Execution) - 1/6 tasks complete!
+
+---
+
 ## 🚧 In Progress
 
-### T-008: Tool Registry
+### T-009: LLM Provider
 **Status**: Next
-**Priority**: P1
-**Dependencies**: T-001
+**Priority**: P0
+**Dependencies**: T-001, T-007
 **Estimated Effort**: 1 week
 
 **Scope**:
-- Tool registry that loads tools by name
-- v0.1 includes `serper_search`
-- Load API keys from environment
-- Fail loudly if tool not found or API key missing
+- Google Gemini LLM integration
+- Structured outputs with Pydantic models
+- API key management from environment
+- Error handling and retries
 
 ---
 
@@ -338,11 +389,11 @@ assert get_python_type("list[str]") == list
 
 ### Next 5 Tasks
 
-1. **T-008**: Tool Registry - Load tools by name (Phase 2 start) ⬅️ NEXT
-2. **T-009**: LLM Provider - Google Gemini integration (Phase 2)
-3. **T-010**: Prompt Template Resolver - Variable substitution (Phase 2)
-4. **T-011**: Node Executor - Execute nodes with LLM + tools (Phase 2)
-5. **T-012**: Graph Builder - Build LangGraph from config (Phase 2)
+1. **T-009**: LLM Provider - Google Gemini integration (Phase 2) ⬅️ NEXT
+2. **T-010**: Prompt Template Resolver - Variable substitution (Phase 2)
+3. **T-011**: Node Executor - Execute nodes with LLM + tools (Phase 2)
+4. **T-012**: Graph Builder - Build LangGraph from config (Phase 2)
+5. **T-013**: Runtime Executor - Execute complete workflows (Phase 2)
 
 ---
 
@@ -358,8 +409,8 @@ assert get_python_type("list[str]") == list
 - ✅ T-006: State Schema Builder
 - ✅ T-007: Output Schema Builder
 
-### Phase 2: Core Execution (0/6 complete) - NEXT
-- ⏳ T-008: Tool Registry
+### Phase 2: Core Execution (1/6 complete) - IN PROGRESS
+- ✅ T-008: Tool Registry
 - ⏳ T-009: LLM Provider
 - ⏳ T-010: Prompt Template Resolver
 - ⏳ T-011: Node Executor
@@ -483,23 +534,32 @@ output = OutputModel(article="...", word_count=500)
 # Runtime feature gating
 from configurable_agents.runtime import validate_runtime_support
 validate_runtime_support(config)  # Check v0.1 compatibility
+
+# Tool registry
+from configurable_agents.tools import get_tool, list_tools
+tools = list_tools()  # ['serper_search']
+search = get_tool("serper_search")
+results = search.run("Python programming")
 ```
 
 ### Test Coverage
 ```bash
-$ pytest tests/ -v
-=================== 231 passed in 0.35s ===================
+$ pytest tests/ -v -m "not integration"
+=================== 268 passed in 0.95s ===================
 
 Tests:
 - Schema models: 67 tests (Pydantic validation)
+- Tool registry: 22 tests (registration, retrieval, errors) ✨ NEW
 - Type system: 31 tests (type parsing)
 - State builder: 30 tests (dynamic models)
-- Output builder: 29 tests (LLM output models) ✨ NEW
+- Output builder: 29 tests (LLM output models)
 - Validator: 29 tests (comprehensive validation)
 - Runtime gates: 19 tests (feature gating)
 - Config parser: 18 tests (YAML, JSON, errors)
+- Serper tool: 15 tests (creation, validation, behavior) ✨ NEW
 - Integration: 5 tests (YAML → Pydantic)
 - Setup: 3 tests (imports, version, logging)
+- Integration tests (slow): 2 tests (marked with @pytest.mark.integration)
 ```
 
 ---
@@ -572,17 +632,24 @@ Tests:
 
 ## 📝 Recent Changes
 
-### 2026-01-26 (Today) - Phase 1 Complete! 🎉
+### 2026-01-26 (Today) - Tool Registry Complete! 🎉
+- ✅ Completed T-008: Tool registry with web search
+- ✅ 268 tests passing (37 tools + 231 existing)
+- ✅ Factory-based tool registry with lazy loading
+- ✅ Serper web search tool integration
+- ✅ Comprehensive error handling with helpful messages
+- ✅ LangChain BaseTool integration
+- ✅ **Phase 2 (Core Execution) STARTED** - 1/6 tasks done
+- 📝 Progress: 9/20 tasks (45%) complete
+- 📝 Next: T-009 (LLM Provider - Google Gemini)
+
+**Earlier today - Phase 1 Complete**:
 - ✅ Completed T-006: State schema builder
 - ✅ Completed T-007: Output schema builder
 - ✅ Completed T-005: Type system (formal closure)
-- ✅ 231 tests passing (29 output + 30 state + 202 existing)
 - ✅ Dynamic Pydantic models for state and outputs
 - ✅ Type-enforced LLM responses
-- ✅ All type system types supported (basic, collections, nested objects)
 - ✅ **Phase 1 (Foundation) COMPLETE** - 8/8 tasks done
-- 📝 Progress: 8/20 tasks (40%) complete
-- 📝 Next: Phase 2 (Core Execution) starting with T-008
 
 **Earlier today**:
 - ✅ Completed T-004: Config validator
