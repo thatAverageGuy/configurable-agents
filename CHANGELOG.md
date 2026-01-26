@@ -9,6 +9,193 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added - T-007: Output Schema Builder ✅
+
+**Commit**: T-007: Output schema builder - Type-enforced LLM outputs
+
+**What Was Done**:
+- Implemented dynamic Pydantic model generation from OutputSchema configs
+- Enables type-enforced LLM responses
+- Supports simple outputs (single type wrapped in 'result' field)
+- Supports object outputs (multiple fields)
+- Supports all type system types (basic, collections)
+- Includes field descriptions to help LLM understand what to return
+- 29 comprehensive tests covering all scenarios
+- Total: 231 tests passing (up from 202)
+
+**Output Builder Features**:
+- ✅ Build runtime Pydantic BaseModel from output_schema
+- ✅ Simple outputs (str, int, float, bool) - wrapped in 'result' field
+- ✅ Object outputs (multiple fields)
+- ✅ Collection types (list, dict, list[T], dict[K,V])
+- ✅ Type validation enforced by Pydantic
+- ✅ All output fields required (LLM must provide them)
+- ✅ Field descriptions preserved in models
+- ✅ Model naming: Output_{node_id}
+- ✅ Fail-fast error handling with clear messages
+- ✅ Error messages include node_id for context
+- ⚠️ Nested objects not yet supported (can add if needed)
+
+**Files Created**:
+```
+src/configurable_agents/core/
+└── output_builder.py (dynamic output model builder)
+
+tests/core/
+└── test_output_builder.py (29 comprehensive tests)
+```
+
+**Public API**:
+```python
+from configurable_agents.core import build_output_model, OutputBuilderError
+
+# Build dynamic output model
+OutputModel = build_output_model(output_schema, node_id="write")
+
+# Create instance (simple output)
+output = OutputModel(result="Generated article")
+
+# Create instance (object output)
+output = OutputModel(article="...", word_count=500)
+```
+
+**How to Verify**:
+
+1. **Test output builder**:
+   ```bash
+   pytest tests/core/test_output_builder.py -v
+   # Expected: 29 passed
+   ```
+
+2. **Run full test suite**:
+   ```bash
+   pytest -v
+   # Expected: 231 passed (29 new + 202 existing)
+   ```
+
+3. **Use output builder**:
+   ```python
+   from configurable_agents.config import OutputSchema, OutputSchemaField
+   from configurable_agents.core import build_output_model
+
+   # Simple output
+   schema = OutputSchema(type="str", description="Article text")
+   OutputModel = build_output_model(schema, "write")
+   output = OutputModel(result="Hello world")
+   assert output.result == "Hello world"
+
+   # Object output
+   schema = OutputSchema(
+       type="object",
+       fields=[
+           OutputSchemaField(name="article", type="str", description="Article text"),
+           OutputSchemaField(name="word_count", type="int", description="Word count"),
+       ]
+   )
+   OutputModel = build_output_model(schema, "write")
+   output = OutputModel(article="Test article", word_count=100)
+   assert output.article == "Test article"
+   assert output.word_count == 100
+   ```
+
+**What to Expect**:
+
+- ✅ Dynamic Pydantic models generated from output schemas
+- ✅ Simple outputs wrapped in 'result' field
+- ✅ Object outputs with explicit fields
+- ✅ All type system types supported (basic, collections)
+- ✅ Type validation enforced (ValidationError if wrong type)
+- ✅ All fields required (ValidationError if missing)
+- ✅ Field descriptions included in model schema (helps LLM)
+- ✅ Clear error messages with node_id context
+- ⚠️ Nested objects not yet supported (use dicts instead)
+
+**Example Error Messages**:
+
+```python
+# Missing output schema
+OutputBuilderError: Node 'test': output_schema is required
+
+# Invalid type
+OutputBuilderError: Node 'write': Invalid output type 'unknown_type': ...
+
+# Missing required field (Pydantic)
+ValidationError: 1 validation error for Output_write
+result
+  Field required [type=missing, input_value={}, input_type=dict]
+
+# Wrong type (Pydantic)
+ValidationError: 1 validation error for Output_write
+result
+  Input should be a valid string [type=string_type, input_value=123, input_type=int]
+
+# Nested objects not supported
+OutputBuilderError: Node 'test': Nested objects in output schema not yet supported.
+Field 'metadata' has type 'object'. Use basic types, lists, or dicts instead.
+```
+
+**Design Decisions**:
+
+1. **Simple outputs wrapped**: Single-field outputs use 'result' as field name for consistency
+2. **All fields required**: LLM must provide all output fields (no optional)
+3. **Model naming**: Output_{node_id} for clarity
+4. **No nested objects**: Keep v0.1 simple, can add if needed in future
+5. **Descriptions preserved**: Help LLM understand what to return
+6. **Fail-fast**: Clear OutputBuilderError for builder-specific issues
+
+**Phase 1 Complete**:
+With T-007 done, **Phase 1 (Foundation) is now complete** (8/8 tasks):
+- ✅ T-001: Project Setup
+- ✅ T-002: Config Parser
+- ✅ T-003: Config Schema (Pydantic Models)
+- ✅ T-004: Config Validator
+- ✅ T-004.5: Runtime Feature Gating
+- ✅ T-005: Type System
+- ✅ T-006: State Schema Builder
+- ✅ T-007: Output Schema Builder
+
+**Next Phase**: Phase 2 - Core Execution (T-008: Tool Registry)
+
+**Documentation Updated**:
+- ✅ CHANGELOG.md (this file)
+- ✅ docs/TASKS.md (T-007 marked DONE, progress updated to 8/20, Phase 1 complete)
+- ✅ docs/DISCUSSION.md (status updated)
+- ✅ README.md (progress statistics updated)
+
+**Git Commit Command**:
+```bash
+git add .
+git commit -m "T-007: Output schema builder - Type-enforced LLM outputs
+
+- Implemented dynamic Pydantic model generation from OutputSchema
+- Simple outputs wrapped in 'result' field (str, int, float, bool)
+- Object outputs with multiple fields
+- Supports all type system types (basic, collections)
+- Type validation enforced by Pydantic
+- All output fields required (LLM must provide them)
+- Field descriptions preserved to help LLM
+
+- Created 29 comprehensive tests
+  - Simple outputs (str, int, float, bool)
+  - Object outputs (multiple fields, all types)
+  - Collection types (list, dict, typed variants)
+  - Object with list/dict fields
+  - Model naming and error handling
+  - Round-trip serialization
+  - Validation enforcement
+
+Verification:
+  pytest -v
+  Expected: 231 passed (29 output builder + 202 existing)
+
+Progress: 8/20 tasks (40%) - Phase 1 (Foundation) COMPLETE!
+Next: T-008 (Tool Registry) - Phase 2 start
+
+Co-Authored-By: Claude Sonnet 4.5 <noreply@anthropic.com>"
+```
+
+---
+
 ### Added - T-006: State Schema Builder ✅
 
 **Commit**: T-006: State schema builder - Dynamic Pydantic models
