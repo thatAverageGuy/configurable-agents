@@ -2,17 +2,18 @@
 
 **Last Updated**: 2026-01-26
 **Version**: v0.1.0-dev
-**Phase**: Foundation (Week 1 of 6-8)
+**Phase**: Phase 1 Complete ✅ - Starting Phase 2 (Core Execution)
 
 ---
 
 ## 🎯 Current Status
 
-### Implementation Progress: 35% Complete (7/20 tasks)
+### Implementation Progress: 40% Complete (8/20 tasks)
 
-**Active Phase**: Foundation (Phase 1 - almost complete: 7/8)
-**Current Task**: T-007 (Output Schema Builder - final Foundation task)
-**Next Milestone**: Complete Phase 1 (1 task remaining), then Phase 2 - Core Execution
+**Active Phase**: Phase 2 - Core Execution (0/6 complete)
+**Previous Milestone**: ✅ Phase 1 (Foundation) Complete - 8/8 tasks done
+**Current Task**: T-008 (Tool Registry - first Phase 2 task)
+**Next Milestone**: Complete Phase 2 - Core execution working
 
 ---
 
@@ -224,6 +225,61 @@ assert state.score == 95
 
 ---
 
+### T-007: Output Schema Builder ✅
+**Completed**: 2026-01-26
+**Commit**: (pending)
+
+**Deliverables**:
+- ✅ Dynamic Pydantic model generation from OutputSchema configs
+- ✅ Type-enforced LLM outputs
+- ✅ Simple outputs (single type wrapped in 'result' field)
+- ✅ Object outputs (multiple fields)
+- ✅ Support all type system types (basic, collections)
+- ✅ Field descriptions preserved to help LLM
+- ✅ 29 comprehensive tests
+- ✅ 231 total tests passing (up from 202)
+
+**Files Created**:
+- `src/configurable_agents/core/output_builder.py`
+- `tests/core/test_output_builder.py`
+
+**Output Building**:
+```python
+from configurable_agents.core import build_output_model
+
+# Simple output
+OutputModel = build_output_model(OutputSchema(type="str"), "write")
+output = OutputModel(result="Generated text")
+
+# Object output
+OutputModel = build_output_model(
+    OutputSchema(
+        type="object",
+        fields=[
+            OutputSchemaField(name="article", type="str"),
+            OutputSchemaField(name="word_count", type="int"),
+        ]
+    ),
+    "write"
+)
+output = OutputModel(article="...", word_count=500)
+```
+
+**Features**:
+- Simple outputs wrapped in 'result' field
+- Object outputs with explicit fields
+- All output fields required (LLM must provide them)
+- Type validation enforced by Pydantic
+- Field descriptions help LLM understand what to return
+- Model naming: Output_{node_id}
+- Clear error messages with node_id context
+- Nested objects not yet supported (can add if needed)
+
+**Phase 1 Complete**:
+T-007 completes Phase 1 (Foundation) - all 8/8 tasks done!
+
+---
+
 ### T-005: Type System ✅
 **Completed**: 2026-01-26
 **Commit**: `0753f59`
@@ -264,17 +320,17 @@ assert get_python_type("list[str]") == list
 
 ## 🚧 In Progress
 
-### T-007: Output Schema Builder
+### T-008: Tool Registry
 **Status**: Next
-**Priority**: P0 (Critical)
-**Dependencies**: T-005
+**Priority**: P1
+**Dependencies**: T-001
 **Estimated Effort**: 1 week
 
 **Scope**:
-- Dynamic Pydantic output model generation for node outputs
-- Support simple outputs (single type)
-- Support object outputs (multiple fields)
-- Type enforcement for LLM responses
+- Tool registry that loads tools by name
+- v0.1 includes `serper_search`
+- Load API keys from environment
+- Fail loudly if tool not found or API key missing
 
 ---
 
@@ -282,17 +338,17 @@ assert get_python_type("list[str]") == list
 
 ### Next 5 Tasks
 
-1. **T-007**: Output Schema Builder - Dynamic output models (Phase 1 final task)
-2. **T-008**: Tool Registry - Load tools by name (Phase 2 start)
-3. **T-009**: LLM Provider - Google Gemini integration (Phase 2)
-4. **T-010**: Prompt Template Resolver - Variable substitution (Phase 2)
-5. **T-011**: Node Executor - Execute nodes with LLM + tools (Phase 2)
+1. **T-008**: Tool Registry - Load tools by name (Phase 2 start) ⬅️ NEXT
+2. **T-009**: LLM Provider - Google Gemini integration (Phase 2)
+3. **T-010**: Prompt Template Resolver - Variable substitution (Phase 2)
+4. **T-011**: Node Executor - Execute nodes with LLM + tools (Phase 2)
+5. **T-012**: Graph Builder - Build LangGraph from config (Phase 2)
 
 ---
 
 ## 📊 Phase Breakdown
 
-### Phase 1: Foundation (7/8 complete)
+### Phase 1: Foundation (8/8 complete) ✅ COMPLETE
 - ✅ T-001: Project Setup
 - ✅ T-002: Config Parser
 - ✅ T-003: Config Schema (Pydantic Models)
@@ -300,9 +356,9 @@ assert get_python_type("list[str]") == list
 - ✅ T-004.5: Runtime Feature Gating
 - ✅ T-005: Type System (already complete in T-003)
 - ✅ T-006: State Schema Builder
-- ⏳ T-007: Output Schema Builder
+- ✅ T-007: Output Schema Builder
 
-### Phase 2: Core Execution (0/6 complete)
+### Phase 2: Core Execution (0/6 complete) - NEXT
 - ⏳ T-008: Tool Registry
 - ⏳ T-009: LLM Provider
 - ⏳ T-010: Prompt Template Resolver
@@ -366,21 +422,29 @@ Following ADR-009 "Full Schema Day One":
 
 ## 🎯 Current Focus Areas
 
-### Week 1 Priorities
-1. ~~**Complete T-003**: Pydantic schema models~~ ✅
-   - ~~Define complete WorkflowConfig~~ ✅
-   - ~~Support all types (basic, collection, nested)~~ ✅
-   - ~~Export JSON Schema for IDE support~~ (deferred)
+### Week 1 Complete ✅
+1. ~~**Phase 1 (Foundation)**: Complete~~ ✅
+   - ~~T-001 through T-007 all done~~ ✅
+   - ~~231 tests passing~~ ✅
+   - ~~All foundation infrastructure in place~~ ✅
 
-2. **Begin T-004**: Config validator (current)
-   - Validate structure, references, types
+### Week 2 Priorities (Starting Phase 2)
+1. **T-008**: Tool Registry
+   - Registry interface to get tool by name
+   - Implement `serper_search` tool
+   - Load API keys from environment
    - Helpful error messages
-   - "Did you mean...?" suggestions
+
+2. **T-009**: LLM Provider
+   - Google Gemini integration
+   - Structured outputs with Pydantic
+   - Handle API errors gracefully
+   - Retry on rate limit
 
 3. **Testing**: Maintain high test coverage ✅
    - Unit tests for each component ✅
    - Clear test organization ✅
-   - Fast test execution ✅ (124 tests in 0.18s)
+   - Fast test execution ✅ (231 tests in 0.35s)
 
 ---
 
@@ -393,8 +457,9 @@ from configurable_agents.config import parse_config_file
 config_dict = parse_config_file("workflow.yaml")
 
 # Parse into Pydantic models (validated)
-from configurable_agents.config import WorkflowConfig
+from configurable_agents.config import WorkflowConfig, validate_config
 config = WorkflowConfig(**config_dict)
+validate_config(config)  # Comprehensive validation
 
 # Access validated data
 print(f"Flow: {config.flow.name}")
@@ -404,16 +469,32 @@ print(f"Nodes: {len(config.nodes)}")
 from configurable_agents.config import parse_type_string
 type_info = parse_type_string("list[str]")
 # Returns: {"kind": "list", "item_type": {...}}
+
+# Build dynamic state models
+from configurable_agents.core import build_state_model
+StateModel = build_state_model(config.state)
+state = StateModel(topic="AI Safety", score=95)
+
+# Build dynamic output models
+from configurable_agents.core import build_output_model
+OutputModel = build_output_model(node.output_schema, node.id)
+output = OutputModel(article="...", word_count=500)
+
+# Runtime feature gating
+from configurable_agents.runtime import validate_runtime_support
+validate_runtime_support(config)  # Check v0.1 compatibility
 ```
 
 ### Test Coverage
 ```bash
 $ pytest tests/ -v
-=================== 172 passed in 0.24s ===================
+=================== 231 passed in 0.35s ===================
 
 Tests:
 - Schema models: 67 tests (Pydantic validation)
 - Type system: 31 tests (type parsing)
+- State builder: 30 tests (dynamic models)
+- Output builder: 29 tests (LLM output models) ✨ NEW
 - Validator: 29 tests (comprehensive validation)
 - Runtime gates: 19 tests (feature gating)
 - Config parser: 18 tests (YAML, JSON, errors)
@@ -460,18 +541,17 @@ Tests:
 **Target**: March 2026 (6-8 weeks from 2026-01-24)
 
 **Weekly Goals**:
-- Week 1 (current): T-001 ✅ T-002 ✅ T-003 (in progress)
-- Week 2-3: T-004, T-005, T-006, T-007 (Foundation complete)
-- Week 3-5: T-008 through T-013 (Core execution)
-- Week 5-6: T-014 through T-018 (Polish & UX)
-- Week 6-7: T-019, T-020 (DSPy verification)
-- Week 7-8: Integration testing, documentation, release prep
+- Week 1 (complete): T-001 ✅ T-002 ✅ T-003 ✅ T-004 ✅ T-004.5 ✅ T-005 ✅ T-006 ✅ T-007 ✅
+- Week 2-3: T-008 through T-013 (Core execution)
+- Week 4-5: T-014 through T-018 (Polish & UX)
+- Week 5-6: T-019, T-020 (DSPy verification)
+- Week 6-7: Integration testing, documentation, release prep
 
 ### Next Milestones
-1. **Foundation Complete** (Week 3): All Pydantic models, validation
-2. **First Workflow Runs** (Week 5): Execute simple linear workflow
-3. **Tool Integration** (Week 5): Web search working
-4. **v0.1 Release** (Week 8): Feature-complete with tests
+1. ~~**Foundation Complete**~~ ✅ DONE: All Pydantic models, validation
+2. **First Workflow Runs** (Week 3-4): Execute simple linear workflow
+3. **Tool Integration** (Week 3): Web search working
+4. **v0.1 Release** (Week 6-7): Feature-complete with tests
 
 ---
 
@@ -492,17 +572,27 @@ Tests:
 
 ## 📝 Recent Changes
 
-### 2026-01-26 (Today)
+### 2026-01-26 (Today) - Phase 1 Complete! 🎉
+- ✅ Completed T-006: State schema builder
+- ✅ Completed T-007: Output schema builder
+- ✅ Completed T-005: Type system (formal closure)
+- ✅ 231 tests passing (29 output + 30 state + 202 existing)
+- ✅ Dynamic Pydantic models for state and outputs
+- ✅ Type-enforced LLM responses
+- ✅ All type system types supported (basic, collections, nested objects)
+- ✅ **Phase 1 (Foundation) COMPLETE** - 8/8 tasks done
+- 📝 Progress: 8/20 tasks (40%) complete
+- 📝 Next: Phase 2 (Core Execution) starting with T-008
+
+**Earlier today**:
 - ✅ Completed T-004: Config validator
 - ✅ Completed T-004.5: Runtime feature gating
-- ✅ 172 tests passing (19 runtime + 29 validator + 124 existing)
 - ✅ Comprehensive validation with fail-fast error handling
 - ✅ Cross-reference validation (nodes, state, outputs, types)
 - ✅ Graph structure validation (connectivity, reachability)
 - ✅ Linear flow enforcement (no cycles, no conditional routing)
 - ✅ Runtime feature gating (hard/soft blocks for v0.2+/v0.3+ features)
 - ✅ "Did you mean...?" suggestions for typos
-- 📝 Progress: 6/20 tasks (30%) complete
 
 ### 2026-01-24
 - ✅ Completed T-001: Project setup

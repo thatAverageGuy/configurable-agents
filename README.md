@@ -81,9 +81,9 @@ configurable-agents run article_writer.yaml --input topic="AI Safety"
 ## 🗺️ Roadmap
 
 ### v0.1 - Foundation ⏳ (Current - Week 1 of 6-8)
-**Status**: 35% complete (7/20 tasks) | **Target**: March 2026
+**Status**: 40% complete (8/20 tasks) | **Target**: March 2026
 
-**What's working**:
+**Phase 1 COMPLETE** ✅:
 - ✅ T-001: Project setup and structure
 - ✅ T-002: Config parser (YAML + JSON support)
 - ✅ T-003: Config schema (Pydantic models - Full Schema v1.0)
@@ -91,12 +91,13 @@ configurable-agents run article_writer.yaml --input topic="AI Safety"
 - ✅ T-004.5: Runtime feature gating (version checks, hard/soft blocks)
 - ✅ T-005: Type system (complete - parse, validate, convert type strings)
 - ✅ T-006: State schema builder (dynamic Pydantic models from config)
-- ✅ 202 tests passing (67 schema + 31 types + 30 state builder + 29 validator + 19 runtime + 18 parser + 5 integration + 3 setup)
+- ✅ T-007: Output schema builder (type-enforced LLM outputs)
+- ✅ 231 tests passing (29 output + 30 state + 29 validator + 19 runtime + 67 schema + 31 types + 18 parser + 5 integration + 3 setup)
 
 **In progress**:
-- ⏳ T-007: Output schema builder
 - ⏳ T-008: Tool registry (web search)
 - ⏳ T-009: LLM integration (Google Gemini)
+- ⏳ T-010: Prompt template resolver
 - ⏳ Linear workflow execution
 
 **Capabilities when complete**:
@@ -238,7 +239,7 @@ See [Architecture Decision Records](docs/adr/) for detailed design choices.
 
 ## 📊 Current Progress
 
-### Phase 1: Foundation (7/8 complete)
+### Phase 1: Foundation (8/8 complete) ✅ COMPLETE
 - ✅ T-001: Project Setup
 - ✅ T-002: Config Parser
 - ✅ T-003: Config Schema (Pydantic Models)
@@ -246,9 +247,9 @@ See [Architecture Decision Records](docs/adr/) for detailed design choices.
 - ✅ T-004.5: Runtime Feature Gating
 - ✅ T-005: Type System (already complete in T-003)
 - ✅ T-006: State Schema Builder
-- ⏳ T-007: Output Schema Builder
+- ✅ T-007: Output Schema Builder
 
-### Phase 2: Core Execution (0/6 complete)
+### Phase 2: Core Execution (0/6 complete) - NEXT
 - ⏳ T-008: Tool Registry
 - ⏳ T-009: LLM Provider
 - ⏳ T-010: Prompt Template Resolver
@@ -267,7 +268,7 @@ See [Architecture Decision Records](docs/adr/) for detailed design choices.
 - ⏳ T-019: DSPy Integration Test
 - ⏳ T-020: Structured Output + DSPy
 
-**Next up**: T-007 (Output Schema Builder)
+**Next up**: T-008 (Tool Registry) - Start of Phase 2
 
 Full task breakdown: [docs/TASKS.md](docs/TASKS.md)
 
