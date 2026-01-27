@@ -756,36 +756,77 @@ T-011 completes 4/6 tasks in Phase 2 (Core Execution) - 67% complete!
 ---
 
 ### T-012: Graph Builder
-**Status**: TODO
+**Status**: DONE ✅
 **Priority**: P0
 **Dependencies**: T-011
 **Estimated Effort**: 1.5 weeks
+**Actual Effort**: <1 day
+**Completed**: 2026-01-27
 
 **Description**:
 Build LangGraph StateGraph from config. v0.1: Linear flows only.
 
 **Acceptance Criteria**:
-- [ ] Create StateGraph instance
-- [ ] Add nodes from config
-- [ ] Add edges from config (linear only)
-- [ ] Validate graph structure (no cycles, reachable)
-- [ ] Compile graph
-- [ ] Reject conditional routing (feature gate)
-- [ ] Unit tests (mock node execution)
-- [ ] Integration tests with real nodes
+- [x] Create StateGraph instance
+- [x] Add nodes from config
+- [x] Add edges from config (linear only)
+- [x] Validate graph structure (no cycles, reachable)
+- [x] Compile graph
+- [x] Reject conditional routing (feature gate)
+- [x] Unit tests (mock node execution)
+- [x] Integration tests with real nodes
 
-**Files**:
-- `src/configurable_agents/core/graph_builder.py`
-- `tests/core/test_graph_builder.py`
+**Files Created**:
+- `src/configurable_agents/core/graph_builder.py` (build_graph, make_node_function, GraphBuilderError)
+- `tests/core/test_graph_builder.py` (18 comprehensive tests: 16 unit + 2 integration)
+
+**Files Modified**:
+- `src/configurable_agents/core/__init__.py` (exports)
+
+**Tests**: 18 tests created (383 total project tests: 18 graph builder + 365 existing)
 
 **Interface**:
 ```python
+from configurable_agents.core import build_graph, GraphBuilderError
+
 def build_graph(
     config: WorkflowConfig,
-    state_model: Type[BaseModel]
-) -> CompiledGraph:
-    """Build LangGraph from config"""
+    state_model: Type[BaseModel],
+    global_config: Optional[GlobalConfig] = None
+) -> CompiledStateGraph:
+    """
+    Build and compile LangGraph from config.
+
+    Returns compiled graph ready for execution.
+    LangGraph returns dict from invoke(), not BaseModel.
+    """
 ```
+
+**Implementation Features**:
+- ✅ Direct Pydantic BaseModel integration with LangGraph (no TypedDict conversion)
+- ✅ Closure-based node functions (capture node_config and global_config)
+- ✅ START/END as LangGraph entry/exit points (not identity nodes)
+- ✅ Compiled graph output (ready for immediate execution)
+- ✅ Defensive validation (catches validator bugs)
+- ✅ Linear flow enforcement (v0.1 constraint - no branching/conditional routing)
+- ✅ NodeExecutionError propagation with context preservation
+- ✅ Unexpected error wrapping with node_id context
+- ✅ Logging at INFO (high-level) and DEBUG (detailed) levels
+
+**Key Design Decisions**:
+1. **CompiledStateGraph**: LangGraph's actual type (not CompiledGraph)
+2. **Dict Return**: LangGraph's invoke() returns dict, not BaseModel
+3. **Closure Pattern**: Clean config capture without state pollution
+4. **Minimal Validation**: Trust T-004, defensive checks only
+5. **model_construct()**: Used in tests to bypass Pydantic validation
+
+**Integration Points**:
+- Calls `execute_node` from T-011 via closure-wrapped node functions
+- Uses `WorkflowConfig`, `NodeConfig`, `EdgeConfig` from T-003
+- Enables T-013 (Runtime Executor) with perfect interface alignment
+
+**Phase 2 Progress**:
+T-012 completes 5/6 tasks in Phase 2 (Core Execution) - 83% complete!
 
 ---
 
