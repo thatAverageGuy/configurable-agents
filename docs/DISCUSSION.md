@@ -8,12 +8,12 @@
 
 ## 🎯 Current Status
 
-### Implementation Progress: 60% Complete (12/20 tasks)
+### Implementation Progress: 65% Complete (13/20 tasks)
 
-**Active Phase**: Phase 2 - Core Execution (4/6 complete)
+**Active Phase**: Phase 2 - Core Execution (5/6 complete - 83%)
 **Previous Milestone**: ✅ Phase 1 (Foundation) Complete - 8/8 tasks done
-**Latest Completion**: ✅ T-011 (Node Executor) - Execute nodes with LLM + tools
-**Current Task**: T-012 (Graph Builder)
+**Latest Completion**: ✅ T-012 (Graph Builder) - Build LangGraph from config
+**Current Task**: T-013 (Runtime Executor)
 **Next Milestone**: Complete Phase 2 - Core execution working
 
 ---
@@ -565,19 +565,75 @@ T-011 completes 4/6 tasks in Phase 2 (Core Execution) - 67% complete!
 
 ---
 
+### T-012: Graph Builder ✅
+**Completed**: 2026-01-27
+**Commit**: (pending)
+
+**Deliverables**:
+- ✅ LangGraph StateGraph construction from config
+- ✅ Closure-based node function wrapping
+- ✅ Direct Pydantic BaseModel integration (no TypedDict conversion)
+- ✅ START/END entry/exit point handling (LangGraph constants)
+- ✅ Linear flow validation (v0.1 constraint)
+- ✅ Defensive validation (catches validator bugs)
+- ✅ Compiled graph output (CompiledStateGraph)
+- ✅ Comprehensive error handling with GraphBuilderError
+- ✅ 18 comprehensive tests (16 unit + 2 integration)
+- ✅ 383 total tests passing (up from 367)
+
+**Files Created**:
+- `src/configurable_agents/core/graph_builder.py` (build_graph, make_node_function, GraphBuilderError, helpers)
+- `tests/core/test_graph_builder.py` (18 tests covering all scenarios)
+
+**Files Modified**:
+- `src/configurable_agents/core/__init__.py` (exports)
+
+**Key Features Implemented**:
+```python
+# Build compiled graph from config
+from configurable_agents.core import build_graph, GraphBuilderError
+
+state_model = build_state_model(config.state)
+graph = build_graph(config, state_model, config.config)
+
+# Execute graph (returns dict, not BaseModel)
+initial = state_model(topic="AI Safety")
+final_dict = graph.invoke(initial)
+print(final_dict["research"])
+```
+
+**Design Decisions**:
+1. **Pydantic BaseModel**: Direct LangGraph integration (StateGraph(state_model))
+2. **Closure Pattern**: Node functions capture config, call execute_node cleanly
+3. **START/END**: LangGraph constants (entry/exit points), not identity nodes
+4. **CompiledStateGraph**: Actual LangGraph type (not CompiledGraph)
+5. **Dict Return**: LangGraph's invoke() returns dict, not BaseModel instance
+6. **Minimal Validation**: Trust T-004 validator, defensive checks only
+
+**Integration Points**:
+- Uses `execute_node` from T-011 (node execution with LLM + tools)
+- Uses `WorkflowConfig`, `NodeConfig`, `EdgeConfig` from T-003 (config schema)
+- Used by T-013 (Runtime Executor) - perfect interface alignment
+
+**Phase 2 Progress**:
+T-012 completes 5/6 tasks in Phase 2 (Core Execution) - 83% complete!
+
+---
+
 ## 🚧 In Progress
 
-### T-012: Graph Builder
+### T-013: Runtime Executor
 **Status**: Next
 **Priority**: P0
-**Dependencies**: T-011
+**Dependencies**: T-012
 **Estimated Effort**: 1.5 weeks
 
 **Scope**:
-- Build LangGraph StateGraph from config
-- Add nodes and edges (linear only in v0.1)
-- Validate graph structure
-- Compile graph
+- Orchestrate config → execution pipeline
+- Load and validate config
+- Build state model and graph
+- Execute graph with inputs
+- Return final state as dict
 
 ---
 
@@ -784,15 +840,28 @@ updated_state = execute_node(
     global_config,    # Global config (optional)
 )
 # Returns: Updated state (new Pydantic instance)
+
+# Graph builder
+from configurable_agents.core import build_graph, GraphBuilderError
+
+# Build compiled graph from config
+state_model = build_state_model(config.state)
+graph = build_graph(config, state_model, config.config)
+
+# Execute graph (returns dict, not BaseModel)
+initial = state_model(topic="AI Safety")
+final_dict = graph.invoke(initial)  # Returns dict
+print(final_dict["research"])
 ```
 
 ### Test Coverage
 ```bash
 $ pytest tests/ -v -m "not integration"
-=================== 367 passed in 1.42s ===================
+=================== 383 passed in 1.75s ===================
 
 Tests:
-- Node executor: 23 tests (execution, input mappings, tools, errors, state updates) ✨ NEW
+- Graph builder: 16 tests (graph construction, node functions, START/END, validation, linear flows) ✨ NEW
+- Node executor: 23 tests (execution, input mappings, tools, errors, state updates)
 - Template resolver: 44 tests (variable resolution, nested access, errors)
 - Schema models: 67 tests (Pydantic validation)
 - Tool registry: 22 tests (registration, retrieval, errors)
@@ -807,7 +876,7 @@ Tests:
 - Google Gemini: 13 tests (LLM creation, configuration)
 - Integration: 5 tests (YAML → Pydantic)
 - Setup: 3 tests (imports, version, logging)
-- Integration tests (slow): 4 tests (2 serper + 2 gemini - marked with @pytest.mark.integration)
+- Integration tests (slow): 6 tests (2 serper + 2 gemini + 2 graph builder - marked with @pytest.mark.integration)
 ```
 
 ---
@@ -881,20 +950,25 @@ Tests:
 
 ## 📝 Recent Changes
 
-### 2026-01-27 (Today) - Node Executor Complete! 🎉
+### 2026-01-27 (Today) - Graph Builder Complete! 🎉
+- ✅ Completed T-012: Graph builder
+- ✅ 383 tests passing (18 graph builder: 16 unit + 2 integration, 365 existing)
+- ✅ Build LangGraph StateGraph from validated config
+- ✅ Closure-based node function wrapping (clean config capture)
+- ✅ Direct Pydantic BaseModel integration (no TypedDict conversion)
+- ✅ START/END as LangGraph entry/exit points (not identity nodes)
+- ✅ Defensive validation for linear flows (v0.1 constraint)
+- ✅ Compiled graph output (CompiledStateGraph ready for execution)
+- ✅ Comprehensive error handling with GraphBuilderError
+- ✅ **Phase 2 (Core Execution) 5/6 COMPLETE** - 83% through Phase 2!
+- 📝 Progress: 13/20 tasks (65%) complete
+- 📝 Next: T-013 (Runtime Executor) - Orchestrate config → execution!
+
+**Earlier today - Node Executor Complete**:
 - ✅ Completed T-011: Node executor
 - ✅ 367 tests passing (23 node executor + 344 existing)
 - ✅ Execute nodes with LLM + tools integration
-- ✅ Input mapping resolution from state
-- ✅ Prompt template resolution with {state.field} preprocessing
-- ✅ Tool loading and binding to LLM
-- ✅ LLM configuration merging (node overrides global)
-- ✅ Structured output enforcement
 - ✅ Copy-on-write state updates (immutable pattern)
-- ✅ Comprehensive error handling with NodeExecutionError
-- ✅ **Phase 2 (Core Execution) 4/6 COMPLETE** - 67% through Phase 2!
-- 📝 Progress: 12/20 tasks (60%) complete
-- 📝 Next: T-012 (Graph Builder) - Build LangGraph from config!
 - ⚠️ Technical Debt: T-011.1 - Template resolver should handle {state.X} natively
 
 **Yesterday - Template Resolver Complete**:

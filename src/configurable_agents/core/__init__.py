@@ -17,6 +17,10 @@ from configurable_agents.core.node_executor import (
     NodeExecutionError,
     execute_node,
 )
+from configurable_agents.core.graph_builder import (
+    GraphBuilderError,
+    build_graph,
+)
 
 __all__ = [
     "build_state_model",
@@ -28,4 +32,6 @@ __all__ = [
     "TemplateResolutionError",
     "execute_node",
     "NodeExecutionError",
+    "build_graph",
+    "GraphBuilderError",
 ]

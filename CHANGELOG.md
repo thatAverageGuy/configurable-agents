@@ -9,6 +9,83 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added - T-012: Graph Builder ✅
+
+**Commit**: T-012: Graph builder - Build LangGraph from config
+
+**What Was Done**:
+- Implemented graph builder transforming WorkflowConfig to executable LangGraph
+- Closure-based node function wrapping for clean config capture
+- Direct Pydantic BaseModel integration with LangGraph (no TypedDict conversion)
+- START/END entry/exit point handling (not identity nodes)
+- Defensive validation for linear flows (v0.1 constraint)
+- Comprehensive error handling with GraphBuilderError
+- 18 comprehensive tests covering all scenarios (16 unit + 2 integration)
+- Total: 383 tests passing (up from 367)
+
+**Graph Builder Features**:
+- ✅ Build LangGraph StateGraph from validated WorkflowConfig
+- ✅ Closure-based node functions (capture node_config and global_config)
+- ✅ Direct Pydantic BaseModel integration (no conversion overhead)
+- ✅ START/END as LangGraph entry/exit points
+- ✅ Linear flow validation (v0.1 constraint - no branching/conditional routing)
+- ✅ Compiled graph output (ready for immediate execution)
+- ✅ Defensive validation (catches validator bugs)
+- ✅ NodeExecutionError propagation with context preservation
+- ✅ Unexpected error wrapping with node_id context
+- ✅ Logging at INFO (high-level) and DEBUG (detailed) levels
+
+**Files Created**:
+```
+src/configurable_agents/core/
+└── graph_builder.py (build_graph, make_node_function, GraphBuilderError)
+
+tests/core/
+└── test_graph_builder.py (18 comprehensive tests: 16 unit + 2 integration)
+```
+
+**Public API**:
+```python
+from configurable_agents.core import build_graph, GraphBuilderError
+
+# Build compiled graph from config
+state_model = build_state_model(config.state)
+graph = build_graph(config, state_model, config.config)
+
+# Execute graph
+initial = state_model(topic="AI Safety")
+final_dict = graph.invoke(initial)  # Returns dict
+print(final_dict["research"])
+```
+
+**Key Design Decisions**:
+1. **Pydantic BaseModel**: Direct integration with LangGraph (no TypedDict conversion)
+2. **Closure Pattern**: Node functions capture config, call execute_node cleanly
+3. **START/END**: LangGraph constants (entry/exit points), not identity nodes
+4. **Compiled Return**: Returns `CompiledStateGraph` ready for execution
+5. **Minimal Validation**: Trust T-004 validator, defensive checks only
+
+**Integration Points**:
+- Uses `execute_node` from T-011 (node execution)
+- Uses `WorkflowConfig` from T-003 (config schema)
+- Used by T-013 (Runtime Executor - next task)
+
+**Verification**:
+```bash
+# All graph builder tests pass
+pytest tests/core/test_graph_builder.py -v
+# Expected: 18 passed (16 unit + 2 integration)
+
+# Full test suite passes
+pytest -v -m "not integration"
+# Expected: 383 passed (16 graph builder + 367 existing)
+```
+
+**Progress**: 13/20 tasks (65%) - **Phase 2 (Core Execution) 5/6 COMPLETE** (83%)
+**Next**: T-013 (Runtime Executor) - orchestrates config → execution
+
+---
+
 ### Added - T-011: Node Executor ✅
 
 **Commit**: T-011: Node executor - Execute nodes with LLM + tools

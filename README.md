@@ -252,12 +252,12 @@ See [Architecture Decision Records](docs/adr/) for detailed design choices.
 - ✅ T-006: State Schema Builder
 - ✅ T-007: Output Schema Builder
 
-### Phase 2: Core Execution (3/6 complete) - IN PROGRESS
+### Phase 2: Core Execution (5/6 complete) - IN PROGRESS
 - ✅ T-008: Tool Registry
 - ✅ T-009: LLM Provider
 - ✅ T-010: Prompt Template Resolver
-- ⏳ T-011: Node Executor
-- ⏳ T-012: Graph Builder
+- ✅ T-011: Node Executor
+- ✅ T-012: Graph Builder
 - ⏳ T-013: Runtime Executor
 
 ### Phase 3: Polish & UX (0/5 complete)
@@ -271,7 +271,9 @@ See [Architecture Decision Records](docs/adr/) for detailed design choices.
 - ⏳ T-019: DSPy Integration Test
 - ⏳ T-020: Structured Output + DSPy
 
-**Next up**: T-010 (Prompt Template Resolver)
+**Overall Progress**: 13/20 tasks complete (65%)
+
+**Next up**: T-013 (Runtime Executor)
 
 Full task breakdown: [docs/TASKS.md](docs/TASKS.md)
 
