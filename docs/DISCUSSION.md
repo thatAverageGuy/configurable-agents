@@ -2,19 +2,19 @@
 
 **Last Updated**: 2026-01-27
 **Version**: v0.1.0-dev
-**Phase**: Phase 2 (Core Execution) - IN PROGRESS
+**Phase**: Phase 3 (Polish & UX) - STARTING
 
 ---
 
 ## 🎯 Current Status
 
-### Implementation Progress: 65% Complete (13/20 tasks)
+### Implementation Progress: 70% Complete (14/20 tasks)
 
-**Active Phase**: Phase 2 - Core Execution (5/6 complete - 83%)
-**Previous Milestone**: ✅ Phase 1 (Foundation) Complete - 8/8 tasks done
-**Latest Completion**: ✅ T-012 (Graph Builder) - Build LangGraph from config
-**Current Task**: T-013 (Runtime Executor)
-**Next Milestone**: Complete Phase 2 - Core execution working
+**Active Phase**: Phase 3 - Polish & UX (0/5 complete)
+**Previous Milestone**: ✅ Phase 2 (Core Execution) Complete - 6/6 tasks done
+**Latest Completion**: ✅ T-013 (Runtime Executor) - Orchestrate config → execution
+**Current Task**: T-014 (CLI Interface)
+**Next Milestone**: First working end-to-end demo with CLI
 
 ---
 
@@ -620,20 +620,58 @@ T-012 completes 5/6 tasks in Phase 2 (Core Execution) - 83% complete!
 
 ---
 
-## 🚧 In Progress
+### T-013: Runtime Executor ✅
+**Completed**: 2026-01-27
+**Commit**: (pending)
 
-### T-013: Runtime Executor
-**Status**: Next
-**Priority**: P0
-**Dependencies**: T-012
-**Estimated Effort**: 1.5 weeks
+**Deliverables**:
+- ✅ Runtime executor orchestrating complete workflow execution
+- ✅ Load and parse config from YAML/JSON files
+- ✅ Validate config with comprehensive checks and feature gating
+- ✅ Build state model and initialize with inputs
+- ✅ Build and compile LangGraph execution graph
+- ✅ Execute complete workflows end-to-end
+- ✅ Return final state as dict with execution metrics
+- ✅ 6 exception types for granular error handling
+- ✅ Verbose logging option for debugging
+- ✅ 23 comprehensive tests + 4 integration tests
+- ✅ 406 total tests passing (up from 383)
 
-**Scope**:
-- Orchestrate config → execution pipeline
-- Load and validate config
-- Build state model and graph
-- Execute graph with inputs
-- Return final state as dict
+**Files Created**:
+- `src/configurable_agents/runtime/executor.py` (330 lines)
+- `src/configurable_agents/runtime/__init__.py` (updated)
+- `tests/runtime/test_executor.py` (670 lines, 23 tests)
+- `tests/runtime/test_executor_integration.py` (295 lines, 4 integration tests)
+- `examples/simple_workflow.yaml` (minimal example)
+- `examples/README.md` (usage guide)
+
+**Public API**:
+```python
+from configurable_agents.runtime import (
+    run_workflow,              # Execute from file
+    run_workflow_from_config,  # Execute from config
+    validate_workflow,         # Validate only
+
+    # Error types
+    ExecutionError, ConfigLoadError, ConfigValidationError,
+    StateInitializationError, GraphBuildError, WorkflowExecutionError
+)
+
+# Execute workflow
+result = run_workflow("workflow.yaml", {"topic": "AI Safety"})
+print(result["article"])
+```
+
+**Features**:
+- 6-phase execution pipeline (load → parse → validate → gate → build → execute)
+- Granular error handling with phase identification
+- Execution timing and metrics logging
+- Verbose mode for detailed traces
+- Validation-only mode for pre-flight checks
+- Clear error messages with original exception preservation
+
+**Phase 2 Complete**:
+T-013 completes Phase 2 (Core Execution) - all 6/6 tasks done! ✅
 
 ---
 
@@ -641,11 +679,11 @@ T-012 completes 5/6 tasks in Phase 2 (Core Execution) - 83% complete!
 
 ### Next 5 Tasks
 
-1. **T-012**: Graph Builder - Build LangGraph from config (Phase 2) ⬅️ NEXT
-2. **T-013**: Runtime Executor - Execute complete workflows (Phase 2)
-3. **T-014**: CLI Interface - Run and validate workflows (Phase 3)
-4. **T-015**: Example Configs - Working workflow examples (Phase 3)
-5. **T-016**: Documentation - User-facing docs (Phase 3)
+1. **T-014**: CLI Interface - Command-line interface for workflows ⬅️ NEXT
+2. **T-015**: Example Configs - Working workflow examples
+3. **T-016**: Documentation - User-facing documentation
+4. **T-017**: Integration Tests - End-to-end testing
+5. **T-018**: Error Messages - Improve error UX
 
 ---
 
@@ -661,13 +699,13 @@ T-012 completes 5/6 tasks in Phase 2 (Core Execution) - 83% complete!
 - ✅ T-006: State Schema Builder
 - ✅ T-007: Output Schema Builder
 
-### Phase 2: Core Execution (4/6 complete) - IN PROGRESS
+### Phase 2: Core Execution (6/6 complete) ✅ COMPLETE
 - ✅ T-008: Tool Registry
 - ✅ T-009: LLM Provider
 - ✅ T-010: Prompt Template Resolver
 - ✅ T-011: Node Executor
-- ⏳ T-012: Graph Builder
-- ⏳ T-013: Runtime Executor
+- ✅ T-012: Graph Builder
+- ✅ T-013: Runtime Executor
 
 ### Phase 3: Polish & UX (0/5 complete)
 - ⏳ T-014: CLI Interface
@@ -852,15 +890,39 @@ graph = build_graph(config, state_model, config.config)
 initial = state_model(topic="AI Safety")
 final_dict = graph.invoke(initial)  # Returns dict
 print(final_dict["research"])
+
+# ⭐ Runtime executor - COMPLETE WORKFLOW EXECUTION! ⭐
+from configurable_agents.runtime import (
+    run_workflow,
+    run_workflow_from_config,
+    validate_workflow,
+)
+
+# Execute workflow from file (YAML/JSON)
+result = run_workflow("article_writer.yaml", {"topic": "AI Safety"})
+print(result["article"])
+
+# Execute from pre-loaded config
+from configurable_agents.config import parse_config_file, WorkflowConfig
+config_dict = parse_config_file("workflow.yaml")
+config = WorkflowConfig(**config_dict)
+result = run_workflow_from_config(config, {"topic": "AI"})
+
+# Validate without executing
+validate_workflow("workflow.yaml")
+
+# Execute with verbose logging
+result = run_workflow("workflow.yaml", {"topic": "AI"}, verbose=True)
 ```
 
 ### Test Coverage
 ```bash
 $ pytest tests/ -v -m "not integration"
-=================== 383 passed in 1.75s ===================
+=================== 406 passed in 1.68s ===================
 
 Tests:
-- Graph builder: 16 tests (graph construction, node functions, START/END, validation, linear flows) ✨ NEW
+- Runtime executor: 23 tests (file loading, config validation, execution, errors, verbose) ✨ NEW
+- Graph builder: 18 tests (graph construction, node functions, START/END, validation, linear flows)
 - Node executor: 23 tests (execution, input mappings, tools, errors, state updates)
 - Template resolver: 44 tests (variable resolution, nested access, errors)
 - Schema models: 67 tests (Pydantic validation)
@@ -876,7 +938,7 @@ Tests:
 - Google Gemini: 13 tests (LLM creation, configuration)
 - Integration: 5 tests (YAML → Pydantic)
 - Setup: 3 tests (imports, version, logging)
-- Integration tests (slow): 6 tests (2 serper + 2 gemini + 2 graph builder - marked with @pytest.mark.integration)
+- Integration tests (slow): 10 tests (4 executor + 2 graph builder + 2 serper + 2 gemini - marked with @pytest.mark.integration)
 ```
 
 ---
@@ -927,9 +989,10 @@ Tests:
 
 ### Next Milestones
 1. ~~**Foundation Complete**~~ ✅ DONE: All Pydantic models, validation
-2. **First Workflow Runs** (Week 3-4): Execute simple linear workflow
-3. **Tool Integration** (Week 3): Web search working
-4. **v0.1 Release** (Week 6-7): Feature-complete with tests
+2. ~~**Core Execution Complete**~~ ✅ DONE: End-to-end workflow execution
+3. **First CLI Demo** (Week 4): Command-line interface working
+4. **Example Workflows** (Week 4): Working examples with docs
+5. **v0.1 Release** (Week 6-7): Feature-complete with tests
 
 ---
 
@@ -950,19 +1013,26 @@ Tests:
 
 ## 📝 Recent Changes
 
-### 2026-01-27 (Today) - Graph Builder Complete! 🎉
+### 2026-01-27 (Today) - Phase 2 Complete! Runtime Executor! 🎉🚀
+- ✅ Completed T-013: Runtime executor
+- ✅ 406 tests passing (23 executor + 4 integration, 383 existing)
+- ✅ **COMPLETE END-TO-END WORKFLOW EXECUTION!**
+- ✅ Execute workflows from YAML/JSON files
+- ✅ 6-phase execution pipeline (load → parse → validate → gate → build → execute)
+- ✅ 6 exception types for granular error handling
+- ✅ Verbose logging option for debugging
+- ✅ Validation-only mode for pre-flight checks
+- ✅ Example workflow and usage guide created
+- ✅ **Phase 2 (Core Execution) 6/6 COMPLETE** - 100% through Phase 2! ✅
+- 📝 Progress: 14/20 tasks (70%) complete
+- 📝 Next: T-014 (CLI Interface) - Command-line interface!
+
+**Earlier today - Graph Builder Complete**:
 - ✅ Completed T-012: Graph builder
-- ✅ 383 tests passing (18 graph builder: 16 unit + 2 integration, 365 existing)
+- ✅ 383 tests passing (18 graph builder + 365 existing)
 - ✅ Build LangGraph StateGraph from validated config
-- ✅ Closure-based node function wrapping (clean config capture)
-- ✅ Direct Pydantic BaseModel integration (no TypedDict conversion)
-- ✅ START/END as LangGraph entry/exit points (not identity nodes)
-- ✅ Defensive validation for linear flows (v0.1 constraint)
-- ✅ Compiled graph output (CompiledStateGraph ready for execution)
-- ✅ Comprehensive error handling with GraphBuilderError
-- ✅ **Phase 2 (Core Execution) 5/6 COMPLETE** - 83% through Phase 2!
-- 📝 Progress: 13/20 tasks (65%) complete
-- 📝 Next: T-013 (Runtime Executor) - Orchestrate config → execution!
+- ✅ Closure-based node function wrapping
+- ✅ Direct Pydantic BaseModel integration
 
 **Earlier today - Node Executor Complete**:
 - ✅ Completed T-011: Node executor

@@ -80,10 +80,10 @@ configurable-agents run article_writer.yaml --input topic="AI Safety"
 
 ## 🗺️ Roadmap
 
-### v0.1 - Foundation ⏳ (Current - Week 2-3 of 6-8)
-**Status**: 55% complete (11/20 tasks) | **Target**: March 2026
+### v0.1 - Foundation ⏳ (Current - Week 3-4 of 6-8)
+**Status**: 70% complete (14/20 tasks) | **Target**: March 2026
 
-**Phase 1 COMPLETE** ✅:
+**Phase 1 COMPLETE** ✅ (8/8):
 - ✅ T-001: Project setup and structure
 - ✅ T-002: Config parser (YAML + JSON support)
 - ✅ T-003: Config schema (Pydantic models - Full Schema v1.0)
@@ -93,28 +93,45 @@ configurable-agents run article_writer.yaml --input topic="AI Safety"
 - ✅ T-006: State schema builder (dynamic Pydantic models from config)
 - ✅ T-007: Output schema builder (type-enforced LLM outputs)
 
-**Phase 2 IN PROGRESS** (3/6 complete):
+**Phase 2 COMPLETE** ✅ (6/6):
 - ✅ T-008: Tool registry (web search - serper_search)
 - ✅ T-009: LLM provider (Google Gemini with structured outputs)
 - ✅ T-010: Prompt template resolver (variable substitution)
-- ⏳ T-011: Node executor
-- ⏳ T-012: Graph builder
-- ⏳ T-013: Runtime executor
+- ✅ T-011: Node executor (LLM + tools integration)
+- ✅ T-012: Graph builder (LangGraph construction)
+- ✅ T-013: Runtime executor (end-to-end workflow execution) 🎉
 
-**Test Coverage**: 344 tests passing (44 template + 32 llm + 37 tools + 29 output + 30 state + 29 validator + 19 runtime + 67 schema + 31 types + 18 parser + 5 integration + 3 setup)
+**Phase 3 IN PROGRESS** (0/5):
+- ⏳ T-014: CLI interface (command-line tool)
+- ⏳ T-015: Example configs (working examples)
+- ⏳ T-016: Documentation (user guide)
+- ⏳ T-017: Integration tests (end-to-end)
+- ⏳ T-018: Error message improvements
 
-**Capabilities when complete**:
-- Define workflows in YAML
-- Sequential node execution
-- Structured outputs (Pydantic)
-- Basic tool calling (Serper search)
-- Parse-time validation (fail fast, save money)
-- Google Gemini support
+**Test Coverage**: 406 tests passing (23 executor + 18 graph + 23 node + 44 template + 32 llm + 37 tools + 29 output + 30 state + 29 validator + 19 runtime + 67 schema + 31 types + 18 parser + 5 integration + 3 setup)
+
+**🎉 Working Now**:
+- ✅ Execute workflows from YAML/JSON files
+- ✅ Sequential node execution
+- ✅ Structured outputs (Pydantic)
+- ✅ Tool calling (Serper web search)
+- ✅ Parse-time validation (fail fast, save money)
+- ✅ Google Gemini support
+- ✅ End-to-end execution pipeline
+
+**Usage** (Python API):
+```python
+from configurable_agents.runtime import run_workflow
+
+result = run_workflow("workflow.yaml", {"topic": "AI Safety"})
+print(result["article"])
+```
 
 **Limitations**:
 - Linear flows only (no conditionals)
 - In-memory state (no persistence)
 - Single LLM provider (Gemini)
+- No CLI yet (T-014)
 
 ---
 
