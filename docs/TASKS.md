@@ -911,35 +911,60 @@ T-013 completes Phase 2 (Core Execution) - all 6/6 tasks done!
 ---
 
 ### T-014: CLI Interface
-**Status**: TODO
+**Status**: DONE ✅
 **Priority**: P1
 **Dependencies**: T-013
+**Completed**: 2026-01-27
 **Estimated Effort**: 1 week
 
 **Description**:
 Command-line interface for running and validating workflows.
 
 **Acceptance Criteria**:
-- [ ] `run` command: execute workflow from file
-- [ ] `validate` command: validate config without running
-- [ ] Parse command-line arguments for inputs
-- [ ] Pretty-print output (use rich or similar)
-- [ ] Show helpful error messages
-- [ ] Support --input flag for inputs
-- [ ] Support --verbose flag for debug logging
-- [ ] Integration tests
+- [x] `run` command: execute workflow from file
+- [x] `validate` command: validate config without running
+- [x] Parse command-line arguments for inputs
+- [x] Pretty-print output (color-coded with Unicode fallback)
+- [x] Show helpful error messages
+- [x] Support --input flag for inputs
+- [x] Support --verbose flag for debug logging
+- [x] Integration tests (37 unit + 2 integration tests)
 
-**Files**:
-- `src/configurable_agents/__main__.py`
-- `src/configurable_agents/cli.py`
-- `tests/test_cli.py`
+**Files Created**:
+- `src/configurable_agents/__main__.py` (14 lines)
+- `src/configurable_agents/cli.py` (367 lines)
+- `tests/test_cli.py` (597 lines, 39 tests)
+
+**Features Implemented**:
+- Smart input parsing with type detection (str, int, bool, JSON)
+- Color-coded terminal output (green/red/blue/yellow)
+- Unicode fallback for Windows console compatibility
+- Comprehensive error handling with 6 exception types
+- Two entry points: `configurable-agents` script and `python -m`
+- Exit codes: 0 (success), 1 (error)
 
 **Usage**:
 ```bash
+# Run command
+configurable-agents run workflow.yaml --input topic="AI Safety"
 python -m configurable_agents run workflow.yaml --input topic="AI Safety"
+
+# Validate command
+configurable-agents validate workflow.yaml
 python -m configurable_agents validate workflow.yaml
-python -m configurable_agents run workflow.yaml --verbose
+
+# Verbose mode
+configurable-agents run workflow.yaml --input name="Alice" --verbose
+
+# Multiple inputs with types
+configurable-agents run workflow.yaml \
+  --input topic="AI" \
+  --input count=5 \
+  --input enabled=true \
+  --input 'tags=["ai", "safety"]'
 ```
+
+**Tests**: 39 tests created (37 unit + 2 integration), 443 total passing
 
 ---
 
@@ -1158,7 +1183,7 @@ T-019 -> T-020 (Structured Output + DSPy - NEW)
 
 **Last Updated**: 2026-01-27
 
-### v0.1 Progress: 14/20 tasks complete (70%)
+### v0.1 Progress: 15/20 tasks complete (75%)
 
 **Phase 1: Foundation (8/8 complete) ✅ COMPLETE**
 - ✅ T-001: Project Setup
@@ -1178,8 +1203,8 @@ T-019 -> T-020 (Structured Output + DSPy - NEW)
 - ✅ T-012: Graph Builder
 - ✅ T-013: Runtime Executor
 
-**Phase 3: Polish & UX (0/5 complete)**
-- ⏳ T-014: CLI Interface
+**Phase 3: Polish & UX (1/5 complete)**
+- ✅ T-014: CLI Interface
 - ⏳ T-015: Example Configs
 - ⏳ T-016: Documentation
 - ⏳ T-017: Integration Tests
@@ -1189,9 +1214,9 @@ T-019 -> T-020 (Structured Output + DSPy - NEW)
 - ⏳ T-019: DSPy Integration Test
 - ⏳ T-020: Structured Output + DSPy Test
 
-**Current Sprint**: Phase 3 - Polish & UX (0/5 complete) - Starting T-014
-**Test Status**: 406 tests passing (23 executor + 18 graph builder + 23 node executor + 44 template + 32 llm + 37 tools + 29 output + 30 state + 29 validator + 19 runtime + 67 schema + 31 types + 18 parser + 5 integration + 3 setup)
-**Integration Tests**: 10 tests total (4 executor + 2 graph builder + 2 serper + 2 gemini) marked with @pytest.mark.integration
+**Current Sprint**: Phase 3 - Polish & UX (1/5 complete) - T-014 ✅ DONE
+**Test Status**: 443 tests passing (37 cli + 23 executor + 18 graph builder + 23 node executor + 44 template + 32 llm + 37 tools + 29 output + 30 state + 29 validator + 19 runtime + 67 schema + 31 types + 18 parser + 5 integration + 3 setup)
+**Integration Tests**: 12 tests total (2 cli + 4 executor + 2 graph builder + 2 serper + 2 gemini) marked with @pytest.mark.integration
 
 ---
 

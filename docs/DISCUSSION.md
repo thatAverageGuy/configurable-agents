@@ -2,19 +2,19 @@
 
 **Last Updated**: 2026-01-27
 **Version**: v0.1.0-dev
-**Phase**: Phase 3 (Polish & UX) - STARTING
+**Phase**: Phase 3 (Polish & UX) - IN PROGRESS
 
 ---
 
 ## 🎯 Current Status
 
-### Implementation Progress: 70% Complete (14/20 tasks)
+### Implementation Progress: 75% Complete (15/20 tasks)
 
-**Active Phase**: Phase 3 - Polish & UX (0/5 complete)
+**Active Phase**: Phase 3 - Polish & UX (1/5 complete)
 **Previous Milestone**: ✅ Phase 2 (Core Execution) Complete - 6/6 tasks done
-**Latest Completion**: ✅ T-013 (Runtime Executor) - Orchestrate config → execution
-**Current Task**: T-014 (CLI Interface)
-**Next Milestone**: First working end-to-end demo with CLI
+**Latest Completion**: ✅ T-014 (CLI Interface) - Command-line tool for workflows
+**Current Task**: T-015 (Example Configs)
+**Next Milestone**: Complete example workflows with documentation
 
 ---
 
@@ -675,12 +675,76 @@ T-013 completes Phase 2 (Core Execution) - all 6/6 tasks done! ✅
 
 ---
 
+### T-014: CLI Interface ✅
+**Completed**: 2026-01-27
+**Commit**: (pending)
+
+**Deliverables**:
+- ✅ Command-line interface for running and validating workflows
+- ✅ `run` command: Execute workflows from YAML/JSON files
+- ✅ `validate` command: Validate configs without executing
+- ✅ Smart input parsing with type detection (str, int, bool, list, dict)
+- ✅ Pretty color-coded terminal output
+- ✅ Unicode fallback for Windows console compatibility
+- ✅ Comprehensive error handling with helpful messages
+- ✅ Verbose mode for debugging
+- ✅ 37 unit tests + 2 integration tests
+- ✅ 443 total tests passing (up from 406)
+
+**Files Created**:
+- `src/configurable_agents/cli.py` (367 lines)
+- `src/configurable_agents/__main__.py` (14 lines)
+- `tests/test_cli.py` (597 lines, 39 tests)
+- `examples/README.md` (updated with CLI usage)
+
+**CLI Interface**:
+```bash
+# Run a workflow
+configurable-agents run workflow.yaml --input topic="AI Safety"
+
+# Validate a config
+configurable-agents validate workflow.yaml
+
+# Verbose mode
+configurable-agents run workflow.yaml --input name="Alice" --verbose
+
+# Multiple inputs
+configurable-agents run workflow.yaml \
+  --input topic="AI" \
+  --input count=5 \
+  --input enabled=true
+```
+
+**Features**:
+- Run workflows from command-line
+- Validate configs without executing
+- Smart input parsing (JSON, strings, numbers, booleans)
+- Color-coded output (success: green, error: red, info: blue, warning: yellow)
+- Unicode symbols with ASCII fallback (✓/+, ✗/x, ℹ/i, ⚠/!)
+- Two entry points: `configurable-agents` script and `python -m configurable_agents`
+- Exit codes: 0 (success), 1 (error)
+- Helpful error messages with suggestions
+- Full traceback in verbose mode
+
+**Error Handling**:
+- ConfigLoadError - File not found, invalid YAML/JSON
+- ConfigValidationError - Invalid config structure
+- StateInitializationError - Missing required inputs
+- GraphBuildError - Graph construction failures
+- WorkflowExecutionError - Node execution failures
+- All errors include actionable suggestions
+
+**Phase 3 Progress**:
+T-014 completes 1/5 tasks in Phase 3 (Polish & UX)!
+
+---
+
 ## 📋 Upcoming Tasks
 
 ### Next 5 Tasks
 
-1. **T-014**: CLI Interface - Command-line interface for workflows ⬅️ NEXT
-2. **T-015**: Example Configs - Working workflow examples
+1. **T-015**: Example Configs - Working workflow examples ⬅️ NEXT
+2. **T-016**: Documentation - User-facing documentation
 3. **T-016**: Documentation - User-facing documentation
 4. **T-017**: Integration Tests - End-to-end testing
 5. **T-018**: Error Messages - Improve error UX
@@ -707,8 +771,8 @@ T-013 completes Phase 2 (Core Execution) - all 6/6 tasks done! ✅
 - ✅ T-012: Graph Builder
 - ✅ T-013: Runtime Executor
 
-### Phase 3: Polish & UX (0/5 complete)
-- ⏳ T-014: CLI Interface
+### Phase 3: Polish & UX (1/5 complete)
+- ✅ T-014: CLI Interface
 - ⏳ T-015: Example Configs
 - ⏳ T-016: Documentation
 - ⏳ T-017: Integration Tests
@@ -913,15 +977,37 @@ validate_workflow("workflow.yaml")
 
 # Execute with verbose logging
 result = run_workflow("workflow.yaml", {"topic": "AI"}, verbose=True)
+
+# ⭐ CLI Interface - USER-FACING COMMAND-LINE TOOL! ⭐
+
+# Run a workflow
+$ configurable-agents run workflow.yaml --input topic="AI Safety"
+
+# Validate a config
+$ configurable-agents validate workflow.yaml
+
+# Verbose mode
+$ configurable-agents run workflow.yaml --input name="Alice" --verbose
+
+# Multiple inputs with types
+$ configurable-agents run workflow.yaml \
+    --input topic="AI" \
+    --input count=5 \
+    --input enabled=true \
+    --input 'tags=["ai", "safety"]'
+
+# Module invocation
+$ python -m configurable_agents run workflow.yaml --input name="Bob"
 ```
 
 ### Test Coverage
 ```bash
 $ pytest tests/ -v -m "not integration"
-=================== 406 passed in 1.68s ===================
+=================== 443 passed in 1.83s ===================
 
 Tests:
-- Runtime executor: 23 tests (file loading, config validation, execution, errors, verbose) ✨ NEW
+- CLI: 37 tests (input parsing, colors, commands, errors) ✨ NEW
+- Runtime executor: 23 tests (file loading, config validation, execution, errors, verbose)
 - Graph builder: 18 tests (graph construction, node functions, START/END, validation, linear flows)
 - Node executor: 23 tests (execution, input mappings, tools, errors, state updates)
 - Template resolver: 44 tests (variable resolution, nested access, errors)
@@ -938,7 +1024,7 @@ Tests:
 - Google Gemini: 13 tests (LLM creation, configuration)
 - Integration: 5 tests (YAML → Pydantic)
 - Setup: 3 tests (imports, version, logging)
-- Integration tests (slow): 10 tests (4 executor + 2 graph builder + 2 serper + 2 gemini - marked with @pytest.mark.integration)
+- Integration tests (slow): 12 tests (2 cli + 4 executor + 2 graph builder + 2 serper + 2 gemini - marked with @pytest.mark.integration)
 ```
 
 ---
@@ -1013,7 +1099,23 @@ Tests:
 
 ## 📝 Recent Changes
 
-### 2026-01-27 (Today) - Phase 2 Complete! Runtime Executor! 🎉🚀
+### 2026-01-27 (Today) - CLI Interface Complete! User-Facing Tool! 🎉🚀
+- ✅ Completed T-014: CLI Interface
+- ✅ 443 tests passing (37 cli + 2 integration, 406 existing)
+- ✅ **USER-FACING COMMAND-LINE TOOL!**
+- ✅ `run` command: Execute workflows from terminal
+- ✅ `validate` command: Check configs without running
+- ✅ Smart input parsing with type detection
+- ✅ Pretty color-coded terminal output
+- ✅ Unicode fallback for Windows console
+- ✅ Comprehensive error handling with exit codes
+- ✅ Verbose mode for debugging
+- ✅ Two entry points: `configurable-agents` script and `python -m`
+- ✅ **Phase 3 (Polish & UX) 1/5 COMPLETE** - 20% through Phase 3! ✅
+- 📝 Progress: 15/20 tasks (75%) complete
+- 📝 Next: T-015 (Example Configs) - Working workflow examples!
+
+**Earlier today - Phase 2 Complete! Runtime Executor!**:
 - ✅ Completed T-013: Runtime executor
 - ✅ 406 tests passing (23 executor + 4 integration, 383 existing)
 - ✅ **COMPLETE END-TO-END WORKFLOW EXECUTION!**
@@ -1024,8 +1126,6 @@ Tests:
 - ✅ Validation-only mode for pre-flight checks
 - ✅ Example workflow and usage guide created
 - ✅ **Phase 2 (Core Execution) 6/6 COMPLETE** - 100% through Phase 2! ✅
-- 📝 Progress: 14/20 tasks (70%) complete
-- 📝 Next: T-014 (CLI Interface) - Command-line interface!
 
 **Earlier today - Graph Builder Complete**:
 - ✅ Completed T-012: Graph builder

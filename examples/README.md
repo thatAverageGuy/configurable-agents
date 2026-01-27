@@ -16,6 +16,47 @@ set GOOGLE_API_KEY=your-key-here  # Windows
 
 ## Quick Start
 
+### Using the CLI (Command-Line Interface)
+
+**Run a workflow:**
+```bash
+# With inputs
+configurable-agents run simple_workflow.yaml --input name="Alice"
+
+# Multiple inputs
+configurable-agents run workflow.yaml --input topic="AI" --input count=5
+
+# With verbose logging
+configurable-agents run workflow.yaml --input name="Bob" --verbose
+```
+
+**Validate a workflow:**
+```bash
+# Check config without executing
+configurable-agents validate simple_workflow.yaml
+```
+
+**Input formats:**
+```bash
+# Strings (with or without quotes)
+--input topic="AI Safety"
+--input name=Alice
+
+# Numbers (parsed automatically)
+--input count=5
+--input temperature=0.7
+
+# Booleans
+--input enabled=true
+--input debug=false
+
+# Lists (JSON format)
+--input 'tags=["ai", "safety"]'
+
+# Objects (JSON format)
+--input 'metadata={"author": "Alice", "version": 1}'
+```
+
 ### Using the Runtime Executor (Python)
 
 ```python
@@ -100,6 +141,12 @@ except WorkflowExecutionError as e:
 
 Enable detailed logging for debugging:
 
+**CLI:**
+```bash
+configurable-agents run workflow.yaml --input name="Alice" --verbose
+```
+
+**Python:**
 ```python
 result = run_workflow("workflow.yaml", {"name": "Alice"}, verbose=True)
 ```
