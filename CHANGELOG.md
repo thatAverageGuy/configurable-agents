@@ -9,6 +9,175 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added - T-013: Runtime Executor ✅
+
+**Commit**: T-013: Runtime executor - Orchestrate config → execution
+
+**What Was Done**:
+- Implemented runtime executor orchestrating complete workflow execution
+- Load and parse config from YAML/JSON files
+- Validate config with comprehensive checks and feature gating
+- Build state model and initialize with inputs
+- Build and compile LangGraph execution graph
+- Execute complete workflows end-to-end
+- Return final state as dict with execution metrics
+- Comprehensive error handling with 6 exception types
+- Verbose logging option for debugging
+- 23 comprehensive tests covering all scenarios
+- 4 integration tests for end-to-end validation
+- Total: 406 tests passing (up from 383)
+
+**Runtime Executor Features**:
+- ✅ Execute workflow from file: `run_workflow(config_path, inputs)`
+- ✅ Execute from config object: `run_workflow_from_config(config, inputs)`
+- ✅ Validate without execution: `validate_workflow(config_path)`
+- ✅ 6-phase execution pipeline with granular error handling
+- ✅ Execution timing and metrics logging
+- ✅ Verbose logging option (DEBUG level)
+- ✅ Clear error messages with phase identification
+- ✅ All error types preserve original exceptions
+
+**Files Created**:
+```
+src/configurable_agents/runtime/
+├── executor.py (330 lines - run_workflow, validate_workflow, 6 error types)
+└── __init__.py (updated exports)
+
+tests/runtime/
+├── test_executor.py (670 lines, 23 comprehensive tests)
+└── test_executor_integration.py (295 lines, 4 integration tests)
+
+examples/
+├── simple_workflow.yaml (minimal working example)
+└── README.md (usage guide with error handling examples)
+```
+
+**Public API**:
+```python
+from configurable_agents.runtime import (
+    # Main functions
+    run_workflow,              # Execute from file
+    run_workflow_from_config,  # Execute from config
+    validate_workflow,         # Validate only
+
+    # Error hierarchy
+    ExecutionError,            # Base exception
+    ConfigLoadError,           # File/parsing errors
+    ConfigValidationError,     # Validation errors
+    StateInitializationError,  # Invalid inputs
+    GraphBuildError,           # Graph construction errors
+    WorkflowExecutionError,    # Execution errors
+)
+
+# Execute workflow
+result = run_workflow("workflow.yaml", {"topic": "AI Safety"})
+print(result["article"])
+
+# Validate without executing
+validate_workflow("workflow.yaml")
+
+# Execute with verbose logging
+result = run_workflow("workflow.yaml", {"topic": "AI"}, verbose=True)
+```
+
+**Execution Pipeline** (6 phases):
+1. **Config Load**: Parse YAML/JSON → dict
+2. **Schema Validation**: dict → Pydantic WorkflowConfig
+3. **Config Validation**: Cross-reference, graph structure (T-004)
+4. **Feature Gating**: Check v0.1 compatibility (T-004.5)
+5. **State Initialization**: Build state model, initialize with inputs
+6. **Graph Build**: Build LangGraph StateGraph (T-012)
+7. **Execution**: Execute graph, return final state
+
+**Error Handling**:
+```python
+try:
+    result = run_workflow("workflow.yaml", {"name": "Alice"})
+except ConfigLoadError as e:
+    # File not found, invalid YAML/JSON
+    print(f"Failed to load: {e.phase}")
+except ConfigValidationError as e:
+    # Invalid config, unsupported features
+    print(f"Invalid config: {e.phase}")
+except StateInitializationError as e:
+    # Missing required inputs, wrong types
+    print(f"Invalid inputs: {e}")
+except GraphBuildError as e:
+    # State model or graph construction failed
+    print(f"Build failed: {e.phase}")
+except WorkflowExecutionError as e:
+    # Node execution error, LLM failure
+    print(f"Execution failed: {e.phase}")
+```
+
+**Integration Points**:
+- Uses `parse_config_file` from T-002 (config parsing)
+- Uses `WorkflowConfig` from T-003 (config schema)
+- Uses `validate_config` from T-004 (validation)
+- Uses `validate_runtime_support` from T-004.5 (feature gating)
+- Uses `build_state_model` from T-006 (state building)
+- Uses `build_graph` from T-012 (graph building)
+- Enables T-014 (CLI Interface - next task)
+
+**Key Design Decisions**:
+1. **Two entry points**: File path vs pre-loaded config for flexibility
+2. **Phase-based errors**: Each phase has specific exception type
+3. **Original exception preservation**: All errors wrap original for debugging
+4. **Verbose logging**: Optional DEBUG level for detailed execution traces
+5. **Execution metrics**: Timing logged for performance monitoring
+6. **Validation-only mode**: `validate_workflow()` for pre-flight checks
+
+**Verification**:
+```bash
+# All executor tests pass
+pytest tests/runtime/test_executor.py -v
+# Expected: 23 passed
+
+# Full test suite passes
+pytest -v -m "not integration"
+# Expected: 406 passed (23 executor + 383 existing)
+
+# Integration tests (slow, marked)
+pytest tests/runtime/test_executor_integration.py -v -m integration
+# Expected: 4 integration tests
+```
+
+**Usage Examples**:
+
+1. **Basic execution**:
+```python
+from configurable_agents.runtime import run_workflow
+
+result = run_workflow("article_writer.yaml", {"topic": "AI Safety"})
+print(result["article"])
+```
+
+2. **Pre-loaded config**:
+```python
+from configurable_agents.config import parse_config_file, WorkflowConfig
+from configurable_agents.runtime import run_workflow_from_config
+
+config_dict = parse_config_file("workflow.yaml")
+config = WorkflowConfig(**config_dict)
+result = run_workflow_from_config(config, {"topic": "AI"})
+```
+
+3. **Validation only**:
+```python
+from configurable_agents.runtime import validate_workflow
+
+try:
+    validate_workflow("workflow.yaml")
+    print("✅ Config is valid!")
+except Exception as e:
+    print(f"❌ Validation failed: {e}")
+```
+
+**Progress**: 14/20 tasks (70%) - **Phase 2 (Core Execution) 6/6 COMPLETE** ✅
+**Next**: T-014 (CLI Interface) - command-line interface for running workflows
+
+---
+
 ### Added - T-012: Graph Builder ✅
 
 **Commit**: T-012: Graph builder - Build LangGraph from config

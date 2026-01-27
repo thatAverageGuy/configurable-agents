@@ -1,0 +1,31 @@
+schema_version: "1.0"
+
+flow:
+  name: simple_greeting
+  description: A simple workflow that generates a personalized greeting
+
+state:
+  fields:
+    name:
+      type: str
+      required: true
+      description: The name of the person to greet
+    greeting:
+      type: str
+      default: ""
+      description: The generated greeting message
+
+nodes:
+  - id: greet
+    prompt: "Generate a warm and friendly greeting for {state.name}"
+    outputs: [greeting]
+    output_schema:
+      type: object
+      fields:
+        - name: greeting
+          type: str
+          description: A personalized greeting message
+
+edges:
+  - {from: START, to: greet}
+  - {from: greet, to: END}
