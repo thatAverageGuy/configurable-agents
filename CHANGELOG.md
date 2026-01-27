@@ -9,6 +9,137 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added - T-014: CLI Interface ✅
+
+**Commit**: T-014: CLI interface - Command-line tool for workflows
+
+**What Was Done**:
+- Implemented command-line interface for running and validating workflows
+- `run` command: Execute workflows from YAML/JSON files
+- `validate` command: Validate configs without executing
+- Smart input parsing with automatic type detection (str, int, bool, list, dict)
+- Pretty color-coded terminal output with Unicode fallback for Windows
+- Comprehensive error handling with helpful messages
+- Verbose mode for debugging with full tracebacks
+- 37 comprehensive unit tests + 2 integration tests
+- Total: 443 tests passing (up from 406)
+
+**CLI Features**:
+- ✅ Run workflows: `configurable-agents run workflow.yaml --input topic="AI"`
+- ✅ Validate configs: `configurable-agents validate workflow.yaml`
+- ✅ Multiple inputs: `--input topic="AI" --input count=5`
+- ✅ Verbose logging: `--verbose` flag for debug output
+- ✅ Smart type parsing: Strings, numbers, booleans, JSON arrays/objects
+- ✅ Pretty output: Color-coded success/error/info/warning messages
+- ✅ Exit codes: 0 for success, 1 for errors
+- ✅ Two entry points: `configurable-agents` script and `python -m configurable_agents`
+
+**Files Created**:
+```
+src/configurable_agents/
+├── cli.py (367 lines - CLI logic with argparse)
+└── __main__.py (14 lines - module entry point)
+
+tests/
+└── test_cli.py (597 lines, 37 unit tests + 2 integration tests)
+
+examples/
+└── README.md (updated with CLI usage examples)
+```
+
+**CLI Usage**:
+```bash
+# Run a workflow
+configurable-agents run workflow.yaml --input topic="AI Safety"
+
+# Validate a config
+configurable-agents validate workflow.yaml
+
+# Run with verbose logging
+configurable-agents run workflow.yaml --input name="Alice" --verbose
+
+# Multiple inputs with different types
+configurable-agents run workflow.yaml \
+  --input topic="AI" \
+  --input count=5 \
+  --input enabled=true \
+  --input 'tags=["ai", "safety"]'
+
+# Module invocation
+python -m configurable_agents run workflow.yaml --input name="Bob"
+```
+
+**Input Parsing**:
+- **Strings**: `--input name="Alice"` or `--input name=Alice`
+- **Numbers**: `--input count=5` (auto-parsed to int)
+- **Booleans**: `--input enabled=true` (auto-parsed to bool)
+- **Lists**: `--input 'tags=["ai", "safety"]'` (JSON format)
+- **Objects**: `--input 'metadata={"author": "Alice"}'` (JSON format)
+
+**Output Examples**:
+```bash
+# Success
+✓ Config is valid!
+✓ Workflow executed successfully!
+
+# Error (helpful messages)
+✗ Failed to load config: File not found: workflow.yaml
+✗ Invalid inputs: Missing required field: topic
+✗ Workflow execution failed: Node 'greet': GOOGLE_API_KEY not set
+
+# Info/Warning
+ℹ Loading workflow: workflow.yaml
+⚠ Check that all required state fields are provided
+```
+
+**Error Handling**:
+- ConfigLoadError: File not found, invalid YAML/JSON syntax
+- ConfigValidationError: Invalid config structure, validation failures
+- StateInitializationError: Missing required inputs, wrong types
+- GraphBuildError: Graph construction failures
+- WorkflowExecutionError: Node execution failures, LLM errors
+- All errors include helpful messages and suggestions
+- Verbose mode shows full tracebacks
+
+**Design Decisions**:
+1. **argparse**: Standard library (no dependencies) for CLI parsing
+2. **Color output**: ANSI codes with TTY detection
+3. **Unicode fallback**: ASCII symbols for Windows console (✓ → +, ✗ → x)
+4. **Smart parsing**: JSON.loads for type detection, string fallback
+5. **Exit codes**: Standard Unix conventions (0 = success, 1 = error)
+6. **Two entry points**: Script and module for flexibility
+
+**Integration Points**:
+- Uses `run_workflow` from T-013 (runtime executor)
+- Uses `validate_workflow` from T-013 (validation)
+- Uses all 6 exception types from T-013
+- Enables user-facing workflow execution
+
+**Verification**:
+```bash
+# All CLI tests pass
+pytest tests/test_cli.py -v -m "not integration"
+# Expected: 37 passed
+
+# Full test suite passes
+pytest -v -m "not integration"
+# Expected: 443 passed (37 cli + 406 existing)
+
+# Integration tests
+pytest tests/test_cli.py -v -m integration
+# Expected: 2 integration tests
+
+# Manual testing
+configurable-agents --help
+configurable-agents validate examples/simple_workflow.yaml
+configurable-agents run examples/simple_workflow.yaml --input name="Alice"
+```
+
+**Progress**: 15/20 tasks (75%) - **Phase 3 (Polish & UX) 1/5 COMPLETE**
+**Next**: T-015 (Example Configs) - Create working workflow examples
+
+---
+
 ### Added - T-013: Runtime Executor ✅
 
 **Commit**: T-013: Runtime executor - Orchestrate config → execution

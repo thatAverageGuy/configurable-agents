@@ -80,8 +80,8 @@ configurable-agents run article_writer.yaml --input topic="AI Safety"
 
 ## 🗺️ Roadmap
 
-### v0.1 - Foundation ⏳ (Current - Week 3-4 of 6-8)
-**Status**: 70% complete (14/20 tasks) | **Target**: March 2026
+### v0.1 - Foundation ⏳ (Current - Week 4 of 6-8)
+**Status**: 75% complete (15/20 tasks) | **Target**: March 2026
 
 **Phase 1 COMPLETE** ✅ (8/8):
 - ✅ T-001: Project setup and structure
@@ -101,14 +101,14 @@ configurable-agents run article_writer.yaml --input topic="AI Safety"
 - ✅ T-012: Graph builder (LangGraph construction)
 - ✅ T-013: Runtime executor (end-to-end workflow execution) 🎉
 
-**Phase 3 IN PROGRESS** (0/5):
-- ⏳ T-014: CLI interface (command-line tool)
+**Phase 3 IN PROGRESS** (1/5):
+- ✅ T-014: CLI interface (command-line tool) 🎉
 - ⏳ T-015: Example configs (working examples)
 - ⏳ T-016: Documentation (user guide)
 - ⏳ T-017: Integration tests (end-to-end)
 - ⏳ T-018: Error message improvements
 
-**Test Coverage**: 406 tests passing (23 executor + 18 graph + 23 node + 44 template + 32 llm + 37 tools + 29 output + 30 state + 29 validator + 19 runtime + 67 schema + 31 types + 18 parser + 5 integration + 3 setup)
+**Test Coverage**: 443 tests passing (37 cli + 23 executor + 18 graph + 23 node + 44 template + 32 llm + 37 tools + 29 output + 30 state + 29 validator + 19 runtime + 67 schema + 31 types + 18 parser + 5 integration + 3 setup)
 
 **🎉 Working Now**:
 - ✅ Execute workflows from YAML/JSON files
@@ -118,6 +118,19 @@ configurable-agents run article_writer.yaml --input topic="AI Safety"
 - ✅ Parse-time validation (fail fast, save money)
 - ✅ Google Gemini support
 - ✅ End-to-end execution pipeline
+- ✅ **Command-line interface** (NEW!)
+
+**Usage** (CLI):
+```bash
+# Run a workflow
+configurable-agents run workflow.yaml --input topic="AI Safety"
+
+# Validate a config
+configurable-agents validate workflow.yaml
+
+# Verbose mode
+configurable-agents run workflow.yaml --input name="Alice" --verbose
+```
 
 **Usage** (Python API):
 ```python
@@ -131,7 +144,6 @@ print(result["article"])
 - Linear flows only (no conditionals)
 - In-memory state (no persistence)
 - Single LLM provider (Gemini)
-- No CLI yet (T-014)
 
 ---
 
@@ -269,16 +281,16 @@ See [Architecture Decision Records](docs/adr/) for detailed design choices.
 - ✅ T-006: State Schema Builder
 - ✅ T-007: Output Schema Builder
 
-### Phase 2: Core Execution (5/6 complete) - IN PROGRESS
+### Phase 2: Core Execution (6/6 complete) ✅ COMPLETE
 - ✅ T-008: Tool Registry
 - ✅ T-009: LLM Provider
 - ✅ T-010: Prompt Template Resolver
 - ✅ T-011: Node Executor
 - ✅ T-012: Graph Builder
-- ⏳ T-013: Runtime Executor
+- ✅ T-013: Runtime Executor
 
-### Phase 3: Polish & UX (0/5 complete)
-- ⏳ T-014: CLI Interface
+### Phase 3: Polish & UX (1/5 complete)
+- ✅ T-014: CLI Interface
 - ⏳ T-015: Example Configs
 - ⏳ T-016: Documentation
 - ⏳ T-017: Integration Tests
@@ -288,9 +300,9 @@ See [Architecture Decision Records](docs/adr/) for detailed design choices.
 - ⏳ T-019: DSPy Integration Test
 - ⏳ T-020: Structured Output + DSPy
 
-**Overall Progress**: 13/20 tasks complete (65%)
+**Overall Progress**: 15/20 tasks complete (75%)
 
-**Next up**: T-013 (Runtime Executor)
+**Next up**: T-015 (Example Configs)
 
 Full task breakdown: [docs/TASKS.md](docs/TASKS.md)
 
