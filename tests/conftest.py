@@ -1,6 +1,24 @@
 """Pytest configuration and shared fixtures"""
 
+import os
+from pathlib import Path
+
 import pytest
+
+
+# Load .env file for integration tests
+def pytest_configure(config):
+    """Load environment variables from .env file before running tests."""
+    # Try to load .env from project root
+    project_root = Path(__file__).parent.parent
+    env_file = project_root / ".env"
+
+    if env_file.exists():
+        from dotenv import load_dotenv
+        load_dotenv(env_file)
+        print(f"\n[+] Loaded environment from: {env_file}")
+    else:
+        print(f"\n[!] No .env file found at: {env_file}")
 
 
 @pytest.fixture

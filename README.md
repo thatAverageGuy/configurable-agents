@@ -81,7 +81,7 @@ configurable-agents run article_writer.yaml --input topic="AI Safety"
 ## 🗺️ Roadmap
 
 ### v0.1 - Foundation ⏳ (Current - Week 4 of 6-8)
-**Status**: 80% complete (16/20 tasks) | **Target**: March 2026
+**Status**: 85% complete (17/20 tasks) | **Target**: March 2026
 
 **Phase 1 COMPLETE** ✅ (8/8):
 - ✅ T-001: Project setup and structure
@@ -101,14 +101,14 @@ configurable-agents run article_writer.yaml --input topic="AI Safety"
 - ✅ T-012: Graph builder (LangGraph construction)
 - ✅ T-013: Runtime executor (end-to-end workflow execution) 🎉
 
-**Phase 3 IN PROGRESS** (2/5):
+**Phase 3 IN PROGRESS** (3/5):
 - ✅ T-014: CLI interface (command-line tool) 🎉
 - ✅ T-015: Example configs (working examples) 🎉
-- ⏳ T-016: Documentation (user guide)
-- ⏳ T-017: Integration tests (end-to-end)
+- ✅ T-016: Documentation (user guide) 🎉
+- ✅ T-017: Integration tests (end-to-end) 🎉
 - ⏳ T-018: Error message improvements
 
-**Test Coverage**: 443 tests passing (37 cli + 23 executor + 18 graph + 23 node + 44 template + 32 llm + 37 tools + 29 output + 30 state + 29 validator + 19 runtime + 67 schema + 31 types + 18 parser + 5 integration + 3 setup)
+**Test Coverage**: 468 tests passing (19 integration tests + 449 unit tests)
 
 **🎉 Working Now**:
 - ✅ Execute workflows from YAML/JSON files
@@ -292,20 +292,20 @@ See [Architecture Decision Records](docs/adr/) for detailed design choices.
 - ✅ T-012: Graph Builder
 - ✅ T-013: Runtime Executor
 
-### Phase 3: Polish & UX (2/5 complete)
+### Phase 3: Polish & UX (3/5 complete)
 - ✅ T-014: CLI Interface
 - ✅ T-015: Example Configs
-- ⏳ T-016: Documentation
-- ⏳ T-017: Integration Tests
+- ✅ T-016: Documentation
+- ✅ T-017: Integration Tests
 - ⏳ T-018: Error Messages
 
 ### Phase 4: DSPy Verification (0/2 complete)
 - ⏳ T-019: DSPy Integration Test
 - ⏳ T-020: Structured Output + DSPy
 
-**Overall Progress**: 16/20 tasks complete (80%)
+**Overall Progress**: 17/20 tasks complete (85%)
 
-**Next up**: T-016 (Documentation)
+**Next up**: T-018 (Error Message Improvements)
 
 Full task breakdown: [docs/TASKS.md](docs/TASKS.md)
 

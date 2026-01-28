@@ -61,7 +61,7 @@ class TestCreateLLM:
         # Should use defaults (Google provider, default model)
         mock_chat.assert_called_once()
         call_kwargs = mock_chat.call_args[1]
-        assert call_kwargs["model"] == "gemini-1.5-flash"  # Default model
+        assert call_kwargs["model"] == "gemini-2.5-flash-lite"  # Default model
 
     def test_create_with_unsupported_provider_raises_error(self):
         """Test that unsupported provider raises LLMProviderError."""
@@ -201,19 +201,20 @@ class TestCallLLMStructured:
         mock_tool2 = Mock()
         tools = [mock_tool1, mock_tool2]
 
-        # Mock LLM
+        # Mock LLM (tools bound first, then structured output)
         mock_llm = Mock(spec=BaseChatModel)
-        mock_structured = Mock()
         mock_with_tools = Mock()
-        mock_with_tools.invoke.return_value = TestOutput(result="Done")
-        mock_structured.bind_tools.return_value = mock_with_tools
-        mock_llm.with_structured_output.return_value = mock_structured
+        mock_structured = Mock()
+        mock_structured.invoke.return_value = TestOutput(result="Done")
+        mock_with_tools.with_structured_output.return_value = mock_structured
+        mock_llm.bind_tools.return_value = mock_with_tools
 
         # Call
         result = call_llm_structured(mock_llm, "Test", TestOutput, tools=tools)
 
-        # Verify tools were bound
-        mock_structured.bind_tools.assert_called_once_with(tools)
+        # Verify tools were bound first, then structured output
+        mock_llm.bind_tools.assert_called_once_with(tools)
+        mock_with_tools.with_structured_output.assert_called_once_with(TestOutput)
         assert isinstance(result, TestOutput)
 
     @patch("configurable_agents.llm.provider.time.sleep")
