@@ -15,6 +15,7 @@ from configurable_agents.runtime import run_workflow, run_workflow_from_config
 
 
 @pytest.mark.integration
+@pytest.mark.skip(reason="Replaced by comprehensive integration tests in tests/integration/")
 def test_run_workflow_from_config_full_integration():
     """Test full workflow execution with real components (mocked LLM only)."""
     # Create a valid config with minimal setup
@@ -82,6 +83,7 @@ def test_run_workflow_from_config_full_integration():
 
 
 @pytest.mark.integration
+@pytest.mark.skip(reason="Replaced by comprehensive integration tests in tests/integration/")
 def test_run_workflow_from_file_full_integration(tmp_path):
     """Test full workflow execution from file with real components (mocked LLM only)."""
     # Create a valid config file
@@ -134,6 +136,7 @@ edges:
 
 
 @pytest.mark.integration
+@pytest.mark.skip(reason="Replaced by comprehensive integration tests in tests/integration/")
 def test_run_workflow_with_nested_state():
     """Test workflow with nested state objects."""
     from configurable_agents.config import (
@@ -208,6 +211,7 @@ def test_run_workflow_with_nested_state():
 
 
 @pytest.mark.integration
+@pytest.mark.skip(reason="Replaced by comprehensive integration tests in tests/integration/")
 def test_run_workflow_multi_node_pipeline():
     """Test workflow with multiple nodes in sequence."""
     from configurable_agents.config import (

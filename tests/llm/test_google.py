@@ -64,7 +64,7 @@ class TestCreateGoogleLLM:
         llm = create_google_llm(config)
 
         call_kwargs = mock_chat.call_args[1]
-        assert call_kwargs["model"] == "gemini-1.5-flash"  # Default model
+        assert call_kwargs["model"] == "gemini-2.5-flash-lite"  # Default model
 
     @patch.dict(os.environ, {"GOOGLE_API_KEY": "test-key"}, clear=False)
     @patch("configurable_agents.llm.google.ChatGoogleGenerativeAI")
@@ -137,8 +137,8 @@ class TestGetDefaultModel:
     """Test get_default_model function."""
 
     def test_returns_flash_model(self):
-        """Test that default model is gemini-1.5-flash."""
-        assert get_default_model() == "gemini-1.5-flash"
+        """Test that default model is gemini-2.5-flash-lite."""
+        assert get_default_model() == "gemini-2.5-flash-lite"
 
 
 class TestGetSupportedModels:
@@ -150,7 +150,7 @@ class TestGetSupportedModels:
 
         assert isinstance(models, list)
         assert len(models) > 0
-        assert "gemini-1.5-flash" in models
+        assert "gemini-2.5-flash-lite" in models
         assert "gemini-1.5-pro" in models
         assert "gemini-pro" in models
 
@@ -178,7 +178,7 @@ class TestGoogleLLMIntegration:
         if not os.getenv("GOOGLE_API_KEY"):
             pytest.skip("GOOGLE_API_KEY not set")
 
-        config = LLMConfig(model="gemini-1.5-flash", temperature=0.7)
+        config = LLMConfig(model="gemini-2.5-flash-lite", temperature=0.7)
         llm = create_google_llm(config)
 
         # Verify LLM was created
@@ -199,7 +199,7 @@ class TestGoogleLLMIntegration:
             message: str
             language: str
 
-        config = LLMConfig(model="gemini-1.5-flash")
+        config = LLMConfig(model="gemini-2.5-flash-lite")
         llm = create_google_llm(config)
 
         # Bind structured output

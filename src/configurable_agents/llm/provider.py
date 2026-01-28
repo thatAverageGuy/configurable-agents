@@ -176,12 +176,12 @@ def call_llm_structured(
     """
     from pydantic import ValidationError
 
-    # Bind structured output to LLM
-    structured_llm = llm.with_structured_output(output_model)
-
-    # Bind tools if provided
+    # Bind tools FIRST if provided (before structured output)
     if tools:
-        structured_llm = structured_llm.bind_tools(tools)
+        llm = llm.bind_tools(tools)
+
+    # Then bind structured output to LLM
+    structured_llm = llm.with_structured_output(output_model)
 
     # Attempt call with retries
     last_error = None

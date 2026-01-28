@@ -7,7 +7,7 @@ Example:
     >>> from configurable_agents.llm.google import create_google_llm
     >>> from configurable_agents.config import LLMConfig
     >>>
-    >>> config = LLMConfig(model="gemini-pro", temperature=0.7)
+    >>> config = LLMConfig(model="gemini-2.5-flash-lite", temperature=0.7)
     >>> llm = create_google_llm(config)
 """
 
@@ -41,7 +41,7 @@ def create_google_llm(llm_config: Any) -> ChatGoogleGenerativeAI:
         >>> import os
         >>> os.environ["GOOGLE_API_KEY"] = "your-key-here"
         >>> from configurable_agents.config import LLMConfig
-        >>> config = LLMConfig(model="gemini-pro", temperature=0.7)
+        >>> config = LLMConfig(model="gemini-2.5-flash-lite", temperature=0.7)
         >>> llm = create_google_llm(config)
     """
     # Check for API key
@@ -58,7 +58,7 @@ def create_google_llm(llm_config: Any) -> ChatGoogleGenerativeAI:
         )
 
     # Get configuration parameters
-    model = llm_config.model or "gemini-1.5-flash"  # Default to flash model
+    model = llm_config.model or "gemini-2.5-flash-lite"  # Default to flash lite model
     temperature = llm_config.temperature
     max_tokens = llm_config.max_tokens
 
@@ -117,9 +117,9 @@ def get_default_model() -> str:
 
     Example:
         >>> get_default_model()
-        'gemini-1.5-flash'
+        'gemini-2.5-flash-lite'
     """
-    return "gemini-1.5-flash"
+    return "gemini-2.5-flash-lite"
 
 
 def get_supported_models() -> list[str]:
@@ -130,10 +130,11 @@ def get_supported_models() -> list[str]:
 
     Example:
         >>> models = get_supported_models()
-        >>> "gemini-1.5-flash" in models
+        >>> "gemini-2.5-flash-lite" in models
         True
     """
     return [
+        "gemini-2.5-flash-lite",
         "gemini-1.5-flash",
         "gemini-1.5-pro",
         "gemini-pro",
