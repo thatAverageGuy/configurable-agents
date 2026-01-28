@@ -1,0 +1,82 @@
+schema_version: "1.0"
+
+flow:
+  name: article_writer
+  description: Multi-step workflow that researches a topic and writes an article
+  version: "1.0.0"
+
+state:
+  fields:
+    topic:
+      type: str
+      required: true
+      description: The topic to research and write about
+
+    research:
+      type: str
+      default: ""
+      description: Research findings from web search
+
+    article:
+      type: str
+      default: ""
+      description: The final article
+
+    word_count:
+      type: int
+      default: 0
+      description: Word count of the article
+
+nodes:
+  - id: research
+    description: Search the web for information about the topic
+    prompt: |
+      Research the following topic using web search: {state.topic}
+
+      Find key facts, recent developments, and interesting insights.
+      Summarize your findings in 2-3 paragraphs.
+    tools: [serper_search]
+    outputs: [research]
+    output_schema:
+      type: object
+      fields:
+        - name: research
+          type: str
+          description: Summary of research findings
+
+  - id: write
+    description: Write a comprehensive article based on the research
+    prompt: |
+      Based on this research about {state.topic}:
+
+      {state.research}
+
+      Write a well-structured article with:
+      - An engaging introduction
+      - 2-3 main points with detailed explanations
+      - A thoughtful conclusion
+
+      Aim for approximately 300-400 words.
+    outputs: [article, word_count]
+    output_schema:
+      type: object
+      fields:
+        - name: article
+          type: str
+          description: The complete article text
+        - name: word_count
+          type: int
+          description: Approximate word count
+
+edges:
+  - {from: START, to: research}
+  - {from: research, to: write}
+  - {from: write, to: END}
+
+config:
+  llm:
+    model: "gemini-1.5-flash"
+    temperature: 0.7
+  execution:
+    timeout: 120
+    max_retries: 3

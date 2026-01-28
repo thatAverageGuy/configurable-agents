@@ -1,0 +1,31 @@
+schema_version: "1.0"
+
+flow:
+  name: echo
+  description: Minimal echo workflow - the simplest possible example
+
+state:
+  fields:
+    message:
+      type: str
+      required: true
+      description: The message to echo back
+    result:
+      type: str
+      default: ""
+      description: The echoed result
+
+nodes:
+  - id: echo
+    prompt: "Simply repeat this message exactly: {state.message}"
+    outputs: [result]
+    output_schema:
+      type: object
+      fields:
+        - name: result
+          type: str
+          description: The echoed message
+
+edges:
+  - {from: START, to: echo}
+  - {from: echo, to: END}

@@ -98,18 +98,184 @@ result = run_workflow_from_config(config, {"name": "Bob"})
 
 ## Available Examples
 
-### simple_workflow.yaml
+### 1. echo.yaml ⭐ (Simplest)
 
-A minimal greeting workflow demonstrating:
-- Basic state management
+**Complexity**: Minimal
+**What it demonstrates**: The absolute basics
+
+The simplest possible workflow - takes a message and echoes it back. Perfect for testing your installation and understanding the basic config structure.
+
+**Features:**
+- Minimal configuration (1 node, 1 input, 1 output)
+- No tools required
+- Pure LLM text processing
+
+**Usage:**
+```bash
+configurable-agents run echo.yaml --input message="Hello, World!"
+```
+
+**Python:**
+```python
+result = run_workflow("examples/echo.yaml", {"message": "Hello!"})
+print(result["result"])
+```
+
+**Learn more**: See [echo_README.md](echo_README.md)
+
+---
+
+### 2. simple_workflow.yaml ⭐⭐ (Basic)
+
+**Complexity**: Basic
+**What it demonstrates**: Simple state and personalization
+
+A basic greeting workflow with personalized output.
+
+**Features:**
 - Single node execution
 - Prompt template with variable substitution
 - Structured output
+- State management
 
 **Usage:**
-```python
-result = run_workflow("simple_workflow.yaml", {"name": "Alice"})
+```bash
+configurable-agents run simple_workflow.yaml --input name="Alice"
 ```
+
+**Python:**
+```python
+result = run_workflow("examples/simple_workflow.yaml", {"name": "Alice"})
+print(result["greeting"])
+```
+
+---
+
+### 3. article_writer.yaml ⭐⭐⭐ (Intermediate)
+
+**Complexity**: Intermediate
+**What it demonstrates**: Multi-step workflows with tools
+
+A production-like workflow that researches a topic using web search, then writes a comprehensive article.
+
+**Features:**
+- Multi-node sequential workflow (research → write)
+- Tool integration (serper_search for web search)
+- State flowing between nodes
+- Multiple output fields from single node
+- Global configuration (LLM settings, timeouts)
+
+**Prerequisites:**
+```bash
+export GOOGLE_API_KEY="your-google-key"
+export SERPER_API_KEY="your-serper-key"
+# Get Serper key: https://serper.dev (free tier: 2,500 searches)
+```
+
+**Usage:**
+```bash
+configurable-agents run article_writer.yaml --input topic="AI Safety"
+```
+
+**Python:**
+```python
+result = run_workflow("examples/article_writer.yaml", {"topic": "AI Safety"})
+print(result["article"])
+print(f"Word count: {result['word_count']}")
+```
+
+**Learn more**: See [article_writer_README.md](article_writer_README.md)
+
+---
+
+### 4. nested_state.yaml ⭐⭐ (Intermediate)
+
+**Complexity**: Intermediate
+**What it demonstrates**: Nested object types and complex state
+
+Generates a user profile with nested structure (bio, traits, topics, score).
+
+**Features:**
+- Object types with nested schemas
+- List types (arrays of strings)
+- Complex state with multiple levels
+- Structured nested output generation
+
+**Usage:**
+```bash
+configurable-agents run nested_state.yaml \
+  --input name="Alice" \
+  --input 'interests=["AI", "robotics", "philosophy"]'
+```
+
+**Python:**
+```python
+result = run_workflow(
+    "examples/nested_state.yaml",
+    {
+        "name": "Alice",
+        "interests": ["AI", "robotics", "philosophy"]
+    }
+)
+profile = result["profile"]
+print(f"Bio: {profile['bio']}")
+print(f"Traits: {profile['personality_traits']}")
+```
+
+**Learn more**: See [nested_state_README.md](nested_state_README.md)
+
+---
+
+### 5. type_enforcement.yaml ⭐⭐⭐ (Advanced)
+
+**Complexity**: Advanced
+**What it demonstrates**: Complete type system and enforcement
+
+A comprehensive demonstration of type enforcement across all supported types: int, bool, float, list, dict, and nested objects.
+
+**Features:**
+- All type system types demonstrated
+- Multiple typed outputs from single node
+- Type validation at multiple levels
+- Automatic retry on type mismatches
+- Shows how structured outputs work
+
+**Usage:**
+```bash
+configurable-agents run type_enforcement.yaml --input topic="Artificial Intelligence"
+```
+
+**Python:**
+```python
+result = run_workflow("examples/type_enforcement.yaml", {"topic": "AI"})
+print(f"Score: {result['score']} (type: {type(result['score']).__name__})")
+print(f"Trending: {result['is_trending']}")
+print(f"Keywords: {result['keywords']}")
+print(f"Analysis: {result['analysis']}")
+```
+
+**Learn more**: See [type_enforcement_README.md](type_enforcement_README.md)
+
+---
+
+## Example Summary Table
+
+| Example | Complexity | Nodes | Tools | Key Learning |
+|---------|------------|-------|-------|--------------|
+| echo.yaml | ⭐ Minimal | 1 | None | Basic structure |
+| simple_workflow.yaml | ⭐⭐ Basic | 1 | None | State & prompts |
+| article_writer.yaml | ⭐⭐⭐ Intermediate | 2 | serper_search | Multi-step + tools |
+| nested_state.yaml | ⭐⭐ Intermediate | 1 | None | Nested objects |
+| type_enforcement.yaml | ⭐⭐⭐ Advanced | 1 | None | Type system |
+
+## Recommended Learning Path
+
+1. **Start here**: `echo.yaml` - Verify installation works
+2. **Basic features**: `simple_workflow.yaml` - Understand state and prompts
+3. **Choose your path**:
+   - **Want multi-step workflows?** → `article_writer.yaml`
+   - **Want complex data structures?** → `nested_state.yaml`
+   - **Want type mastery?** → `type_enforcement.yaml`
 
 ## Error Handling
 

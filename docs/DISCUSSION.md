@@ -1,6 +1,6 @@
 # Project Status
 
-**Last Updated**: 2026-01-27
+**Last Updated**: 2026-01-28
 **Version**: v0.1.0-dev
 **Phase**: Phase 3 (Polish & UX) - IN PROGRESS
 
@@ -8,13 +8,13 @@
 
 ## 🎯 Current Status
 
-### Implementation Progress: 75% Complete (15/20 tasks)
+### Implementation Progress: 80% Complete (16/20 tasks)
 
-**Active Phase**: Phase 3 - Polish & UX (1/5 complete)
+**Active Phase**: Phase 3 - Polish & UX (2/5 complete)
 **Previous Milestone**: ✅ Phase 2 (Core Execution) Complete - 6/6 tasks done
-**Latest Completion**: ✅ T-014 (CLI Interface) - Command-line tool for workflows
-**Current Task**: T-015 (Example Configs)
-**Next Milestone**: Complete example workflows with documentation
+**Latest Completion**: ✅ T-015 (Example Configs) - Working workflow examples with comprehensive docs
+**Current Task**: T-016 (Documentation)
+**Next Milestone**: Complete user-facing documentation
 
 ---
 
@@ -739,15 +739,70 @@ T-014 completes 1/5 tasks in Phase 3 (Polish & UX)!
 
 ---
 
+### T-015: Example Configs ✅
+**Completed**: 2026-01-28
+**Commit**: (pending)
+
+**Deliverables**:
+- ✅ Created 4 comprehensive example workflow configs
+- ✅ Each example demonstrates different features and complexity levels
+- ✅ All examples validated and working
+- ✅ Individual README files for each example with detailed guides
+- ✅ Updated main examples/README.md with organized catalog
+- ✅ Complete learning path from beginner to advanced
+- ✅ 443 total tests passing (no regressions)
+
+**Examples Created**:
+
+1. **echo.yaml** (⭐ Minimal - 31 lines)
+   - Simplest possible workflow
+   - 1 node, 1 input, 1 output
+   - Perfect for testing installation
+
+2. **article_writer.yaml** (⭐⭐⭐ Intermediate - 64 lines)
+   - Multi-step: research → write
+   - Tool: serper_search (web search)
+   - Multiple typed outputs
+   - Requires SERPER_API_KEY
+
+3. **nested_state.yaml** (⭐⭐ Intermediate - 52 lines)
+   - Nested object types
+   - List inputs
+   - Complex state structures
+
+4. **type_enforcement.yaml** (⭐⭐⭐ Advanced - 78 lines)
+   - All type system types
+   - Multiple typed outputs
+   - Type validation demo
+
+**Documentation**:
+- Each example has comprehensive README (echo_README.md, article_writer_README.md, nested_state_README.md, type_enforcement_README.md)
+- Main README updated with learning path
+- Usage examples for CLI and Python
+- Troubleshooting guides
+
+**Validation**:
+```bash
+configurable-agents validate examples/echo.yaml  # ✅
+configurable-agents validate examples/article_writer.yaml  # ✅
+configurable-agents validate examples/nested_state.yaml  # ✅
+configurable-agents validate examples/type_enforcement.yaml  # ✅
+```
+
+**Phase 3 Progress**:
+T-015 completes 2/5 tasks in Phase 3 (Polish & UX) - 40% complete!
+
+---
+
 ## 📋 Upcoming Tasks
 
 ### Next 5 Tasks
 
-1. **T-015**: Example Configs - Working workflow examples ⬅️ NEXT
-2. **T-016**: Documentation - User-facing documentation
-3. **T-016**: Documentation - User-facing documentation
-4. **T-017**: Integration Tests - End-to-end testing
-5. **T-018**: Error Messages - Improve error UX
+1. **T-016**: Documentation - User-facing documentation ⬅️ NEXT
+2. **T-017**: Integration Tests - End-to-end testing
+3. **T-018**: Error Messages - Improve error UX
+4. **T-019**: DSPy Integration Test - Verify DSPy compatibility
+5. **T-020**: Structured Output + DSPy Test - Combined validation
 
 ---
 
@@ -771,9 +826,9 @@ T-014 completes 1/5 tasks in Phase 3 (Polish & UX)!
 - ✅ T-012: Graph Builder
 - ✅ T-013: Runtime Executor
 
-### Phase 3: Polish & UX (1/5 complete)
+### Phase 3: Polish & UX (2/5 complete)
 - ✅ T-014: CLI Interface
-- ⏳ T-015: Example Configs
+- ✅ T-015: Example Configs
 - ⏳ T-016: Documentation
 - ⏳ T-017: Integration Tests
 - ⏳ T-018: Error Messages
@@ -1076,8 +1131,8 @@ Tests:
 ### Next Milestones
 1. ~~**Foundation Complete**~~ ✅ DONE: All Pydantic models, validation
 2. ~~**Core Execution Complete**~~ ✅ DONE: End-to-end workflow execution
-3. **First CLI Demo** (Week 4): Command-line interface working
-4. **Example Workflows** (Week 4): Working examples with docs
+3. ~~**First CLI Demo**~~ ✅ DONE: Command-line interface working
+4. ~~**Example Workflows**~~ ✅ DONE: Working examples with comprehensive docs
 5. **v0.1 Release** (Week 6-7): Feature-complete with tests
 
 ---
@@ -1099,7 +1154,22 @@ Tests:
 
 ## 📝 Recent Changes
 
-### 2026-01-27 (Today) - CLI Interface Complete! User-Facing Tool! 🎉🚀
+### 2026-01-28 (Today) - Example Configs Complete! Comprehensive Learning Resources! 📚✨
+- ✅ Completed T-015: Example Configs
+- ✅ 443 tests passing (no regressions)
+- ✅ **4 COMPREHENSIVE WORKFLOW EXAMPLES!**
+- ✅ Minimal example (echo.yaml) - simplest possible
+- ✅ Multi-step with tools (article_writer.yaml) - production-like
+- ✅ Nested state (nested_state.yaml) - complex structures
+- ✅ Type enforcement (type_enforcement.yaml) - complete type system
+- ✅ Individual README for each example with detailed guides
+- ✅ Learning path from beginner to advanced
+- ✅ All examples validated successfully
+- ✅ **Phase 3 (Polish & UX) 2/5 COMPLETE** - 40% through Phase 3! ✅
+- 📝 Progress: 16/20 tasks (80%) complete
+- 📝 Next: T-016 (Documentation) - User-facing documentation!
+
+### 2026-01-27 - CLI Interface Complete! User-Facing Tool! 🎉🚀
 - ✅ Completed T-014: CLI Interface
 - ✅ 443 tests passing (37 cli + 2 integration, 406 existing)
 - ✅ **USER-FACING COMMAND-LINE TOOL!**
