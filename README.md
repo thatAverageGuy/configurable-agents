@@ -81,7 +81,7 @@ configurable-agents run article_writer.yaml --input topic="AI Safety"
 ## 🗺️ Roadmap
 
 ### v0.1 - Foundation ⏳ (Current - Week 4 of 6-8)
-**Status**: 75% complete (15/20 tasks) | **Target**: March 2026
+**Status**: 80% complete (16/20 tasks) | **Target**: March 2026
 
 **Phase 1 COMPLETE** ✅ (8/8):
 - ✅ T-001: Project setup and structure
@@ -101,9 +101,9 @@ configurable-agents run article_writer.yaml --input topic="AI Safety"
 - ✅ T-012: Graph builder (LangGraph construction)
 - ✅ T-013: Runtime executor (end-to-end workflow execution) 🎉
 
-**Phase 3 IN PROGRESS** (1/5):
+**Phase 3 IN PROGRESS** (2/5):
 - ✅ T-014: CLI interface (command-line tool) 🎉
-- ⏳ T-015: Example configs (working examples)
+- ✅ T-015: Example configs (working examples) 🎉
 - ⏳ T-016: Documentation (user guide)
 - ⏳ T-017: Integration tests (end-to-end)
 - ⏳ T-018: Error message improvements
@@ -250,7 +250,10 @@ Run it:
 configurable-agents run hello.yaml --input name="Alice"
 ```
 
-See [docs/](docs/) for comprehensive guides.
+**Learn more:**
+- [QUICKSTART.md](docs/QUICKSTART.md) - Complete tutorial
+- [examples/](examples/) - More working examples
+- [CONFIG_REFERENCE.md](docs/CONFIG_REFERENCE.md) - Full config guide
 
 ---
 
@@ -289,9 +292,9 @@ See [Architecture Decision Records](docs/adr/) for detailed design choices.
 - ✅ T-012: Graph Builder
 - ✅ T-013: Runtime Executor
 
-### Phase 3: Polish & UX (1/5 complete)
+### Phase 3: Polish & UX (2/5 complete)
 - ✅ T-014: CLI Interface
-- ⏳ T-015: Example Configs
+- ✅ T-015: Example Configs
 - ⏳ T-016: Documentation
 - ⏳ T-017: Integration Tests
 - ⏳ T-018: Error Messages
@@ -300,9 +303,9 @@ See [Architecture Decision Records](docs/adr/) for detailed design choices.
 - ⏳ T-019: DSPy Integration Test
 - ⏳ T-020: Structured Output + DSPy
 
-**Overall Progress**: 15/20 tasks complete (75%)
+**Overall Progress**: 16/20 tasks complete (80%)
 
-**Next up**: T-015 (Example Configs)
+**Next up**: T-016 (Documentation)
 
 Full task breakdown: [docs/TASKS.md](docs/TASKS.md)
 
@@ -350,7 +353,33 @@ Full task breakdown: [docs/TASKS.md](docs/TASKS.md)
   - Immutable history (append-only)
   - Alternatives considered with tradeoffs
 
-### Getting Started
+### User Guides
+
+- **[QUICKSTART.md](docs/QUICKSTART.md)** - Get started in 5 minutes
+  - *Step-by-step tutorial for beginners*
+  - Installation and API key setup
+  - Your first workflow
+  - Understanding outputs
+
+- **[CONFIG_REFERENCE.md](docs/CONFIG_REFERENCE.md)** - Config schema guide
+  - *User-friendly config reference*
+  - All fields explained with examples
+  - State, nodes, edges, global config
+  - Python API reference
+
+- **[ROADMAP.md](docs/ROADMAP.md)** - Version features and timeline
+  - *What's available when*
+  - v0.1 → v0.4 feature matrix
+  - Release timeline and criteria
+  - Migration guides
+
+- **[TROUBLESHOOTING.md](docs/TROUBLESHOOTING.md)** - Common issues and solutions
+  - *Fix problems quickly*
+  - Error messages explained
+  - Debugging tips and techniques
+  - FAQ and patterns
+
+### Developer Guides
 
 - **[SETUP.md](SETUP.md)** - Development setup guide
   - *How to get the project running*

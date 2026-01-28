@@ -9,6 +9,94 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added - T-016: Documentation ✅
+
+**Commit**: T-016: Documentation - User-facing guides complete
+
+**What Was Done**:
+- Created 4 comprehensive user-facing documentation files
+- All docs follow consistent style and cross-reference each other
+- Complete coverage of installation, usage, troubleshooting, and roadmap
+- Updated README.md with new documentation links and progress
+- Total: 443 tests passing (no regressions)
+
+**Documentation Created**:
+
+1. **docs/QUICKSTART.md** (5-minute tutorial)
+   - Step-by-step installation and setup
+   - API key configuration guide
+   - First workflow walkthrough
+   - Understanding outputs and next steps
+   - Common commands reference
+
+2. **docs/CONFIG_REFERENCE.md** (User-friendly schema guide)
+   - Complete config structure explained
+   - All field types with examples
+   - State, nodes, edges, global config
+   - Python API reference
+   - Version availability matrix
+   - Cross-references to SPEC.md for technical details
+
+3. **docs/ROADMAP.md** (Feature timeline and versions)
+   - v0.1 → v0.4 version overview
+   - Complete feature availability matrix
+   - Release timeline and criteria
+   - Design philosophy and migration guides
+   - FAQ about versions and compatibility
+
+4. **docs/TROUBLESHOOTING.md** (Common issues and solutions)
+   - Installation issues
+   - Configuration errors with fixes
+   - Runtime errors and debugging
+   - API and authentication problems
+   - Tool errors and type validation
+   - Performance tips
+   - Debugging techniques
+   - Error reference table
+
+**Files Modified**:
+- `README.md` - Added "User Guides" section with all new docs
+- `README.md` - Updated progress: 16/20 tasks (80%), Phase 3: 2/5 complete
+- `README.md` - Updated "Next up" to T-016 → T-017
+
+**Documentation Structure**:
+```
+docs/
+├── User Guides (NEW!)
+│   ├── QUICKSTART.md (beginners)
+│   ├── CONFIG_REFERENCE.md (reference)
+│   ├── ROADMAP.md (features/timeline)
+│   └── TROUBLESHOOTING.md (problems/solutions)
+├── Core Documentation
+│   ├── PROJECT_VISION.md
+│   ├── ARCHITECTURE.md
+│   ├── SPEC.md
+│   ├── TASKS.md
+│   └── DISCUSSION.md
+└── Architecture Decisions
+    └── adr/ (9 ADRs)
+```
+
+**Acceptance Criteria Met**:
+- ✅ README.md with quickstart (updated with better links)
+- ✅ Installation instructions (in QUICKSTART.md)
+- ✅ Environment setup guide (in QUICKSTART.md)
+- ✅ Config schema reference (CONFIG_REFERENCE.md references SPEC.md)
+- ✅ Example walkthrough (in QUICKSTART.md + examples/)
+- ✅ Troubleshooting guide (TROUBLESHOOTING.md)
+- ✅ Version availability table (in ROADMAP.md and CONFIG_REFERENCE.md)
+- ✅ Roadmap (ROADMAP.md with v0.1-v0.4)
+
+**Documentation Quality**:
+- Clear, beginner-friendly language
+- Consistent structure across all docs
+- Extensive examples and code snippets
+- Cross-references between documents
+- Error messages with solutions
+- Common patterns and best practices
+
+---
+
 ### Added - T-015: Example Configs ✅
 
 **Commit**: T-015: Example configs - Working workflow examples
