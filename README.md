@@ -130,6 +130,9 @@ configurable-agents validate workflow.yaml
 
 # Verbose mode
 configurable-agents run workflow.yaml --input name="Alice" --verbose
+
+# Optional: Web UI (auxiliary)
+streamlit run streamlit_app.py
 ```
 
 **Usage** (Python API):

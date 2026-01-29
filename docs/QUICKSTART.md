@@ -208,6 +208,9 @@ configurable-agents run workflow.yaml \
   --input name="Alice" \
   --input count=5 \
   --input enabled=true
+
+# Optional: Web UI (auxiliary tool)
+streamlit run streamlit_app.py
 ```
 
 ---

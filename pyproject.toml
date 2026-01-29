@@ -41,6 +41,9 @@ dev = [
     "ruff>=0.1.0",
     "mypy>=1.5.0",
 ]
+ui = [
+    "streamlit>=1.30.0",
+]
 
 [project.scripts]
 configurable-agents = "configurable_agents.cli:main"
