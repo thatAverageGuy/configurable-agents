@@ -726,6 +726,8 @@ configurable-agents run workflow.yaml \
 - Helpful error messages with suggestions
 - Full traceback in verbose mode
 
+**Auxiliary**: Optional Streamlit UI (`streamlit_app.py`) added for rapid prototyping - not tracked as core task
+
 **Error Handling**:
 - ConfigLoadError - File not found, invalid YAML/JSON
 - ConfigValidationError - Invalid config structure

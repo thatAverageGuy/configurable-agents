@@ -9,6 +9,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added - Auxiliary: Streamlit UI
+
+**Note**: Auxiliary addition (not a tracked task) - simple web interface for rapid testing.
+
+**What Was Done**:
+- Created `streamlit_app.py` - minimal single-page UI
+- Paste YAML config, add inputs, run workflows
+- Shows results or errors (no persistence, no features)
+- Uses existing runtime APIs (bolt-on, no codebase changes)
+
+**Usage**:
+```bash
+streamlit run streamlit_app.py
+```
+
+**Design Decision**: Branch auxiliary tool for quick prototyping, not part of core product.
+
+---
+
 ### Added - T-017: Integration Tests ✅
 
 **Commit**: T-017: Integration tests - End-to-end validation complete
