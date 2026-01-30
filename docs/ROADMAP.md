@@ -10,16 +10,16 @@ This document outlines the planned features, timeline, and version availability 
 
 | Version | Status | Timeline | Theme | Key Features |
 |---------|--------|----------|-------|--------------|
-| **v0.1** | 🔄 In Progress (80%) | March 2026 | Foundation | Linear flows, structured outputs, Gemini |
-| **v0.2** | 📋 Planned | Q2 2026 (+8-12 weeks) | Intelligence | Conditionals, loops, multi-LLM |
-| **v0.3** | 🔮 Future | Q3 2026 (+12-16 weeks) | Optimization | DSPy, parallel execution |
-| **v0.4** | 🌟 Vision | Q4 2026 (+16-24 weeks) | Ecosystem | Visual tools, deployment, SaaS |
+| **v0.1** | 🔄 In Progress (67%) | March 2026 | Production Ready | Linear flows, structured outputs, **observability, Docker deployment** |
+| **v0.2** | 📋 Planned | Q2 2026 (+8-12 weeks) | Intelligence | Conditionals, loops, multi-LLM, error improvements |
+| **v0.3** | 🔮 Future | Q3 2026 (+12-16 weeks) | Optimization | DSPy, parallel execution, distributed tracing |
+| **v0.4** | 🌟 Vision | Q4 2026 (+16-24 weeks) | Ecosystem | Visual tools, cloud deployment, SaaS |
 
 ---
 
-## v0.1 - Foundation (Current)
+## v0.1 - Production Ready (Current)
 
-**Status:** 80% complete (16/20 tasks) | **Target:** March 2026
+**Status:** 67% complete (18/27 tasks) | **Target:** March 2026
 
 ### What's Working Now ✅
 
@@ -34,6 +34,18 @@ configurable-agents validate workflow.yaml
 # Python API
 from configurable_agents.runtime import run_workflow
 result = run_workflow("workflow.yaml", {"topic": "AI"})
+```
+
+### What's Coming Next ⏳
+
+```bash
+# MLFlow observability (T-018 to T-021)
+configurable-agents run workflow.yaml --input topic="AI" --mlflow
+mlflow ui  # View traces, costs, prompts
+
+# Docker deployment (T-022 to T-024)
+configurable-agents deploy workflow.yaml
+# → Runs on http://localhost:8000 (API) + http://localhost:5000 (MLFlow UI)
 ```
 
 ### Core Features
@@ -71,27 +83,74 @@ result = run_workflow("workflow.yaml", {"topic": "AI"})
 - Smart input parsing (JSON, numbers, booleans)
 
 #### ✅ Developer Experience
-- 443 tests passing
+- 468 tests passing (449 unit + 19 integration)
 - Comprehensive error messages
 - "Did you mean?" suggestions for typos
 - Example workflows with detailed READMEs
 
+#### ⏳ MLFlow Observability (T-018 to T-021 - In Progress)
+- Track workflow execution (params, metrics, artifacts)
+- Cost tracking (tokens, $ per run)
+- Per-node traces (prompts, responses, retries)
+- MLFlow UI dashboard (http://localhost:5000)
+- Local-first (file-based), enterprise-ready (PostgreSQL, S3, Databricks)
+- DSPy optimization support (v0.3)
+
+```yaml
+config:
+  observability:
+    mlflow:
+      enabled: true
+      tracking_uri: "file://./mlruns"
+      experiment_name: "production_workflows"
+```
+
+#### ⏳ Docker Deployment (T-022 to T-024 - In Progress)
+- One-command deployment (`configurable-agents deploy workflow.yaml`)
+- Persistent FastAPI server (sync/async execution)
+- MLFlow UI included in container
+- Optimized images (<200MB target)
+- Environment variable management (CLI + Streamlit UI)
+- Health checks, OpenAPI docs auto-generated
+
+```bash
+configurable-agents deploy workflow.yaml
+# → http://localhost:8000 (workflow API)
+# → http://localhost:5000 (MLFlow UI)
+
+curl -X POST http://localhost:8000/run \
+  -H "Content-Type: application/json" \
+  -d '{"topic": "AI Safety"}'
+```
+
 ### Limitations
 
 ❌ **Not available in v0.1:**
-- Conditional routing (if/else)
-- Loops and retry logic
-- Multiple LLM providers (only Gemini)
-- State persistence (in-memory only)
-- Parallel execution
-- DSPy optimization
+- Conditional routing (if/else) - coming in v0.2
+- Loops and retry logic - coming in v0.2
+- Multiple LLM providers (only Gemini) - v0.2
+- State persistence (in-memory only) - v0.2
+- Parallel execution - v0.3
+- DSPy optimization - v0.3
+- OpenTelemetry distributed tracing - v0.2
+- Prometheus monitoring - v0.3
 
-### Remaining Work (4 tasks)
+### Remaining Work (7 tasks for v0.1)
 
-- ⏳ **T-016:** Documentation (this file!)
-- ⏳ **T-017:** Integration tests
-- ⏳ **T-018:** Error message improvements
-- ⏳ **T-019-020:** DSPy verification tests
+**Observability (4 tasks):**
+- ⏳ **T-018:** MLFlow Integration Foundation (2 days)
+- ⏳ **T-019:** MLFlow Instrumentation (3 days)
+- ⏳ **T-020:** Cost Tracking & Reporting (2 days)
+- ⏳ **T-021:** Observability Documentation (2 days)
+
+**Docker Deployment (3 tasks):**
+- ⏳ **T-022:** Artifact Generator & Templates (2 days)
+- ⏳ **T-023:** FastAPI Server with Sync/Async (3 days)
+- ⏳ **T-024:** CLI Deploy Command & Streamlit Integration (3 days)
+
+**Deferred to v0.2+:**
+- **T-025:** Error message improvements (was T-018)
+- **T-026/T-027:** DSPy verification tests (was T-019/T-020)
 
 ### Example Use Cases
 
@@ -440,14 +499,19 @@ Hosted platform:
 | Auto-evaluation | ❌ | ❌ | ✅ | ✅ |
 | **Deployment** |
 | Local execution | ✅ | ✅ | ✅ | ✅ |
-| Docker | ⚠️ Manual | ✅ | ✅ | ✅ |
-| Cloud deployment | ❌ | ❌ | ❌ | ✅ |
+| Docker (one-command) | ✅ | ✅ | ✅ | ✅ |
+| Cloud deployment | ❌ | ❌ | ⚠️ Manual | ✅ |
 | SaaS platform | ❌ | ❌ | ❌ | ✅ |
+| **Observability** |
+| MLFlow (LLM tracking) | ✅ | ✅ | ✅ | ✅ |
+| Cost tracking | ✅ | ✅ | ✅ | ✅ |
+| OpenTelemetry (tracing) | ❌ | ✅ | ✅ | ✅ |
+| Prometheus (metrics) | ❌ | ❌ | ✅ | ✅ |
+| Grafana (dashboards) | ❌ | ❌ | ✅ | ✅ |
 | **Tooling** |
 | Visual editor | ❌ | ❌ | ❌ | ✅ |
 | AI config generator | ❌ | ❌ | ✅ | ✅ |
-| Monitoring | ⚠️ Logs | ⚠️ MLFlow | ✅ | ✅ |
-| Observability | ⚠️ Basic | ⚠️ MLFlow | ✅ | ✅ |
+| Streamlit UI (basic) | ✅ | ✅ | ✅ | ✅ |
 
 **Legend:**
 - ✅ Available
@@ -464,13 +528,14 @@ Hosted platform:
   v0.1     v0.2     v0.3     v0.4
  (Mar)    (Jun)    (Sep)    (Dec)
 
-Phase 1:  Foundation (6-8 weeks)
+Phase 1:  Production Ready (8-10 weeks)
 Phase 2:  Intelligence (8-12 weeks)
-Phase 3:  Optimization (12-16 weeks)
-Phase 4:  Ecosystem (16-24 weeks)
+Phase 3:  Optimization & DSPy (12-16 weeks)
+Phase 4:  Ecosystem & Cloud (16-24 weeks)
 ```
 
-**Current:** v0.1 - 80% complete (16/20 tasks)
+**Current:** v0.1 - 67% complete (18/27 tasks)
+**Remaining:** 3.5 weeks (Observability + Docker deployment)
 
 ---
 
@@ -515,21 +580,31 @@ Phase 4:  Ecosystem (16-24 weeks)
 
 - [x] All Phase 1 tasks complete (8/8) ✅
 - [x] All Phase 2 tasks complete (6/6) ✅
-- [ ] All Phase 3 tasks complete (2/5) ⏳
+- [ ] All Phase 3 tasks complete (4/11) ⏳
   - [x] T-014: CLI ✅
   - [x] T-015: Examples ✅
-  - [ ] T-016: Docs ⏳
-  - [ ] T-017: Integration tests
-  - [ ] T-018: Error messages
-- [ ] All Phase 4 tasks complete (0/2)
-  - [ ] T-019: DSPy integration test
-  - [ ] T-020: Structured output + DSPy test
-- [ ] 443+ tests passing ✅
-- [ ] Documentation complete
-- [ ] Example workflows working
-- [ ] Installation tested on Windows/Mac/Linux
+  - [x] T-016: Documentation ✅
+  - [x] T-017: Integration Tests ✅
+  - [ ] T-018: MLFlow Integration Foundation ⏳
+  - [ ] T-019: MLFlow Instrumentation ⏳
+  - [ ] T-020: Cost Tracking & Reporting ⏳
+  - [ ] T-021: Observability Documentation ⏳
+  - [ ] T-022: Docker Artifact Generator ⏳
+  - [ ] T-023: FastAPI Server with Sync/Async ⏳
+  - [ ] T-024: CLI Deploy Command & Streamlit Integration ⏳
+- [ ] 468+ tests passing ✅
+- [ ] Documentation complete ✅
+- [ ] Example workflows working ✅
+- [ ] Observability (MLFlow) working
+- [ ] Docker deployment working
+- [ ] Installation tested on Windows/Mac/Linux ✅
 - [ ] Performance benchmarks completed
 - [ ] Security review passed
+
+**Deferred to v0.2+:**
+- T-025: Error Message Improvements (v0.2)
+- T-026: DSPy Integration Test (v0.3)
+- T-027: Structured Output + DSPy Test (v0.3)
 
 ### v0.2+ Release Criteria
 
