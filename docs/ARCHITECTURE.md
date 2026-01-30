@@ -451,6 +451,249 @@ These will be added incrementally in future versions based on `docs/TASKS.md`.
 
 ---
 
+## Observability Layer (MLFlow) - v0.1
+
+### Responsibility
+Track workflow execution metrics, costs, and performance for debugging and optimization.
+
+### Architecture
+
+```
+Runtime Executor
+      ↓
+┌─────────────────────────────────────┐
+│  MLFlow Tracking                    │
+│                                     │
+│  Workflow Run:                      │
+│  - params (name, model, temp)       │
+│  - metrics (duration, tokens, cost) │
+│  - artifacts (inputs, outputs)      │
+│                                     │
+│  Node Runs (nested):                │
+│  - params (node_id, tools)          │
+│  - metrics (duration, retries)      │
+│  - artifacts (prompt, response)     │
+└─────────────────────────────────────┘
+      ↓
+file://./mlruns (local)
+or postgresql:// (remote)
+or s3:// (cloud)
+```
+
+### Components
+
+**MLFlow Tracker** (`observability/mlflow_tracker.py`):
+- Initialize tracking (set URI, experiment)
+- Start/end workflow runs
+- Log parameters, metrics, artifacts
+- Handle disabled state gracefully (no-op)
+
+**Cost Tracker** (`llm/cost_tracker.py`):
+- Token-to-cost conversion (pricing tables)
+- Per-model pricing (Gemini, OpenAI, Anthropic)
+- Cumulative cost calculation
+
+### Integration Points
+
+1. **Runtime Executor** (`runtime/executor.py`):
+   - Start MLFlow run on workflow start
+   - Log workflow-level params/metrics
+   - Log inputs/outputs as artifacts
+   - End run on completion/failure
+
+2. **Node Executor** (`core/node_executor.py`):
+   - Start nested run per node
+   - Log node-level params/metrics
+   - Log prompt/response as artifacts
+   - Extract token counts from LLM responses
+
+3. **LLM Provider** (`llm/provider.py`):
+   - Return token counts with responses
+   - Enable cost calculation
+
+### Configuration
+
+```yaml
+config:
+  observability:
+    mlflow:
+      enabled: true
+      tracking_uri: "file://./mlruns"  # Local file storage
+      experiment_name: "production_workflows"
+      log_artifacts: true
+```
+
+### Data Flow
+
+```
+Workflow Execution
+      ↓
+[MLFlow enabled?] → No → Execute normally
+      ↓ Yes
+Start MLFlow run
+      ↓
+Execute nodes (with nested runs)
+      ↓
+Log metrics (tokens, cost, duration)
+      ↓
+Save artifacts (inputs, outputs, prompts)
+      ↓
+End MLFlow run
+```
+
+### Storage Backends
+
+- **v0.1**: File-based (`file://./mlruns`) - zero setup
+- **v0.2**: Remote (PostgreSQL, S3, Databricks)
+- **Enterprise**: Multi-tenancy, retention policies, PII redaction
+
+### Related ADRs
+- ADR-011: MLFlow for Observability
+- ADR-014: Three-Tier Observability Strategy
+
+---
+
+## Deployment Architecture (Docker) - v0.1
+
+### Responsibility
+Package workflows as standalone Docker containers with FastAPI servers.
+
+### Architecture
+
+```
+configurable-agents deploy workflow.yaml
+      ↓
+┌─────────────────────────────────────┐
+│  Artifact Generator                 │
+│                                     │
+│  Templates:                         │
+│  - Dockerfile (multi-stage)         │
+│  - server.py (FastAPI)              │
+│  - requirements.txt                 │
+│  - docker-compose.yml               │
+│  - README.md                        │
+└─────────────────────────────────────┘
+      ↓
+docker build -t workflow:latest .
+      ↓
+docker run -d -p 8000:8000 -p 5000:5000 workflow
+      ↓
+┌─────────────────────────────────────┐
+│  Running Container                  │
+│                                     │
+│  Port 8000: FastAPI Server          │
+│  - POST /run (sync/async)           │
+│  - GET /status/{job_id}             │
+│  - GET /health                      │
+│  - GET /schema                      │
+│                                     │
+│  Port 5000: MLFlow UI               │
+│  - View execution traces            │
+│  - Track costs, prompts             │
+└─────────────────────────────────────┘
+```
+
+### Components
+
+**Artifact Generator** (`deploy/generator.py`):
+- Load templates from `deploy/templates/`
+- Substitute variables (workflow_name, ports, timeout)
+- Generate Dockerfile, server.py, etc.
+- Write to output directory
+
+**FastAPI Server** (generated `server.py`):
+- Load workflow config at startup
+- POST /run endpoint (sync/async execution)
+- Job store (in-memory dict for v0.1)
+- Background task execution
+- Input validation against workflow schema
+- OpenAPI docs auto-generated
+
+**Docker Image** (generated `Dockerfile`):
+- Multi-stage build (builder + runtime)
+- Base: `python:3.10-slim` (~120MB)
+- Optimizations: no cache, minimal deps
+- Health check for orchestration
+- MLFlow UI startup (if enabled)
+
+### Deployment Flow
+
+```
+1. Validate workflow (fail-fast)
+2. Check Docker installed
+3. Generate artifacts
+   ├─ Dockerfile
+   ├─ server.py
+   ├─ requirements.txt
+   ├─ docker-compose.yml
+   └─ README.md
+4. Build Docker image
+5. Run container (detached)
+6. Print success message
+```
+
+### Sync/Async Hybrid
+
+```python
+# FastAPI endpoint logic
+async def run_workflow_endpoint(inputs):
+    try:
+        # Attempt sync (with timeout)
+        result = await asyncio.wait_for(
+            asyncio.to_thread(run_workflow, config, inputs),
+            timeout=SYNC_TIMEOUT  # Default: 30s
+        )
+        return {"status": "success", "outputs": result}
+
+    except asyncio.TimeoutError:
+        # Fall back to async
+        job_id = str(uuid.uuid4())
+        jobs[job_id] = {"status": "pending", ...}
+        background_tasks.add_task(run_workflow_async, job_id, inputs)
+        return {"status": "async", "job_id": job_id}
+```
+
+### Environment Variables
+
+**CLI** (`--env-file`):
+```bash
+configurable-agents deploy workflow.yaml --env-file .env
+# Auto-detects .env if exists
+```
+
+**Streamlit UI**:
+- Upload .env file (drag & drop)
+- Paste variables (textarea)
+- Skip (configure later via docker run -e)
+
+**Security**:
+- Never baked into image layers
+- Injected at runtime (docker run --env-file)
+- Values masked in UI preview
+
+### Image Optimization
+
+**Multi-stage build**:
+```dockerfile
+# Stage 1: Builder
+FROM python:3.10-slim AS builder
+RUN pip install --user -r requirements.txt
+
+# Stage 2: Runtime (no build tools)
+FROM python:3.10-slim
+COPY --from=builder /root/.local /root/.local
+COPY workflow.yaml server.py ./
+CMD mlflow ui & python server.py
+```
+
+**Target size**: ~180-200MB (acceptable for v0.1)
+
+### Related ADRs
+- ADR-012: Docker Deployment Architecture
+- ADR-013: Environment Variable Handling
+
+---
+
 ## Open Questions (To be resolved in ADRs)
 
 1. Should validation fail fast (first error) or collect all errors?

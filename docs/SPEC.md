@@ -876,6 +876,193 @@ json_string = json.dumps(config.dict())
 
 ---
 
+## Observability Configuration (v0.1+)
+
+### config.observability
+
+Optional configuration for workflow observability and monitoring.
+
+**Schema**:
+```yaml
+config:
+  observability:
+    mlflow:
+      enabled: true                          # Enable MLFlow tracking
+      tracking_uri: "file://./mlruns"        # Storage backend URI
+      experiment_name: "my_workflows"        # Experiment grouping
+      run_name: null                         # Run naming template (optional)
+      log_artifacts: true                    # Log inputs/outputs as artifacts
+
+      # Enterprise hooks (not enforced in v0.1, reserved for v0.2+)
+      retention_days: null                   # Auto-cleanup old runs (future)
+      redact_pii: false                      # PII sanitization (future)
+```
+
+### Fields
+
+**enabled** (bool, default: `false`):
+- Enable MLFlow tracking for workflow execution
+- If disabled, workflow runs normally without tracking overhead
+
+**tracking_uri** (str, default: `"file://./mlruns"`):
+- Backend storage URI for MLFlow tracking data
+- Supported formats:
+  - `file://./mlruns` - Local file storage (default, zero setup)
+  - `file:///absolute/path` - Absolute path
+  - `postgresql://user:pass@host/db` - PostgreSQL (v0.2+, team collaboration)
+  - `s3://bucket/path` - AWS S3 (v0.2+, cloud storage)
+  - `databricks://workspace` - Databricks Managed MLFlow (v0.2+, enterprise)
+
+**experiment_name** (str, default: `"configurable_agents"`):
+- Groups related workflow runs together
+- Use meaningful names for organization (e.g., "production_workflows", "testing", "team_data_science")
+
+**run_name** (str, optional):
+- Template for naming individual runs
+- If not specified, MLFlow generates timestamp-based names
+- Example: `"run_{timestamp}"`, `"workflow_{workflow_name}"`
+
+**log_artifacts** (bool, default: `true`):
+- Whether to save inputs, outputs, prompts, and responses as artifacts
+- Set to `false` for high-throughput scenarios (reduces I/O)
+- Artifacts enable debugging but increase storage usage
+
+### Enterprise Hooks (v0.2+)
+
+**retention_days** (int, optional):
+- Automatically delete runs older than N days
+- Not enforced in v0.1 (reserved for future)
+- User responsibility to manage storage in v0.1
+
+**redact_pii** (bool, default: `false`):
+- Sanitize personally identifiable information before logging
+- Not enforced in v0.1 (reserved for future)
+- User responsibility to handle PII in v0.1
+
+### What Gets Tracked
+
+**Workflow-level metrics**:
+- `workflow_name`, `workflow_version`, `schema_version`
+- `global_model`, `global_temperature`
+- `duration_seconds`, `node_count`, `retry_count`
+- `total_input_tokens`, `total_output_tokens`, `total_cost_usd`
+- `status` (1 = success, 0 = failure)
+
+**Workflow-level artifacts**:
+- `inputs.json` - Workflow inputs
+- `outputs.json` - Workflow outputs
+- `error.txt` - Error details (if failed)
+
+**Node-level metrics** (nested runs):
+- `node_id`, `node_model`, `tools`
+- `node_duration_ms`, `input_tokens`, `output_tokens`, `retries`
+
+**Node-level artifacts**:
+- `prompt.txt` - Resolved prompt template
+- `response.txt` - Raw LLM response
+
+### Usage Examples
+
+**Enable observability**:
+```yaml
+config:
+  llm:
+    provider: google
+    model: gemini-1.5-flash
+  observability:
+    mlflow:
+      enabled: true
+```
+
+**View traces**:
+```bash
+configurable-agents run workflow.yaml --input topic="AI"
+mlflow ui  # Open http://localhost:5000
+```
+
+**Team collaboration** (v0.2+):
+```yaml
+config:
+  observability:
+    mlflow:
+      enabled: true
+      tracking_uri: "postgresql://mlflow:pass@db.example.com/mlflow"
+      experiment_name: "team_production"
+```
+
+**Enterprise with retention** (v0.2+):
+```yaml
+config:
+  observability:
+    mlflow:
+      enabled: true
+      tracking_uri: "s3://company-mlflow/workflows"
+      experiment_name: "production"
+      retention_days: 90
+      redact_pii: true
+```
+
+### Cost Tracking
+
+MLFlow automatically tracks token usage and estimated costs:
+
+**Token pricing** (built-in):
+- `gemini-1.5-flash`: $0.000035/1K input, $0.00014/1K output
+- `gemini-1.5-pro`: $0.00035/1K input, $0.0014/1K output
+- More models added as multi-LLM support expands (v0.2+)
+
+**Metrics logged**:
+- `cost_usd` - Total estimated cost per run
+- `cost_per_node_avg` - Average cost per node
+
+**Query costs**:
+```python
+import mlflow
+client = mlflow.tracking.MlflowClient()
+runs = client.search_runs(experiment_ids=["0"])
+total_cost = sum(run.data.metrics.get("cost_usd", 0) for run in runs)
+print(f"Total spent: ${total_cost:.4f}")
+```
+
+### Docker Integration
+
+When workflows are deployed as Docker containers (v0.1+), MLFlow UI runs inside the container:
+
+**Deployment**:
+```bash
+configurable-agents deploy workflow.yaml
+# Container exposes:
+# - Port 8000: Workflow API
+# - Port 5000: MLFlow UI
+```
+
+**Access**:
+- Workflow API: `http://localhost:8000`
+- MLFlow UI: `http://localhost:5000`
+- Traces persist across container restarts (volume mount)
+
+### Validation
+
+**Invalid tracking URI**:
+```yaml
+config:
+  observability:
+    mlflow:
+      tracking_uri: "invalid://uri"  # ❌ ValidationError
+```
+
+**Valid URIs**:
+- `file://./mlruns` ✅
+- `file:///absolute/path` ✅
+- `postgresql://user:pass@host/db` ✅ (v0.2+)
+- `s3://bucket/path` ✅ (v0.2+)
+
+### Related ADRs
+- ADR-011: MLFlow for LLM Observability
+- ADR-014: Three-Tier Observability Strategy
+
+---
+
 ## References
 
 - Full Schema Day One: docs/adr/ADR-009
@@ -885,6 +1072,11 @@ json_string = json.dumps(config.dict())
 ---
 
 ## Change Log
+
+**v1.0.1 (2026-01-30)**:
+- Added observability configuration (MLFlow)
+- Added cost tracking specification
+- Added Docker deployment integration notes
 
 **v1.0 (2026-01-24)**:
 - Initial schema design

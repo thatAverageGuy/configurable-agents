@@ -1007,30 +1007,33 @@ All examples validated successfully with `configurable-agents validate` command.
 ---
 
 ### T-016: Documentation
-**Status**: TODO
+**Status**: DONE ✅
 **Priority**: P1
 **Dependencies**: T-015
 **Estimated Effort**: 1 week
+**Completed**: 2026-01-28
 
 **Description**:
 Write user-facing documentation.
 
 **Acceptance Criteria**:
-- [ ] README.md with quickstart
-- [ ] Installation instructions
-- [ ] Environment setup guide (API keys)
-- [ ] Config schema reference (reference SPEC.md)
-- [ ] Example walkthrough
-- [ ] Troubleshooting guide
-- [ ] Version availability table (what's in v0.1 vs v0.2 vs v0.3)
-- [ ] Roadmap
+- [x] README.md with quickstart
+- [x] Installation instructions
+- [x] Environment setup guide (API keys)
+- [x] Config schema reference (reference SPEC.md)
+- [x] Example walkthrough
+- [x] Troubleshooting guide
+- [x] Version availability table (what's in v0.1 vs v0.2 vs v0.3)
+- [x] Roadmap
 
-**Files**:
-- `README.md`
-- `docs/QUICKSTART.md`
-- `docs/CONFIG_REFERENCE.md`
-- `docs/ROADMAP.md`
-- `docs/TROUBLESHOOTING.md`
+**Files Created**:
+- `docs/QUICKSTART.md` (5-minute tutorial)
+- `docs/CONFIG_REFERENCE.md` (user-friendly schema guide)
+- `docs/ROADMAP.md` (feature timeline and versions)
+- `docs/TROUBLESHOOTING.md` (common issues and solutions)
+
+**Files Modified**:
+- `README.md` (added user guides section)
 
 ---
 
@@ -1091,8 +1094,329 @@ End-to-end integration tests with real LLM calls. Comprehensive test suite cover
 
 ---
 
-### T-018: Error Message Improvements
+### T-018: MLFlow Integration Foundation
 **Status**: TODO
+**Priority**: P0
+**Dependencies**: T-001 (Setup)
+**Estimated Effort**: 2 days
+
+**Description**:
+Add MLFlow observability foundation - config schema, dependency installation, basic setup.
+
+**Acceptance Criteria**:
+- [ ] Add `mlflow` to dependencies (pyproject.toml)
+- [ ] Extend config schema with `ObservabilityConfig` and `MLFlowConfig`:
+  - `enabled`: bool (default: False)
+  - `tracking_uri`: str (default: "file://./mlruns")
+  - `experiment_name`: str (default: "configurable_agents")
+  - `run_name`: Optional[str] (template support)
+  - `log_artifacts`: bool (default: True)
+  - Enterprise hooks: `retention_days`, `redact_pii` (not enforced)
+- [ ] Validate observability config in validator
+- [ ] Create `src/configurable_agents/observability/` package
+- [ ] Create `src/configurable_agents/observability/mlflow_tracker.py` (setup utilities)
+- [ ] Unit tests for config schema extensions (12 tests)
+- [ ] Unit tests for MLFlow initialization (8 tests)
+- [ ] Document config schema in SPEC.md
+
+**Files Created**:
+- `src/configurable_agents/observability/__init__.py`
+- `src/configurable_agents/observability/mlflow_tracker.py`
+- `tests/observability/__init__.py`
+- `tests/observability/test_mlflow_config.py`
+- `tests/observability/test_mlflow_tracker.py`
+
+**Files Modified**:
+- `src/configurable_agents/config/schema.py` (add ObservabilityConfig)
+- `src/configurable_agents/config/validator.py` (validate observability config)
+- `pyproject.toml` (add mlflow dependency)
+- `docs/SPEC.md` (document observability config)
+
+**Tests**: 20 tests (12 config + 8 tracker)
+
+**Interface**:
+```python
+from configurable_agents.observability import init_mlflow, is_mlflow_enabled
+
+# Initialize MLFlow if enabled
+if config.observability and config.observability.mlflow:
+    init_mlflow(config.observability.mlflow)
+```
+
+**Related ADRs**: ADR-011 (MLFlow Observability)
+
+---
+
+### T-019: MLFlow Instrumentation (Runtime & Nodes)
+**Status**: TODO
+**Priority**: P0
+**Dependencies**: T-018, T-013 (Runtime Executor)
+**Estimated Effort**: 3 days
+
+**Description**:
+Instrument runtime executor and node executor to log params, metrics, and artifacts to MLFlow.
+
+**Acceptance Criteria**:
+- [ ] Workflow-level tracking in `runtime/executor.py`:
+  - [ ] Start MLFlow run on workflow start
+  - [ ] Log params: workflow_name, version, schema_version, global_model, global_temperature
+  - [ ] Log metrics: duration_seconds, total_input_tokens, total_output_tokens, node_count, retry_count, status
+  - [ ] Log artifacts: inputs.json, outputs.json, error.txt (if failed)
+  - [ ] End run on workflow completion
+- [ ] Node-level tracking in `core/node_executor.py`:
+  - [ ] Start nested run per node
+  - [ ] Log params: node_id, node_model, tools
+  - [ ] Log metrics: node_duration_ms, input_tokens, output_tokens, retries
+  - [ ] Log artifacts: prompt.txt, response.txt
+  - [ ] End nested run
+- [ ] Handle MLFlow disabled gracefully (no-op if not enabled)
+- [ ] Token tracking from LLM responses
+- [ ] Error tracking (exception details)
+- [ ] Unit tests (mocked MLFlow, 25 tests)
+- [ ] Integration test with real MLFlow (1 slow test)
+
+**Files Modified**:
+- `src/configurable_agents/runtime/executor.py` (workflow-level tracking)
+- `src/configurable_agents/core/node_executor.py` (node-level tracking)
+
+**Files Created**:
+- `tests/observability/test_mlflow_instrumentation.py` (25 unit tests)
+- `tests/observability/test_mlflow_integration.py` (1 integration test)
+
+**Tests**: 26 tests (25 unit + 1 integration)
+
+**Related ADRs**: ADR-011
+
+---
+
+### T-020: Cost Tracking & Reporting
+**Status**: TODO
+**Priority**: P1
+**Dependencies**: T-019
+**Estimated Effort**: 2 days
+
+**Description**:
+Implement token-to-cost calculation and cost tracking in MLFlow.
+
+**Acceptance Criteria**:
+- [ ] Create `llm/cost_tracker.py` with pricing tables:
+  - `PRICING` dict with model → {input, output} $/1K tokens
+  - Support: gemini-1.5-flash, gemini-1.5-pro, gemini-2.0-flash-lite
+  - Placeholder for future: OpenAI, Anthropic, etc.
+- [ ] `calculate_cost(model, input_tokens, output_tokens)` function
+- [ ] Log cost metrics in MLFlow:
+  - `cost_usd` (per run, cumulative)
+  - `cost_per_node_avg` (average cost per node)
+- [ ] Create example cost reporting notebook:
+  - Query MLFlow API for all runs
+  - Aggregate costs (total, per workflow, per model)
+  - Export to CSV
+  - Visualize trends (matplotlib/seaborn)
+- [ ] Unit tests for cost calculation (15 tests)
+- [ ] Integration test with MLFlow (1 test)
+- [ ] Document pricing tables in OBSERVABILITY.md
+
+**Files Created**:
+- `src/configurable_agents/llm/cost_tracker.py`
+- `examples/notebooks/cost_report.ipynb` (Jupyter notebook)
+- `tests/llm/test_cost_tracker.py`
+
+**Files Modified**:
+- `src/configurable_agents/core/node_executor.py` (log costs)
+- `src/configurable_agents/runtime/executor.py` (aggregate costs)
+
+**Tests**: 16 tests (15 unit + 1 integration)
+
+**Related ADRs**: ADR-011
+
+---
+
+### T-021: Observability Documentation
+**Status**: TODO
+**Priority**: P1
+**Dependencies**: T-018, T-019, T-020
+**Estimated Effort**: 2 days
+
+**Description**:
+Comprehensive observability documentation covering MLFlow usage, setup, and future roadmap.
+
+**Acceptance Criteria**:
+- [ ] Create `docs/OBSERVABILITY.md`:
+  - [ ] Overview (why observability matters)
+  - [ ] MLFlow quick start (install, enable, view UI)
+  - [ ] Configuration reference (all options explained)
+  - [ ] What gets tracked (workflow-level, node-level, costs)
+  - [ ] Docker integration (MLFlow UI in container)
+  - [ ] Cost tracking guide (query API, export CSV)
+  - [ ] DSPy integration (future, v0.3+)
+  - [ ] Enterprise features (retention, PII redaction, multi-tenancy)
+  - [ ] OpenTelemetry integration (future, v0.2+) - detailed guide
+  - [ ] Prometheus integration (future, v0.3+) - detailed guide
+  - [ ] Comparison matrix (MLFlow vs OTEL vs Prometheus)
+  - [ ] Best practices (when to use what)
+  - [ ] Troubleshooting
+- [ ] Create example workflow with MLFlow enabled:
+  - `examples/article_writer_mlflow.yaml`
+- [ ] Update `docs/CONFIG_REFERENCE.md` (add observability section)
+- [ ] Update `docs/QUICKSTART.md` (mention observability)
+- [ ] Update `README.md` (add observability features)
+
+**Files Created**:
+- `docs/OBSERVABILITY.md` (comprehensive guide, ~800 lines)
+- `examples/article_writer_mlflow.yaml`
+
+**Files Modified**:
+- `docs/CONFIG_REFERENCE.md`
+- `docs/QUICKSTART.md`
+- `README.md`
+
+**Related ADRs**: ADR-011, ADR-014
+
+---
+
+### T-022: Docker Artifact Generator & Templates
+**Status**: TODO
+**Priority**: P0
+**Dependencies**: T-013 (Runtime Executor), T-021 (Observability)
+**Estimated Effort**: 2 days
+
+**Description**:
+Implement artifact generation for Docker deployment - Dockerfile, FastAPI server, requirements, etc.
+
+**Acceptance Criteria**:
+- [ ] Create `src/configurable_agents/deploy/` package
+- [ ] Create `src/configurable_agents/deploy/generator.py`:
+  - [ ] `generate_deployment_artifacts(config, output_dir, timeout, enable_mlflow, mlflow_port)`
+  - [ ] Template engine (Jinja2 or string.Template)
+  - [ ] Variable substitution (workflow_name, ports, timeout)
+- [ ] Create `src/configurable_agents/deploy/templates/` directory:
+  - [ ] `Dockerfile.template` (multi-stage, optimized)
+  - [ ] `server.py.template` (FastAPI with sync/async)
+  - [ ] `requirements.txt.template` (minimal runtime deps)
+  - [ ] `docker-compose.yml.template`
+  - [ ] `.env.example.template`
+  - [ ] `README.md.template`
+  - [ ] `.dockerignore`
+- [ ] Dockerfile optimizations:
+  - [ ] Multi-stage build (builder + runtime)
+  - [ ] `python:3.10-slim` base image
+  - [ ] `--no-cache-dir` for pip
+  - [ ] Health check
+  - [ ] MLFlow UI startup (if enabled)
+- [ ] Unit tests (artifact generation, 20 tests)
+- [ ] Integration test (generate → validate files exist, 3 tests)
+
+**Files Created**:
+- `src/configurable_agents/deploy/__init__.py`
+- `src/configurable_agents/deploy/generator.py`
+- `src/configurable_agents/deploy/templates/` (7 template files)
+- `tests/deploy/__init__.py`
+- `tests/deploy/test_generator.py`
+
+**Tests**: 23 tests (20 unit + 3 integration)
+
+**Related ADRs**: ADR-012, ADR-013
+
+---
+
+### T-023: FastAPI Server with Sync/Async
+**Status**: TODO
+**Priority**: P0
+**Dependencies**: T-022
+**Estimated Effort**: 3 days
+
+**Description**:
+Create FastAPI server template with sync/async hybrid execution, job store, and MLFlow integration.
+
+**Acceptance Criteria**:
+- [ ] FastAPI server template (`server.py.template`):
+  - [ ] Endpoints: POST /run, GET /status/{job_id}, GET /health, GET /schema, GET /
+  - [ ] Sync/async hybrid logic (timeout-based fallback)
+  - [ ] Job store (in-memory dict for v0.1)
+  - [ ] Input validation (against workflow schema)
+  - [ ] OpenAPI auto-docs (FastAPI built-in)
+  - [ ] MLFlow integration (logging within container)
+  - [ ] Error handling (ValidationError, ExecutionError, etc.)
+  - [ ] Background task execution (FastAPI BackgroundTasks)
+- [ ] Sync execution (if < timeout):
+  - [ ] Use `asyncio.wait_for()` with timeout
+  - [ ] Return outputs immediately (200 OK)
+- [ ] Async execution (if > timeout):
+  - [ ] Generate job_id (UUID)
+  - [ ] Store job metadata (status, created_at, inputs)
+  - [ ] Run in background task
+  - [ ] Return job_id (202 Accepted)
+- [ ] Job status endpoint (query by job_id)
+- [ ] Health check endpoint (for orchestration)
+- [ ] Schema introspection endpoint (returns input/output schema)
+- [ ] Unit tests (mocked workflow execution, 30 tests)
+- [ ] Integration test (real FastAPI server, 5 tests)
+
+**Files Modified**:
+- `src/configurable_agents/deploy/templates/server.py.template`
+
+**Files Created**:
+- `tests/deploy/test_server_template.py` (30 unit tests)
+- `tests/deploy/test_server_integration.py` (5 integration tests)
+
+**Tests**: 35 tests (30 unit + 5 integration)
+
+**Related ADRs**: ADR-012
+
+---
+
+### T-024: CLI Deploy Command & Streamlit Integration
+**Status**: TODO
+**Priority**: P0
+**Dependencies**: T-022, T-023
+**Estimated Effort**: 3 days
+
+**Description**:
+Implement `deploy` CLI command and integrate with Streamlit UI for Docker deployment.
+
+**Acceptance Criteria**:
+- [ ] CLI `deploy` command in `src/configurable_agents/cli.py`:
+  - [ ] Arguments: workflow_path, --port, --mlflow-port, --output, --name, --timeout, --generate, --no-mlflow, --env-file, --no-env-file
+  - [ ] Step 1: Validate workflow (fail-fast)
+  - [ ] Step 2: Check Docker installed (`docker version`, fail-fast)
+  - [ ] Step 3: Generate artifacts (call T-022 generator)
+  - [ ] Step 4: If --generate, exit (artifacts only)
+  - [ ] Step 5: Build Docker image (`docker build`)
+  - [ ] Step 6: Run container detached (`docker run -d`)
+  - [ ] Step 7: Print success message (endpoints, curl examples, management commands)
+- [ ] Environment variable handling:
+  - [ ] Auto-detect `.env` in current directory
+  - [ ] Custom path via `--env-file`
+  - [ ] Skip with `--no-env-file`
+  - [ ] Validate env file format (KEY=value)
+- [ ] Streamlit integration (`streamlit_app.py`):
+  - [ ] Add "Deploy to Docker" section
+  - [ ] Environment variable upload/paste/skip options
+  - [ ] Port configuration (API, MLFlow)
+  - [ ] Container name input
+  - [ ] Deploy button (executes CLI command)
+  - [ ] Real-time logs (subprocess output)
+  - [ ] Success message (show endpoints, curl examples)
+  - [ ] Container management (list, stop, remove buttons)
+- [ ] Unit tests (CLI deploy command, 25 tests)
+- [ ] Integration tests (full deploy flow, 3 slow tests)
+
+**Files Modified**:
+- `src/configurable_agents/cli.py` (add deploy command)
+- `streamlit_app.py` (add deploy section)
+
+**Files Created**:
+- `tests/test_cli_deploy.py` (25 unit tests)
+- `tests/test_deploy_integration.py` (3 integration tests)
+
+**Tests**: 28 tests (25 unit + 3 integration)
+
+**Related ADRs**: ADR-012, ADR-013
+
+---
+
+### T-025: Error Message Improvements (was T-018)
+**Status**: TODO (Deferred to v0.2)
 **Priority**: P2
 **Dependencies**: T-004, T-013
 **Estimated Effort**: 1 week
@@ -1112,10 +1436,12 @@ Improve error messages to be maximally helpful.
 - Update existing error handling across codebase
 - `src/configurable_agents/errors.py`
 
+**Note**: Deferred to v0.2 to prioritize observability and deployment features for first public release.
+
 ---
 
-### T-019: DSPy Integration Test - NEW
-**Status**: TODO
+### T-026: DSPy Integration Test (was T-019)
+**Status**: TODO (Deferred to v0.3)
 **Priority**: P1
 **Dependencies**: T-009, T-011
 **Estimated Effort**: 1 week
@@ -1137,12 +1463,14 @@ Verify DSPy modules can be used in LangGraph nodes without prompt interference (
 - `tests/integration/test_dspy_integration.py`
 - `docs/dspy_integration_findings.md`
 
+**Note**: Deferred to v0.3 (DSPy optimization phase). Critical for validating architecture choice before implementing DSPy features.
+
 ---
 
-### T-020: Structured Output + DSPy Test - NEW
-**Status**: TODO
+### T-027: Structured Output + DSPy Test (was T-020)
+**Status**: TODO (Deferred to v0.3)
 **Priority**: P1
-**Dependencies**: T-019
+**Dependencies**: T-026
 **Estimated Effort**: 3-4 days
 
 **Description**:
@@ -1158,11 +1486,19 @@ Verify Pydantic structured outputs work with DSPy modules.
 **Files**:
 - `tests/integration/test_dspy_structured_output.py`
 
+**Note**: Deferred to v0.3. Depends on T-026 (DSPy Integration Test).
+
 ---
 
-## Phase 2: Enhancements (v0.2+)
+## Phase 4: Deferred Tasks
 
-These are deferred to later versions:
+These tasks are deferred to v0.2+ to prioritize production-ready features (observability, deployment) for first public release:
+
+### Deferred to v0.2+
+
+- **T-025**: Error Message Improvements (v0.2)
+- **T-026**: DSPy Integration Test (v0.3)
+- **T-027**: Structured Output + DSPy Test (v0.3)
 
 ### Future Tasks (Not in v0.1)
 
@@ -1183,6 +1519,8 @@ These are deferred to later versions:
 ## Task Dependencies
 
 ```
+Phase 1 & 2 (Foundation & Core - COMPLETE):
+
 T-001 (Setup)
   ├─> T-002 (Parser)
   ├─> T-003 (Schema - EXPANDED)
@@ -1211,19 +1549,33 @@ T-013 -> T-017 (Integration Tests)
 
 T-015 -> T-016 (Docs)
 
-T-004, T-013 -> T-018 (Error Messages)
+Phase 3 (Production Readiness - IN PROGRESS):
 
-T-009, T-011 -> T-019 (DSPy Integration Test - NEW)
-T-019 -> T-020 (Structured Output + DSPy - NEW)
+Observability (Sequential):
+T-001 (Setup) -> T-018 (MLFlow Foundation)
+T-018, T-013 -> T-019 (MLFlow Instrumentation)
+T-019 -> T-020 (Cost Tracking)
+T-020 -> T-021 (Observability Docs)
+
+Docker Deployment (Sequential):
+T-013, T-021 -> T-022 (Artifact Generator)
+T-022 -> T-023 (FastAPI Server)
+T-023 -> T-024 (CLI Deploy + Streamlit)
+
+Phase 4 (Deferred):
+
+T-004, T-013 -> T-025 (Error Messages) [v0.2]
+T-009, T-011 -> T-026 (DSPy Integration Test) [v0.3]
+T-026 -> T-027 (Structured Output + DSPy) [v0.3]
 ```
 
 ---
 
 ## Progress Tracker
 
-**Last Updated**: 2026-01-28
+**Last Updated**: 2026-01-30
 
-### v0.1 Progress: 17/20 tasks complete (85%)
+### v0.1 Progress: 18/27 tasks complete (67%)
 
 **Phase 1: Foundation (8/8 complete) ✅ COMPLETE**
 - ✅ T-001: Project Setup
@@ -1243,18 +1595,32 @@ T-019 -> T-020 (Structured Output + DSPy - NEW)
 - ✅ T-012: Graph Builder
 - ✅ T-013: Runtime Executor
 
-**Phase 3: Polish & UX (2/5 complete)**
+**Phase 3: Production Readiness (4/11 complete)**
+
+*Polish (4/4 complete) ✅*
 - ✅ T-014: CLI Interface
 - ✅ T-015: Example Configs
-- ⏳ T-016: Documentation
-- ⏳ T-017: Integration Tests
-- ⏳ T-018: Error Message Improvements
+- ✅ T-016: Documentation
+- ✅ T-017: Integration Tests
 
-**Phase 4: DSPy Verification (0/2 complete)**
-- ⏳ T-019: DSPy Integration Test
-- ⏳ T-020: Structured Output + DSPy Test
+*Observability (0/4 complete)*
+- ⏳ T-018: MLFlow Integration Foundation
+- ⏳ T-019: MLFlow Instrumentation (Runtime & Nodes)
+- ⏳ T-020: Cost Tracking & Reporting
+- ⏳ T-021: Observability Documentation
 
-**Current Sprint**: Phase 3 - Polish & UX (3/5 complete) - T-017 ✅ DONE
+*Docker Deployment (0/3 complete)*
+- ⏳ T-022: Docker Artifact Generator & Templates
+- ⏳ T-023: FastAPI Server with Sync/Async
+- ⏳ T-024: CLI Deploy Command & Streamlit Integration
+
+**Phase 4: Deferred Tasks (0/3 complete)**
+- ⏳ T-025: Error Message Improvements (was T-018) - Deferred to v0.2
+- ⏳ T-026: DSPy Integration Test (was T-019) - Deferred to v0.3
+- ⏳ T-027: Structured Output + DSPy Test (was T-020) - Deferred to v0.3
+
+**Current Sprint**: Phase 3 - Production Readiness (4/11 complete)
+**Next Up**: T-018 (MLFlow Integration Foundation)
 **Test Status**: 468 tests passing (19 integration + 449 unit tests)
 **Integration Tests**: 19 comprehensive tests (6 workflow + 13 error scenarios) in tests/integration/ marked with @pytest.mark.integration
 
@@ -1262,25 +1628,33 @@ T-019 -> T-020 (Structured Output + DSPy - NEW)
 
 ## Work Estimates
 
-**Total tasks in v0.1**: 20 tasks (was 18, added T-019, T-020)
+**Total tasks in v0.1**: 24 tasks (23 for release + 1 auxiliary Streamlit UI)
+**Deferred to v0.2+**: 3 tasks (T-025, T-026, T-027)
 
 **Estimated timeline**:
-- Foundation (T-001 to T-007): 3-4 weeks (expanded scope)
-- Core execution (T-008 to T-013): 3-4 weeks
-- Polish (T-014 to T-018): 1.5 weeks
-- DSPy verification (T-019, T-020): 1.5 weeks
+- ✅ Phase 1: Foundation (T-001 to T-007): 3-4 weeks (COMPLETE)
+- ✅ Phase 2: Core execution (T-008 to T-013): 3-4 weeks (COMPLETE)
+- ✅ Phase 3 Polish (T-014 to T-017): 1 week (COMPLETE)
+- ⏳ Phase 3 Observability (T-018 to T-021): 9 days (~2 weeks)
+  - T-018: MLFlow Foundation (2 days)
+  - T-019: MLFlow Instrumentation (3 days)
+  - T-020: Cost Tracking (2 days)
+  - T-021: Observability Docs (2 days)
+- ⏳ Phase 3 Docker (T-022 to T-024): 8 days (~1.5 weeks)
+  - T-022: Artifact Generator (2 days)
+  - T-023: FastAPI Server (3 days)
+  - T-024: CLI Deploy + Streamlit (3 days)
 
-**Total for v0.1**: **6-8 weeks** with comprehensive testing
+**Total for v0.1**: **8-10 weeks** (6 weeks done + 3.5 weeks remaining)
 
-**Previous estimate**: 4-6 weeks (before Full Schema Day One)
+**Phase 3 Remaining**: 17 days (~3.5 weeks) for production readiness
 
-**Additional time breakdown**:
-- Full schema Pydantic models: +1 week (T-003 expanded)
-- Extended validation: +1 week (T-004 expanded)
-- Feature gating: +2-3 days (T-004.5 new)
-- DSPy verification: +1.5 weeks (T-019, T-020 new)
+**Deferred timeline**:
+- T-025 (Error Messages): v0.2 (1 week)
+- T-026 (DSPy Integration): v0.3 (1 week)
+- T-027 (DSPy + Structured Output): v0.3 (3-4 days)
 
-**Trade-off**: Worth it - better foundation, no breaking changes, future-proof.
+**Trade-off**: Prioritize production-ready features (observability, deployment) for first public release over polish and DSPy verification.
 
 ---
 
@@ -1288,8 +1662,11 @@ T-019 -> T-020 (Structured Output + DSPy - NEW)
 
 - Each task should be a standalone git commit
 - All tasks require tests before being marked DONE
-- Integration tests (T-017) must pass before v0.1 release
-- DSPy tests (T-019, T-020) are critical for validating architecture choice
-- Error messages (T-018) can be iterative improvement
-- Documentation (T-016) is critical for v0.1 release
+- Integration tests (T-017) must pass before v0.1 release ✅ DONE
+- Documentation (T-016) is critical for v0.1 release ✅ DONE
+- Observability (T-018 to T-021) is production-essential for first public release
+- Docker deployment (T-022 to T-024) enables production usage
+- Error messages (T-025) deferred to v0.2 - iterative improvement
+- DSPy tests (T-026, T-027) deferred to v0.3 - validates architecture choice before DSPy features
 - Full Schema Day One (ADR-009) adds upfront complexity but prevents breaking changes
+- v0.1 scope expanded from 20 to 24 tasks to include observability and deployment
