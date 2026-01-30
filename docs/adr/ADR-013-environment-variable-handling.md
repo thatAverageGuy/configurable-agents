@@ -642,6 +642,43 @@ None (first secrets management decision)
 
 ---
 
+## Implementation Planning
+
+**Status**: ⏳ Planned for v0.1 (not yet implemented)
+**Related Tasks**: T-024 (CLI Deploy Command & Streamlit Integration)
+**Target Date**: February 2026
+**Estimated Effort**: Included in T-024 (2 days)
+
+### Implementation Details
+
+**CLI Interface** (part of T-024):
+- `--env-file` flag for deploy command
+- Auto-detect `.env` if exists
+- Inject into container via `docker run --env-file`
+- Never bake into image layers
+
+**Streamlit UI** (part of T-024):
+- File upload widget for .env files
+- Textarea for pasting key=value pairs
+- Preview with masked values
+- Same security: runtime injection only
+
+### Current State
+
+**Completed**:
+- ✅ Dual interface approach decided (this ADR)
+- ✅ Security strategy defined (runtime injection, never baked)
+- ✅ Integration with deployment flow designed
+
+**Not Started**:
+- ⏳ CLI --env-file implementation
+- ⏳ Streamlit upload/paste UI
+- ⏳ Runtime injection logic
+
+**Next Steps**: Implemented as part of T-024 (after T-022, T-023)
+
+---
+
 ## Related Decisions
 
 - **ADR-012**: Docker deployment architecture (env var injection)

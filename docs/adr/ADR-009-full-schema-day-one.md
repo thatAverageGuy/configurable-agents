@@ -279,7 +279,7 @@ def validate_runtime_support(config: WorkflowConfig) -> None:
             raise UnsupportedFeatureError(
                 f"Conditional routing not supported in v0.1.\n"
                 f"Found in edge from '{edge.from_node}'.\n\n"
-                f"Coming in v0.2 (8 weeks). See docs/ROADMAP.md\n\n"
+                f"Coming in v0.2 (8 weeks). See docs/../TASKS.md\n\n"
                 f"To run in v0.1, replace with linear edge:\n"
                 f"  - from: {edge.from_node}\n"
                 f"    to: END"
@@ -418,7 +418,7 @@ ENABLE_CONDITIONALS=true python -m configurable_agents run workflow.yaml
    ```
    Error: Conditional routing not supported yet.
    Coming in v0.2 (8 weeks).
-   See: docs/ROADMAP.md
+   See: docs/../TASKS.md
    ```
 
 5. **Future-Proof**
@@ -480,7 +480,7 @@ nodes:
   ```
   Error: Conditional routing not supported in v0.1
   Coming in v0.2 (8 weeks)
-  See: docs/ROADMAP.md for details
+  See: docs/../TASKS.md for details
   ```
 - **Documentation** marks each field with version availability
 - **Warnings** for ignored features (optimization in v0.1)
@@ -633,6 +633,122 @@ The "Full Schema Day One" philosophy prioritizes:
 **Key insight**: Schema is user-facing API. Like REST APIs, it's worth designing carefully upfront to avoid breaking changes.
 
 **Analogy**: We're building the "HTTP spec" (schema) before building the "web server" (runtime). The spec is stable; servers evolve.
+
+---
+
+## Implementation Details
+
+**Status**: ✅ Implemented in v0.1
+**Related Tasks**: T-003 (Config Schema), T-004.5 (Feature Gating)
+**Date Implemented**: 2026-01-24 to 2026-01-26
+
+### T-003: Full Schema v1.0 Implementation
+
+**File**: `src/configurable_agents/config/schema.py` (850 lines)
+
+**Complete Schema Supports v0.1-v0.3 Features**:
+
+**v0.1 Features** (implemented):
+- Linear flows (`edges: [{from, to}]`)
+- Simple outputs (`output_schema: {type: str}`)
+- Object outputs (`output_schema: {type: object, fields: [...]}`)
+- Basic state (`state: {fields: [...]}`)
+- Global config (`config: {llm, execution}`)
+
+**v0.2 Features** (schema ready, gated by validator):
+- Conditional routing (`edges: [{from, routes: [...]}]`)
+- Loops (backward edges detected and blocked)
+- Multi-LLM support (`llm: {provider: openai|anthropic|...}`)
+
+**v0.3 Features** (schema ready, soft warnings):
+- DSPy optimization (`optimization: {enabled, strategy}`)
+- Parallel execution (`execution: {mode: parallel}`)
+- Advanced observability (`observability: {mlflow, otel}`)
+
+**Schema Models Created**:
+```python
+# All 13 models support future features
+WorkflowConfig        # Top level
+FlowMetadata         # Workflow metadata
+StateSchema          # State definition
+StateFieldConfig     # State field with type
+NodeConfig           # Node definition
+OutputSchema         # Output schema
+OutputSchemaField    # Output field
+LLMConfig            # LLM configuration
+EdgeConfig           # Edge definition
+Route                # Conditional route (v0.2+)
+RouteCondition       # Route condition (v0.2+)
+OptimizationConfig   # DSPy config (v0.3+)
+GlobalConfig         # Global settings
+```
+
+---
+
+### T-004.5: Feature Gating Implementation
+
+**File**: `src/configurable_agents/runtime/feature_gate.py` (180 lines)
+
+**Enables Future Features in Schema Without Breaking v0.1**:
+
+```python
+def gate_features(config: WorkflowConfig) -> None:
+    """Block unsupported features, warn on future features"""
+
+    # Hard blocks (v0.2+ not implemented)
+    if _has_conditional_routing(config):
+        raise FeatureNotAvailableError(
+            "Conditional routing requires v0.2+. "
+            "Use simple 'from → to' edges in v0.1."
+        )
+
+    if _has_loops(config):
+        raise FeatureNotAvailableError(
+            "Loops require v0.2+. "
+            "All edges must flow forward in v0.1."
+        )
+
+    # Soft warnings (v0.3+ planned)
+    if config.optimization and config.optimization.enabled:
+        warnings.warn(
+            "DSPy optimization is planned for v0.3. "
+            "Config accepted but optimization will be ignored.",
+            FutureWarning
+        )
+```
+
+**Benefits Realized**:
+1. **No Breaking Changes**: Users write v0.2 configs, get helpful errors
+2. **Future-Proof**: Same schema from v0.1 → v0.4
+3. **Progressive Enhancement**: Turn on features by removing gates
+4. **Clear Migration**: Users know exactly what's supported when
+
+**Test Coverage**: 19 feature gating tests (hard blocks, soft warnings, version queries)
+
+---
+
+### Production Validation
+
+**Example: v0.2 Config in v0.1 Runtime**:
+```yaml
+# User writes this in v0.1
+edges:
+  - from: review
+    routes:  # v0.2 feature
+      - condition: "{state.score} >= 7"
+        to: END
+      - condition: "{state.score} < 7"
+        to: write
+
+# Runtime response:
+FeatureNotAvailableError:
+  Conditional routing (routes) requires v0.2+.
+  Current version: v0.1.
+  Please use simple 'from → to' edges.
+  See: docs/../TASKS.md for v0.2 timeline.
+```
+
+**Result**: User gets clear guidance, not cryptic errors.
 
 ---
 

@@ -107,103 +107,86 @@ curl -X POST http://localhost:8000/run \
 
 ---
 
-## 🗺️ Roadmap
+## 🗺️ Roadmap & Status
 
-### v0.1 - Production Ready ⏳ (Current - Week 7 of 8-10)
-**Status**: 67% complete (18/27 tasks) | **Target**: March 2026
+| Version | Status | Target | Theme | Focus |
+|---------|--------|--------|-------|-------|
+| **v0.1** | 🔄 67% (18/27) | March 2026 | Production Ready | Linear flows + Observability + Docker |
+| **v0.2** | 📋 Planned | Q2 2026 | Intelligence | Conditionals, loops, multi-LLM |
+| **v0.3** | 🔮 Future | Q3 2026 | Optimization | DSPy, parallel execution |
+| **v0.4** | 🌟 Vision | Q4 2026 | Ecosystem | Visual tools, cloud deploy |
 
-**Phase 1 COMPLETE** ✅ (8/8):
-- ✅ T-001: Project setup and structure
-- ✅ T-002: Config parser (YAML + JSON support)
-- ✅ T-003: Config schema (Pydantic models - Full Schema v1.0)
-- ✅ T-004: Config validator (comprehensive validation with helpful errors)
-- ✅ T-004.5: Runtime feature gating (version checks, hard/soft blocks)
-- ✅ T-005: Type system (complete - parse, validate, convert type strings)
-- ✅ T-006: State schema builder (dynamic Pydantic models from config)
-- ✅ T-007: Output schema builder (type-enforced LLM outputs)
-
-**Phase 2 COMPLETE** ✅ (6/6):
-- ✅ T-008: Tool registry (web search - serper_search)
-- ✅ T-009: LLM provider (Google Gemini with structured outputs)
-- ✅ T-010: Prompt template resolver (variable substitution)
-- ✅ T-011: Node executor (LLM + tools integration)
-- ✅ T-012: Graph builder (LangGraph integration)
-- ✅ T-013: Runtime executor (end-to-end orchestration)
-
-**Phase 3: Polish** ✅ (4/4):
-- ✅ T-014: CLI interface (run, validate commands)
-- ✅ T-015: Example configs (echo, article writer, nested state, type enforcement)
-- ✅ T-016: Documentation (QUICKSTART, CONFIG_REFERENCE, ROADMAP, TROUBLESHOOTING)
-- ✅ T-017: Integration tests (19 comprehensive tests with real APIs)
-
-**Phase 3: Observability** ⏳ (0/4):
-- ⏳ T-018: MLFlow Integration Foundation
-- ⏳ T-019: MLFlow Instrumentation (Runtime & Nodes)
-- ⏳ T-020: Cost Tracking & Reporting
-- ⏳ T-021: Observability Documentation
-
-**Phase 3: Docker Deployment** ⏳ (0/3):
-- ⏳ T-022: Docker Artifact Generator & Templates
-- ⏳ T-023: FastAPI Server with Sync/Async
-- ⏳ T-024: CLI Deploy Command & Streamlit Integration
-
-**Deferred to v0.2+**:
-- T-025: Error message improvements (was T-018)
-- T-026: DSPy integration test (was T-019)
-- T-027: Structured output + DSPy test (was T-020)
-
-**Test Coverage**: 468 tests passing (19 integration tests + 449 unit tests)
-
-**🎉 Working Now**:
-- ✅ Execute workflows from YAML/JSON files
-- ✅ Sequential node execution
-- ✅ Structured outputs (Pydantic)
-- ✅ Tool calling (Serper web search)
-- ✅ Parse-time validation (fail fast, save money)
-- ✅ Google Gemini support
-- ✅ End-to-end execution pipeline
-- ✅ **Command-line interface** (NEW!)
-
-**Usage** (CLI):
-```bash
-# Run a workflow
-configurable-agents run workflow.yaml --input topic="AI Safety"
-
-# Validate a config
-configurable-agents validate workflow.yaml
-
-# Verbose mode
-configurable-agents run workflow.yaml --input name="Alice" --verbose
-
-# Optional: Web UI (auxiliary)
-streamlit run streamlit_app.py
-```
-
-**Usage** (Python API):
-```python
-from configurable_agents.runtime import run_workflow
-
-result = run_workflow("workflow.yaml", {"topic": "AI Safety"})
-print(result["article"])
-```
-
-**Limitations**:
-- Linear flows only (no conditionals)
-- In-memory state (no persistence)
-- Single LLM provider (Gemini)
+**📋 Detailed Progress**: See [TASKS.md](docs/TASKS.md) for complete task breakdown
 
 ---
 
-### v0.2 - Intelligence 🔮 (+8-12 weeks)
-**Advanced Control Flow**
+### v0.1 - Production Ready (Current)
 
-- ✨ Conditional routing (if/else)
-- 🔁 Loops and retry logic
-- 🌐 Multi-LLM support (OpenAI, Anthropic, Ollama)
-- 💾 State persistence and resume
-- 🧩 Config composition (import/extend)
+**Status**: 67% complete (18/27 tasks) | **Target**: March 2026
 
-**Example**:
+#### ✅ Working Now
+
+```bash
+# Install and run
+pip install -e .
+configurable-agents run workflow.yaml --input topic="AI Safety"
+
+# Validate before running
+configurable-agents validate workflow.yaml
+
+# Python API
+from configurable_agents.runtime import run_workflow
+result = run_workflow("workflow.yaml", {"topic": "AI"})
+```
+
+**Core Features**:
+- ✅ Config-driven workflows (YAML/JSON)
+- ✅ Linear node execution (sequential)
+- ✅ Structured LLM outputs (Pydantic validation)
+- ✅ Tool integration (Serper web search)
+- ✅ Parse-time validation (fail fast, save money)
+- ✅ CLI interface (run, validate, verbose)
+- ✅ 468 tests (19 integration + 449 unit)
+- ✅ Google Gemini integration
+
+#### ⏳ In Progress (Completing v0.1)
+
+**Observability** (T-018 to T-021):
+```bash
+# MLFlow tracking (coming soon)
+configurable-agents run workflow.yaml --input topic="AI"
+mlflow ui  # View costs, traces, prompts at http://localhost:5000
+```
+
+**Docker Deployment** (T-022 to T-024):
+```bash
+# One-command deployment (coming soon)
+configurable-agents deploy workflow.yaml
+# → API: http://localhost:8000
+# → MLFlow UI: http://localhost:5000
+```
+
+#### Current Limitations (v0.1)
+
+- Linear flows only (no if/else, loops)
+- Single LLM provider (Gemini)
+- In-memory state (no persistence)
+
+---
+
+### v0.2 - Intelligence 🔮
+
+**Target**: Q2 2026 (+8-12 weeks) | **Theme**: Advanced Control Flow
+
+**Key Features**:
+- Conditional routing (if/else based on state)
+- Loops and retry logic
+- Multi-LLM support (OpenAI, Anthropic, Ollama)
+- State persistence and workflow resume
+- Config composition (import/extend)
+- Enhanced error messages
+
+**Example - Conditional Routing**:
 ```yaml
 edges:
   - from: review
@@ -216,16 +199,18 @@ edges:
 
 ---
 
-### v0.3 - Optimization 🎯 (+12-16 weeks)
-**DSPy-Powered Prompt Optimization**
+### v0.3 - Optimization 🎯
 
-- 🔬 Automatic prompt optimization
-- 📊 Quality metrics and evaluation
-- ⚡ Parallel node execution
-- 🤖 AI config generator (chatbot)
-- 📦 Config marketplace
+**Target**: Q3 2026 (+12-16 weeks) | **Theme**: DSPy & Performance
 
-**Example**:
+**Key Features**:
+- DSPy prompt optimization (automatic)
+- Quality metrics and evaluation
+- Parallel node execution
+- OpenTelemetry integration
+- AI config generator
+
+**Example - DSPy Optimization**:
 ```yaml
 optimization:
   enabled: true
@@ -235,14 +220,16 @@ optimization:
 
 ---
 
-### v0.4 - Ecosystem 🌍 (+16-24 weeks)
-**Visual Tools & Deployment**
+### v0.4 - Ecosystem 🌍
 
-- 🎨 Visual workflow editor
-- 🚀 One-click deployments
-- 📈 Monitoring and observability
-- 🔌 Plugin system
-- 🌐 SaaS offering
+**Target**: Q4 2026 (+16-24 weeks) | **Theme**: Tools & Scale
+
+**Key Features**:
+- Visual workflow editor
+- One-click cloud deployments
+- Prometheus + Grafana monitoring
+- Plugin system
+- Config marketplace
 
 ---
 
@@ -397,19 +384,29 @@ Full task breakdown: [docs/TASKS.md](docs/TASKS.md)
   - Dependencies and estimates
   - Current progress tracker (18/27 complete)
 
-- **[DISCUSSION.md](docs/DISCUSSION.md)** - Project status (living document)
-  - *Current state and recent changes*
+- **[CONTEXT.md](docs/CONTEXT.md)** - Development context (living document)
+  - *Current state, next action, and development standards*
   - What works now vs. in progress
-  - Known issues and blockers
-  - Updated weekly
+  - Quick reference for LLM sessions
+  - Updated after each task completion
 
 ### Architecture Decisions
 
 - **[Architecture Decision Records](docs/adr/)** - Design decisions and rationale
   - *Why we made specific choices*
-  - 14 ADRs covering all major decisions
+  - 16 ADRs covering all major decisions
   - Immutable history (append-only)
   - Alternatives considered with tradeoffs
+  - Implementation details for completed decisions
+
+### Implementation Logs
+
+- **[Implementation Logs](docs/implementation_logs/)** - Detailed task implementation records
+  - *How each task was implemented*
+  - 18 comprehensive logs (150-500 lines each)
+  - Organized by development phase
+  - Code examples, verification steps, design decisions
+  - Complete technical context for each task
 
 ### User Guides
 
@@ -424,12 +421,6 @@ Full task breakdown: [docs/TASKS.md](docs/TASKS.md)
   - All fields explained with examples
   - State, nodes, edges, global config
   - Python API reference
-
-- **[ROADMAP.md](docs/ROADMAP.md)** - Version features and timeline
-  - *What's available when*
-  - v0.1 → v0.4 feature matrix
-  - Release timeline and criteria
-  - Migration guides
 
 - **[TROUBLESHOOTING.md](docs/TROUBLESHOOTING.md)** - Common issues and solutions
   - *Fix problems quickly*
