@@ -709,6 +709,81 @@ Advanced features (custom tools, tool composition) can come later once we unders
 
 ---
 
+## Implementation Details
+
+**Status**: ✅ Implemented in v0.1
+**Related Tasks**: T-008 (Tool Registry)
+**Date Implemented**: 2026-01-26
+
+### T-008: Tool Registry Implementation
+
+**File**: `src/configurable_agents/tools/registry.py` (180 lines)
+
+**Factory-Based Lazy Loading**:
+```python
+class ToolRegistry:
+    def __init__(self):
+        self._factories = {
+            "serper_search": self._create_serper_tool,
+            # Future tools added here
+        }
+        self._instances = {}  # Cache
+
+    def get_tool(self, name: str) -> BaseTool:
+        """Get tool by name (lazy instantiation)"""
+        if name not in self._factories:
+            raise ToolNotFoundError(...)
+
+        if name not in self._instances:
+            self._instances[name] = self._factories[name]()
+
+        return self._instances[name]
+```
+
+**Global Registry (Convenience)**:
+```python
+# User-facing API
+from configurable_agents.tools import get_tool, list_tools
+
+search = get_tool("serper_search")
+results = search.run("Python programming")
+```
+
+**Tool Implementation** (Serper):
+```python
+# tools/serper.py
+class SerperSearchTool(BaseTool):
+    name = "serper_search"
+    description = "Search the web using Google via Serper API"
+
+    def _run(self, query: str) -> str:
+        api_key = os.getenv("SERPER_API_KEY")
+        if not api_key:
+            raise ValueError("SERPER_API_KEY not set")
+
+        # Call Serper API
+        response = requests.post(
+            "https://google.serper.dev/search",
+            headers={"X-API-KEY": api_key},
+            json={"q": query}
+        )
+        return response.json()
+```
+
+**Error Handling**:
+- Missing API key → clear error message
+- Tool not found → suggestions for similar names
+- API failures → wrapped with context
+
+**Test Coverage**: 37 tests (22 registry + 15 serper)
+
+**Production Validation** (T-017):
+- article_writer.yaml uses serper_search successfully
+- Real API integration tested
+- Error scenarios validated (missing key, API timeout)
+
+---
+
 ## Superseded By
 
 None (current)

@@ -392,6 +392,21 @@ If export is never implemented, no harm done (just cleaner architecture). If nee
 
 ---
 
+## Implementation Status
+
+**Status**: ⏸️ Deferred to v0.5+
+**Related Tasks**: None (future vision)
+**Current State**: Architecture designed to enable future export, but not implemented
+
+**Design Decisions Made** (supporting future export):
+- Config-driven architecture (ADR-003) - No Python code in configs
+- Pydantic schemas (ADR-002) - Portable type definitions
+- LangGraph (ADR-001) - Well-defined state machine model
+
+**No Work Planned for v0.1-v0.4**: Focus on Python runtime first.
+
+---
+
 ## Superseded By
 
 None (current)

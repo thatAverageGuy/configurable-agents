@@ -434,7 +434,7 @@ Error in workflow.yaml:15
   v0.1 supports linear flows only.
 
   For retry logic, see: docs/workarounds/retry.md
-  Or wait for v0.2 (with loop support): docs/ROADMAP.md
+  Or wait for v0.2 (with loop support): docs/../TASKS.md
 
   To fix temporarily, unroll the loop:
     write_attempt_1 → review_1 → write_attempt_2 → review_2 → END
@@ -613,13 +613,13 @@ edges:
 - Parallel execution
 
 **Coming in v0.2+:**
-See [ROADMAP.md](ROADMAP.md) for timeline.
+See [../TASKS.md](../TASKS.md) for timeline.
 
 **Workarounds:**
 See [docs/workarounds/](docs/workarounds/) for v0.1 patterns.
 ```
 
-### ROADMAP.md
+### ../TASKS.md
 
 ```markdown
 ## Roadmap
@@ -674,6 +674,20 @@ Linear flows cover the majority of use cases and validate the core architecture.
 **Quote**: "Perfection is achieved not when there is nothing more to add, but when there is nothing left to take away." - Antoine de Saint-Exupéry
 
 v0.1 is the minimum viable product. v0.2+ adds back complexity where needed.
+
+---
+
+## Implementation Status
+
+**Status**: 2705 Implemented in v0.1
+**Related Tasks**: T-009 (LLM Provider), T-012 (Graph Builder), T-013 (Runtime Executor)
+**Enforcement**: Feature gating (T-004.5) blocks unsupported features
+**Date Implemented**: 2026-01-26 to 2026-01-27
+
+This design constraint is enforced by:
+1. Config validator - Rejects unsupported features at parse time
+2. Feature gating - Hard blocks for v0.2+ features
+3. Limited implementation - Only v0.1 features implemented
 
 ---
 

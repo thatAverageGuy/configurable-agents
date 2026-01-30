@@ -566,6 +566,318 @@ Without config-as-code, we're just another Python library.
 
 ---
 
+## Implementation Details
+
+**Status**: ✅ Implemented in v0.1
+**Related Tasks**: T-002 (Config Parser), T-003 (Config Schema), T-004 (Config Validator), T-004.5 (Feature Gating), T-010 (Prompt Template)
+**Date Implemented**: 2026-01-24 to 2026-01-26
+
+### T-002: Config Parser Implementation
+
+**File**: `src/configurable_agents/config/parser.py` (120 lines)
+
+**Auto-Format Detection**:
+```python
+def load_config(path: str) -> dict:
+    """Load YAML or JSON config (auto-detect from extension)"""
+    if path.endswith(('.yaml', '.yml')):
+        return _parse_yaml(path)
+    elif path.endswith('.json'):
+        return _parse_json(path)
+    else:
+        raise ConfigParserError(f"Unknown format: {path}")
+```
+
+**Error Handling**:
+- Syntax errors → helpful messages with line numbers
+- File not found → clear path reference
+- Invalid format → format detection hints
+
+**Test Coverage**: 18 tests (YAML, JSON, errors)
+
+---
+
+### T-003: Config Schema Implementation
+
+**File**: `src/configurable_agents/config/schema.py` (850 lines, 13 Pydantic models)
+
+**Complete Schema Hierarchy**:
+```python
+class WorkflowConfig(BaseModel):
+    schema_version: str = "1.0"
+    flow: FlowMetadata
+    state: StateSchema
+    nodes: List[NodeConfig]
+    edges: List[EdgeConfig]
+    optimization: Optional[OptimizationConfig] = None
+    config: Optional[GlobalConfig] = None
+```
+
+**Full Schema v1.0 (ADR-009)**:
+- Supports v0.1 features (linear flows)
+- Supports v0.2 features (conditionals, loops) - gated by validator
+- Supports v0.3 features (DSPy, parallel execution) - gated by validator
+- No breaking changes needed for future versions
+
+**Pydantic Validation Benefits**:
+- Type checking at parse time
+- Required field enforcement
+- Default values
+- Custom validators for cross-field checks
+
+**Test Coverage**: 67 schema tests + 5 integration tests
+
+---
+
+### T-004: Config Validator Implementation
+
+**File**: `src/configurable_agents/config/validator.py` (480 lines)
+
+**8-Stage Validation Pipeline**:
+
+```python
+def validate_config(config: WorkflowConfig) -> None:
+    """Comprehensive validation beyond Pydantic"""
+
+    # Stage 1: Edge references
+    _validate_edge_references(config)  # Nodes exist
+
+    # Stage 2: Node outputs
+    _validate_node_outputs(config)  # State fields exist
+
+    # Stage 3: Output schema alignment
+    _validate_output_schema_alignment(config)  # Schema ↔ outputs match
+
+    # Stage 4: Type alignment
+    _validate_type_alignment(config)  # Output types ↔ state types
+
+    # Stage 5: Prompt placeholders
+    _validate_prompt_placeholders(config)  # Valid {state.X} refs
+
+    # Stage 6: State types
+    _validate_state_types(config)  # Type strings valid
+
+    # Stage 7: Linear flow (v0.1 constraint)
+    _validate_linear_flow(config)  # No conditionals/loops
+
+    # Stage 8: Graph structure
+    _validate_graph_structure(config)  # Connected, reachable
+```
+
+**Helpful Error Messages with Suggestions**:
+```python
+# Typo detection with "Did you mean?"
+ValidationError: Node 'write' references unknown state field 'artcile'
+  Available fields: topic, article, research
+  Did you mean 'article'?
+
+# Missing connections
+ValidationError: Node 'review' is not reachable from START
+  Check edges to ensure all nodes are connected
+```
+
+**Edit Distance Algorithm**:
+- Levenshtein distance ≤ 2 for suggestions
+- Helps catch common typos
+- Works for node IDs, state fields, placeholders
+
+**Test Coverage**: 29 comprehensive validator tests
+
+---
+
+### T-004.5: Runtime Feature Gating Implementation
+
+**File**: `src/configurable_agents/runtime/feature_gate.py` (180 lines)
+
+**Feature Gating Strategy**:
+
+**Hard Blocks** (v0.2+ features not implemented):
+```python
+# Conditional routing
+if config.edges and any(edge.routes for edge in config.edges):
+    raise FeatureNotAvailableError(
+        "Conditional routing (routes) requires v0.2+. "
+        "Current version: v0.1. Please use simple edges."
+    )
+
+# Loops (edge to earlier node)
+if _has_backwards_edge(config):
+    raise FeatureNotAvailableError(
+        "Loops require v0.2+. All edges must flow forward in v0.1."
+    )
+```
+
+**Soft Warnings** (v0.2+ features partially implemented):
+```python
+# DSPy optimization
+if config.optimization and config.optimization.enabled:
+    warnings.warn(
+        "DSPy optimization is planned for v0.3. "
+        "Config will be accepted but optimization ignored.",
+        FutureWarning
+    )
+
+# MLFlow observability (v0.1 in progress)
+if config.config.observability.mlflow.enabled:
+    # Allow in v0.1 (implementation in progress T-018-021)
+    pass
+```
+
+**Version Support Query**:
+```python
+from configurable_agents.runtime import is_feature_supported
+
+is_feature_supported("conditional_routing")  # False in v0.1
+is_feature_supported("linear_flows")  # True in v0.1
+is_feature_supported("mlflow_observability")  # True in v0.1
+```
+
+**Test Coverage**: 19 feature gating tests
+
+---
+
+### T-010: Prompt Template Resolver Implementation
+
+**File**: `src/configurable_agents/core/template.py` (250 lines)
+
+**Variable Resolution with Precedence**:
+```python
+def resolve_prompt(
+    prompt_template: str,
+    inputs: dict,
+    state: BaseModel
+) -> str:
+    """Resolve {variable} placeholders with input priority"""
+
+    # 1. Extract variables from template
+    variables = _extract_variables(prompt_template)
+    # Example: "Hello {name}, topic: {topic}" → ["name", "topic"]
+
+    # 2. Build resolution context (inputs override state)
+    context = {}
+    for var in variables:
+        if var in inputs:
+            context[var] = inputs[var]  # Input takes priority
+        elif hasattr(state, var):
+            context[var] = getattr(state, var)  # State fallback
+        else:
+            # Variable not found - raise with suggestions
+            raise TemplateResolutionError(...)
+
+    # 3. Replace variables with string formatting
+    return prompt_template.format(**context)
+```
+
+**Nested State Access**:
+```python
+# Supports dot notation: {metadata.author}
+def _resolve_nested(var_path: str, state: BaseModel) -> Any:
+    """Resolve 'metadata.author' from state.metadata.author"""
+    parts = var_path.split('.')
+    value = state
+    for part in parts:
+        value = getattr(value, part)
+    return value
+
+# Works with deeply nested: {a.b.c.d}
+```
+
+**Type Conversion**:
+- int, float, bool → str automatically
+- Objects → str representation
+- Lists → str representation (for debugging)
+
+**Error Handling with Suggestions**:
+```python
+TemplateResolutionError:
+  Variable 'topik' not found in prompt template.
+
+  Available from inputs: name, task
+  Available from state: topic, research, article
+
+  Did you mean 'topic'?
+```
+
+**Test Coverage**: 44 template resolution tests (including nested access, typos, type conversion)
+
+---
+
+### Config-Driven Philosophy in Practice
+
+**Single Source of Truth**:
+```yaml
+# Everything needed to run workflow in one file
+schema_version: "1.0"
+flow: { name: article_writer }
+state: { fields: [...] }
+nodes: [...]
+edges: [...]
+config:
+  llm: { model: gemini-2.0-flash-exp }
+  observability: { mlflow: { enabled: true } }
+```
+
+**No Hidden Behavior**:
+- Explicit state fields (no auto-generation)
+- Explicit edges (no automatic routing)
+- Explicit output schemas (no unstructured outputs)
+- Explicit tool references (no auto-discovery)
+
+**Version Control Friendly**:
+- YAML diffs show workflow changes clearly
+- Comments allowed for documentation
+- Anchors/aliases for DRY (future enhancement)
+
+**Shareable**:
+- Config + `.env` file = runnable workflow
+- No code dependencies
+- Platform-independent (YAML is universal)
+
+---
+
+## Implementation Learnings
+
+### What Worked Well
+
+1. **Pydantic Schema Validation**
+   - Catches ~70% of errors at parse time
+   - Clear error messages with field paths
+   - Type coercion helps users (e.g., `"1.0"` → `1.0`)
+
+2. **Two-Stage Validation (Pydantic + Custom)**
+   - Pydantic: Structure and types
+   - Custom validator: Cross-references and business logic
+   - Separation of concerns
+
+3. **YAML as Primary Format**
+   - Human-readable
+   - Commentable
+   - Git-friendly diffs
+   - Users prefer it over JSON
+
+4. **Feature Gating**
+   - Allows full schema from day one
+   - Users can see future features
+   - Clear migration path to v0.2+
+
+### Known Limitations (v0.1)
+
+1. **No Config Composition**
+   - Can't import/extend other configs
+   - Planned for v0.2 (`config.extends`)
+
+2. **Limited Prompt Template Syntax**
+   - Only `{variable}` placeholders
+   - No filters, functions, or logic
+   - Planned: Jinja2-lite in v0.3
+
+3. **Linear Flow Only**
+   - No conditionals, loops, parallel branches
+   - Enforced by validator in v0.1
+   - Planned for v0.2
+
+---
+
 ## Superseded By
 
 None (current)

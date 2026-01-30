@@ -558,6 +558,48 @@ None (first multi-tier observability decision)
 
 ---
 
+## Implementation Planning
+
+**Status**: 🎯 Strategic Vision (incremental rollout)
+**Related Tasks**: T-018-021 (MLFlow/Tier 1), Future tasks (OTEL/Tier 2, Prometheus/Tier 3)
+**Timeline**: v0.1 (MLFlow), v0.2 (OTEL), v0.3 (Prometheus)
+
+### Rollout Plan
+
+**v0.1 - Tier 1: MLFlow** (T-018-021):
+- LLM-specific observability
+- Cost tracking and prompt inspection
+- Local-first with enterprise hooks
+- Target: February 2026
+
+**v0.2 - Tier 2: OpenTelemetry** (Future tasks):
+- Distributed tracing across services
+- Standard telemetry format
+- Integration with APM tools
+- Target: Q2 2026
+
+**v0.3 - Tier 3: Prometheus** (Future tasks):
+- Infrastructure metrics
+- Alerting and dashboards (Grafana)
+- Production monitoring
+- Target: Q3 2026
+
+### Current State
+
+**Completed**:
+- ✅ Three-tier strategy defined (this ADR)
+- ✅ Tier 1 (MLFlow) architecture designed (ADR-011)
+- ✅ Documentation structure created (OBSERVABILITY.md covers all tiers)
+
+**In Progress**:
+- ⏳ Tier 1 implementation (T-018-021)
+
+**Not Started**:
+- ⏳ Tier 2 (OpenTelemetry) design
+- ⏳ Tier 3 (Prometheus) design
+
+---
+
 ## Related Decisions
 
 - **ADR-011**: MLFlow for LLM observability (Tier 1 details)

@@ -1,14 +1,18 @@
 # Architecture Overview
 
-**Status**: Living document (updated as system evolves)
-**Version**: v0.1 design
-**Last Updated**: 2026-01-24
+**Purpose**: High-level system design, patterns, and architecture
+**Audience**: Developers wanting to understand how the system works
+**Last Updated**: 2026-01-31
+
+**For detailed decisions**: See [Architecture Decision Records](adr/)
+**For implementation tasks**: See [TASKS.md](TASKS.md)
+**For version features**: See [README.md](../README.md#roadmap--status)
 
 ---
 
 ## System Overview
 
-The system transforms YAML configuration into executable agent workflows.
+The system transforms YAML configuration into executable agent workflows through a config-driven pipeline.
 
 ```
 ┌──────────────┐
@@ -17,433 +21,636 @@ The system transforms YAML configuration into executable agent workflows.
        │
        ▼
 ┌──────────────────┐
-│ Config Parser    │ ← Parse YAML, validate schema
+│ Config Parser    │ ← Parse YAML/JSON
 └──────┬───────────┘
        │
        ▼
 ┌──────────────────┐
-│ Config Validator │ ← Validate dependencies, types, references
+│ Config Validator │ ← Validate dependencies, types
 └──────┬───────────┘
        │
        ▼
 ┌──────────────────┐
-│ Graph Builder    │ ← Construct LangGraph execution graph
+│ Graph Builder    │ ← Construct LangGraph
 └──────┬───────────┘
        │
        ▼
 ┌──────────────────┐
-│ Runtime Executor │ ← Execute graph with inputs
+│ Runtime Executor │ ← Execute workflow
 └──────┬───────────┘
        │
        ▼
 ┌──────────────────┐
-│ Outputs (JSON)   │
+│ Outputs (dict)   │
 └──────────────────┘
 ```
 
 ---
 
-## Component Architecture (v0.1)
+## Core Architecture Patterns
 
-### 1. Config Parser
-**Responsibility**: Load and parse YAML/JSON into Python dict
+### 1. Config-Driven Pipeline Pattern
 
-**Implementation**:
-- Use `pyyaml` for YAML parsing (.yaml, .yml files)
-- Use built-in `json` for JSON parsing (.json files)
-- Auto-detect format from file extension
-- No validation at this layer (just syntax checking)
-- Return raw dict structure
-- Class-based with convenience function wrappers
+**Pattern**: Config → Validate → Build → Execute
 
-**Architecture**:
+**Why**: Fail-fast validation prevents wasted LLM costs. Catch 95% of errors before execution.
+
+**Implementation**: See [ADR-003](adr/ADR-003-config-driven-architecture.md), [ADR-004](adr/ADR-004-parse-time-validation.md)
+
+**Flow**:
 ```python
-class ConfigLoader:
-    def load_file(self, path: str) -> dict:
-        """Load from YAML or JSON file (auto-detect)"""
-
-    def _parse_file(self, path: str) -> dict:
-        """Parse file to dict based on extension"""
-
-# User-facing convenience function
-def parse_config_file(path: str) -> dict:
-    return ConfigLoader().load_file(path)
+# Config → Pydantic model → Validate → Build → Execute
+config_dict = load_config("workflow.yaml")       # Parse YAML
+config = WorkflowConfig(**config_dict)           # Pydantic validation
+validate_config(config)                          # Business logic validation
+graph = build_graph(config, ...)                 # Construct execution graph
+result = graph.invoke(initial_state)             # Execute
 ```
 
-**Supported Formats**:
-- YAML: `.yaml`, `.yml` (primary format)
-- JSON: `.json` (alternative format, same schema)
-
-**Path Handling**:
-- Absolute paths: `/full/path/to/config.yaml`
-- Relative paths: `./config.yaml` (resolved from cwd)
-
-**Files**:
-- `config/parser.py`
+**Code**: [`runtime/executor.py:25-45`](../src/configurable_agents/runtime/executor.py)
 
 ---
 
-### 2. Config Validator
-**Responsibility**: Validate config structure, types, and dependencies
+### 2. Dynamic Schema Generation Pattern
 
-**Validation Rules**:
-- Required top-level keys: `flow`, `state`, `nodes`, `edges`
-- Node IDs are unique
-- Edge references point to valid nodes
-- State fields have valid types
-- Tool references exist in registry
-- No circular dependencies in edges
-- Inputs/outputs reference valid state fields
-- Pydantic schemas are valid
+**Pattern**: YAML type strings → Runtime Pydantic models
 
-**Implementation**:
-- Pure Python validation functions
-- Return typed errors with helpful messages
-- Fail fast on first error OR collect all errors (TBD)
+**Why**: Type safety without code generation. Users define types in config, system generates validation models dynamically.
 
-**Files**:
-- `config/validator.py`
-- `config/schema.py` (Pydantic models for config structure)
+**Implementation**: See [ADR-002](adr/ADR-002-strict-typing-pydantic-schemas.md)
 
----
-
-### 3. State Schema Builder
-**Responsibility**: Generate Pydantic models from state config
-
-**Input** (from config):
+**Example**:
 ```yaml
+# User writes this in config
 state:
   fields:
-    topic:
+    - name: topic
       type: str
       required: true
-    research:
+    - name: article
       type: str
       default: ""
 ```
 
-**Output**: Dynamically created Pydantic `BaseModel` subclass
-
-**Implementation**:
-- Use `type()` to create classes at runtime
-- Support basic types: `str`, `int`, `float`, `bool`, `list`, `dict`
-- Support nested types: `list[str]`, `dict[str, int]`
-- Validate at instantiation time
-
-**Files**:
-- `core/state_builder.py`
-
----
-
-### 4. Output Schema Builder
-**Responsibility**: Generate Pydantic models for node outputs
-
-**Input** (from config):
-```yaml
-nodes:
-  - id: research
-    output_schema:
-      fields:
-        - name: summary
-          type: str
-        - name: sources
-          type: list[str]
-```
-
-**Output**: Pydantic model that LLM must conform to
-
-**Implementation**:
-- Similar to State Schema Builder
-- Used for structured LLM outputs (JSON mode)
-- Validation ensures LLM output matches schema
-
-**Files**:
-- `core/output_builder.py`
-
----
-
-### 5. Tool Registry
-**Responsibility**: Provide tools to nodes by name
-
-**Interface**:
 ```python
-def get_tool(tool_name: str) -> BaseTool:
-    """Load a tool by name from registry"""
+# System generates this at runtime (equivalent to):
+class WorkflowState(BaseModel):
+    topic: str  # Required
+    article: str = ""  # Optional with default
+
+# Created dynamically:
+StateModel = build_state_model(config.state)
+state = StateModel(topic="AI Safety")  # Validated!
 ```
 
-**v0.1 Tools**:
-- `serper_search` (Google search via Serper API)
-
-**Implementation**:
-- Use LangChain tools
-- Load API keys from environment variables
-- Fail loudly if tool not found or API key missing
-
-**Files**:
-- `tools/registry.py`
-- `tools/serper.py`
+**Code**: [`core/state_builder.py:15-60`](../src/configurable_agents/core/state_builder.py)
 
 ---
 
-### 6. LLM Provider
-**Responsibility**: Execute LLM calls with structured outputs
+### 3. Closure-Based Node Pattern
 
-**v0.1 Support**:
-- Google Gemini only (`gemini-2.0-flash-exp` as default)
+**Pattern**: Config → Closure function → LangGraph node
 
-**Configuration** (global defaults):
-```yaml
-config:
-  llm:
-    provider: google
-    model: gemini-2.0-flash-exp
-    temperature: 0.7
-    max_tokens: 1024
-```
+**Why**: Clean separation of graph structure (edges, flow) from node logic (LLM calls, tools). Each node is a self-contained closure capturing its configuration.
 
-**Node-level overrides**:
-```yaml
-nodes:
-  - id: research
-    llm:
-      temperature: 0.5
-      max_tokens: 512
-```
+**Implementation**: See [ADR-001](adr/ADR-001-langgraph-execution-engine.md)
 
-**Implementation**:
-- Use LangChain's `ChatGoogleGenerativeAI`
-- Force structured outputs using Pydantic schemas
-- Read `GOOGLE_API_KEY` from environment
-
-**Files**:
-- `llm/provider.py`
-- `llm/google.py`
-
----
-
-### 7. Node Executor
-**Responsibility**: Execute a single node (LLM call + optional tools)
-
-**Node Structure**:
-```yaml
-nodes:
-  - id: research
-    description: "Research the topic"
-    prompt: |
-      Research the topic: {state.topic}
-      Return a summary and list of sources.
-    inputs:
-      - topic  # References state.topic
-    output_schema:
-      fields:
-        - name: summary
-          type: str
-        - name: sources
-          type: list[str]
-    tools:
-      - serper_search
-    llm:
-      temperature: 0.5
-```
-
-**Execution Flow**:
-1. Resolve prompt template from current state
-2. Load tools from registry
-3. Configure LLM with node settings
-4. Call LLM with structured output schema
-5. Validate output against schema
-6. Update state with output fields
-
-**Implementation**:
-- Each node execution is a pure function: `(state, node_config) -> updated_state`
-- No side effects except LLM API calls
-- Log inputs/outputs at debug level
-
-**Files**:
-- `core/node_executor.py`
-
----
-
-### 8. Graph Builder
-**Responsibility**: Construct LangGraph execution graph from config
-
-**Input** (from config):
-```yaml
-edges:
-  - from: START
-    to: research
-  - from: research
-    to: write
-  - from: write
-    to: END
-```
-
-**Output**: LangGraph `StateGraph` instance
-
-**Implementation**:
-- Use LangGraph's `StateGraph` API
-- Add nodes as functions
-- Add edges for control flow
-- v0.1: Linear flows only (no conditionals)
-
-**Files**:
-- `core/graph_builder.py`
-
----
-
-### 9. Runtime Executor
-**Responsibility**: Execute the graph with initial inputs
-
-**Interface**:
+**Code**:
 ```python
-def run_workflow(config: dict, inputs: dict) -> dict:
-    """
-    Execute a workflow from config.
+def make_node_function(node_config: NodeConfig, global_config: GlobalConfig):
+    """Create a closure that executes a node"""
+    def node_function(state: BaseModel) -> dict:
+        # Closure captures node_config
+        return execute_node(state, node_config, global_config)
+    return node_function
 
-    Args:
-        config: Validated config dict
-        inputs: Initial state values
-
-    Returns:
-        Final state as dict
-    """
+# Add to graph
+graph.add_node(node_id, make_node_function(node_cfg, global_cfg))
 ```
 
-**Execution Flow**:
-1. Validate config
-2. Build state schema
-3. Initialize state with inputs
-4. Build graph
-5. Execute graph
-6. Return final state
+**Why closures**: No global state, no class instances, just pure functions. LangGraph sees simple `state -> dict` functions.
 
-**Error Handling**:
-- Config validation errors → return immediately with error details
-- Node execution errors → crash loudly with full context
-- LLM timeout/rate limit → retry with exponential backoff (configurable)
-
-**Files**:
-- `core/runtime.py`
+**Code**: [`core/graph_builder.py:80-95`](../src/configurable_agents/core/graph_builder.py)
 
 ---
 
-## Data Flow (v0.1)
+### 4. Two-Phase Validation Pattern
 
-### Example Workflow: Article Writer
+**Pattern**: Pydantic (structure) → Custom validator (business logic)
 
-**Config**:
-```yaml
-flow:
-  name: article_writer
+**Why**: Pydantic catches ~70% of errors (types, required fields). Custom validator catches ~25% (cross-references, graph structure). Total: ~95% of errors before execution.
 
-state:
-  fields:
-    topic: {type: str, required: true}
-    research: {type: str, default: ""}
-    article: {type: str, default: ""}
+**Implementation**: See [ADR-004](adr/ADR-004-parse-time-validation.md)
 
-nodes:
-  - id: research
-    prompt: "Research {state.topic} and return a summary."
-    output_schema:
-      fields:
-        - name: summary
-          type: str
-    tools: [serper_search]
-
-  - id: write
-    prompt: "Write an article about {state.topic} using: {state.research}"
-    output_schema:
-      fields:
-        - name: article
-          type: str
-
-edges:
-  - {from: START, to: research}
-  - {from: research, to: write}
-  - {from: write, to: END}
+**Phase 1 - Pydantic**:
+```python
+config = WorkflowConfig(**config_dict)
+# Validates: structure, types, required fields
+# Example error: "field 'state' required"
 ```
 
-**Execution**:
+**Phase 2 - Custom**:
 ```python
-result = run_workflow(
-    config=load_config("article_writer.yaml"),
-    inputs={"topic": "AI Safety"}
+validate_config(config)
+# Validates: node refs, state fields, output types, graph structure
+# Example error: "Node 'write' references unknown state field 'artcile'. Did you mean 'article'?"
+```
+
+**Code**: [`config/validator.py:20-250`](../src/configurable_agents/config/validator.py)
+
+---
+
+### 5. Structured Output Enforcement Pattern
+
+**Pattern**: Schema → JSON mode LLM → Pydantic validation → State update
+
+**Why**: No unstructured LLM outputs in production. Every response is type-validated before updating state.
+
+**Implementation**: See [ADR-002](adr/ADR-002-strict-typing-pydantic-schemas.md)
+
+**Flow**:
+```python
+# 1. Build output model from config
+OutputModel = build_output_model(node.output_schema, node.id)
+
+# 2. Force LLM to return JSON matching schema
+llm_with_schema = llm.with_structured_output(
+    OutputModel.model_json_schema()
 )
 
-# result = {
-#     "topic": "AI Safety",
-#     "research": "AI safety focuses on...",
-#     "article": "In recent years, AI safety has..."
-# }
+# 3. Call LLM (guaranteed JSON response)
+response = llm_with_schema.invoke(prompt)
+
+# 4. Validate with Pydantic
+validated = OutputModel(**response)  # Raises error if invalid
+
+# 5. Update state (type-safe)
+state_dict[field] = validated.field_value
+```
+
+**Code**: [`core/node_executor.py:120-180`](../src/configurable_agents/core/node_executor.py)
+
+---
+
+### 6. Factory Pattern (Tool Registry)
+
+**Pattern**: Lazy factory-based tool instantiation
+
+**Why**: Tools only created when needed. Supports custom tool registration. Fail-fast if tool not found.
+
+**Implementation**: See [ADR-007](adr/ADR-007-tools-as-named-registry.md)
+
+**Code**:
+```python
+class ToolRegistry:
+    def __init__(self):
+        self._factories = {
+            "serper_search": self._create_serper_tool,
+            # Add more tools here
+        }
+        self._instances = {}  # Cache
+
+    def get_tool(self, name: str) -> BaseTool:
+        if name not in self._factories:
+            raise ToolNotFoundError(f"Tool '{name}' not found")
+
+        if name not in self._instances:
+            self._instances[name] = self._factories[name]()
+
+        return self._instances[name]
+```
+
+**Code**: [`tools/registry.py:15-80`](../src/configurable_agents/tools/registry.py)
+
+---
+
+### 7. Builder Pattern (State & Output Builders)
+
+**Pattern**: Config → Builder → Pydantic model
+
+**Why**: Centralize complex model creation logic. Reusable for state and output schemas.
+
+**Implementation**: See [ADR-002](adr/ADR-002-strict-typing-pydantic-schemas.md)
+
+**State Builder**:
+```python
+def build_state_model(state_schema: StateSchema) -> Type[BaseModel]:
+    """Build Pydantic model from state config"""
+    field_defs = {}
+    for field in state_schema.fields:
+        python_type = get_python_type(field.type)
+        default = ... if field.required else field.default
+        field_defs[field.name] = (python_type, default)
+
+    return create_model("WorkflowState", **field_defs)
+```
+
+**Output Builder**:
+```python
+def build_output_model(output_schema: OutputSchema, node_id: str):
+    """Build Pydantic model for node output"""
+    # Similar logic, different source
+    return create_model(f"Output_{node_id}", **field_defs)
+```
+
+**Code**: [`core/state_builder.py`](../src/configurable_agents/core/state_builder.py), [`core/output_builder.py`](../src/configurable_agents/core/output_builder.py)
+
+---
+
+### 8. Strategy Pattern (LLM Providers)
+
+**Pattern**: Provider interface with multiple implementations
+
+**Why**: Support multiple LLM providers (future) without changing core logic.
+
+**Implementation**: See [ADR-005](adr/ADR-005-single-llm-provider-v01.md)
+
+**Interface** (v0.1 - Google Gemini only):
+```python
+def create_llm(config: LLMConfig) -> BaseChatModel:
+    """Create LLM instance based on provider"""
+    if config.provider == "google":  # v0.1
+        return create_google_llm(config)
+    # v0.2+: elif config.provider == "openai": ...
+    # v0.2+: elif config.provider == "anthropic": ...
+```
+
+**Future expansion**: Add provider in `llm/openai.py`, register in `create_llm()`.
+
+**Code**: [`llm/provider.py:20-50`](../src/configurable_agents/llm/provider.py)
+
+---
+
+### 9. Decorator Pattern (Feature Gating)
+
+**Pattern**: Wrap validation logic with version checks
+
+**Why**: Allow future features in config schema (v0.2, v0.3) while blocking execution in v0.1. Progressive disclosure of features.
+
+**Implementation**: See [ADR-009](adr/ADR-009-full-schema-day-one.md)
+
+**Code**:
+```python
+def gate_features(config: WorkflowConfig) -> None:
+    """Block unsupported features, warn on future features"""
+
+    # Hard block (v0.2+ not implemented)
+    if _has_conditional_routing(config):
+        raise FeatureNotAvailableError(
+            "Conditional routing requires v0.2+. "
+            "Use simple edges in v0.1."
+        )
+
+    # Soft warning (v0.3+ planned)
+    if config.optimization and config.optimization.enabled:
+        warnings.warn(
+            "DSPy optimization planned for v0.3. "
+            "Config accepted but optimization ignored.",
+            FutureWarning
+        )
+```
+
+**Code**: [`runtime/feature_gate.py:15-120`](../src/configurable_agents/runtime/feature_gate.py)
+
+---
+
+## Component Architecture
+
+### Config Layer
+
+**Components**: Parser, Validator, Schema Models, Feature Gate
+
+**Responsibility**: Load, validate, and gate workflow configs
+
+**Key Pattern**: Two-phase validation (Pydantic + Custom)
+
+**Files**:
+- `config/parser.py` - YAML/JSON parsing
+- `config/schema.py` - 13 Pydantic models (complete schema v1.0)
+- `config/validator.py` - 8-stage validation pipeline
+- `runtime/feature_gate.py` - Version-based feature gating
+
+**Related ADRs**: [ADR-003](adr/ADR-003-config-driven-architecture.md), [ADR-004](adr/ADR-004-parse-time-validation.md), [ADR-009](adr/ADR-009-full-schema-day-one.md)
+
+---
+
+### Execution Layer
+
+**Components**: State Builder, Output Builder, Template Resolver, Node Executor
+
+**Responsibility**: Execute nodes with type safety and prompt resolution
+
+**Key Pattern**: Dynamic schema generation + Structured output enforcement
+
+**Files**:
+- `core/state_builder.py` - Generate state models from config
+- `core/output_builder.py` - Generate output models from config
+- `core/template.py` - Resolve {variable} placeholders in prompts
+- `core/node_executor.py` - Execute single node (LLM + tools + validation)
+
+**Related ADRs**: [ADR-002](adr/ADR-002-strict-typing-pydantic-schemas.md), [ADR-003](adr/ADR-003-config-driven-architecture.md)
+
+---
+
+### Orchestration Layer
+
+**Components**: Graph Builder, Runtime Executor
+
+**Responsibility**: Construct and execute LangGraph workflows
+
+**Key Pattern**: Closure-based nodes + Config-driven pipeline
+
+**Files**:
+- `core/graph_builder.py` - Construct LangGraph from config
+- `runtime/executor.py` - End-to-end workflow execution
+
+**Related ADRs**: [ADR-001](adr/ADR-001-langgraph-execution-engine.md)
+
+---
+
+### Integration Layer
+
+**Components**: LLM Provider, Tool Registry
+
+**Responsibility**: External API integration (LLMs, tools)
+
+**Key Pattern**: Factory (tools) + Strategy (LLM providers)
+
+**Files**:
+- `llm/provider.py` - LLM provider interface
+- `llm/google.py` - Google Gemini implementation
+- `tools/registry.py` - Tool registry with lazy loading
+- `tools/serper.py` - Serper web search tool
+
+**Related ADRs**: [ADR-005](adr/ADR-005-single-llm-provider-v01.md), [ADR-007](adr/ADR-007-tools-as-named-registry.md)
+
+---
+
+## Technology Stack
+
+| Layer | Technology | Why | ADR |
+|-------|-----------|-----|-----|
+| **Execution** | LangGraph | No prompt wrapping, DSPy compatible | [ADR-001](adr/ADR-001-langgraph-execution-engine.md) |
+| **Validation** | Pydantic | Industry standard, excellent errors | [ADR-002](adr/ADR-002-strict-typing-pydantic-schemas.md) |
+| **Config** | YAML + Pydantic | Human-readable + type-safe | [ADR-003](adr/ADR-003-config-driven-architecture.md) |
+| **LLM (v0.1)** | Google Gemini | Simple integration, good free tier | [ADR-005](adr/ADR-005-single-llm-provider-v01.md) |
+| **Tools** | LangChain Tools | Standard interface, large ecosystem | [ADR-007](adr/ADR-007-tools-as-named-registry.md) |
+| **Testing** | pytest | Standard Python testing | [ADR-017](adr/ADR-017-testing-strategy-cost-management.md) |
+| **CLI** | Click | Industry standard | [ADR-015](adr/ADR-015-cli-interface-design.md) |
+| **Observability** | MLFlow (v0.1) | LLM-specific tracking | [ADR-011](adr/ADR-011-mlflow-observability.md) |
+| **Deployment** | Docker + FastAPI | Containerized microservices | [ADR-012](adr/ADR-012-docker-deployment-architecture.md) |
+
+---
+
+## Design Principles in Practice
+
+### Principle: Explicit Over Implicit
+
+**Philosophy**: No hidden behavior. Everything visible in config.
+
+**Implementation**:
+- Explicit state fields (ADR-002) - No auto-generated fields
+- Explicit edges (ADR-006) - No automatic routing
+- Explicit output schemas (ADR-002) - No unstructured outputs
+- Explicit tool references (ADR-007) - No auto-discovery
+
+**Example**: Node must declare outputs
+```yaml
+nodes:
+  - id: research
+    outputs: [summary, sources]  # Explicit
+    output_schema:  # Explicit types
+      type: object
+      fields:
+        - {name: summary, type: str}
+        - {name: sources, type: list[str]}
 ```
 
 ---
 
-## Deferred to Later Versions
+### Principle: Fail Fast, Save Money
 
-### Not in v0.1:
-- **Conditional edges** (if/else routing)
-- **Loops** (retry logic, iterations)
-- **Parallel execution** (multiple branches)
-- **Persistent mode** (Docker container deployment)
-- **Multiple LLM providers** (OpenAI, Anthropic, local)
-- **MLFlow integration** (observability beyond console logs)
-- **DSPy optimization**
-- **Custom code nodes** (Python function execution)
-- **Long-term memory** (vector DBs, SQLite)
+**Philosophy**: Catch errors before expensive LLM calls.
 
-These will be added incrementally in future versions based on `docs/TASKS.md`.
+**Implementation**: Parse-time validation (ADR-004)
 
----
+**Cost Comparison**:
+```
+❌ Without validation:
+Step 1 (research): ✓ $0.01
+Step 2 (outline): ✓ $0.02
+Step 3 (write): ✓ $0.10
+Step 4 (review): ✗ TypeError: expected dict, got str
+Total: $0.13 (wasted)
 
-## Technology Stack (v0.1)
+✅ With validation:
+Config validation: ✗ Error: node 'review' expects dict but 'write' outputs str
+Total: $0.00 (caught at parse time)
+```
 
-| Component | Technology | Rationale |
-|-----------|-----------|-----------|
-| Config Format | YAML | Human-readable, git-friendly |
-| Validation | Pydantic | Industry standard, excellent errors |
-| Execution Engine | LangGraph | Explicit state machines, no hidden magic |
-| LLM Provider | LangChain + Google Gemini | Simple integration, good free tier |
-| Tools | LangChain Tools | Large ecosystem, standard interface |
-| Testing | pytest | Standard Python testing |
-| Logging | stdlib logging | Simple, no dependencies |
+**Code**: [`config/validator.py`](../src/configurable_agents/config/validator.py)
 
 ---
 
-## Design Principles
+### Principle: Local-First, Enterprise-Ready
 
-### 1. Explicit Over Implicit
-- State changes are visible in config
-- Control flow is explicit in edges
-- No hidden behavior
+**Philosophy**: Works out-of-the-box locally. Optional enterprise features.
 
-### 2. Fail Fast
-- Validate at parse time, not runtime
-- Catch errors before expensive LLM calls
-- Clear error messages with suggested fixes
+**Implementation**:
+- **MLFlow** (ADR-011): File-based backend (v0.1) → PostgreSQL/S3 (v0.2+)
+- **State**: In-memory (v0.1) → Redis/PostgreSQL (v0.2+)
+- **Deployment**: Local Docker (v0.1) → Cloud (v0.2+)
 
-### 3. Testability
-- Pure functions wherever possible
-- No global state
-- Mockable LLM calls for testing
+**Design Strategy**: Implement simple version first, leave hooks for enterprise upgrades.
 
-### 4. Incremental Complexity
-- v0.1 is intentionally limited (linear flows only)
-- Add features incrementally with clear boundaries
-- Avoid premature abstraction
+---
+
+### Principle: Testability
+
+**Philosophy**: Pure functions, no global state, easy mocking.
+
+**Implementation** (ADR-017):
+- **Unit tests** (449): Mock LLM/API calls, fast, free
+- **Integration tests** (19): Real APIs, cost-tracked (<$0.50 per PR)
+- **CI strategy**: Unit tests always, integration tests on PR
+
+**Code**: [`tests/`](../tests/)
+
+---
+
+## Observability Architecture (v0.1)
+
+**Status**: In progress (T-018 to T-021)
+
+**Pattern**: MLFlow for LLM-specific tracking
+
+**Architecture**:
+```
+Runtime Executor
+      ↓
+Workflow Run (MLFlow)
+  - Params: workflow name, model, temp
+  - Metrics: duration, total_tokens, total_cost
+  - Artifacts: inputs.json, outputs.json
+      ↓
+Node Runs (nested)
+  - Params: node_id, tools
+  - Metrics: duration, input_tokens, output_tokens, cost
+  - Artifacts: prompt.txt, response.txt
+```
+
+**Implementation**: See [ADR-011](adr/ADR-011-mlflow-observability.md), [ADR-014](adr/ADR-014-three-tier-observability-strategy.md)
+
+**Detailed Guide**: See [OBSERVABILITY.md](OBSERVABILITY.md)
+
+---
+
+## Deployment Architecture (v0.1)
+
+**Status**: Planned (T-022 to T-024)
+
+**Pattern**: FastAPI + MLFlow UI in Docker container
+
+**Architecture**:
+```
+configurable-agents deploy workflow.yaml
+      ↓
+Generate artifacts (Dockerfile, server.py, docker-compose.yml)
+      ↓
+Build multi-stage Docker image
+      ↓
+Run container (detached)
+  - Port 8000: FastAPI server (POST /run, GET /status, GET /health)
+  - Port 5000: MLFlow UI
+```
+
+**Sync/Async Hybrid**:
+- Fast workflows (<30s): Return result immediately
+- Slow workflows (>30s): Background job, return job_id
+
+**Implementation**: See [ADR-012](adr/ADR-012-docker-deployment-architecture.md), [ADR-013](adr/ADR-013-environment-variable-handling.md)
+
+**Detailed Guide**: See [DEPLOYMENT.md](DEPLOYMENT.md)
+
+---
+
+## Extension Points
+
+> **Note**: Detailed extension guides will be moved to [CONTRIBUTING.md](CONTRIBUTING.md) in a future update. Current step-by-step instructions below are temporary.
+
+### Adding a New Tool
+
+1. **Create tool file**: `src/configurable_agents/tools/my_tool.py`
+   ```python
+   from langchain.tools import BaseTool
+
+   class MyCustomTool(BaseTool):
+       name = "my_custom_tool"
+       description = "What this tool does"
+
+       def _run(self, query: str) -> str:
+           # Your tool logic
+           return result
+   ```
+
+2. **Register in registry**: `src/configurable_agents/tools/registry.py`
+   ```python
+   class ToolRegistry:
+       def __init__(self):
+           self._factories = {
+               "serper_search": self._create_serper_tool,
+               "my_custom_tool": self._create_my_tool,  # Add here
+           }
+
+       def _create_my_tool(self) -> BaseTool:
+           return MyCustomTool()
+   ```
+
+3. **Add tests**: `tests/tools/test_my_tool.py`
+
+4. **Use in config**:
+   ```yaml
+   nodes:
+     - id: process
+       tools: [my_custom_tool]
+   ```
+
+**Reference**: See [`tools/serper.py`](../src/configurable_agents/tools/serper.py) for example.
+
+---
+
+### Adding a New LLM Provider (v0.2+)
+
+1. **Create provider file**: `src/configurable_agents/llm/openai.py`
+   ```python
+   from langchain_openai import ChatOpenAI
+
+   def create_openai_llm(config: LLMConfig) -> BaseChatModel:
+       return ChatOpenAI(
+           model=config.model,
+           temperature=config.temperature,
+           # ...
+       )
+   ```
+
+2. **Register in provider**: `src/configurable_agents/llm/provider.py`
+   ```python
+   def create_llm(config: LLMConfig) -> BaseChatModel:
+       if config.provider == "google":
+           return create_google_llm(config)
+       elif config.provider == "openai":  # Add here
+           return create_openai_llm(config)
+   ```
+
+3. **Update schema**: `src/configurable_agents/config/schema.py`
+   ```python
+   class LLMConfig(BaseModel):
+       provider: Literal["google", "openai", "anthropic"] = "google"
+   ```
+
+4. **Add tests**: `tests/llm/test_openai.py`
+
+**Reference**: See [`llm/google.py`](../src/configurable_agents/llm/google.py) for example.
+
+---
+
+### Adding a New Validation Rule
+
+1. **Add validation function**: `src/configurable_agents/config/validator.py`
+   ```python
+   def _validate_my_rule(config: WorkflowConfig) -> None:
+       """Validate my custom rule"""
+       # Your validation logic
+       if some_condition:
+           raise ValidationError("Error message", suggestion="...")
+   ```
+
+2. **Call in pipeline**: `src/configurable_agents/config/validator.py`
+   ```python
+   def validate_config(config: WorkflowConfig) -> None:
+       _validate_edge_references(config)
+       _validate_node_outputs(config)
+       _validate_my_rule(config)  # Add here
+       # ...
+   ```
+
+3. **Add tests**: `tests/config/test_validator.py`
+
+**Reference**: See [`config/validator.py:20-250`](../src/configurable_agents/config/validator.py) for examples.
 
 ---
 
 ## Security Considerations
 
-### v0.1 Scope:
-- **No arbitrary code execution** (deferred custom code nodes)
-- **Environment variable isolation** (API keys from .env only)
-- **Input validation** (Pydantic schemas prevent injection)
-- **Tool sandboxing** (tools can only do what LangChain allows)
+### v0.1 Scope
 
-### Future Considerations:
+- ✅ No arbitrary code execution (custom code nodes deferred to v0.2+)
+- ✅ Environment variable isolation (API keys from .env only)
+- ✅ Input validation (Pydantic prevents injection)
+- ✅ Tool sandboxing (LangChain BaseTool constraints)
+
+### Future (v0.2+)
+
 - Secrets management (vault integration)
 - Resource limits (token budgets, timeouts)
 - Network sandboxing (for container mode)
@@ -451,255 +658,19 @@ These will be added incrementally in future versions based on `docs/TASKS.md`.
 
 ---
 
-## Observability Layer (MLFlow) - v0.1
+## Deep Dive References
 
-### Responsibility
-Track workflow execution metrics, costs, and performance for debugging and optimization.
+**Detailed Decisions**: [Architecture Decision Records](adr/) (16 ADRs)
 
-### Architecture
+**Implementation Tasks**: [TASKS.md](TASKS.md) (27 tasks, 18 complete)
 
-```
-Runtime Executor
-      ↓
-┌─────────────────────────────────────┐
-│  MLFlow Tracking                    │
-│                                     │
-│  Workflow Run:                      │
-│  - params (name, model, temp)       │
-│  - metrics (duration, tokens, cost) │
-│  - artifacts (inputs, outputs)      │
-│                                     │
-│  Node Runs (nested):                │
-│  - params (node_id, tools)          │
-│  - metrics (duration, retries)      │
-│  - artifacts (prompt, response)     │
-└─────────────────────────────────────┘
-      ↓
-file://./mlruns (local)
-or postgresql:// (remote)
-or s3:// (cloud)
-```
+**Version Features**: [README.md](../README.md#roadmap--status) (v0.1-v0.4 overview)
 
-### Components
+**Technical Specs**: [SPEC.md](SPEC.md) (Complete config schema reference)
 
-**MLFlow Tracker** (`observability/mlflow_tracker.py`):
-- Initialize tracking (set URI, experiment)
-- Start/end workflow runs
-- Log parameters, metrics, artifacts
-- Handle disabled state gracefully (no-op)
-
-**Cost Tracker** (`llm/cost_tracker.py`):
-- Token-to-cost conversion (pricing tables)
-- Per-model pricing (Gemini, OpenAI, Anthropic)
-- Cumulative cost calculation
-
-### Integration Points
-
-1. **Runtime Executor** (`runtime/executor.py`):
-   - Start MLFlow run on workflow start
-   - Log workflow-level params/metrics
-   - Log inputs/outputs as artifacts
-   - End run on completion/failure
-
-2. **Node Executor** (`core/node_executor.py`):
-   - Start nested run per node
-   - Log node-level params/metrics
-   - Log prompt/response as artifacts
-   - Extract token counts from LLM responses
-
-3. **LLM Provider** (`llm/provider.py`):
-   - Return token counts with responses
-   - Enable cost calculation
-
-### Configuration
-
-```yaml
-config:
-  observability:
-    mlflow:
-      enabled: true
-      tracking_uri: "file://./mlruns"  # Local file storage
-      experiment_name: "production_workflows"
-      log_artifacts: true
-```
-
-### Data Flow
-
-```
-Workflow Execution
-      ↓
-[MLFlow enabled?] → No → Execute normally
-      ↓ Yes
-Start MLFlow run
-      ↓
-Execute nodes (with nested runs)
-      ↓
-Log metrics (tokens, cost, duration)
-      ↓
-Save artifacts (inputs, outputs, prompts)
-      ↓
-End MLFlow run
-```
-
-### Storage Backends
-
-- **v0.1**: File-based (`file://./mlruns`) - zero setup
-- **v0.2**: Remote (PostgreSQL, S3, Databricks)
-- **Enterprise**: Multi-tenancy, retention policies, PII redaction
-
-### Related ADRs
-- ADR-011: MLFlow for Observability
-- ADR-014: Three-Tier Observability Strategy
-
----
-
-## Deployment Architecture (Docker) - v0.1
-
-### Responsibility
-Package workflows as standalone Docker containers with FastAPI servers.
-
-### Architecture
-
-```
-configurable-agents deploy workflow.yaml
-      ↓
-┌─────────────────────────────────────┐
-│  Artifact Generator                 │
-│                                     │
-│  Templates:                         │
-│  - Dockerfile (multi-stage)         │
-│  - server.py (FastAPI)              │
-│  - requirements.txt                 │
-│  - docker-compose.yml               │
-│  - README.md                        │
-└─────────────────────────────────────┘
-      ↓
-docker build -t workflow:latest .
-      ↓
-docker run -d -p 8000:8000 -p 5000:5000 workflow
-      ↓
-┌─────────────────────────────────────┐
-│  Running Container                  │
-│                                     │
-│  Port 8000: FastAPI Server          │
-│  - POST /run (sync/async)           │
-│  - GET /status/{job_id}             │
-│  - GET /health                      │
-│  - GET /schema                      │
-│                                     │
-│  Port 5000: MLFlow UI               │
-│  - View execution traces            │
-│  - Track costs, prompts             │
-└─────────────────────────────────────┘
-```
-
-### Components
-
-**Artifact Generator** (`deploy/generator.py`):
-- Load templates from `deploy/templates/`
-- Substitute variables (workflow_name, ports, timeout)
-- Generate Dockerfile, server.py, etc.
-- Write to output directory
-
-**FastAPI Server** (generated `server.py`):
-- Load workflow config at startup
-- POST /run endpoint (sync/async execution)
-- Job store (in-memory dict for v0.1)
-- Background task execution
-- Input validation against workflow schema
-- OpenAPI docs auto-generated
-
-**Docker Image** (generated `Dockerfile`):
-- Multi-stage build (builder + runtime)
-- Base: `python:3.10-slim` (~120MB)
-- Optimizations: no cache, minimal deps
-- Health check for orchestration
-- MLFlow UI startup (if enabled)
-
-### Deployment Flow
-
-```
-1. Validate workflow (fail-fast)
-2. Check Docker installed
-3. Generate artifacts
-   ├─ Dockerfile
-   ├─ server.py
-   ├─ requirements.txt
-   ├─ docker-compose.yml
-   └─ README.md
-4. Build Docker image
-5. Run container (detached)
-6. Print success message
-```
-
-### Sync/Async Hybrid
-
-```python
-# FastAPI endpoint logic
-async def run_workflow_endpoint(inputs):
-    try:
-        # Attempt sync (with timeout)
-        result = await asyncio.wait_for(
-            asyncio.to_thread(run_workflow, config, inputs),
-            timeout=SYNC_TIMEOUT  # Default: 30s
-        )
-        return {"status": "success", "outputs": result}
-
-    except asyncio.TimeoutError:
-        # Fall back to async
-        job_id = str(uuid.uuid4())
-        jobs[job_id] = {"status": "pending", ...}
-        background_tasks.add_task(run_workflow_async, job_id, inputs)
-        return {"status": "async", "job_id": job_id}
-```
-
-### Environment Variables
-
-**CLI** (`--env-file`):
-```bash
-configurable-agents deploy workflow.yaml --env-file .env
-# Auto-detects .env if exists
-```
-
-**Streamlit UI**:
-- Upload .env file (drag & drop)
-- Paste variables (textarea)
-- Skip (configure later via docker run -e)
-
-**Security**:
-- Never baked into image layers
-- Injected at runtime (docker run --env-file)
-- Values masked in UI preview
-
-### Image Optimization
-
-**Multi-stage build**:
-```dockerfile
-# Stage 1: Builder
-FROM python:3.10-slim AS builder
-RUN pip install --user -r requirements.txt
-
-# Stage 2: Runtime (no build tools)
-FROM python:3.10-slim
-COPY --from=builder /root/.local /root/.local
-COPY workflow.yaml server.py ./
-CMD mlflow ui & python server.py
-```
-
-**Target size**: ~180-200MB (acceptable for v0.1)
-
-### Related ADRs
-- ADR-012: Docker Deployment Architecture
-- ADR-013: Environment Variable Handling
-
----
-
-## Open Questions (To be resolved in ADRs)
-
-1. Should validation fail fast (first error) or collect all errors?
-2. How should we handle LLM timeouts and retries?
-3. Should tools be configurable per-invocation or global only?
-4. How do we version config schemas as features evolve?
-5. Should we support YAML anchors/aliases for DRY configs?
-
-These will be documented in `docs/adr/` as decisions are made.
+**User Guides**:
+- [QUICKSTART.md](QUICKSTART.md) - Get started in 5 minutes
+- [CONFIG_REFERENCE.md](CONFIG_REFERENCE.md) - Config schema guide
+- [OBSERVABILITY.md](OBSERVABILITY.md) - MLFlow tracking guide
+- [DEPLOYMENT.md](DEPLOYMENT.md) - Docker deployment guide
+- [TROUBLESHOOTING.md](TROUBLESHOOTING.md) - Common issues

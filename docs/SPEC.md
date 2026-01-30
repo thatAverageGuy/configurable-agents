@@ -469,7 +469,7 @@ edges:
 Error: Conditional routing not supported in v0.1
 Found conditional edge from 'validate_node'
 
-Coming in v0.2 (8 weeks). See docs/ROADMAP.md
+Coming in v0.2 (8 weeks). See docs/TASKS.md (for detailed progress) or README.md (for version overview)
 
 To run in v0.1, use linear edge:
   - from: validate_node
@@ -767,7 +767,7 @@ def validate_runtime_support(config: WorkflowConfig) -> None:
                 f"Conditional routing not supported in v0.1\n"
                 f"Found in edge from '{edge.from_node}'\n\n"
                 f"Coming in v0.2 (8 weeks)\n"
-                f"See: docs/ROADMAP.md"
+                f"See: docs/TASKS.md (for detailed progress) or README.md (for version overview)"
             )
 
     # Check for optimization

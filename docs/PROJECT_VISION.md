@@ -1,5 +1,13 @@
 # Project Vision
 
+> **Note**: This document describes the long-term vision and core philosophy (relatively stable).
+> For current implementation status and progress, see [README.md](../README.md#roadmap--status).
+> For detailed task breakdown, see [TASKS.md](TASKS.md).
+
+**Last Updated**: 2026-01-31 (phases aligned with current roadmap)
+
+---
+
 ## Purpose
 
 Enable anyone to go from **idea to production-grade agent system in minutes** through configuration, not code.
@@ -76,9 +84,9 @@ A **config-first agent runtime** that:
 
 ### What We're NOT Building
 
-- **A no-code UI first** — We start with config-as-code. UI comes later.
+- **A no-code UI first** — We start with config-as-code. UI comes later (v0.4).
 - **A framework lock-in** — Users can export to pure LangGraph/Python if needed.
-- **A hosted service** — This is infrastructure you run, not SaaS.
+- **A SaaS-first product** — Self-hosted infrastructure is core. Optional managed SaaS in v0.4 for users who prefer it.
 - **General-purpose compute** — This is for LLM agent workflows, not arbitrary scripts.
 - **A replacement for LangGraph/CrewAI** — We build on top of them, not compete.
 
@@ -91,33 +99,40 @@ A **config-first agent runtime** that:
 
 ## Phases
 
-### Phase 1: Core Engine (v0.1-v0.3)
-- Config schema and validator
-- Linear execution (sequential steps)
-- Google Gemini + basic tools
-- One-shot mode
-- Comprehensive testing
+### v0.1 - Production Ready (Current, March 2026)
+- Config-driven architecture (YAML/JSON)
+- Linear workflows (sequential execution)
+- Structured outputs (Pydantic validation)
+- Single LLM provider (Google Gemini)
+- Tool integration (web search, extensible registry)
+- Parse-time validation (fail fast, save costs)
+- MLFlow observability (cost tracking, tracing, prompt inspection)
+- Docker deployment (one-command containerization)
+- CLI interface (run, validate, verbose mode)
+- Comprehensive testing (468 tests: 449 unit + 19 integration)
 
-### Phase 2: Enhanced Runtime (v0.4-v0.6)
-- Conditional branching and loops
-- Persistent/container mode
-- Multiple LLM providers (OpenAI, Anthropic, local models)
-- MLFlow observability integration
-- Tool registry expansion
+### v0.2 - Intelligence (Q2 2026, +8-12 weeks)
+- Conditional routing (if/else based on state)
+- Loops and retry logic
+- Multi-LLM support (OpenAI, Anthropic, Ollama)
+- State persistence and workflow resume
+- Config composition (import/extend)
+- Enhanced error messages
 
-### Phase 3: Optimization & Deployment (v0.7-v0.9)
-- DSPy prompt optimization
-- Feedback collection UI
-- LLM-as-judge evaluation
-- Cloud deployment templates (ECS, Lambda, Fargate)
-- Cost tracking and budgets
+### v0.3 - Optimization (Q3 2026, +12-16 weeks)
+- DSPy prompt optimization (automatic)
+- Quality metrics and evaluation
+- Parallel node execution
+- OpenTelemetry integration (distributed tracing)
+- AI config generator
 
-### Phase 4: Advanced Features (v1.0+)
-- Multi-agent delegation and hierarchical workflows
-- Long-term memory (vector DBs, SQLite)
-- Config generator chatbot
-- Web UI for config editing and monitoring
-- Multi-modal support (vision, audio, code execution)
+### v0.4 - Ecosystem (Q4 2026, +16-24 weeks)
+- Visual workflow editor
+- One-click cloud deployments (AWS, GCP, Azure)
+- Prometheus + Grafana monitoring
+- Plugin system
+- Config marketplace
+- Optional SaaS offering (for users preferring managed service)
 
 ## Guiding Questions
 

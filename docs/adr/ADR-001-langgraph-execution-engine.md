@@ -357,6 +357,164 @@ The key insight: **LangGraph orchestrates functions, CrewAI orchestrates agents.
 
 ---
 
+## Implementation
+
+**Status**: ✅ Implemented in v0.1
+**Related Tasks**: T-012 (Graph Builder), T-013 (Runtime Executor)
+**Commit**: Multiple (T-012, T-013)
+**Date Implemented**: 2026-01-27
+
+### T-012: Graph Builder Implementation
+
+**File**: `src/configurable_agents/core/graph_builder.py` (330 lines)
+
+**Key Design Decisions**:
+
+1. **Direct Pydantic BaseModel Integration**
+   - LangGraph's `StateGraph` accepts Pydantic models directly
+   - No TypedDict conversion needed
+   - Validates with our complete type system
+   ```python
+   from langgraph.graph import StateGraph
+
+   # state_model is Pydantic BaseModel from T-006
+   graph = StateGraph(state_model)
+   ```
+
+2. **Closure-Based Node Functions**
+   - Each node becomes a closure capturing its config
+   - Clean separation: graph structure vs. node logic
+   ```python
+   def make_node_function(node_config, global_config):
+       def node_function(state: BaseModel) -> dict:
+           return execute_node(state, node_config, global_config)
+       return node_function
+
+   # Add to graph
+   graph.add_node(node_id, make_node_function(node_cfg, global_cfg))
+   ```
+
+3. **START/END as LangGraph Constants**
+   - Use LangGraph's built-in `START` and `END` nodes
+   - Not custom identity nodes
+   - Cleaner graph visualization
+   ```python
+   from langgraph.graph import START, END
+
+   graph.add_edge(START, first_node_id)
+   graph.add_edge(last_node_id, END)
+   ```
+
+4. **Dict Return Values**
+   - LangGraph's `invoke()` returns `dict`, not `BaseModel`
+   - State updates via dict merge
+   - Type safety during execution, dict at boundaries
+
+**Integration with execute_node (T-011)**:
+- Node functions delegate to `execute_node(state, node_config, global_config)`
+- `execute_node` handles: prompt resolution → LLM call → structured output → state update
+- Clean separation of concerns
+
+**Linear Flow Validation (v0.1)**:
+- No conditional edges (deferred to v0.2 per ADR-006)
+- Simple sequential execution
+- Validates at build time: each node has exactly one outgoing edge
+
+**Error Handling**:
+```python
+class GraphBuilderError(Exception):
+    """Raised when graph construction fails"""
+
+# Catches:
+# - Invalid node references in edges
+# - Orphaned nodes
+# - Circular dependencies (future)
+# - START/END missing
+```
+
+**Test Coverage**: 18 tests (16 unit + 2 integration)
+- Valid graph construction
+- START/END handling
+- Edge validation
+- Node function creation
+- Error scenarios
+
+---
+
+### T-013: Runtime Executor Integration
+
+**File**: `src/configurable_agents/runtime/executor.py` (330 lines)
+
+**Full Execution Pipeline**:
+```python
+def run_workflow(config_path: str, inputs: dict) -> dict:
+    # Phase 1: Load config
+    config_dict = load_config(config_path)
+
+    # Phase 2: Parse to Pydantic
+    config = WorkflowConfig(**config_dict)
+
+    # Phase 3: Validate (T-004)
+    validate_config(config)
+
+    # Phase 4: Feature gating (T-004.5)
+    gate_features(config)
+
+    # Phase 5: Build graph (T-012 - THIS ADR)
+    state_model = build_state_model(config.state)
+    graph = build_graph(config, state_model, config.config)
+
+    # Phase 6: Execute
+    initial_state = state_model(**inputs)
+    final_state = graph.invoke(initial_state)
+
+    return final_state  # Returns dict
+```
+
+**LangGraph Verification Results**:
+
+✅ **Verification from T-009 (LLM Provider)**:
+- LangChain `ChatGoogleGenerativeAI` does NOT wrap prompts
+- Sends exact prompt strings to Gemini API
+- Structured outputs work cleanly via `with_structured_output()`
+- Confirmed: No framework magic interfering with prompts
+
+✅ **DSPy Compatibility Path Clear**:
+- T-026 (DSPy Integration Test) - planned for v0.2
+- T-027 (Structured Output + DSPy) - planned for v0.2
+- LangGraph nodes can call DSPy modules directly
+- No architectural blockers identified
+
+**Production Readiness**:
+- 406 total tests passing (including 4 end-to-end integration tests)
+- Real API calls (Google Gemini) working
+- Tool integration (Serper) working
+- Error handling validated across 13 error scenarios
+
+---
+
+## Verification Status
+
+### ✅ T-009: LLM Provider Implementation (PASSED)
+- Compared raw Gemini API vs LangChain ChatModel
+- **Result**: Prompts are identical
+- No prompt wrapping or manipulation detected
+- Structured outputs work via `with_structured_output(schema.model_json_schema())`
+
+### ⏳ T-026: DSPy Integration Test (PLANNED for v0.2)
+- Will test DSPy module inside LangGraph node
+- Validate optimization workflow
+- Deferred to v0.2 (after linear flows proven)
+
+### ⏳ T-027: Structured Output + DSPy Test (PLANNED for v0.2)
+- Will combine Pydantic structured outputs with DSPy
+- Ensure both work together
+- Deferred to v0.2
+
+**Decision Confirmed**: LangGraph is the right choice. No blockers identified.
+
+---
+
 ## Superseded By
 
 None (current)

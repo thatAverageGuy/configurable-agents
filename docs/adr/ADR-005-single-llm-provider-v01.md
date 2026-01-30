@@ -455,7 +455,7 @@ Supported models:
 - Anthropic (Claude 3.5 Sonnet, etc.)
 - Ollama (local models)
 
-See [Roadmap](ROADMAP.md) for timeline.
+See [Task Breakdown](../TASKS.md) for timeline.
 ```
 
 ### Gemini Setup Guide
@@ -549,6 +549,20 @@ Multi-provider support is valuable, but not critical for validating the core arc
 
 **Quote**: "Premature optimization is the root of all evil" - Donald Knuth
 **Corollary**: "Premature abstraction is premature optimization."
+
+---
+
+## Implementation Status
+
+**Status**: 2705 Implemented in v0.1
+**Related Tasks**: T-009 (LLM Provider), T-012 (Graph Builder), T-013 (Runtime Executor)
+**Enforcement**: Feature gating (T-004.5) blocks unsupported features
+**Date Implemented**: 2026-01-26 to 2026-01-27
+
+This design constraint is enforced by:
+1. Config validator - Rejects unsupported features at parse time
+2. Feature gating - Hard blocks for v0.2+ features
+3. Limited implementation - Only v0.1 features implemented
 
 ---
 

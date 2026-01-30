@@ -500,6 +500,292 @@ The tradeoff is worth it: better DX, fewer runtime surprises, lower costs.
 
 ---
 
+## Implementation Details
+
+**Status**: ✅ Implemented in v0.1
+**Related Tasks**: T-003 (Config Schema), T-005 (Type System), T-006 (State Builder), T-007 (Output Builder), T-011 (Node Executor)
+**Date Implemented**: 2026-01-26 to 2026-01-27
+
+### T-005: Type System Implementation
+
+**File**: `src/configurable_agents/config/types.py` (150 lines)
+
+**Type String Parsing**:
+```python
+def parse_type_string(type_str: str) -> dict:
+    """Parse type strings like 'list[str]', 'dict[str, int]'"""
+    # Returns: {"kind": "list", "item_type": {"kind": "str"}}
+
+# Supported types:
+# - Primitives: str, int, float, bool
+# - Collections: list[T], dict[K, V]
+# - Object: object (for structured outputs)
+```
+
+**Type Validation**:
+- Parse-time validation of type strings in config
+- Validates nested types recursively
+- Clear error messages: `"Invalid type 'lisst[str]' - did you mean 'list[str]'?"`
+
+**Python Type Conversion**:
+```python
+def get_python_type(type_str: str) -> type:
+    """Convert type string to Python type for Pydantic"""
+    get_python_type("str")  # → str
+    get_python_type("list[str]")  # → list
+    get_python_type("dict[str, int]")  # → dict
+```
+
+**Test Coverage**: 31 type parsing tests
+
+---
+
+### T-006: State Schema Builder Implementation
+
+**File**: `src/configurable_agents/core/state_builder.py` (200 lines)
+
+**Dynamic Pydantic Model Generation**:
+```python
+def build_state_model(state_schema: StateSchema) -> Type[BaseModel]:
+    """Generate Pydantic BaseModel from StateSchema config"""
+
+    # Build field definitions
+    field_defs = {}
+    for field in state_schema.fields:
+        python_type = get_python_type(field.type)
+        default = ... if field.required else field.default
+        field_defs[field.name] = (python_type, default)
+
+    # Create model dynamically
+    StateModel = create_model(
+        "WorkflowState",
+        **field_defs
+    )
+    return StateModel
+```
+
+**Features**:
+- Required fields → Pydantic `...` (ellipsis)
+- Optional fields → default values
+- Type validation enforced by Pydantic
+- Model name: `WorkflowState`
+
+**Example**:
+```yaml
+# Config
+state:
+  fields:
+    - name: topic
+      type: str
+      required: true
+    - name: article
+      type: str
+      default: ""
+```
+
+```python
+# Generated model (equivalent to):
+class WorkflowState(BaseModel):
+    topic: str  # Required
+    article: str = ""  # Optional with default
+```
+
+**Test Coverage**: 25 state builder tests
+
+---
+
+### T-007: Output Schema Builder Implementation
+
+**File**: `src/configurable_agents/core/output_builder.py` (180 lines)
+
+**Dynamic Output Model Generation**:
+```python
+def build_output_model(
+    output_schema: OutputSchema,
+    node_id: str
+) -> Type[BaseModel]:
+    """Generate Pydantic model for node output validation"""
+
+    if output_schema.type != "object":
+        # Simple output wrapped in 'result' field
+        return create_model(
+            f"Output_{node_id}",
+            result=(get_python_type(output_schema.type), ...)
+        )
+    else:
+        # Object output with explicit fields
+        field_defs = {
+            field.name: (get_python_type(field.type), ...)
+            for field in output_schema.fields
+        }
+        return create_model(f"Output_{node_id}", **field_defs)
+```
+
+**Two Output Modes**:
+
+1. **Simple Output** (single value):
+```yaml
+output_schema:
+  type: str
+# LLM must return: {"result": "text here"}
+```
+
+2. **Object Output** (multiple fields):
+```yaml
+output_schema:
+  type: object
+  fields:
+    - {name: article, type: str}
+    - {name: word_count, type: int}
+# LLM must return: {"article": "...", "word_count": 500}
+```
+
+**Field Descriptions for LLM**:
+- Descriptions passed to LLM via JSON schema
+- Helps LLM understand what to return
+- Example: `"description": "Concise summary of findings"`
+
+**Test Coverage**: 29 output builder tests
+
+---
+
+### T-011: Node Executor Integration
+
+**File**: `src/configurable_agents/core/node_executor.py` (280 lines)
+
+**Structured Output Enforcement Flow**:
+
+```python
+def execute_node(
+    node_config: NodeConfig,
+    state: BaseModel,
+    global_config: Optional[GlobalConfig] = None
+) -> BaseModel:
+    """Execute node with structured output validation"""
+
+    # 1. Build output model from schema
+    OutputModel = build_output_model(
+        node_config.output_schema,
+        node_config.id
+    )
+
+    # 2. Configure LLM with structured output
+    llm = create_llm(llm_config)
+    llm_with_schema = llm.with_structured_output(
+        OutputModel.model_json_schema()
+    )
+
+    # 3. Bind tools if specified
+    if node_config.tools:
+        tools = [get_tool(name) for name in node_config.tools]
+        llm_with_schema = llm_with_schema.bind_tools(tools)
+
+    # 4. Call LLM (guaranteed to return dict matching OutputModel)
+    response = llm_with_schema.invoke(prompt)
+
+    # 5. Validate output against schema
+    validated_output = OutputModel(**response)
+
+    # 6. Update state with validated output
+    state_dict = state.model_dump()
+    for field_name in node_config.outputs:
+        if hasattr(validated_output, field_name):
+            state_dict[field_name] = getattr(validated_output, field_name)
+        elif hasattr(validated_output, 'result'):
+            state_dict[field_name] = validated_output.result
+
+    # 7. Return new state instance (immutable update)
+    return type(state)(**state_dict)
+```
+
+**Validation Guarantees**:
+1. **LLM returns structured JSON**: `with_structured_output()` forces JSON mode
+2. **Pydantic validates types**: `OutputModel(**response)` validates all fields
+3. **Missing fields → error**: Pydantic raises ValidationError if LLM omits field
+4. **Wrong types → error**: Pydantic converts or raises error
+5. **State update → type-safe**: New state instance validated by StateModel
+
+**Error Handling**:
+```python
+class NodeExecutionError(Exception):
+    """Wraps all node execution errors with context"""
+
+# Example error message:
+# NodeExecutionError: Node 'research' failed:
+#   Output validation failed: field 'sources' missing
+```
+
+**Test Coverage**: 23 node executor tests (including output validation scenarios)
+
+---
+
+### Production Validation (T-017)
+
+**Real API Testing** (Integration Tests):
+- 19 integration tests with real Gemini API calls
+- Structured outputs validated across all workflows
+- Error scenarios tested (invalid output types, missing fields)
+
+**Results**:
+- ✅ Gemini `with_structured_output()` works reliably
+- ✅ Pydantic validation catches all type errors
+- ✅ Clear error messages for debugging
+- ⚠️ Known limitation: Nested objects not yet supported (deferred to v0.2)
+
+**Example Integration Test**:
+```python
+def test_article_writer_workflow_integration():
+    """Test multi-node workflow with structured outputs"""
+    config = load_config("examples/article_writer.yaml")
+
+    # Execute workflow
+    result = run_workflow(config, {"topic": "AI Safety"})
+
+    # Validate structured outputs
+    assert isinstance(result["research"], str)  # from research node
+    assert isinstance(result["article"], str)  # from write node
+    assert len(result["article"]) > 0
+```
+
+---
+
+## Implementation Learnings
+
+### What Worked Well
+
+1. **`with_structured_output()` is Reliable**
+   - Google Gemini JSON mode enforces schema
+   - Rarely returns invalid JSON
+   - Field names and types respected
+
+2. **Pydantic Validation is Robust**
+   - Clear error messages
+   - Type coercion helps (e.g., "123" → 123)
+   - Catches errors before they corrupt state
+
+3. **Field Descriptions Help LLM**
+   - Including descriptions in JSON schema improves accuracy
+   - LLM better understands what to return
+
+### Known Limitations (v0.1)
+
+1. **Nested Objects Not Supported**
+   - Can't do: `{"result": {"summary": "...", "details": [...]}}`
+   - Workaround: Flatten to top-level fields
+   - Planned for v0.2
+
+2. **All Output Fields Required**
+   - LLM must provide all fields in `output_schema`
+   - Can't mark fields as optional
+   - Planned for v0.2
+
+3. **No Union Types**
+   - Can't do: `type: str | int`
+   - Workaround: Use str and parse if needed
+   - Planned for v0.3
+
+---
+
 ## Superseded By
 
 None (current)

@@ -534,7 +534,7 @@ except WorkflowExecutionError as e:
 | DSPy optimization | ❌ | ❌ | ✅ |
 | Parallel execution | ❌ | ❌ | ✅ |
 
-See [ROADMAP.md](ROADMAP.md) for timeline and details.
+See [TASKS.md (for detailed progress) or README.md (for version overview)](TASKS.md (for detailed progress) or README.md (for version overview)) for timeline and details.
 
 ---
 

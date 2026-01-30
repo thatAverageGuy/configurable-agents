@@ -398,6 +398,60 @@ volumes:
 
 ---
 
+## Implementation Planning
+
+**Status**: ⏳ Planned for v0.1 (not yet implemented)
+**Related Tasks**: T-018 (MLFlow Foundation), T-019 (Instrumentation), T-020 (Cost Tracking), T-021 (Documentation)
+**Target Date**: February 2026
+**Estimated Effort**: 9 days (2+3+2+2)
+
+### Implementation Tasks
+
+**T-018: MLFlow Integration Foundation** (2 days):
+- Initialize MLFlow tracking (set URI, experiment)
+- Start/end workflow runs with parameters
+- Log metrics and artifacts
+- Handle disabled state gracefully (no-op mode)
+- Test with local file backend (`file://./mlruns`)
+
+**T-019: MLFlow Instrumentation** (3 days):
+- Instrument runtime executor (workflow-level tracking)
+- Instrument node executor (node-level nested runs)
+- Extract token counts from LLM responses
+- Log prompts and responses as artifacts
+- Track execution times per node
+
+**T-020: Cost Tracking & Reporting** (2 days):
+- Implement token-to-cost conversion
+- Add pricing tables for Gemini, OpenAI, Anthropic
+- Calculate cumulative costs per workflow
+- Log costs as MLFlow metrics
+- Provide cost reporting utilities
+
+**T-021: Observability Documentation** (2 days):
+- Complete OBSERVABILITY.md (already drafted)
+- Add configuration examples
+- Document querying and reporting
+- Best practices guide
+- Troubleshooting section
+
+### Current State
+
+**Completed**:
+- ✅ Architecture designed (this ADR)
+- ✅ Documentation drafted (docs/OBSERVABILITY.md - 1,007 lines)
+- ✅ Schema defined (SPEC.md `config.observability.mlflow`)
+- ✅ Three-tier strategy documented (ADR-014)
+
+**Not Started**:
+- ⏳ MLFlow integration code
+- ⏳ Cost tracking implementation
+- ⏳ Instrumentation in runtime/nodes
+
+**Next Steps**: Begin T-018 after current documentation optimization complete
+
+---
+
 ## Supersedes
 
 None (first observability decision)

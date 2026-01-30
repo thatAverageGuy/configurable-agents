@@ -561,6 +561,58 @@ None (first deployment decision)
 
 ---
 
+## Implementation Planning
+
+**Status**: ⏳ Planned for v0.1 (not yet implemented)
+**Related Tasks**: T-022 (Docker Artifacts), T-023 (FastAPI Server), T-024 (CLI Deploy Command)
+**Target Date**: February 2026
+**Estimated Effort**: 7 days (2+3+2)
+
+### Implementation Tasks
+
+**T-022: Docker Artifact Generator & Templates** (2 days):
+- Template system for generating Dockerfile, server.py, etc.
+- Multi-stage Dockerfile (builder + runtime)
+- docker-compose.yml with MLFlow UI
+- requirements.txt generation
+- README.md for deployment
+
+**T-023: FastAPI Server with Sync/Async** (3 days):
+- POST /run endpoint with timeout-based fallback
+- GET /status/{job_id} for async tracking
+- GET /health for container orchestration
+- GET /schema for workflow introspection
+- In-memory job store (v0.1), Redis/PostgreSQL (v0.2+)
+- Background task execution
+- Input validation against workflow schema
+
+**T-024: CLI Deploy Command & Streamlit Integration** (2 days):
+- `configurable-agents deploy workflow.yaml` command
+- Docker detection and validation
+- Build and run container
+- Environment variable handling (CLI --env-file)
+- Streamlit UI: upload .env, paste variables
+- Container management utilities
+
+### Current State
+
+**Completed**:
+- ✅ Architecture designed (this ADR)
+- ✅ Documentation drafted (docs/DEPLOYMENT.md - 1,165 lines)
+- ✅ Sync/async strategy defined
+- ✅ Environment variable approach decided (ADR-013)
+- ✅ MLFlow UI integration planned (ADR-011)
+
+**Not Started**:
+- ⏳ Artifact generator code
+- ⏳ FastAPI server template
+- ⏳ CLI deploy command
+- ⏳ Dockerfile templates
+
+**Next Steps**: Begin T-022 after observability implementation (T-018-021) complete
+
+---
+
 ## Related Decisions
 
 - **ADR-011**: MLFlow observability (UI included in container)

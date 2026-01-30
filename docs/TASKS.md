@@ -1029,7 +1029,7 @@ Write user-facing documentation.
 **Files Created**:
 - `docs/QUICKSTART.md` (5-minute tutorial)
 - `docs/CONFIG_REFERENCE.md` (user-friendly schema guide)
-- `docs/ROADMAP.md` (feature timeline and versions)
+- Roadmap integrated into `README.md` (version overview)
 - `docs/TROUBLESHOOTING.md` (common issues and solutions)
 
 **Files Modified**:
