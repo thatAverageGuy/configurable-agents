@@ -7,6 +7,7 @@ Config-driven LLM agent runtime that turns your ideas into executable workflows 
 [![Status](https://img.shields.io/badge/status-alpha-orange)]()
 [![Version](https://img.shields.io/badge/version-0.1.0--dev%20(81%25)-blue)]()
 [![Progress](https://img.shields.io/badge/tasks-22%2F27%20complete-brightgreen)]()
+[![Tests](https://img.shields.io/badge/tests-568%20passing-brightgreen)]()
 [![Python](https://img.shields.io/badge/python-3.10%2B-blue)]()
 [![License](https://img.shields.io/badge/license-MIT-green)]()
 
@@ -120,7 +121,7 @@ curl -X POST http://localhost:8000/run \
 
 | Version | Status | Target | Theme | Focus |
 |---------|--------|--------|-------|-------|
-| **v0.1** | 🔄 78% (21/27) | March 2026 | Production Ready | Linear flows + Observability + Docker |
+| **v0.1** | 🔄 81% (22/27) | March 2026 | Production Ready | Linear flows + Observability + Docker |
 | **v0.2** | 📋 Planned | Q2 2026 | Intelligence | Conditionals, loops, multi-LLM |
 | **v0.3** | 🔮 Future | Q3 2026 | Optimization | DSPy, parallel execution |
 | **v0.4** | 🌟 Vision | Q4 2026 | Ecosystem | Visual tools, cloud deploy |
@@ -155,7 +156,7 @@ result = run_workflow("workflow.yaml", {"topic": "AI"})
 - ✅ Tool integration (Serper web search)
 - ✅ Parse-time validation (fail fast, save money)
 - ✅ CLI interface (run, validate, verbose)
-- ✅ 544 tests (28 integration + 516 unit)
+- ✅ 568 tests (13 integration + 555 unit)
 - ✅ Google Gemini integration
 
 #### ⏳ In Progress (Completing v0.1)
@@ -173,7 +174,12 @@ configurable-agents report costs --format json --output report.json
 
 **Docker Deployment** (T-022 to T-024):
 ```bash
-# One-command deployment (coming soon)
+# Artifact generation (NEW in T-022)
+from configurable_agents.deploy import generate_deployment_artifacts
+artifacts = generate_deployment_artifacts("workflow.yaml", "./deploy")
+# Generates: Dockerfile, FastAPI server, docker-compose.yml, etc.
+
+# One-command deployment (coming in T-024)
 configurable-agents deploy workflow.yaml
 # → API: http://localhost:8000
 # → MLFlow UI: http://localhost:5000
@@ -345,14 +351,14 @@ See [Architecture Decision Records](docs/adr/) for detailed design choices.
 - ✅ T-016: Documentation
 - ✅ T-017: Integration Tests
 
-### Phase 4: Observability (3/4 complete)
+### Phase 4: Observability (4/4 complete) ✅ COMPLETE
 - ✅ T-018: MLFlow Integration Foundation
 - ✅ T-019: MLFlow Instrumentation
 - ✅ T-020: Cost Tracking & Reporting
-- ⏳ T-021: Observability Documentation
+- ✅ T-021: Observability Documentation
 
-### Phase 4: Docker Deployment (0/3 complete)
-- ⏳ T-022: Docker Artifact Generator & Templates
+### Phase 4: Docker Deployment (1/3 complete)
+- ✅ T-022: Docker Artifact Generator & Templates
 - ⏳ T-023: FastAPI Server with Sync/Async
 - ⏳ T-024: CLI Deploy Command & Streamlit Integration
 
@@ -361,9 +367,9 @@ See [Architecture Decision Records](docs/adr/) for detailed design choices.
 - ⏳ T-026: DSPy Integration Test
 - ⏳ T-027: Structured Output + DSPy
 
-**Overall Progress**: 21/27 tasks complete (78%)
+**Overall Progress**: 22/27 tasks complete (81%)
 
-**Next up**: T-021 (Observability Documentation)
+**Next up**: T-023 (FastAPI Server with Sync/Async)
 
 Full task breakdown: [docs/TASKS.md](docs/TASKS.md)
 

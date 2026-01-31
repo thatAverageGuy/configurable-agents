@@ -5,10 +5,47 @@
 > **For LLMs**: Read this first to understand current state, next action, and project standards.
 > Fetch details from linked docs as needed during implementation.
 
+---
+
+## ⚠️ CRITICAL: Post-Task Documentation Updates
+
+**MANDATORY**: After completing ANY task, you MUST update ALL relevant documentation. This is non-negotiable.
+
+**Minimum Required Updates** (4-6 files):
+1. **TASKS.md**: Mark task as DONE ✅, update progress percentage, update "Last Updated" date
+2. **CONTEXT.md** (this file): Update "Latest Completion", "Next Action", "Current State", progress stats
+3. **CHANGELOG.md**: Add entry to `[Unreleased]` section with key features (5-10 lines)
+4. **README.md**: Update progress badges, test counts, roadmap table, "Next up" section
+5. **Implementation log**: Create `docs/implementation_logs/phase_X/T-XXX_task_name.md` with comprehensive details
+6. **Commit message**: Use format "T-XXX: Task description with Co-Authored-By"
+
+**Search and Update** (if applicable):
+- **SPEC.md**: If config schema, pricing, or specifications changed
+- **ADRs**: Update "Current State" or "Implementation Planning" sections in relevant ADRs
+- **Module files**: Update supported models, pricing tables, or feature lists
+- **User docs**: QUICKSTART.md, CONFIG_REFERENCE.md, TROUBLESHOOTING.md if user-visible changes
+- **ARCHITECTURE.md**: If system design or components changed
+
+**Search Strategy**:
+1. Grep for old values (e.g., test counts, percentages, "Next up")
+2. Check related ADRs for sections that reference your task
+3. Verify all cross-references are updated
+4. Use "Find All" to catch missed occurrences
+
+**Why This Matters**:
+- Documentation is the source of truth for the project
+- Outdated docs lead to confusion and wasted time
+- Progress tracking depends on accurate updates
+- Implementation logs preserve critical context
+
+**If you skip documentation updates, the task is NOT complete!**
+
+---
+
 **Last Updated**: 2026-01-31
 **Current Phase**: Phase 4 (Observability & Docker Deployment)
-**Latest Completion**: T-021 (Observability Documentation) - 2026-01-31
-**Next Action**: T-022 (Docker Artifact Generator)
+**Latest Completion**: T-022 (Docker Artifact Generator) - 2026-01-31
+**Next Action**: T-023 (FastAPI Server with Sync/Async)
 
 ---
 
@@ -20,7 +57,8 @@
 - **Phase 1** (Foundation): ✅ 8/8 complete
 - **Phase 2** (Core Execution): ✅ 6/6 complete
 - **Phase 3** (Polish & UX): ✅ 4/4 complete
-- **Phase 4** (Observability & Docker): 4/7 complete
+- **Phase 4** (Observability): ✅ 4/4 complete
+- **Phase 4** (Docker Deployment): 1/3 complete
 - **Phase 5** (Future): 3 tasks deferred to v0.2+
 
 ### What Works Right Now
@@ -47,79 +85,79 @@ result = run_workflow("workflow.yaml", {"topic": "AI"})
 - ✅ MLFlow observability foundation (cost tracking, workflow metrics)
 - ✅ Automatic node-level tracking (token extraction, prompt/response logging)
 - ✅ Cost reporting utilities with CLI commands (JSON/CSV export)
-- ✅ 544 unit tests passing (100% pass rate)
+- ✅ Docker artifact generation (Dockerfile, FastAPI server, docker-compose, etc.)
+- ✅ 568 unit tests passing (100% pass rate)
 - ✅ Complete user documentation
 
 **What Doesn't Work Yet**:
-- ❌ Docker deployment (T-022-024)
+- ❌ Docker deployment CLI command (T-023-024)
+- ❌ FastAPI server running (T-023)
 - ❌ Conditional routing (v0.2+)
 - ❌ Multi-LLM support (v0.2+)
 
-### Latest Completion: T-021 (Observability Documentation)
+### Latest Completion: T-022 (Docker Artifact Generator)
 
 **Completed**: 2026-01-31
-**What**: Comprehensive user-facing documentation for MLFlow observability features
+**What**: Artifact generation system for Docker deployment - creates all files needed to deploy workflows as containers
 **Impact**:
-- Complete documentation for all MLFlow features implemented in T-018, T-019, T-020
-- Users can now understand how to enable tracking, view costs, and use the MLFlow UI
-- Clear configuration reference with all options explained
-- CLI cost reporting guide with practical examples
-- Working example workflow demonstrating MLFlow usage
-- Fixed incorrect feature gate warning (MLFlow is fully supported in v0.1)
+- Users can now generate production-ready Docker deployment files from workflow configs
+- Complete artifact generation pipeline (8 files per deployment)
+- Foundation for one-command Docker deployment (T-024)
+- Zero-dependency template engine (Python's `string.Template`)
+- Multi-stage Dockerfile optimization (~180-200MB target image size)
+- FastAPI server template with sync/async hybrid execution
 
-**Key Updates**:
-- **OBSERVABILITY.md**: Updated config schema, pricing table (9 Gemini models), added CLI cost reporting section
-- **CONFIG_REFERENCE.md**: Added 60-line observability section with complete MLFlow reference
-- **QUICKSTART.md**: Added optional observability section
-- **README.md**: Fixed CLI command syntax (`--period` not `--range`)
-- **feature_gate.py**: Removed incorrect warning that MLFlow isn't supported
-- **Example workflow**: Created `article_writer_mlflow.yaml` demonstrating observability
+**Key Features**:
+- **DeploymentArtifactGenerator** class with comprehensive template substitution
+- **7 template files**: Dockerfile, server.py, requirements.txt, docker-compose.yml, .env.example, README.md, .dockerignore
+- **Generated artifacts**: 8 files (~17KB total) with workflow config copy
+- **Configurable**: API port, MLFlow port, sync timeout, container name, MLFlow enable/disable
+- **Comprehensive README**: API reference, management commands, troubleshooting guide
 
-**Files Modified**: 6 (4 docs, 1 source, 1 test)
-**Files Created**: 2 (1 example, 1 implementation log)
+**Files Created**: 12 (9 source/template files, 3 test files)
+**Tests Added**: 24 (21 unit + 3 integration) - Total: 568 tests passing
 
-**Implementation Log**: `implementation_logs/phase_4_observability_docker/T-021_observability_documentation.md`
+**Implementation Log**: `implementation_logs/phase_4_observability_docker/T-022_docker_artifact_generator.md`
 
 ---
 
 ## 📋 Next Action (Start Here!)
 
-### Task: T-022 - Docker Artifact Generator & Templates
+### Task: T-023 - FastAPI Server with Sync/Async
 
-**Goal**: Implement artifact generation for Docker deployment - Dockerfile, FastAPI server, requirements, etc.
+**Goal**: Enhance and test FastAPI server template with sync/async hybrid execution, complete job store, and MLFlow integration
+
+**Note**: Basic `server.py.template` was created in T-022. This task enhances, validates, and tests it.
 
 **Acceptance Criteria**:
-1. Create `src/configurable_agents/deploy/` package
-2. Create `src/configurable_agents/deploy/generator.py`:
-   - `generate_deployment_artifacts(config, output_dir, timeout, enable_mlflow, mlflow_port)`
-   - Template engine (Jinja2 or string.Template)
-   - Variable substitution (workflow_name, ports, timeout)
-3. Create `src/configurable_agents/deploy/templates/` directory:
-   - `Dockerfile.template` (multi-stage, optimized)
-   - `server.py.template` (FastAPI with sync/async)
-   - `requirements.txt.template` (minimal runtime deps)
-   - `docker-compose.yml.template`
-   - `.env.example.template`
-   - `README.md.template`
-   - `.dockerignore`
-4. Dockerfile optimizations:
-   - Multi-stage build (builder + runtime)
-   - `python:3.10-slim` base image
-   - `--no-cache-dir` for pip
-   - Health check
-   - MLFlow UI startup (if enabled)
-5. Unit tests (artifact generation, 20 tests)
-6. Integration test (generate → validate files exist, 3 tests)
+1. FastAPI server template enhancements (if needed):
+   - Endpoints: POST /run, GET /status/{job_id}, GET /health, GET /schema, GET /
+   - Sync/async hybrid logic (timeout-based fallback) ✅ Already in template
+   - Job store (in-memory dict for v0.1) ✅ Already in template
+   - Input validation (against workflow schema)
+   - OpenAPI auto-docs (FastAPI built-in) ✅ Already in template
+   - MLFlow integration (logging within container)
+   - Error handling (ValidationError, ExecutionError, etc.) ✅ Already in template
+   - Background task execution (FastAPI BackgroundTasks) ✅ Already in template
+2. Validate sync execution (< timeout):
+   - Uses `asyncio.wait_for()` with timeout ✅ Already in template
+   - Returns outputs immediately (200 OK) ✅ Already in template
+3. Validate async execution (> timeout):
+   - Generates job_id (UUID) ✅ Already in template
+   - Stores job metadata (status, created_at, inputs) ✅ Already in template
+   - Runs in background task ✅ Already in template
+   - Returns job_id (202 Accepted) ✅ Already in template
+4. Unit tests (mocked workflow execution, 30 tests)
+5. Integration test (real FastAPI server, 5 tests)
 
 **Dependencies**:
-- ✅ T-013 (Runtime Executor) - COMPLETE
-- ✅ T-021 (Observability) - COMPLETE
+- ✅ T-022 (Docker Artifact Generator) - COMPLETE
 
-**Estimated Effort**: 2 days
+**Estimated Effort**: 3 days (mostly testing and validation)
 
 **Related Documentation**:
-- `docs/DEPLOYMENT.md` (Docker deployment guide - already exists)
-- `docs/adr/ADR-012-docker-deployment.md` (if exists)
+- `docs/DEPLOYMENT.md` (Docker deployment guide)
+- `docs/adr/ADR-012-docker-deployment.md` (Docker architecture)
 
 ---
 
