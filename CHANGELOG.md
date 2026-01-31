@@ -13,6 +13,16 @@ For detailed task-by-task implementation notes, see [implementation logs](docs/i
 
 ### Added
 
+**Observability Documentation** (T-021):
+- Comprehensive MLFlow documentation in `docs/OBSERVABILITY.md`
+- Configuration reference added to `docs/CONFIG_REFERENCE.md` (~60 lines)
+- Observability section added to `docs/QUICKSTART.md`
+- Working example: `examples/article_writer_mlflow.yaml` demonstrating MLFlow tracking
+- CLI cost reporting guide with practical examples
+- Updated Gemini pricing table (9 models, January 2025 pricing)
+- Fixed incorrect feature gate warning (MLFlow fully supported in v0.1)
+- 6 files modified (4 docs, 1 source, 1 test)
+
 **Cost Tracking & Reporting** (T-020):
 - CLI cost reporting: `configurable-agents report costs` with multiple filters
 - MLFlow cost query and aggregation utilities in `observability/cost_reporter.py`

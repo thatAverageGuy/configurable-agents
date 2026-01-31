@@ -5,8 +5,8 @@
 Config-driven LLM agent runtime that turns your ideas into executable workflows in minutes, not days.
 
 [![Status](https://img.shields.io/badge/status-alpha-orange)]()
-[![Version](https://img.shields.io/badge/version-0.1.0--dev%20(78%25)-blue)]()
-[![Progress](https://img.shields.io/badge/tasks-21%2F27%20complete-brightgreen)]()
+[![Version](https://img.shields.io/badge/version-0.1.0--dev%20(81%25)-blue)]()
+[![Progress](https://img.shields.io/badge/tasks-22%2F27%20complete-brightgreen)]()
 [![Python](https://img.shields.io/badge/python-3.10%2B-blue)]()
 [![License](https://img.shields.io/badge/license-MIT-green)]()
 
@@ -131,7 +131,7 @@ curl -X POST http://localhost:8000/run \
 
 ### v0.1 - Production Ready (Current)
 
-**Status**: 78% complete (21/27 tasks) | **Target**: March 2026
+**Status**: 81% complete (22/27 tasks) | **Target**: March 2026
 
 #### ✅ Working Now
 
