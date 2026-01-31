@@ -289,6 +289,30 @@ class TestNodeConfig:
                 outputs=[],
             )
 
+    def test_observability_overrides(self):
+        """Test node-level observability overrides."""
+        node = NodeConfig(
+            id="test_node",
+            prompt="Test prompt",
+            output_schema=OutputSchema(type="str"),
+            outputs=["result"],
+            log_prompts=False,  # Override workflow default
+            log_artifacts=True,  # Override workflow default
+        )
+        assert node.log_prompts is False
+        assert node.log_artifacts is True
+
+    def test_observability_overrides_optional(self):
+        """Test that observability overrides are optional."""
+        node = NodeConfig(
+            id="test_node",
+            prompt="Test prompt",
+            output_schema=OutputSchema(type="str"),
+            outputs=["result"],
+        )
+        assert node.log_prompts is None  # Not set, will use workflow default
+        assert node.log_artifacts is None  # Not set, will use workflow default
+
 
 class TestRouteCondition:
     """Test RouteCondition model."""
@@ -414,7 +438,25 @@ class TestObservabilityConfig:
     def test_mlflow_config_defaults(self):
         config = ObservabilityMLFlowConfig()
         assert config.enabled is False
+        assert config.tracking_uri == "file://./mlruns"
+        assert config.experiment_name == "configurable_agents"
+        assert config.run_name is None
         assert config.log_prompts is True
+        assert config.log_artifacts is True
+        assert config.artifact_level == "standard"
+        assert config.retention_days is None
+        assert config.redact_pii is False
+
+    def test_mlflow_config_valid_artifact_levels(self):
+        """Test that valid artifact levels are accepted."""
+        for level in ["minimal", "standard", "full"]:
+            config = ObservabilityMLFlowConfig(artifact_level=level)
+            assert config.artifact_level == level
+
+    def test_mlflow_config_invalid_artifact_level(self):
+        """Test that invalid artifact levels are rejected."""
+        with pytest.raises(ValueError, match="artifact_level must be one of"):
+            ObservabilityMLFlowConfig(artifact_level="invalid")
 
     def test_logging_config_defaults(self):
         config = ObservabilityLoggingConfig()

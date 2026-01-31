@@ -14,6 +14,7 @@ from configurable_agents.config import (
     ValidationError,
 )
 from configurable_agents.core import build_graph, build_state_model
+from configurable_agents.observability import MLFlowTracker
 from configurable_agents.runtime.feature_gate import (
     UnsupportedFeatureError,
     validate_runtime_support,
@@ -232,13 +233,24 @@ def run_workflow_from_config(
             original_error=e,
         )
 
-    # Phase 6: Execute graph
+    # Phase 6: Initialize MLFlow tracker
+    mlflow_config = None
+    if config.config and config.config.observability:
+        mlflow_config = config.config.observability.mlflow
+
+    tracker = MLFlowTracker(mlflow_config, config)
+
+    # Phase 7: Execute graph with MLFlow tracking
     try:
         logger.info(f"Starting workflow execution: {workflow_name}")
         logger.debug(f"Initial state: {initial_state}")
 
-        # LangGraph's invoke() returns dict, not BaseModel
-        final_state = graph.invoke(initial_state)
+        with tracker.track_workflow(inputs=inputs):
+            # LangGraph's invoke() returns dict, not BaseModel
+            final_state = graph.invoke(initial_state)
+
+            # Finalize MLFlow tracking
+            tracker.finalize_workflow(final_state, status="success")
 
         execution_time = time.time() - start_time
         logger.info(

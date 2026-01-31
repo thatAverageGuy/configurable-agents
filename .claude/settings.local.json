@@ -3,7 +3,8 @@
     "allow": [
       "Bash(python -m pytest:*)",
       "Bash(wc:*)",
-      "Bash(done)"
+      "Bash(done)",
+      "Bash(pytest:*)"
     ]
   }
 }

@@ -157,6 +157,14 @@ class NodeConfig(BaseModel):
     )
     llm: Optional[LLMConfig] = Field(None, description="Node-level LLM override")
 
+    # Observability overrides (optional, overrides workflow-level defaults)
+    log_prompts: Optional[bool] = Field(
+        None, description="Override workflow-level log_prompts for this node"
+    )
+    log_artifacts: Optional[bool] = Field(
+        None, description="Override workflow-level log_artifacts for this node"
+    )
+
     @field_validator("id")
     @classmethod
     def validate_id(cls, v: str) -> str:
@@ -246,11 +254,56 @@ class ExecutionConfig(BaseModel):
 
 
 class ObservabilityMLFlowConfig(BaseModel):
-    """MLFlow observability config (v0.2+)."""
+    """MLFlow observability config (v0.1+)."""
 
     enabled: bool = Field(False, description="Enable MLFlow tracking")
-    experiment: Optional[str] = Field(None, description="Experiment name")
-    log_prompts: bool = Field(True, description="Log prompts and outputs")
+    tracking_uri: str = Field(
+        "file://./mlruns",
+        description="MLFlow backend URI (file://, postgresql://, s3://, etc.)"
+    )
+    experiment_name: str = Field(
+        "configurable_agents",
+        description="Experiment name for grouping runs"
+    )
+    run_name: Optional[str] = Field(
+        None,
+        description="Template for run names (default: timestamp-based)"
+    )
+
+    # Observability controls (workflow-level defaults, can be overridden per-node)
+    log_prompts: bool = Field(
+        True,
+        description="Show prompts/responses in MLFlow UI (not as files, default for all nodes)"
+    )
+    log_artifacts: bool = Field(
+        True,
+        description="Save artifacts as downloadable files (default for all nodes)"
+    )
+    artifact_level: str = Field(
+        "standard",
+        description="Artifact detail level: 'minimal', 'standard', or 'full'"
+    )
+
+    # Enterprise hooks (reserved for v0.2+, not enforced)
+    retention_days: Optional[int] = Field(
+        None,
+        description="Auto-cleanup old runs after N days (v0.2+)"
+    )
+    redact_pii: bool = Field(
+        False,
+        description="Sanitize PII before logging (v0.2+)"
+    )
+
+    @field_validator("artifact_level")
+    @classmethod
+    def validate_artifact_level(cls, v: str) -> str:
+        """Validate artifact level is one of the supported values."""
+        valid_levels = {"minimal", "standard", "full"}
+        if v not in valid_levels:
+            raise ValueError(
+                f"artifact_level must be one of {valid_levels}, got '{v}'"
+            )
+        return v
 
 
 class ObservabilityLoggingConfig(BaseModel):
