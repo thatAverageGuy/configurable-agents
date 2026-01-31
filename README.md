@@ -5,8 +5,8 @@
 Config-driven LLM agent runtime that turns your ideas into executable workflows in minutes, not days.
 
 [![Status](https://img.shields.io/badge/status-alpha-orange)]()
-[![Version](https://img.shields.io/badge/version-0.1.0--dev%20(70%25)-blue)]()
-[![Progress](https://img.shields.io/badge/tasks-19%2F27%20complete-brightgreen)]()
+[![Version](https://img.shields.io/badge/version-0.1.0--dev%20(74%25)-blue)]()
+[![Progress](https://img.shields.io/badge/tasks-20%2F27%20complete-brightgreen)]()
 [![Python](https://img.shields.io/badge/python-3.10%2B-blue)]()
 [![License](https://img.shields.io/badge/license-MIT-green)]()
 
@@ -111,7 +111,7 @@ curl -X POST http://localhost:8000/run \
 
 | Version | Status | Target | Theme | Focus |
 |---------|--------|--------|-------|-------|
-| **v0.1** | 🔄 70% (19/27) | March 2026 | Production Ready | Linear flows + Observability + Docker |
+| **v0.1** | 🔄 70% (20/27) | March 2026 | Production Ready | Linear flows + Observability + Docker |
 | **v0.2** | 📋 Planned | Q2 2026 | Intelligence | Conditionals, loops, multi-LLM |
 | **v0.3** | 🔮 Future | Q3 2026 | Optimization | DSPy, parallel execution |
 | **v0.4** | 🌟 Vision | Q4 2026 | Ecosystem | Visual tools, cloud deploy |
@@ -122,7 +122,7 @@ curl -X POST http://localhost:8000/run \
 
 ### v0.1 - Production Ready (Current)
 
-**Status**: 70% complete (19/27 tasks) | **Target**: March 2026
+**Status**: 74% complete (20/27 tasks) | **Target**: March 2026
 
 #### ✅ Working Now
 
@@ -348,7 +348,7 @@ See [Architecture Decision Records](docs/adr/) for detailed design choices.
 - ⏳ T-026: DSPy Integration Test
 - ⏳ T-027: Structured Output + DSPy
 
-**Overall Progress**: 19/27 tasks complete (70%)
+**Overall Progress**: 20/27 tasks complete (74%)
 
 **Next up**: T-019 (MLFlow Instrumentation)
 
@@ -382,7 +382,7 @@ Full task breakdown: [docs/TASKS.md](docs/TASKS.md)
   - *What's being built, task by task*
   - All 27 tasks for v0.1 with acceptance criteria
   - Dependencies and estimates
-  - Current progress tracker (19/27 complete)
+  - Current progress tracker (20/27 complete)
 
 - **[CONTEXT.md](docs/CONTEXT.md)** - Development context (living document)
   - *Current state, next action, and development standards*

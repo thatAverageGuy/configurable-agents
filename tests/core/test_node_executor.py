@@ -29,6 +29,13 @@ from configurable_agents.core.node_executor import (
     NodeExecutionError,
     _strip_state_prefix,
 )
+from configurable_agents.llm import LLMUsageMetadata
+
+
+# Test helper
+def make_usage(input_tokens=100, output_tokens=50):
+    """Create mock LLM usage metadata."""
+    return LLMUsageMetadata(input_tokens=input_tokens, output_tokens=output_tokens)
 
 
 # Test fixtures
@@ -143,7 +150,7 @@ def test_execute_node_simple_output(mock_build_output, mock_create_llm, mock_cal
 
     # Mock LLM result
     mock_result = SimpleOutput(result="AI safety research findings...")
-    mock_call_llm.return_value = mock_result
+    mock_call_llm.return_value = (mock_result, make_usage())
 
     # Execute node
     updated_state = execute_node(node_config, state)
@@ -195,7 +202,7 @@ def test_execute_node_object_output(mock_build_output, mock_create_llm, mock_cal
         word_count=42,
         sources=["https://example.com"],
     )
-    mock_call_llm.return_value = mock_result
+    mock_call_llm.return_value = (mock_result, make_usage())
 
     # Execute node
     updated_state = execute_node(node_config, state)
@@ -227,7 +234,7 @@ def test_execute_node_with_state_prefix(
 
     # Mock output model and LLM
     mock_build_output.return_value = SimpleOutput
-    mock_call_llm.return_value = SimpleOutput(result="Research findings")
+    mock_call_llm.return_value = (SimpleOutput(result="Research findings"), make_usage())
 
     # Execute node
     updated_state = execute_node(node_config, state)
@@ -267,7 +274,7 @@ def test_execute_node_with_input_mappings(
 
     # Mock output model and LLM
     mock_build_output.return_value = SimpleOutput
-    mock_call_llm.return_value = SimpleOutput(result="New research")
+    mock_call_llm.return_value = (SimpleOutput(result="New research"), make_usage())
 
     # Execute node
     updated_state = execute_node(node_config, state)
@@ -302,7 +309,7 @@ def test_execute_node_input_mappings_with_state_prefix(
 
     # Mock output model and LLM
     mock_build_output.return_value = SimpleOutput
-    mock_call_llm.return_value = SimpleOutput(result="Research")
+    mock_call_llm.return_value = (SimpleOutput(result="Research"), make_usage())
 
     # Execute node
     updated_state = execute_node(node_config, state)
@@ -344,7 +351,7 @@ def test_execute_node_with_tools(
 
     # Mock output model and LLM
     mock_build_output.return_value = SimpleOutput
-    mock_call_llm.return_value = SimpleOutput(result="Search results")
+    mock_call_llm.return_value = (SimpleOutput(result="Search results"), make_usage())
 
     # Execute node
     updated_state = execute_node(node_config, state)
@@ -385,7 +392,7 @@ def test_execute_node_multiple_tools(
 
     # Mock output model and LLM
     mock_build_output.return_value = SimpleOutput
-    mock_call_llm.return_value = SimpleOutput(result="Result")
+    mock_call_llm.return_value = (SimpleOutput(result="Result"), make_usage())
 
     # Execute node
     updated_state = execute_node(node_config, state)
@@ -436,7 +443,7 @@ def test_execute_node_llm_config_merging(
 
     # Mock output model and LLM
     mock_build_output.return_value = SimpleOutput
-    mock_call_llm.return_value = SimpleOutput(result="Result")
+    mock_call_llm.return_value = (SimpleOutput(result="Result"), make_usage())
 
     # Execute node
     updated_state = execute_node(node_config, state, global_config)
@@ -471,7 +478,7 @@ def test_execute_node_max_retries_from_global_config(
 
     # Mock output model and LLM
     mock_build_output.return_value = SimpleOutput
-    mock_call_llm.return_value = SimpleOutput(result="Result")
+    mock_call_llm.return_value = (SimpleOutput(result="Result"), make_usage())
 
     # Execute node
     updated_state = execute_node(node_config, state, global_config)
@@ -692,7 +699,7 @@ def test_execute_node_state_is_copied(
 
     # Mock output model and LLM
     mock_build_output.return_value = SimpleOutput
-    mock_call_llm.return_value = SimpleOutput(result="new research")
+    mock_call_llm.return_value = (SimpleOutput(result="new research"), make_usage())
 
     # Execute node
     updated_state = execute_node(node_config, original_state)

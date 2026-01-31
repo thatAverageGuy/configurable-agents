@@ -23,6 +23,7 @@ try:
     import mlflow
     MLFLOW_AVAILABLE = True
 except ImportError:
+    mlflow = None  # Set to None so it exists at module level for mocking
     MLFLOW_AVAILABLE = False
     logger.warning(
         "MLFlow not installed. Observability features disabled. "
