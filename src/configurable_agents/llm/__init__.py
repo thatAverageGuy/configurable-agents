@@ -29,6 +29,7 @@ from configurable_agents.llm.provider import (
     LLMAPIError,
     LLMConfigError,
     LLMProviderError,
+    LLMUsageMetadata,
     call_llm_structured,
     create_llm,
     merge_llm_config,
@@ -41,4 +42,5 @@ __all__ = [
     "LLMConfigError",
     "LLMProviderError",
     "LLMAPIError",
+    "LLMUsageMetadata",
 ]

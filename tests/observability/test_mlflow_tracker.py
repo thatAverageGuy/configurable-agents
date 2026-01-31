@@ -1,5 +1,6 @@
 """Unit tests for MLFlowTracker with mocked MLFlow."""
 
+import sys
 from unittest.mock import MagicMock, patch, call
 import pytest
 
@@ -56,12 +57,15 @@ def mlflow_config():
 @pytest.fixture
 def mlflow_mock():
     """Create a mock MLFlow module."""
-    with patch("configurable_agents.observability.mlflow_tracker.mlflow") as mock:
+    # Create a mock mlflow module
+    mock_mlflow = MagicMock()
+    mock_mlflow.active_run.return_value = MagicMock()
+    mock_mlflow.set_experiment.return_value = MagicMock(experiment_id="exp_123")
+
+    # Patch the mlflow module and availability flag
+    with patch("configurable_agents.observability.mlflow_tracker.mlflow", mock_mlflow):
         with patch("configurable_agents.observability.mlflow_tracker.MLFLOW_AVAILABLE", True):
-            # Setup common mock behaviors
-            mock.active_run.return_value = MagicMock()
-            mock.set_experiment.return_value = MagicMock(experiment_id="exp_123")
-            yield mock
+            yield mock_mlflow
 
 
 class TestMLFlowTrackerInitialization:

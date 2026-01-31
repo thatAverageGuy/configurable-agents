@@ -28,6 +28,17 @@ from configurable_agents.config.schema import (
 )
 from configurable_agents.core import GraphBuilderError, build_graph
 from configurable_agents.core.node_executor import NodeExecutionError
+from configurable_agents.llm import LLMUsageMetadata
+
+
+# ============================================
+# Test Helpers
+# ============================================
+
+
+def make_usage(input_tokens=100, output_tokens=50):
+    """Create mock LLM usage metadata."""
+    return LLMUsageMetadata(input_tokens=input_tokens, output_tokens=output_tokens)
 
 
 # ============================================
@@ -122,7 +133,7 @@ def test_build_simple_linear_graph(mock_execute):
     config = make_simple_config()
 
     # Mock execute_node to return updated state
-    def mock_exec(node_config, state, global_config):
+    def mock_exec(node_config, state, global_config, tracker=None):
         new_state = state.model_copy()
         new_state.output = f"processed by {node_config.id}"
         return new_state
@@ -152,7 +163,7 @@ def test_build_multi_step_graph(mock_execute):
     config = make_multi_step_config()
 
     # Mock execute_node for multi-step
-    def mock_exec(node_config, state, global_config):
+    def mock_exec(node_config, state, global_config, tracker=None):
         new_state = state.model_copy()
         if node_config.id == "research":
             new_state.research = "research findings"
@@ -183,7 +194,7 @@ def test_build_with_global_config(mock_execute):
     # Mock that captures args
     captured_args = []
 
-    def mock_exec(node_config, state, global_config):
+    def mock_exec(node_config, state, global_config, tracker=None):
         captured_args.append((node_config, state, global_config))
         return state.model_copy()
 
@@ -210,7 +221,7 @@ def test_start_edge_connects_to_first_node(mock_execute):
     # Arrange
     config = make_simple_config()
 
-    def mock_exec(node_config, state, global_config):
+    def mock_exec(node_config, state, global_config, tracker=None):
         return state.model_copy()
 
     mock_execute.side_effect = mock_exec
@@ -231,7 +242,7 @@ def test_end_edge_terminates_graph(mock_execute):
     # Arrange
     config = make_simple_config()
 
-    def mock_exec(node_config, state, global_config):
+    def mock_exec(node_config, state, global_config, tracker=None):
         new_state = state.model_copy()
         new_state.output = "done"
         return new_state
@@ -262,7 +273,7 @@ def test_make_node_function_calls_execute_node(mock_execute):
 
     captured = []
 
-    def mock_exec(nc, state, gc):
+    def mock_exec(nc, state, gc, tracker=None):
         captured.append((nc, state, gc))
         return state.model_copy()
 
@@ -334,7 +345,7 @@ def test_state_flows_through_nodes(mock_execute):
     # Track state changes
     states_seen = []
 
-    def mock_exec(node_config, state, global_config):
+    def mock_exec(node_config, state, global_config, tracker=None):
         states_seen.append((node_config.id, state.model_copy()))
         new_state = state.model_copy()
         if node_config.id == "research":
@@ -367,7 +378,7 @@ def test_state_copy_on_write_preserved(mock_execute):
 
     original_states = []
 
-    def mock_exec(node_config, state, global_config):
+    def mock_exec(node_config, state, global_config, tracker=None):
         original_states.append(state)
         new_state = state.model_copy()
         new_state.output = "modified"
@@ -617,7 +628,7 @@ def test_graph_integration_with_real_execute_node(mock_create_llm, mock_call_llm
     class SimpleOutput(BaseModel):
         result: str
 
-    mock_call_llm.return_value = SimpleOutput(result="LLM processed output")
+    mock_call_llm.return_value = (SimpleOutput(result="LLM processed output"), make_usage())
 
     # Act
     graph = build_graph(config, SimpleState)
@@ -648,8 +659,8 @@ def test_graph_integration_multi_step(mock_create_llm, mock_call_llm):
         result: str
 
     mock_call_llm.side_effect = [
-        SimpleOutput(result="research findings"),
-        SimpleOutput(result="article content"),
+        (SimpleOutput(result="research findings"), make_usage()),
+        (SimpleOutput(result="article content"), make_usage()),
     ]
 
     # Act

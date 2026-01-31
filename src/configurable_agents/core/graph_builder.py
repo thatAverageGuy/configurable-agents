@@ -15,7 +15,7 @@ Design decisions:
 """
 
 import logging
-from typing import Callable, Optional, Type
+from typing import TYPE_CHECKING, Callable, Optional, Type
 
 from langgraph.graph import END, START, StateGraph
 from langgraph.graph.state import CompiledStateGraph
@@ -28,6 +28,9 @@ from configurable_agents.config.schema import (
     WorkflowConfig,
 )
 from configurable_agents.core.node_executor import NodeExecutionError, execute_node
+
+if TYPE_CHECKING:
+    from configurable_agents.observability import MLFlowTracker
 
 logger = logging.getLogger(__name__)
 
@@ -49,6 +52,7 @@ def build_graph(
     config: WorkflowConfig,
     state_model: Type[BaseModel],
     global_config: Optional[GlobalConfig] = None,
+    tracker: Optional["MLFlowTracker"] = None,
 ) -> CompiledStateGraph:
     """
     Build and compile LangGraph from config.
@@ -57,6 +61,7 @@ def build_graph(
         config: Validated workflow configuration
         state_model: Pydantic state model (from build_state_model)
         global_config: Global configuration (optional)
+        tracker: MLFlow tracker for observability (optional)
 
     Returns:
         Compiled LangGraph ready for execution
@@ -90,7 +95,7 @@ def build_graph(
 
     # Add nodes (via closure-based functions)
     for node_config in config.nodes:
-        node_fn = make_node_function(node_config, global_config)
+        node_fn = make_node_function(node_config, global_config, tracker)
         graph.add_node(node_config.id, node_fn)
         logger.debug(f"Added node: {node_config.id}")
 
@@ -118,22 +123,24 @@ def build_graph(
 def make_node_function(
     node_config: NodeConfig,
     global_config: Optional[GlobalConfig],
+    tracker: Optional["MLFlowTracker"] = None,
 ) -> Callable[[BaseModel], BaseModel]:
     """
     Create LangGraph-compatible node function.
 
-    Returns a closure that captures node_config and global_config,
+    Returns a closure that captures node_config, global_config, and tracker,
     calls execute_node, and handles errors with node context.
 
     Args:
         node_config: Node configuration
         global_config: Global configuration (optional)
+        tracker: MLFlow tracker for observability (optional)
 
     Returns:
         Node function: (state: BaseModel) -> BaseModel
 
     Design:
-        - Closure captures node_config and global_config
+        - Closure captures node_config, global_config, and tracker
         - Calls execute_node from T-011
         - NodeExecutionError propagated unchanged (already has context)
         - Unexpected errors wrapped with node context
@@ -142,7 +149,7 @@ def make_node_function(
     def node_fn(state: BaseModel) -> BaseModel:
         """Node function that executes the node."""
         try:
-            updated_state = execute_node(node_config, state, global_config)
+            updated_state = execute_node(node_config, state, global_config, tracker)
             return updated_state
         except NodeExecutionError:
             # Already has node context, re-raise as-is

@@ -18,7 +18,7 @@ Design decisions:
 
 import logging
 import re
-from typing import Optional
+from typing import TYPE_CHECKING, Optional
 
 from pydantic import BaseModel, ValidationError
 
@@ -34,6 +34,9 @@ from configurable_agents.llm import (
     merge_llm_config,
 )
 from configurable_agents.tools import ToolConfigError, ToolNotFoundError, get_tool
+
+if TYPE_CHECKING:
+    from configurable_agents.observability import MLFlowTracker
 
 logger = logging.getLogger(__name__)
 
@@ -97,6 +100,7 @@ def execute_node(
     node_config: NodeConfig,
     state: BaseModel,
     global_config: Optional[GlobalConfig] = None,
+    tracker: Optional["MLFlowTracker"] = None,
 ) -> BaseModel:
     """
     Execute a single workflow node.
@@ -108,13 +112,15 @@ def execute_node(
     4. Configure LLM (merge node + global config)
     5. Build output Pydantic model from schema
     6. Call LLM with structured output enforcement
-    7. Update state with output values
-    8. Return updated state (new instance)
+    7. Track metrics with MLFlow (if tracker provided)
+    8. Update state with output values
+    9. Return updated state (new instance)
 
     Args:
         node_config: Node configuration
         state: Current workflow state (Pydantic model)
         global_config: Global configuration (optional)
+        tracker: MLFlow tracker for observability (optional)
 
     Returns:
         Updated state (new Pydantic instance with outputs applied)
@@ -234,10 +240,32 @@ def execute_node(
         if global_config and global_config.execution:
             max_retries = global_config.execution.max_retries
 
+        # Get model name for tracking
+        model_name = merged_llm_config.model or "gemini-1.5-flash"  # Default from config
+
+        # Prepare tool names for tracking
+        tool_names = node_config.tools if node_config.tools else None
+
+        # Track node execution with MLFlow
+        tracker_context = (
+            tracker.track_node(
+                node_id=node_id,
+                model=model_name,
+                tools=tool_names,
+                node_config=node_config,
+            )
+            if tracker
+            else None
+        )
+
         try:
+            # Enter tracking context if available
+            if tracker_context:
+                tracker_context.__enter__()
+
             # Call LLM with structured output enforcement
             # Tools are bound if present, retries handled automatically
-            result = call_llm_structured(
+            result, usage = call_llm_structured(
                 llm=llm,
                 prompt=resolved_prompt,
                 output_model=OutputModel,
@@ -245,11 +273,36 @@ def execute_node(
                 max_retries=max_retries,
             )
             logger.info(f"Node '{node_id}': LLM call successful")
+
+            # Log node metrics if tracker available
+            if tracker:
+                # Convert result to JSON for response logging
+                try:
+                    response_text = result.model_dump_json(indent=2)
+                except Exception:
+                    response_text = str(result)
+
+                tracker.log_node_metrics(
+                    input_tokens=usage.input_tokens,
+                    output_tokens=usage.output_tokens,
+                    model=model_name,
+                    retries=max_retries - 1 if usage.input_tokens > 0 else 0,  # Estimate retries
+                    prompt=resolved_prompt,
+                    response=response_text,
+                )
+
         except (LLMAPIError, ValidationError) as e:
             raise NodeExecutionError(
                 f"Node '{node_id}': LLM call failed: {e}",
                 node_id=node_id,
             )
+        finally:
+            # Exit tracking context if available
+            if tracker_context:
+                try:
+                    tracker_context.__exit__(None, None, None)
+                except Exception as e:
+                    logger.warning(f"Failed to exit tracker context: {e}")
 
         # ========================================
         # 7. UPDATE STATE

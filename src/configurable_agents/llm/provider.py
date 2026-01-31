@@ -134,13 +134,21 @@ def create_llm(llm_config: Any, global_config: Any = None) -> BaseChatModel:
     raise LLMProviderError(provider, supported_providers)
 
 
+class LLMUsageMetadata:
+    """Token usage metadata from LLM response."""
+
+    def __init__(self, input_tokens: int, output_tokens: int):
+        self.input_tokens = input_tokens
+        self.output_tokens = output_tokens
+
+
 def call_llm_structured(
     llm: BaseChatModel,
     prompt: str,
     output_model: Type[BaseModel],
     tools: Optional[List[BaseTool]] = None,
     max_retries: int = 3,
-) -> BaseModel:
+) -> tuple[BaseModel, LLMUsageMetadata]:
     """Call LLM with structured output enforcement.
 
     This function wraps the LLM call with:
@@ -148,6 +156,7 @@ def call_llm_structured(
     - Tool binding (if provided)
     - Automatic retry on validation failures
     - Error handling
+    - Token usage extraction
 
     Args:
         llm: LLM instance (from create_llm)
@@ -157,7 +166,7 @@ def call_llm_structured(
         max_retries: Maximum retry attempts on validation failure
 
     Returns:
-        Instance of output_model with validated LLM response
+        Tuple of (output_model instance, usage_metadata)
 
     Raises:
         LLMAPIError: If LLM call fails
@@ -169,10 +178,11 @@ def call_llm_structured(
         ...     title: str
         ...     content: str
         >>> llm = create_llm(config)
-        >>> result = call_llm_structured(
+        >>> result, usage = call_llm_structured(
         ...     llm, "Write an article about AI", Article
         ... )
         >>> print(result.title)
+        >>> print(f"Tokens: {usage.input_tokens + usage.output_tokens}")
     """
     from pydantic import ValidationError
 
@@ -181,22 +191,48 @@ def call_llm_structured(
         llm = llm.bind_tools(tools)
 
     # Then bind structured output to LLM
-    structured_llm = llm.with_structured_output(output_model)
+    structured_llm = llm.with_structured_output(output_model, include_raw=True)
+
+    # Track retries for usage calculation
+    total_input_tokens = 0
+    total_output_tokens = 0
 
     # Attempt call with retries
     last_error = None
     for attempt in range(max_retries):
         try:
-            # Call LLM
-            result = structured_llm.invoke(prompt)
+            # Call LLM with include_raw=True to get usage metadata
+            response = structured_llm.invoke(prompt)
 
-            # If we got a valid result, return it
+            # Extract structured output and raw response
+            # with_structured_output(include_raw=True) returns dict with 'parsed' and 'raw'
+            if isinstance(response, dict) and "parsed" in response and "raw" in response:
+                result = response["parsed"]
+                raw_message = response["raw"]
+
+                # Extract token usage from raw message
+                usage_data = getattr(raw_message, "usage_metadata", None)
+                if usage_data:
+                    input_tokens = getattr(usage_data, "input_tokens", 0)
+                    output_tokens = getattr(usage_data, "output_tokens", 0)
+                    total_input_tokens += input_tokens
+                    total_output_tokens += output_tokens
+            else:
+                # Fallback for unexpected response format
+                result = response
+                total_input_tokens = 0
+                total_output_tokens = 0
+
+            # Validate result
             if isinstance(result, output_model):
-                return result
+                usage = LLMUsageMetadata(total_input_tokens, total_output_tokens)
+                return result, usage
 
             # If result is a dict, try to parse it
             if isinstance(result, dict):
-                return output_model(**result)
+                parsed = output_model(**result)
+                usage = LLMUsageMetadata(total_input_tokens, total_output_tokens)
+                return parsed, usage
 
             # Unexpected result type
             raise LLMAPIError(

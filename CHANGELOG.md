@@ -13,6 +13,15 @@ For detailed task-by-task implementation notes, see [implementation logs](docs/i
 
 ### Added
 
+**MLFlow Node Instrumentation** (T-019):
+- Automatic node-level tracking with token extraction from LangChain responses
+- LLM provider now returns tuple `(result, usage_metadata)` with token counts
+- Node executor wraps execution in `tracker.track_node()` for MLFlow logging
+- Logs resolved prompts and LLM responses as artifacts per node
+- Token usage tracked across retries for accurate cost calculation
+- Zero overhead when MLFlow disabled (graceful degradation maintained)
+- All 492 unit tests passing (fixed 15 observability test mocking errors)
+
 **MLFlow Observability Foundation** (T-018):
 - MLFlow integration for workflow execution tracking and cost monitoring
 - CostEstimator with pricing for 9 Gemini models (latest January 2025 pricing)

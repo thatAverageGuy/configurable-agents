@@ -221,10 +221,17 @@ def run_workflow_from_config(
             original_error=e,
         )
 
-    # Phase 5: Build and compile graph
+    # Phase 5: Initialize MLFlow tracker
+    mlflow_config = None
+    if config.config and config.config.observability:
+        mlflow_config = config.config.observability.mlflow
+
+    tracker = MLFlowTracker(mlflow_config, config)
+
+    # Phase 6: Build and compile graph (with tracker for node instrumentation)
     try:
         logger.debug("Building execution graph...")
-        graph = build_graph(config, state_model, config.config)
+        graph = build_graph(config, state_model, config.config, tracker)
         logger.debug("Graph built and compiled successfully")
     except Exception as e:
         raise GraphBuildError(
@@ -232,13 +239,6 @@ def run_workflow_from_config(
             phase="graph_build",
             original_error=e,
         )
-
-    # Phase 6: Initialize MLFlow tracker
-    mlflow_config = None
-    if config.config and config.config.observability:
-        mlflow_config = config.config.observability.mlflow
-
-    tracker = MLFlowTracker(mlflow_config, config)
 
     # Phase 7: Execute graph with MLFlow tracking
     try:

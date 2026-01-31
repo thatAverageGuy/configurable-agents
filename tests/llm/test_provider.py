@@ -20,10 +20,23 @@ from configurable_agents.llm import (
     LLMAPIError,
     LLMConfigError,
     LLMProviderError,
+    LLMUsageMetadata,
     call_llm_structured,
     create_llm,
     merge_llm_config,
 )
+
+
+def make_mock_response(parsed_output, input_tokens=100, output_tokens=50):
+    """Create mock LangChain response with usage metadata."""
+    usage = Mock()
+    usage.input_tokens = input_tokens
+    usage.output_tokens = output_tokens
+
+    raw = Mock()
+    raw.usage_metadata = usage
+
+    return {"parsed": parsed_output, "raw": raw}
 
 
 class TestCreateLLM:
@@ -159,16 +172,21 @@ class TestCallLLMStructured:
         # Mock LLM
         mock_llm = Mock(spec=BaseChatModel)
         mock_structured = Mock()
-        mock_structured.invoke.return_value = TestOutput(result="Hello, world!")
+        mock_structured.invoke.return_value = make_mock_response(
+            TestOutput(result="Hello, world!")
+        )
         mock_llm.with_structured_output.return_value = mock_structured
 
         # Call
-        result = call_llm_structured(mock_llm, "Say hello", TestOutput)
+        result, usage = call_llm_structured(mock_llm, "Say hello", TestOutput)
 
         # Verify
         assert isinstance(result, TestOutput)
         assert result.result == "Hello, world!"
-        mock_llm.with_structured_output.assert_called_once_with(TestOutput)
+        assert isinstance(usage, LLMUsageMetadata)
+        assert usage.input_tokens == 100
+        assert usage.output_tokens == 50
+        mock_llm.with_structured_output.assert_called_once_with(TestOutput, include_raw=True)
         mock_structured.invoke.assert_called_once_with("Say hello")
 
     def test_call_with_dict_response(self):
@@ -180,15 +198,16 @@ class TestCallLLMStructured:
         # Mock LLM returning dict
         mock_llm = Mock(spec=BaseChatModel)
         mock_structured = Mock()
-        mock_structured.invoke.return_value = {"result": "Test"}
+        mock_structured.invoke.return_value = make_mock_response({"result": "Test"})
         mock_llm.with_structured_output.return_value = mock_structured
 
         # Call
-        result = call_llm_structured(mock_llm, "Test", TestOutput)
+        result, usage = call_llm_structured(mock_llm, "Test", TestOutput)
 
         # Verify
         assert isinstance(result, TestOutput)
         assert result.result == "Test"
+        assert isinstance(usage, LLMUsageMetadata)
 
     def test_call_with_tools(self):
         """Test LLM call with tools binding."""
@@ -205,17 +224,18 @@ class TestCallLLMStructured:
         mock_llm = Mock(spec=BaseChatModel)
         mock_with_tools = Mock()
         mock_structured = Mock()
-        mock_structured.invoke.return_value = TestOutput(result="Done")
+        mock_structured.invoke.return_value = make_mock_response(TestOutput(result="Done"))
         mock_with_tools.with_structured_output.return_value = mock_structured
         mock_llm.bind_tools.return_value = mock_with_tools
 
         # Call
-        result = call_llm_structured(mock_llm, "Test", TestOutput, tools=tools)
+        result, usage = call_llm_structured(mock_llm, "Test", TestOutput, tools=tools)
 
         # Verify tools were bound first, then structured output
         mock_llm.bind_tools.assert_called_once_with(tools)
-        mock_with_tools.with_structured_output.assert_called_once_with(TestOutput)
+        mock_with_tools.with_structured_output.assert_called_once_with(TestOutput, include_raw=True)
         assert isinstance(result, TestOutput)
+        assert isinstance(usage, LLMUsageMetadata)
 
     @patch("configurable_agents.llm.provider.time.sleep")
     def test_call_retries_on_validation_error(self, mock_sleep):
@@ -236,15 +256,16 @@ class TestCallLLMStructured:
                 "test",
                 [{"type": "missing", "loc": ("result",), "msg": "Field required", "input": {}}],
             ),
-            TestOutput(result="Success"),
+            make_mock_response(TestOutput(result="Success")),
         ]
         mock_llm.with_structured_output.return_value = mock_structured
 
         # Call
-        result = call_llm_structured(mock_llm, "Test", TestOutput, max_retries=3)
+        result, usage = call_llm_structured(mock_llm, "Test", TestOutput, max_retries=3)
 
         # Should succeed on 3rd attempt
         assert result.result == "Success"
+        assert isinstance(usage, LLMUsageMetadata)
         assert mock_structured.invoke.call_count == 3
         # Should sleep between retries
         assert mock_sleep.call_count == 2
@@ -303,14 +324,15 @@ class TestCallLLMStructured:
         mock_structured = Mock()
         mock_structured.invoke.side_effect = [
             RuntimeError("Rate limit exceeded"),
-            TestOutput(result="Success"),
+            make_mock_response(TestOutput(result="Success")),
         ]
         mock_llm.with_structured_output.return_value = mock_structured
 
         # Call should retry and succeed
-        result = call_llm_structured(mock_llm, "Test", TestOutput, max_retries=3)
+        result, usage = call_llm_structured(mock_llm, "Test", TestOutput, max_retries=3)
 
         assert result.result == "Success"
+        assert isinstance(usage, LLMUsageMetadata)
         assert mock_structured.invoke.call_count == 2
         # Should use exponential backoff (2^0 = 1 second)
         mock_sleep.assert_called_once_with(1)

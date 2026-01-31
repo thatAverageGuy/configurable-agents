@@ -7,8 +7,8 @@
 
 **Last Updated**: 2026-01-31
 **Current Phase**: Phase 4 (Observability & Docker Deployment)
-**Latest Completion**: T-018 (MLFlow Integration Foundation) - 2026-01-31
-**Next Action**: T-019 (MLFlow Instrumentation)
+**Latest Completion**: T-019 (MLFlow Instrumentation) - 2026-01-31
+**Next Action**: T-020 (Cost Tracking & Reporting)
 
 ---
 
@@ -16,11 +16,11 @@
 
 ### Progress Overview
 
-- **Overall**: 19/27 tasks complete (70%)
+- **Overall**: 20/27 tasks complete (74%)
 - **Phase 1** (Foundation): ✅ 8/8 complete
 - **Phase 2** (Core Execution): ✅ 6/6 complete
 - **Phase 3** (Polish & UX): ✅ 4/4 complete
-- **Phase 4** (Observability & Docker): 1/7 in progress
+- **Phase 4** (Observability & Docker): 2/7 complete
 - **Phase 5** (Future): 3 tasks deferred to v0.2+
 
 ### What Works Right Now
@@ -45,95 +45,83 @@ result = run_workflow("workflow.yaml", {"topic": "AI"})
 - ✅ LangGraph execution engine
 - ✅ CLI interface with smart input parsing
 - ✅ MLFlow observability foundation (cost tracking, workflow metrics)
-- ✅ 514 tests (486 unit + 28 integration)
+- ✅ Automatic node-level tracking (token extraction, prompt/response logging)
+- ✅ 492 unit tests passing (100% pass rate)
 - ✅ Complete user documentation
 
 **What Doesn't Work Yet**:
-- ❌ Automatic node-level tracking (T-019)
 - ❌ Cost reporting utilities (T-020)
 - ❌ MLFlow user documentation (T-021)
 - ❌ Docker deployment (T-022-024)
 - ❌ Conditional routing (v0.2+)
 - ❌ Multi-LLM support (v0.2+)
 
-### Latest Completion: T-018 (MLFlow Integration Foundation)
+### Latest Completion: T-019 (MLFlow Instrumentation)
 
 **Completed**: 2026-01-31
-**What**: MLFlow observability foundation with cost tracking and graceful degradation
+**What**: Instrumented node executor for automatic MLFlow tracking with token extraction
 **Impact**:
-- CostEstimator with pricing for 9 Gemini models (latest January 2025 rates)
-- MLFlowTracker for workflow/node-level metrics and artifact logging
-- Automatic token counting and cost calculation with 6-decimal precision
-- Graceful degradation when MLFlow unavailable (zero overhead)
-- 46 new tests (37 unit + 9 integration) - 514 tests total (up from 468)
-- Windows-compatible file:// URI handling
+- LLM provider now extracts token counts from LangChain responses
+- Node executor automatically logs metrics, prompts, and responses to MLFlow
+- Token usage tracked across retries for accurate cost calculation
+- All 455 unit tests updated and passing
+- Zero overhead when MLFlow disabled (graceful degradation)
 
-**Key Files Created**:
-- `src/configurable_agents/observability/` - New module (621 lines)
-  - `cost_estimator.py` - Token-to-cost conversion (218 lines)
-  - `mlflow_tracker.py` - MLFlow integration (403 lines)
-- `tests/observability/` - Test suite (1,004 lines, 46 tests)
-- Implementation log: `implementation_logs/phase_4_observability_docker/T-018_mlflow_integration_foundation.md`
+**Key Changes**:
+- `src/configurable_agents/llm/provider.py` - Returns tuple `(result, usage)` with token metadata
+- `src/configurable_agents/core/node_executor.py` - Wraps execution in `tracker.track_node()`
+- `src/configurable_agents/core/graph_builder.py` - Propagates tracker to node functions
+- `src/configurable_agents/runtime/executor.py` - Initializes tracker before graph building
+- `tests/llm/test_provider.py`, `tests/core/test_node_executor.py`, `tests/core/test_graph_builder.py` - Updated mocks
 
-**Key Files Modified**:
-- `src/configurable_agents/config/schema.py` - Updated ObservabilityMLFlowConfig
-- `src/configurable_agents/runtime/executor.py` - Integrated MLFlowTracker
-- `docs/SPEC.md`, `docs/adr/ADR-011-mlflow-observability.md` - Updated pricing
+**Implementation Log**: `implementation_logs/phase_4_observability_docker/T-019_mlflow_instrumentation.md`
 
 ---
 
 ## 📋 Next Action (Start Here!)
 
-### Task: T-019 - MLFlow Instrumentation (Runtime & Nodes)
+### Task: T-020 - Cost Tracking & Reporting
 
-**Goal**: Instrument node executor to enable automatic node-level tracking with token extraction and prompt/response logging.
+**Goal**: Build cost reporting utilities to query and aggregate MLFlow metrics for workflow cost analysis.
 
 **Acceptance Criteria**:
-1. Extract token counts from LLM responses (usage metadata)
-2. Instrument node executor to call `tracker.track_node()` automatically
-3. Log prompts (resolved templates) and responses as artifacts
-4. Track retries per node
-5. Handle tool-using nodes (log tool names)
-6. Unit tests for instrumentation (mocked LLM responses)
-7. Integration test with real LLM calls
-8. Verify nested runs appear in MLFlow UI
+1. Create cost aggregation utility in `observability/cost_reporter.py`
+2. Query MLFlow experiments for workflow runs
+3. Aggregate costs across workflows (daily, weekly, monthly)
+4. Generate cost reports with breakdown by:
+   - Workflow name
+   - Model used
+   - Time period
+   - Node-level breakdown (optional)
+5. Export reports as JSON/CSV
+6. Add CLI command: `configurable-agents report costs`
+7. Unit tests with mocked MLFlow queries (15 tests)
+8. Integration test with real MLFlow database
 
 **Key Considerations**:
-- LangChain LLM responses include `usage_metadata` with token counts
-- Node executor already has access to state, config, and LLM
-- Track node execution even if MLFlow disabled (zero overhead)
-- Prompts should be logged AFTER template resolution
-- See implementation log T-018 for MLFlowTracker API
+- Use MLFlow Python API to query runs and metrics
+- Support filtering by experiment, workflow name, date range
+- Handle missing MLFlow gracefully (warn user)
+- Costs already tracked by T-018/T-019, just need aggregation
+
+**Key Files to Create**:
+- `src/configurable_agents/observability/cost_reporter.py` - Report generation
+- `tests/observability/test_cost_reporter.py` - Unit tests
 
 **Key Files to Modify**:
-- `src/configurable_agents/core/node_executor.py` (add tracking calls)
-- `src/configurable_agents/llm/provider.py` (extract token counts from responses)
-- `tests/core/test_node_executor.py` (update tests)
-- `tests/observability/test_node_tracking_integration.py` (new integration test)
+- `src/configurable_agents/cli.py` - Add `report` command
+- `tests/test_cli.py` - Test report command
 
 **Dependencies**:
 - ✅ T-018 (MLFlow Foundation) - COMPLETE
-- Existing: T-011 (Node Executor), T-009 (LLM Provider)
+- ✅ T-019 (MLFlow Instrumentation) - COMPLETE
 
-**Estimated Effort**: 3-4 hours
-
-**Implementation Sequence**:
-1. Read `core/node_executor.py` to understand current flow
-2. Read `llm/provider.py` to understand LLM response structure
-3. Create utility to extract token counts from LangChain responses
-4. Update node executor to wrap execution in `tracker.track_node()`
-5. Pass resolved prompt and raw response to `tracker.log_node_metrics()`
-6. Write unit tests (mock LLM responses with usage metadata)
-7. Write integration test (verify MLFlow nested runs)
-8. Test with example workflows (article_writer.yaml)
-9. Create implementation log: `implementation_logs/phase_4_observability_docker/T-019_mlflow_instrumentation.md`
-10. Update CHANGELOG.md (add to [Unreleased])
-11. Update this file (CONTEXT.md)
+**Estimated Effort**: 2-3 hours
 
 **Related Documentation**:
-- `implementation_logs/phase_4_observability_docker/T-018_mlflow_integration_foundation.md` - MLFlowTracker API
-- `adr/ADR-011-mlflow-observability.md` - Design rationale
-- LangChain docs: https://python.langchain.com/docs/concepts/chat_models/#usage-metadata
+- `implementation_logs/phase_4_observability_docker/T-018_mlflow_integration_foundation.md` - CostEstimator API
+- `implementation_logs/phase_4_observability_docker/T-019_mlflow_instrumentation.md` - Node tracking
+- MLFlow Python API: https://mlflow.org/docs/latest/python_api/index.html
 
 ---
 
