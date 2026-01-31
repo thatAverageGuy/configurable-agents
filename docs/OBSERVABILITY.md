@@ -228,16 +228,9 @@ config:
       tracking_uri: "file://./mlruns"        # Storage backend
       experiment_name: "my_workflows"        # Group related runs
       run_name: null                         # Custom run naming (optional)
-
-      # Observability controls (workflow-level defaults)
-      log_prompts: true                      # Show prompts/responses in UI (default: true)
-      log_artifacts: true                    # Save artifacts as files (default: true)
-      artifact_level: "standard"             # Detail level: minimal/standard/full
-
-      # Enterprise hooks (v0.2+, not enforced)
-      retention_days: null                   # Auto-cleanup old runs
-      redact_pii: false                      # PII sanitization
 ```
+
+**Note**: In v0.1, the config is minimal. Future versions may add options for artifact control, retention policies, and PII redaction.
 
 ### Field Descriptions
 
@@ -257,25 +250,6 @@ config:
 **run_name** (str, optional):
 - Template for individual run names
 - If not specified, MLFlow generates timestamp-based names
-
-**log_prompts** (bool, default: `true`):
-- Show prompts and responses in MLFlow UI (displayed as tags, not files)
-- Text is truncated to 500 characters for UI display
-- Useful for quick inspection without downloading artifacts
-- Can be overridden at node level for fine-grained control
-
-**log_artifacts** (bool, default: `true`):
-- Save artifacts as downloadable files (prompts, responses, inputs, outputs, etc.)
-- Disable for high-throughput scenarios (reduces I/O and storage)
-- Files contain full content (no truncation)
-- Can be overridden at node level for fine-grained control
-
-**artifact_level** (str, default: `"standard"`):
-- Control granularity of artifact logging
-- **`"minimal"`**: Only workflow-level inputs, outputs, and errors
-- **`"standard"`**: + per-node prompts and responses (recommended)
-- **`"full"`**: + state snapshots, tool responses, execution traces
-- Only applies when `log_artifacts: true`
 
 ### Enterprise Hooks (v0.2+)
 
@@ -313,10 +287,10 @@ config:
 - `retry_count`: `0`
 - `status`: `1` (1 = success, 0 = failure)
 
-**Artifacts** (files, respects `artifact_level`):
-- `inputs.json`: Workflow inputs (minimal+)
-- `outputs.json`: Workflow outputs (minimal+)
-- `error.json`: Error details if failed (minimal+)
+**Artifacts** (files):
+- `inputs.json`: Workflow inputs
+- `outputs.json`: Workflow outputs
+- `error.json`: Error details if workflow failed
 
 ### Node-Level Traces (Nested Runs)
 
@@ -334,15 +308,9 @@ Each node execution creates a nested MLFlow run:
 - `node_cost_usd`: `0.0015`
 - `retries`: `0`
 
-**UI Display** (respects `log_prompts`):
-- `prompt` tag: Truncated prompt (max 500 chars) shown in UI
-- `response` tag: Truncated response (max 500 chars) shown in UI
-- Not downloadable, just for quick inspection in MLFlow UI
-
-**Artifacts** (files, respect `log_artifacts` and `artifact_level`):
-- `prompt.txt`: Full resolved prompt template (standard+)
-- `response.txt`: Full raw LLM response (standard+)
-- State snapshots, tool responses, execution traces (full only)
+**Artifacts** (files):
+- `prompt.txt`: Full resolved prompt template
+- `response.txt`: Full raw LLM response (JSON formatted)
 
 ### Example Trace Hierarchy
 
@@ -364,15 +332,21 @@ Workflow: article_writer (5.2s)
 
 ### Token Pricing
 
-Built-in pricing tables for automatic cost calculation:
+Built-in pricing tables for automatic cost calculation (as of January 2025):
 
 ```python
-# configurable_agents/llm/cost_tracker.py
-PRICING = {
-    "gemini-1.5-flash": {"input": 0.000035, "output": 0.00014},  # $/1K tokens
-    "gemini-1.5-pro": {"input": 0.00035, "output": 0.0014},
-    "gemini-2.0-flash-lite": {"input": 0.000035, "output": 0.00014},
-    # More models added in v0.2+ (OpenAI, Anthropic, etc.)
+# configurable_agents/observability/cost_estimator.py
+GEMINI_PRICING = {
+    "gemini-3-pro": {"input": 0.002, "output": 0.012},              # $/1K tokens
+    "gemini-3-flash": {"input": 0.0005, "output": 0.003},
+    "gemini-2.5-pro": {"input": 0.00125, "output": 0.010},
+    "gemini-2.5-flash": {"input": 0.0003, "output": 0.0025},
+    "gemini-2.5-flash-lite": {"input": 0.0001, "output": 0.0004},
+    "gemini-1.5-pro": {"input": 0.00125, "output": 0.005},
+    "gemini-1.5-flash": {"input": 0.000075, "output": 0.0003},
+    "gemini-1.5-flash-8b": {"input": 0.0000375, "output": 0.00015},
+    "gemini-1.0-pro": {"input": 0.0005, "output": 0.0015},
+    # More providers added in v0.2+ (OpenAI, Anthropic, etc.)
 }
 ```
 
@@ -495,6 +469,60 @@ services:
 
 ## Querying & Reporting
 
+### CLI Cost Reporting
+
+Configurable Agents provides a built-in CLI command for querying and reporting workflow costs:
+
+**Basic Usage**:
+```bash
+# View all costs
+configurable-agents report costs
+
+# Last 7 days with breakdown
+configurable-agents report costs --period last_7_days --breakdown
+
+# Export to CSV
+configurable-agents report costs --output costs.csv --format csv
+
+# Custom date range
+configurable-agents report costs \
+  --start-date 2026-01-01 \
+  --end-date 2026-01-31 \
+  --breakdown
+```
+
+**Available Options**:
+- `--tracking-uri` - MLFlow URI (default: file://./mlruns)
+- `--experiment` - Filter by experiment name
+- `--workflow` - Filter by workflow name
+- `--period` - Predefined periods: today, yesterday, last_7_days, last_30_days, this_month
+- `--start-date` / `--end-date` - Custom date range (ISO format: YYYY-MM-DD)
+- `--status` - Filter by success/failure
+- `--breakdown` - Show breakdown by workflow and model
+- `--aggregate-by` - Aggregate by daily/weekly/monthly
+- `-o, --output` - Export to file
+- `--format` - json or csv (default: json)
+
+**Example Output**:
+```
+Cost Summary:
+  Total Cost:        $0.045123
+  Total Runs:        15
+  Successful:        14
+  Failed:            1
+  Total Tokens:      45,000
+  Avg Cost/Run:      $0.003008
+  Avg Tokens/Run:    3000
+
+Cost by Workflow:
+  article_writer               $0.035000
+  summarizer                   $0.010123
+
+Cost by Model:
+  gemini-1.5-flash            $0.030000
+  gemini-2.5-flash            $0.015123
+```
+
 ### MLFlow Python API
 
 ```python
@@ -613,47 +641,10 @@ print("Exported to mlflow_runs.csv")
 - DSPy optimization (need baseline metrics)
 
 **Consider disabling**:
-- High-throughput batch jobs (I/O overhead)
+- High-throughput batch jobs (I/O overhead from artifact logging)
 - Cost-sensitive scenarios (MLFlow adds ~50-100ms per run)
 
-**Granular Control Options**:
-
-**Option 1**: Keep UI display, disable file storage (recommended for batch jobs):
-```yaml
-config:
-  observability:
-    mlflow:
-      enabled: true
-      log_prompts: true           # Keep UI display for debugging
-      log_artifacts: false        # Disable file storage (faster)
-```
-
-**Option 2**: Use minimal artifact level (reduce storage, keep tracking):
-```yaml
-config:
-  observability:
-    mlflow:
-      enabled: true
-      log_prompts: true           # Keep UI display
-      log_artifacts: true         # Keep file storage
-      artifact_level: "minimal"   # Only inputs/outputs/errors (no prompts/responses)
-```
-
-**Option 3**: Node-level control (hide sensitive nodes):
-```yaml
-config:
-  observability:
-    mlflow:
-      enabled: true
-      log_prompts: true           # Default for all nodes
-      log_artifacts: true         # Default for all nodes
-
-nodes:
-  - id: sensitive_node
-    # ... other fields ...
-    log_prompts: false            # Override: hide from UI
-    log_artifacts: false          # Override: no files
-```
+**Note**: In v0.1, observability is enabled/disabled at the workflow level. Future versions may add fine-grained controls for artifact logging and node-level overrides.
 
 ### Storage Management
 
@@ -1015,26 +1006,9 @@ configurable-agents run workflow.yaml --verbose
 
 **Symptoms**: Workflows 20-30% slower with MLFlow enabled.
 
-**Cause**: Artifact logging (saving inputs/outputs to disk).
+**Cause**: Artifact logging (saving inputs/outputs/prompts/responses to disk).
 
-**Solution**: Disable file artifacts for high-throughput (keep UI display):
-```yaml
-config:
-  observability:
-    mlflow:
-      enabled: true
-      log_prompts: true         # Keep UI display for debugging
-      log_artifacts: false      # Disable file storage (faster)
-```
-
-Or use minimal artifact level:
-```yaml
-config:
-  observability:
-    mlflow:
-      enabled: true
-      artifact_level: "minimal"  # Only inputs/outputs/errors
-```
+**Solution**: Consider disabling observability for high-throughput batch jobs, or wait for v0.2 which will add granular artifact control options.
 
 ### Docker Container MLFlow UI Not Accessible
 

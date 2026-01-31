@@ -348,6 +348,61 @@ config:
 - `timeout_seconds` - Max time per node (default: 60)
 - `max_retries` - Retry count on failures (default: 3)
 
+### MLFlow Observability (v0.1+)
+
+Track workflow costs, tokens, and performance with MLFlow:
+
+```yaml
+config:
+  observability:
+    mlflow:
+      enabled: true                          # Enable tracking (default: false)
+      tracking_uri: "file://./mlruns"        # Storage backend (default)
+      experiment_name: "my_workflows"        # Group related runs
+      run_name: null                         # Custom run naming (optional)
+```
+
+**enabled** (bool, default: `false`):
+- Master switch for MLFlow tracking
+- When disabled, zero performance overhead
+
+**tracking_uri** (str, default: `"file://./mlruns"`):
+- Where to store tracking data
+- Local file storage: `file://./mlruns` or `file:///absolute/path`
+- Remote backends (v0.2+): `postgresql://...`, `s3://...`, `databricks://...`
+
+**experiment_name** (str, default: `"configurable_agents"`):
+- Logical grouping for related workflow runs
+- Use meaningful names: `"production"`, `"testing"`, `"article_workflows"`
+
+**run_name** (str, optional):
+- Template for individual run names
+- If not specified, MLFlow generates timestamp-based names
+
+**What gets tracked:**
+- Workflow-level: duration, total tokens, total cost, status
+- Node-level: per-node tokens, duration, prompts, responses
+- Artifacts: inputs.json, outputs.json, prompt.txt, response.txt
+
+**View traces:**
+```bash
+# After running workflows with observability enabled
+mlflow ui
+
+# Open http://localhost:5000 in your browser
+```
+
+**Cost reporting:**
+```bash
+# View costs for last 7 days
+configurable-agents report costs --period last_7_days --breakdown
+
+# Export to CSV
+configurable-agents report costs --output report.csv --format csv
+```
+
+For comprehensive documentation, see [OBSERVABILITY.md](OBSERVABILITY.md).
+
 ### Logging
 
 ```yaml

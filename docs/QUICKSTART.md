@@ -180,6 +180,33 @@ This shows detailed execution logs including LLM calls, state updates, and timin
 
 ---
 
+## Optional: Enable Observability
+
+Want to track costs, tokens, and performance? Enable MLFlow observability:
+
+```yaml
+# hello.yaml (with observability)
+config:
+  observability:
+    mlflow:
+      enabled: true  # Track costs and performance
+```
+
+After running your workflow, view traces:
+```bash
+mlflow ui
+# Open http://localhost:5000
+```
+
+Query costs:
+```bash
+configurable-agents report costs --period last_7_days
+```
+
+**Learn more**: See [OBSERVABILITY.md](OBSERVABILITY.md) for full details on cost tracking and reporting.
+
+---
+
 ## What's Next?
 
 Now that you've run your first workflow, explore:
