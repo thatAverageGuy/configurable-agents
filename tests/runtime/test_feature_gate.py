@@ -275,7 +275,7 @@ def test_multiple_optimization_warnings():
 
 
 def test_mlflow_observability_warns():
-    """Test that MLFlow observability triggers warning."""
+    """Test that MLFlow observability is supported in v0.1 (no warning)."""
     config = make_minimal_config(
         config=GlobalConfig(
             observability=ObservabilityConfig(
@@ -287,17 +287,11 @@ def test_mlflow_observability_warns():
         )
     )
 
-    with pytest.warns(UserWarning) as record:
-        validate_runtime_support(config)
-
-    assert len(record) == 1
-    warning_msg = str(record[0].message)
-
-    assert "MLFlow observability" in warning_msg
-    assert "not supported in v0.1" in warning_msg
-    assert "v0.2" in warning_msg
-    assert "IGNORED" in warning_msg
-    assert "console logging" in warning_msg.lower()
+    # MLFlow is now fully supported in v0.1 - no warning should be raised
+    import warnings as warn_module
+    with warn_module.catch_warnings():
+        warn_module.simplefilter("error")  # Turn warnings into errors
+        validate_runtime_support(config)  # Should not raise
 
 
 def test_mlflow_disabled_no_warning():
@@ -406,12 +400,12 @@ def test_multiple_unsupported_features_hard_block_first():
 
 
 def test_multiple_soft_blocks_all_warn():
-    """Test that multiple soft blocks all trigger warnings."""
+    """Test that soft blocks trigger warnings (MLFlow now supported)."""
     config = make_minimal_config(
         optimization=OptimizationConfig(enabled=True),  # Soft block 1
         config=GlobalConfig(
             observability=ObservabilityConfig(
-                mlflow=ObservabilityMLFlowConfig(enabled=True)  # Soft block 2
+                mlflow=ObservabilityMLFlowConfig(enabled=True)  # Now supported in v0.1
             )
         ),
     )
@@ -419,12 +413,11 @@ def test_multiple_soft_blocks_all_warn():
     with pytest.warns(UserWarning) as record:
         validate_runtime_support(config)
 
-    # Should have two warnings
-    assert len(record) == 2
+    # Should have one warning (optimization only - MLFlow is now supported)
+    assert len(record) == 1
 
     messages = [str(w.message) for w in record]
     assert any("optimization" in msg.lower() for msg in messages)
-    assert any("mlflow" in msg.lower() for msg in messages)
 
 
 # ============================================

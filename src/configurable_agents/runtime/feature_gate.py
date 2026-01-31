@@ -139,17 +139,9 @@ def _check_observability(config: WorkflowConfig) -> None:
 
     obs_config = config.config.observability
 
-    # MLFlow observability (v0.2+)
-    if obs_config.mlflow and obs_config.mlflow.enabled:
-        warnings.warn(
-            f"MLFlow observability (config.observability.mlflow.enabled=true) is not supported in v0.1. "
-            f"This setting will be IGNORED. "
-            f"Available in: v0.2 (8-12 weeks from initial release). "
-            f"Only basic console logging is available in v0.1. "
-            f"See docs/PROJECT_VISION.md for roadmap.",
-            UserWarning,
-            stacklevel=3,
-        )
+    # MLFlow observability (v0.1+) - Supported!
+    # MLFlow tracking is fully implemented in v0.1 (T-018, T-019, T-020)
+    # No warnings needed - feature is production-ready
 
     # Logging config is OK - we support basic logging in v0.1
     # No warning needed
@@ -193,13 +185,19 @@ def get_supported_features() -> dict:
             "Graph validation",
             "Cross-reference checks",
         ],
+        "observability": [
+            "MLFlow integration",
+            "Cost tracking and reporting",
+            "Token usage tracking",
+            "Workflow and node-level metrics",
+            "CLI cost reporting",
+        ],
         "not_supported": {
             "v0.2": [
                 "Conditional routing (if/else)",
                 "Loops and retries",
                 "Multiple LLM providers (OpenAI, Anthropic, Ollama)",
                 "State persistence and resume",
-                "MLFlow observability",
             ],
             "v0.3": [
                 "DSPy prompt optimization",

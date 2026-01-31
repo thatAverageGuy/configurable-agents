@@ -93,10 +93,10 @@ config:
 
 ```bash
 # Query costs for the last 7 days
-configurable-agents report costs --range last_7_days
+configurable-agents report costs --period last_7_days
 
 # Export to CSV
-configurable-agents report costs --format csv --output report.csv
+configurable-agents report costs --output report.csv --format csv
 ```
 
 ### 🐳 Docker Deployment (v0.1)
