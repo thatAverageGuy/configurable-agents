@@ -7,8 +7,8 @@
 
 **Last Updated**: 2026-01-31
 **Current Phase**: Phase 4 (Observability & Docker Deployment)
-**Latest Completion**: T-017 (Integration Tests) - 2026-01-28
-**Next Action**: T-018 (MLFlow Integration Foundation)
+**Latest Completion**: T-018 (MLFlow Integration Foundation) - 2026-01-31
+**Next Action**: T-019 (MLFlow Instrumentation)
 
 ---
 
@@ -16,11 +16,11 @@
 
 ### Progress Overview
 
-- **Overall**: 18/27 tasks complete (67%)
+- **Overall**: 19/27 tasks complete (70%)
 - **Phase 1** (Foundation): ✅ 8/8 complete
 - **Phase 2** (Core Execution): ✅ 6/6 complete
 - **Phase 3** (Polish & UX): ✅ 4/4 complete
-- **Phase 4** (Observability & Docker): 0/6 in progress
+- **Phase 4** (Observability & Docker): 1/7 in progress
 - **Phase 5** (Future): 3 tasks deferred to v0.2+
 
 ### What Works Right Now
@@ -44,88 +44,96 @@ result = run_workflow("workflow.yaml", {"topic": "AI"})
 - ✅ Tool registry (Serper web search)
 - ✅ LangGraph execution engine
 - ✅ CLI interface with smart input parsing
-- ✅ 468 tests (449 unit + 19 integration)
+- ✅ MLFlow observability foundation (cost tracking, workflow metrics)
+- ✅ 514 tests (486 unit + 28 integration)
 - ✅ Complete user documentation
 
 **What Doesn't Work Yet**:
-- ❌ MLFlow observability (T-018-021)
+- ❌ Automatic node-level tracking (T-019)
+- ❌ Cost reporting utilities (T-020)
+- ❌ MLFlow user documentation (T-021)
 - ❌ Docker deployment (T-022-024)
 - ❌ Conditional routing (v0.2+)
 - ❌ Multi-LLM support (v0.2+)
 
-### Latest Completion: T-017 (Integration Tests)
+### Latest Completion: T-018 (MLFlow Integration Foundation)
 
-**Completed**: 2026-01-28
-**What**: 19 integration tests with real API calls (6 workflow + 13 error scenarios)
+**Completed**: 2026-01-31
+**What**: MLFlow observability foundation with cost tracking and graceful degradation
 **Impact**:
-- Validates end-to-end execution with real LLM/tools
-- Cost tracking ($0.47 for full suite)
-- Caught 2 critical bugs (tool binding order, default model)
-- 468 tests total (up from 443)
+- CostEstimator with pricing for 9 Gemini models (latest January 2025 rates)
+- MLFlowTracker for workflow/node-level metrics and artifact logging
+- Automatic token counting and cost calculation with 6-decimal precision
+- Graceful degradation when MLFlow unavailable (zero overhead)
+- 46 new tests (37 unit + 9 integration) - 514 tests total (up from 468)
+- Windows-compatible file:// URI handling
+
+**Key Files Created**:
+- `src/configurable_agents/observability/` - New module (621 lines)
+  - `cost_estimator.py` - Token-to-cost conversion (218 lines)
+  - `mlflow_tracker.py` - MLFlow integration (403 lines)
+- `tests/observability/` - Test suite (1,004 lines, 46 tests)
+- Implementation log: `implementation_logs/phase_4_observability_docker/T-018_mlflow_integration_foundation.md`
 
 **Key Files Modified**:
-- `tests/integration/` - New test suite (1,066 lines)
-- `src/configurable_agents/llm/provider.py` - Fixed tool binding bug
-- `src/configurable_agents/llm/google.py` - Updated default model
-- See: `implementation_logs/phase_3_polish_ux/T-017_integration_tests.md`
+- `src/configurable_agents/config/schema.py` - Updated ObservabilityMLFlowConfig
+- `src/configurable_agents/runtime/executor.py` - Integrated MLFlowTracker
+- `docs/SPEC.md`, `docs/adr/ADR-011-mlflow-observability.md` - Updated pricing
 
 ---
 
 ## 📋 Next Action (Start Here!)
 
-### Task: T-018 - MLFlow Integration Foundation
+### Task: T-019 - MLFlow Instrumentation (Runtime & Nodes)
 
-**Goal**: Integrate MLFlow for tracking workflow executions, costs, and prompts.
+**Goal**: Instrument node executor to enable automatic node-level tracking with token extraction and prompt/response logging.
 
 **Acceptance Criteria**:
-1. MLFlow dependency added and configured
-2. Logging callback for LangGraph execution
-3. Basic metrics: workflow name, duration, status
-4. LLM metrics: model, tokens (input/output), estimated cost
-5. Start/end run lifecycle management
-6. Unit tests for MLFlow integration (mocked)
-7. Integration test with real MLFlow backend
-8. Documentation: setup instructions, usage examples
+1. Extract token counts from LLM responses (usage metadata)
+2. Instrument node executor to call `tracker.track_node()` automatically
+3. Log prompts (resolved templates) and responses as artifacts
+4. Track retries per node
+5. Handle tool-using nodes (log tool names)
+6. Unit tests for instrumentation (mocked LLM responses)
+7. Integration test with real LLM calls
+8. Verify nested runs appear in MLFlow UI
 
 **Key Considerations**:
-- Parse-time config validation (fail before MLFlow logging)
-- Graceful degradation if MLFlow unavailable
-- Zero performance overhead when disabled
-- Cost estimation for Google Gemini (pricing constants)
-- See ADR-011 (MLFlow Observability) for design decisions
+- LangChain LLM responses include `usage_metadata` with token counts
+- Node executor already has access to state, config, and LLM
+- Track node execution even if MLFlow disabled (zero overhead)
+- Prompts should be logged AFTER template resolution
+- See implementation log T-018 for MLFlowTracker API
 
 **Key Files to Modify**:
-- `src/configurable_agents/observability/` (new module)
-  - `mlflow_tracker.py` (callback implementation)
-  - `cost_estimator.py` (token → cost conversion)
-- `src/configurable_agents/runtime/executor.py` (integrate callback)
-- `src/configurable_agents/config/schema.py` (already has ObservabilityConfig)
-- `tests/observability/` (new test suite)
+- `src/configurable_agents/core/node_executor.py` (add tracking calls)
+- `src/configurable_agents/llm/provider.py` (extract token counts from responses)
+- `tests/core/test_node_executor.py` (update tests)
+- `tests/observability/test_node_tracking_integration.py` (new integration test)
 
 **Dependencies**:
-- `mlflow>=2.9.0` (add to pyproject.toml)
-- Existing: T-013 (runtime executor), T-009 (LLM provider)
+- ✅ T-018 (MLFlow Foundation) - COMPLETE
+- Existing: T-011 (Node Executor), T-009 (LLM Provider)
 
-**Estimated Effort**: 4-6 hours
+**Estimated Effort**: 3-4 hours
 
 **Implementation Sequence**:
-1. Read ADR-011 (MLFlow Observability) for design decisions
-2. Read `docs/SPEC.md` section on `config.observability.mlflow`
-3. Implement `CostEstimator` class (Gemini pricing constants)
-4. Implement `MLFlowCallback` (LangGraph callback interface)
-5. Integrate callback in `runtime/executor.py`
-6. Write unit tests (mock MLFlow)
-7. Write integration test (real MLFlow backend)
-8. Update documentation
-9. Create implementation log: `implementation_logs/phase_4_observability_docker/T-018_mlflow_integration_foundation.md`
+1. Read `core/node_executor.py` to understand current flow
+2. Read `llm/provider.py` to understand LLM response structure
+3. Create utility to extract token counts from LangChain responses
+4. Update node executor to wrap execution in `tracker.track_node()`
+5. Pass resolved prompt and raw response to `tracker.log_node_metrics()`
+6. Write unit tests (mock LLM responses with usage metadata)
+7. Write integration test (verify MLFlow nested runs)
+8. Test with example workflows (article_writer.yaml)
+9. Create implementation log: `implementation_logs/phase_4_observability_docker/T-019_mlflow_instrumentation.md`
 10. Update CHANGELOG.md (add to [Unreleased])
 11. Update this file (CONTEXT.md)
 
 **Related Documentation**:
+- `implementation_logs/phase_4_observability_docker/T-018_mlflow_integration_foundation.md` - MLFlowTracker API
 - `adr/ADR-011-mlflow-observability.md` - Design rationale
-- `SPEC.md` lines 450-480 - Config schema for MLFlow
-- `ARCHITECTURE.md` - Observability patterns
-- `OBSERVABILITY.md` - User-facing MLFlow guide (update after T-018-021)
+- LangChain docs: https://python.langchain.com/docs/concepts/chat_models/#usage-metadata
 
 ---
 
@@ -230,18 +238,46 @@ pytest -v
 
 ### Documentation Requirements (After Task Completion)
 
-**MUST UPDATE** (4 files):
-1. **TASKS.md**: Change task status to DONE, update progress percentage
-2. **Implementation log**: Create `implementation_logs/phase_X/T-XXX_task_name.md` with details
-3. **CHANGELOG.md**: Add entry to `[Unreleased]` section (5-10 lines)
-4. **CONTEXT.md** (this file): Update "Latest Completion", "Next Action", "Current State"
+**CRITICAL RULES**:
+⚠️ **NEVER RENAME FILES WITHOUT EXPLICIT PERMISSION** ⚠️
+- Do NOT change file case (CONTEXT.md ≠ Context.md)
+- Do NOT move files to different directories without asking
+- Do NOT rename implementation logs or documentation files
+- If unsure, ASK FIRST before making any file naming changes
 
-**MAY UPDATE** (if applicable):
-- **README.md**: If major milestone or user-facing feature (update "What Works Now")
-- **ADRs**: Create new ADR if CHANGE LEVEL 3 (structural changes)
-- **User docs**: Update QUICKSTART.md, CONFIG_REFERENCE.md, etc. if user-visible changes
+**MUST UPDATE** (minimum 4 files, possibly more):
+1. **TASKS.md**: Change task status to DONE, update progress percentage, update "Last Updated" date
+2. **CONTEXT.md** (this file): Update "Latest Completion", "Next Action", "Current State", "What Works Now"
+3. **CHANGELOG.md**: Add entry to `[Unreleased]` section (5-10 lines with key features)
+4. **README.md**: Update progress badges, test counts, roadmap table, "Next up" section
+5. **Implementation log**: Create `docs/implementation_logs/phase_X/T-XXX_task_name.md` with comprehensive details
+
+**MUST SEARCH AND UPDATE** (if applicable):
+After completing core updates above, SEARCH for and update:
+- **SPEC.md**: If config schema, pricing, or specifications changed
+- **ADRs**: Update "Current State" section in relevant ADRs (e.g., ADR-011 for observability)
+- **Module files**: Update supported models, pricing tables, or feature lists (e.g., `google.py`)
+- **User docs**: QUICKSTART.md, CONFIG_REFERENCE.md, TROUBLESHOOTING.md if user-visible changes
+- **ARCHITECTURE.md**: If system design or components changed
+
+**Search Strategy**:
+1. Grep for old values (e.g., task counts, test counts, percentages)
+2. Check related ADRs for "Current State" or "Implementation Planning" sections
+3. Check SPEC.md for schema/pricing that might reference your changes
+4. Verify all cross-references are updated
+
+**NEW ADR** (if CHANGE LEVEL 3):
+- Create new ADR for structural/architectural changes
+- Update ARCHITECTURE.md to reference new ADR
 
 ### File Naming Conventions
+
+⚠️ **CRITICAL: DO NOT RENAME EXISTING FILES WITHOUT EXPLICIT PERMISSION** ⚠️
+- Existing documentation files use specific naming conventions
+- Case matters: `CONTEXT.md` ≠ `Context.md` (different files on case-sensitive systems)
+- Locations matter: `docs/implementation_logs/` ≠ `implementation_logs/`
+- **ALWAYS ASK before renaming or moving ANY file**
+- When creating NEW files, follow conventions below
 
 **Source Code**:
 - Modules: `snake_case.py` (e.g., `mlflow_tracker.py`)
@@ -253,10 +289,10 @@ pytest -v
 - Test functions: `test_<scenario>` (e.g., `test_mlflow_callback_logs_metrics`)
 - Integration tests: `tests/integration/test_*.py` with `@pytest.mark.integration`
 
-**Documentation**:
-- Core docs: `SCREAMING_SNAKE.md` (e.g., `ARCHITECTURE.md`)
-- Implementation logs: `T-XXX_task_name.md` (e.g., `T-018_mlflow_integration_foundation.md`)
-- ADRs: `ADR-NNN-title.md` (e.g., `ADR-011-mlflow-observability.md`)
+**Documentation** (for NEW files only):
+- Core docs: `SCREAMING_SNAKE.md` in `docs/` (e.g., `ARCHITECTURE.md`, `CONTEXT.md`, `TASKS.md`)
+- Implementation logs: `T-XXX_task_name.md` in `docs/implementation_logs/phase_X/` (e.g., `T-018_mlflow_integration_foundation.md`)
+- ADRs: `ADR-NNN-title.md` in `docs/adr/` (e.g., `ADR-011-mlflow-observability.md`)
 
 ---
 

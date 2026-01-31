@@ -12,11 +12,25 @@ For detailed task-by-task implementation notes, see [implementation logs](docs/i
 ## [Unreleased]
 
 ### Added
+
+**MLFlow Observability Foundation** (T-018):
+- MLFlow integration for workflow execution tracking and cost monitoring
+- CostEstimator with pricing for 9 Gemini models (latest January 2025 pricing)
+- MLFlowTracker for workflow-level and node-level metrics
+- Automatic token counting and cost calculation ($USD with 6-decimal precision)
+- Graceful degradation when MLFlow unavailable (zero performance overhead)
+- 46 new tests (37 unit + 9 integration) - all passing
+- Support for local file storage and remote backends (PostgreSQL, S3, Databricks)
+- Artifact logging for inputs, outputs, prompts, and responses
+- Windows-compatible file:// URI handling
+
+**Other Improvements**:
 - Documentation structure optimization with implementation logs
 - CONTEXT.md for quick LLM session resumption
-- Organized implementation logs by phase (18 comprehensive task records)
+- Organized implementation logs by phase (19 comprehensive task records)
 
 ### Changed
+- Updated ObservabilityMLFlowConfig schema to match SPEC.md (added tracking_uri, experiment_name, run_name, log_artifacts)
 - Simplified CHANGELOG.md to standard format (detailed notes moved to implementation logs)
 - Archived project status tracking (now in CONTEXT.md and TASKS.md)
 

@@ -355,17 +355,24 @@ def execute_node(node_config, state, global_config):
 ### Cost Tracking
 
 ```python
-# llm/cost_tracker.py (NEW)
+# observability/cost_estimator.py
 
-PRICING = {
-    "gemini-1.5-flash": {"input": 0.000035, "output": 0.00014},
-    "gemini-1.5-pro": {"input": 0.00035, "output": 0.0014},
+GEMINI_PRICING = {
+    "gemini-3-pro": {"input": 0.002, "output": 0.012},
+    "gemini-3-flash": {"input": 0.0005, "output": 0.003},
+    "gemini-2.5-pro": {"input": 0.00125, "output": 0.010},
+    "gemini-2.5-flash": {"input": 0.0003, "output": 0.0025},
+    "gemini-2.5-flash-lite": {"input": 0.0001, "output": 0.0004},
+    "gemini-1.5-pro": {"input": 0.00125, "output": 0.005},
+    "gemini-1.5-flash": {"input": 0.000075, "output": 0.0003},
+    "gemini-1.5-flash-8b": {"input": 0.0000375, "output": 0.00015},
+    "gemini-1.0-pro": {"input": 0.0005, "output": 0.0015},
     # Future: OpenAI, Anthropic, etc.
 }
 
 def calculate_cost(model: str, input_tokens: int, output_tokens: int) -> float:
     """Calculate estimated cost in USD"""
-    pricing = PRICING.get(model, {"input": 0, "output": 0})
+    pricing = GEMINI_PRICING.get(model, {"input": 0, "output": 0})
     cost = (input_tokens / 1000 * pricing["input"]) + \
            (output_tokens / 1000 * pricing["output"])
     return round(cost, 6)
@@ -442,13 +449,17 @@ volumes:
 - ✅ Documentation drafted (docs/OBSERVABILITY.md - 1,007 lines)
 - ✅ Schema defined (SPEC.md `config.observability.mlflow`)
 - ✅ Three-tier strategy documented (ADR-014)
+- ✅ T-018: MLFlow integration foundation (2026-01-31)
+- ✅ Cost tracking implementation with 9 Gemini models
+- ✅ MLFlowTracker with workflow/node-level tracking
+- ✅ 46 tests (37 unit + 9 integration) - all passing
 
-**Not Started**:
-- ⏳ MLFlow integration code
-- ⏳ Cost tracking implementation
-- ⏳ Instrumentation in runtime/nodes
+**In Progress**:
+- ⏳ T-019: Node executor instrumentation (extract tokens, log prompts/responses)
+- ⏳ T-020: Cost reporting utilities
+- ⏳ T-021: OBSERVABILITY.md user documentation
 
-**Next Steps**: Begin T-018 after current documentation optimization complete
+**Next Steps**: T-019 - Instrument node executor to enable automatic node-level tracking
 
 ---
 

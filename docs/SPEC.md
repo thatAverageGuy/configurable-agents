@@ -891,7 +891,11 @@ config:
       tracking_uri: "file://./mlruns"        # Storage backend URI
       experiment_name: "my_workflows"        # Experiment grouping
       run_name: null                         # Run naming template (optional)
-      log_artifacts: true                    # Log inputs/outputs as artifacts
+
+      # Observability controls (workflow-level defaults)
+      log_prompts: true                      # Show prompts/responses in MLFlow UI
+      log_artifacts: true                    # Save artifacts as downloadable files
+      artifact_level: "standard"             # Detail level: minimal/standard/full
 
       # Enterprise hooks (not enforced in v0.1, reserved for v0.2+)
       retention_days: null                   # Auto-cleanup old runs (future)
@@ -922,10 +926,24 @@ config:
 - If not specified, MLFlow generates timestamp-based names
 - Example: `"run_{timestamp}"`, `"workflow_{workflow_name}"`
 
+**log_prompts** (bool, default: `true`):
+- Show prompts and responses in MLFlow UI (displayed as tags, not downloadable files)
+- Useful for quick inspection and debugging without downloading artifacts
+- Text is truncated to 500 characters for UI display
+- Can be overridden at node level for fine-grained control
+
 **log_artifacts** (bool, default: `true`):
-- Whether to save inputs, outputs, prompts, and responses as artifacts
-- Set to `false` for high-throughput scenarios (reduces I/O)
-- Artifacts enable debugging but increase storage usage
+- Save artifacts as downloadable files (prompts, responses, inputs, outputs, etc.)
+- Set to `false` for high-throughput scenarios (reduces I/O and storage)
+- Artifacts enable detailed debugging and can be used for DSPy optimization (v0.3+)
+- Can be overridden at node level for fine-grained control
+
+**artifact_level** (str, default: `"standard"`):
+- Control granularity of artifact logging
+- **`"minimal"`**: Only workflow-level inputs, outputs, and errors
+- **`"standard"`**: + per-node prompts and responses (recommended)
+- **`"full"`**: + state snapshots, tool responses, execution traces
+- Applies only when `log_artifacts: true`
 
 ### Enterprise Hooks (v0.2+)
 
@@ -941,29 +959,35 @@ config:
 
 ### What Gets Tracked
 
-**Workflow-level metrics**:
+**Workflow-level metrics** (always logged):
 - `workflow_name`, `workflow_version`, `schema_version`
 - `global_model`, `global_temperature`
 - `duration_seconds`, `node_count`, `retry_count`
 - `total_input_tokens`, `total_output_tokens`, `total_cost_usd`
 - `status` (1 = success, 0 = failure)
 
-**Workflow-level artifacts**:
-- `inputs.json` - Workflow inputs
-- `outputs.json` - Workflow outputs
-- `error.txt` - Error details (if failed)
+**Workflow-level artifacts** (respects `artifact_level`):
+- `inputs.json` - Workflow inputs (minimal+)
+- `outputs.json` - Workflow outputs (minimal+)
+- `error.json` - Error details if workflow fails (minimal+)
 
-**Node-level metrics** (nested runs):
+**Node-level metrics** (nested runs, always logged):
 - `node_id`, `node_model`, `tools`
-- `node_duration_ms`, `input_tokens`, `output_tokens`, `retries`
+- `node_duration_ms`, `input_tokens`, `output_tokens`, `node_cost_usd`, `retries`
 
-**Node-level artifacts**:
-- `prompt.txt` - Resolved prompt template
-- `response.txt` - Raw LLM response
+**Node-level UI display** (respects `log_prompts`):
+- `prompt` tag - Truncated prompt (max 500 chars) shown in UI
+- `response` tag - Truncated response (max 500 chars) shown in UI
+- Not downloadable, just for quick inspection
+
+**Node-level artifacts** (respects `log_artifacts` and `artifact_level`):
+- `prompt.txt` - Full resolved prompt template (standard+)
+- `response.txt` - Full raw LLM response (standard+)
+- State snapshots, tool responses, execution traces (full only)
 
 ### Usage Examples
 
-**Enable observability**:
+**Enable observability with defaults**:
 ```yaml
 config:
   llm:
@@ -972,6 +996,39 @@ config:
   observability:
     mlflow:
       enabled: true
+      # Defaults: log_prompts=true, log_artifacts=true, artifact_level="standard"
+```
+
+**Minimal artifact logging** (reduce storage):
+```yaml
+config:
+  observability:
+    mlflow:
+      enabled: true
+      log_prompts: true          # Keep UI display
+      log_artifacts: false       # Disable file storage
+      artifact_level: "minimal"  # Only inputs/outputs/errors
+```
+
+**Node-level overrides** (fine-grained control):
+```yaml
+config:
+  observability:
+    mlflow:
+      enabled: true
+      log_prompts: true          # Default for all nodes
+      log_artifacts: true        # Default for all nodes
+
+nodes:
+  - id: generate_text
+    # ... other fields ...
+    log_prompts: false           # Override: don't show this node's prompts in UI
+    log_artifacts: true          # Keep artifacts for this node
+
+  - id: sensitive_node
+    # ... other fields ...
+    log_prompts: false           # Override: hide from UI
+    log_artifacts: false         # Override: no files saved
 ```
 
 **View traces**:
@@ -979,6 +1036,29 @@ config:
 configurable-agents run workflow.yaml --input topic="AI"
 mlflow ui  # Open http://localhost:5000
 ```
+
+### Future Expansion: Granular Artifact Controls
+
+**Note**: The current `artifact_level` preset system (minimal/standard/full) covers most use cases. For future expansion (v0.2+), we may add granular per-artifact-type controls:
+
+```yaml
+# Future design (v0.2+, not yet implemented)
+config:
+  observability:
+    mlflow:
+      enabled: true
+      log_prompts: true
+      artifacts:
+        inputs: true
+        outputs: true
+        prompts: true
+        responses: true
+        state_snapshots: false
+        tool_responses: false
+        execution_traces: false
+```
+
+This would replace `artifact_level` with explicit boolean flags for each artifact type, enabling precise control over what gets logged. This design is documented here for future reference but is not currently implemented.
 
 **Team collaboration** (v0.2+):
 ```yaml
@@ -1006,9 +1086,16 @@ config:
 
 MLFlow automatically tracks token usage and estimated costs:
 
-**Token pricing** (built-in):
-- `gemini-1.5-flash`: $0.000035/1K input, $0.00014/1K output
-- `gemini-1.5-pro`: $0.00035/1K input, $0.0014/1K output
+**Token pricing** (built-in, January 2025):
+- `gemini-3-pro`: $0.002/1K input, $0.012/1K output
+- `gemini-3-flash`: $0.0005/1K input, $0.003/1K output
+- `gemini-2.5-pro`: $0.00125/1K input, $0.010/1K output
+- `gemini-2.5-flash`: $0.0003/1K input, $0.0025/1K output
+- `gemini-2.5-flash-lite`: $0.0001/1K input, $0.0004/1K output
+- `gemini-1.5-pro`: $0.00125/1K input, $0.005/1K output
+- `gemini-1.5-flash`: $0.000075/1K input, $0.0003/1K output
+- `gemini-1.5-flash-8b`: $0.0000375/1K input, $0.00015/1K output
+- `gemini-1.0-pro`: $0.0005/1K input, $0.0015/1K output
 - More models added as multi-LLM support expands (v0.2+)
 
 **Metrics logged**:

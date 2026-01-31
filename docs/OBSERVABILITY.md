@@ -228,7 +228,11 @@ config:
       tracking_uri: "file://./mlruns"        # Storage backend
       experiment_name: "my_workflows"        # Group related runs
       run_name: null                         # Custom run naming (optional)
-      log_artifacts: true                    # Save inputs/outputs (default: true)
+
+      # Observability controls (workflow-level defaults)
+      log_prompts: true                      # Show prompts/responses in UI (default: true)
+      log_artifacts: true                    # Save artifacts as files (default: true)
+      artifact_level: "standard"             # Detail level: minimal/standard/full
 
       # Enterprise hooks (v0.2+, not enforced)
       retention_days: null                   # Auto-cleanup old runs
@@ -254,9 +258,24 @@ config:
 - Template for individual run names
 - If not specified, MLFlow generates timestamp-based names
 
+**log_prompts** (bool, default: `true`):
+- Show prompts and responses in MLFlow UI (displayed as tags, not files)
+- Text is truncated to 500 characters for UI display
+- Useful for quick inspection without downloading artifacts
+- Can be overridden at node level for fine-grained control
+
 **log_artifacts** (bool, default: `true`):
-- Whether to save inputs, outputs, prompts, responses
-- Disable for high-throughput scenarios (reduces I/O)
+- Save artifacts as downloadable files (prompts, responses, inputs, outputs, etc.)
+- Disable for high-throughput scenarios (reduces I/O and storage)
+- Files contain full content (no truncation)
+- Can be overridden at node level for fine-grained control
+
+**artifact_level** (str, default: `"standard"`):
+- Control granularity of artifact logging
+- **`"minimal"`**: Only workflow-level inputs, outputs, and errors
+- **`"standard"`**: + per-node prompts and responses (recommended)
+- **`"full"`**: + state snapshots, tool responses, execution traces
+- Only applies when `log_artifacts: true`
 
 ### Enterprise Hooks (v0.2+)
 
@@ -294,10 +313,10 @@ config:
 - `retry_count`: `0`
 - `status`: `1` (1 = success, 0 = failure)
 
-**Artifacts** (files):
-- `inputs.json`: Workflow inputs
-- `outputs.json`: Workflow outputs
-- `error.txt`: Error details (if failed)
+**Artifacts** (files, respects `artifact_level`):
+- `inputs.json`: Workflow inputs (minimal+)
+- `outputs.json`: Workflow outputs (minimal+)
+- `error.json`: Error details if failed (minimal+)
 
 ### Node-Level Traces (Nested Runs)
 
@@ -312,11 +331,18 @@ Each node execution creates a nested MLFlow run:
 - `node_duration_ms`: `2100`
 - `input_tokens`: `150`
 - `output_tokens`: `500`
+- `node_cost_usd`: `0.0015`
 - `retries`: `0`
 
-**Artifacts**:
-- `prompt.txt`: Resolved prompt template
-- `response.txt`: Raw LLM response (before validation)
+**UI Display** (respects `log_prompts`):
+- `prompt` tag: Truncated prompt (max 500 chars) shown in UI
+- `response` tag: Truncated response (max 500 chars) shown in UI
+- Not downloadable, just for quick inspection in MLFlow UI
+
+**Artifacts** (files, respect `log_artifacts` and `artifact_level`):
+- `prompt.txt`: Full resolved prompt template (standard+)
+- `response.txt`: Full raw LLM response (standard+)
+- State snapshots, tool responses, execution traces (full only)
 
 ### Example Trace Hierarchy
 
@@ -590,13 +616,43 @@ print("Exported to mlflow_runs.csv")
 - High-throughput batch jobs (I/O overhead)
 - Cost-sensitive scenarios (MLFlow adds ~50-100ms per run)
 
-**Compromise**: Disable `log_artifacts` for batch jobs:
+**Granular Control Options**:
+
+**Option 1**: Keep UI display, disable file storage (recommended for batch jobs):
 ```yaml
 config:
   observability:
     mlflow:
       enabled: true
-      log_artifacts: false  # Don't save inputs/outputs (faster)
+      log_prompts: true           # Keep UI display for debugging
+      log_artifacts: false        # Disable file storage (faster)
+```
+
+**Option 2**: Use minimal artifact level (reduce storage, keep tracking):
+```yaml
+config:
+  observability:
+    mlflow:
+      enabled: true
+      log_prompts: true           # Keep UI display
+      log_artifacts: true         # Keep file storage
+      artifact_level: "minimal"   # Only inputs/outputs/errors (no prompts/responses)
+```
+
+**Option 3**: Node-level control (hide sensitive nodes):
+```yaml
+config:
+  observability:
+    mlflow:
+      enabled: true
+      log_prompts: true           # Default for all nodes
+      log_artifacts: true         # Default for all nodes
+
+nodes:
+  - id: sensitive_node
+    # ... other fields ...
+    log_prompts: false            # Override: hide from UI
+    log_artifacts: false          # Override: no files
 ```
 
 ### Storage Management
@@ -961,12 +1017,23 @@ configurable-agents run workflow.yaml --verbose
 
 **Cause**: Artifact logging (saving inputs/outputs to disk).
 
-**Solution**: Disable artifacts for high-throughput:
+**Solution**: Disable file artifacts for high-throughput (keep UI display):
 ```yaml
 config:
   observability:
     mlflow:
-      log_artifacts: false  # Faster, but no prompt/response history
+      enabled: true
+      log_prompts: true         # Keep UI display for debugging
+      log_artifacts: false      # Disable file storage (faster)
+```
+
+Or use minimal artifact level:
+```yaml
+config:
+  observability:
+    mlflow:
+      enabled: true
+      artifact_level: "minimal"  # Only inputs/outputs/errors
 ```
 
 ### Docker Container MLFlow UI Not Accessible
