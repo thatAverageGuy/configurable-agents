@@ -7,8 +7,8 @@
 
 **Last Updated**: 2026-01-31
 **Current Phase**: Phase 4 (Observability & Docker Deployment)
-**Latest Completion**: T-020 (Cost Tracking & Reporting) - 2026-01-31
-**Next Action**: T-021 (Observability Documentation)
+**Latest Completion**: T-021 (Observability Documentation) - 2026-01-31
+**Next Action**: T-022 (Docker Artifact Generator)
 
 ---
 
@@ -16,11 +16,11 @@
 
 ### Progress Overview
 
-- **Overall**: 21/27 tasks complete (78%)
+- **Overall**: 22/27 tasks complete (81%)
 - **Phase 1** (Foundation): ✅ 8/8 complete
 - **Phase 2** (Core Execution): ✅ 6/6 complete
 - **Phase 3** (Polish & UX): ✅ 4/4 complete
-- **Phase 4** (Observability & Docker): 3/7 complete
+- **Phase 4** (Observability & Docker): 4/7 complete
 - **Phase 5** (Future): 3 tasks deferred to v0.2+
 
 ### What Works Right Now
@@ -51,95 +51,75 @@ result = run_workflow("workflow.yaml", {"topic": "AI"})
 - ✅ Complete user documentation
 
 **What Doesn't Work Yet**:
-- ❌ MLFlow user documentation (T-021)
 - ❌ Docker deployment (T-022-024)
 - ❌ Conditional routing (v0.2+)
 - ❌ Multi-LLM support (v0.2+)
 
-### Latest Completion: T-020 (Cost Tracking & Reporting)
+### Latest Completion: T-021 (Observability Documentation)
 
 **Completed**: 2026-01-31
-**What**: MLFlow cost reporting utilities with CLI commands for querying and exporting workflow execution costs
+**What**: Comprehensive user-facing documentation for MLFlow observability features
 **Impact**:
-- Users can now query MLFlow to see workflow execution costs with `configurable-agents report costs`
-- Export cost reports to JSON or CSV for analysis and budgeting
-- Filter reports by date range (today, last 7 days, last 30 days, custom)
-- Summary statistics and detailed per-run breakdowns with node-level metrics
-- Fail-fast validation for data quality (missing MLFlow, corrupted data)
-- 39 new tests (29 unit + 5 CLI + 5 integration)
+- Complete documentation for all MLFlow features implemented in T-018, T-019, T-020
+- Users can now understand how to enable tracking, view costs, and use the MLFlow UI
+- Clear configuration reference with all options explained
+- CLI cost reporting guide with practical examples
+- Working example workflow demonstrating MLFlow usage
+- Fixed incorrect feature gate warning (MLFlow is fully supported in v0.1)
 
-**Key Features**:
-- CLI command: `configurable-agents report costs` with multiple filters
-- Date range filters: `--range today|last_7_days|last_30_days|custom`
-- Custom date filtering: `--start-date` and `--end-date`
-- Output formats: table (default), JSON, CSV
-- Export to file: `--output report.json`
-- Workflow and experiment filtering
-- Graceful error handling for missing data
+**Key Updates**:
+- **OBSERVABILITY.md**: Updated config schema, pricing table (9 Gemini models), added CLI cost reporting section
+- **CONFIG_REFERENCE.md**: Added 60-line observability section with complete MLFlow reference
+- **QUICKSTART.md**: Added optional observability section
+- **README.md**: Fixed CLI command syntax (`--period` not `--range`)
+- **feature_gate.py**: Removed incorrect warning that MLFlow isn't supported
+- **Example workflow**: Created `article_writer_mlflow.yaml` demonstrating observability
 
-**Key Files**:
-- `src/configurable_agents/observability/cost_reporter.py` - MLFlow query and aggregation utilities
-- `src/configurable_agents/cli.py` - Added `report costs` command
-- `tests/observability/test_cost_reporter.py` - 29 unit tests
-- `tests/observability/test_cost_reporter_cli.py` - 5 CLI tests
-- `tests/observability/test_cost_reporter_integration.py` - 5 integration tests
+**Files Modified**: 6 (4 docs, 1 source, 1 test)
+**Files Created**: 2 (1 example, 1 implementation log)
 
-**Implementation Log**: `implementation_logs/phase_4_observability_docker/T-020_cost_tracking_reporting.md`
+**Implementation Log**: `implementation_logs/phase_4_observability_docker/T-021_observability_documentation.md`
 
 ---
 
 ## 📋 Next Action (Start Here!)
 
-### Task: T-021 - Observability Documentation
+### Task: T-022 - Docker Artifact Generator & Templates
 
-**Goal**: Write comprehensive user-facing documentation for MLFlow observability features.
+**Goal**: Implement artifact generation for Docker deployment - Dockerfile, FastAPI server, requirements, etc.
 
 **Acceptance Criteria**:
-1. Create `docs/OBSERVABILITY.md` covering:
-   - Overview: Why observability matters for LLM workflows
-   - MLFlow quick start (install, enable, view UI)
-   - Configuration reference (all observability options explained)
-   - What gets tracked (workflow-level, node-level, costs)
-   - Cost tracking and reporting guide (CLI usage examples)
-   - Docker integration (MLFlow UI in container)
-   - Troubleshooting common issues
-   - Best practices for production usage
-2. Update `docs/CONFIG_REFERENCE.md` (add observability section)
-3. Update `docs/QUICKSTART.md` (mention observability as optional feature)
-4. Update `README.md` (add observability features to key features section)
-5. Create example workflow with MLFlow enabled: `examples/article_writer_mlflow.yaml`
-
-**Key Sections for OBSERVABILITY.md**:
-- Getting Started (3 steps to enable MLFlow)
-- Configuration Options (tracking_uri, experiment_name, run_name, etc.)
-- What Gets Tracked (params, metrics, artifacts)
-- Cost Reporting CLI Guide (with examples)
-- MLFlow UI Guide (viewing runs, comparing experiments)
-- Docker Deployment with MLFlow
-- Advanced Topics (remote backends, retention, PII redaction)
-- Troubleshooting (common errors and fixes)
-
-**Key Files to Create**:
-- `docs/OBSERVABILITY.md` (~600-800 lines)
-- `examples/article_writer_mlflow.yaml`
-
-**Key Files to Modify**:
-- `docs/CONFIG_REFERENCE.md` (add observability section)
-- `docs/QUICKSTART.md` (mention observability)
-- `README.md` (update features list)
+1. Create `src/configurable_agents/deploy/` package
+2. Create `src/configurable_agents/deploy/generator.py`:
+   - `generate_deployment_artifacts(config, output_dir, timeout, enable_mlflow, mlflow_port)`
+   - Template engine (Jinja2 or string.Template)
+   - Variable substitution (workflow_name, ports, timeout)
+3. Create `src/configurable_agents/deploy/templates/` directory:
+   - `Dockerfile.template` (multi-stage, optimized)
+   - `server.py.template` (FastAPI with sync/async)
+   - `requirements.txt.template` (minimal runtime deps)
+   - `docker-compose.yml.template`
+   - `.env.example.template`
+   - `README.md.template`
+   - `.dockerignore`
+4. Dockerfile optimizations:
+   - Multi-stage build (builder + runtime)
+   - `python:3.10-slim` base image
+   - `--no-cache-dir` for pip
+   - Health check
+   - MLFlow UI startup (if enabled)
+5. Unit tests (artifact generation, 20 tests)
+6. Integration test (generate → validate files exist, 3 tests)
 
 **Dependencies**:
-- ✅ T-018 (MLFlow Foundation) - COMPLETE
-- ✅ T-019 (MLFlow Instrumentation) - COMPLETE
-- ✅ T-020 (Cost Tracking & Reporting) - COMPLETE
+- ✅ T-013 (Runtime Executor) - COMPLETE
+- ✅ T-021 (Observability) - COMPLETE
 
-**Estimated Effort**: 1-2 days
+**Estimated Effort**: 2 days
 
 **Related Documentation**:
-- `implementation_logs/phase_4_observability_docker/T-018_mlflow_integration_foundation.md`
-- `implementation_logs/phase_4_observability_docker/T-019_mlflow_instrumentation.md`
-- `implementation_logs/phase_4_observability_docker/T-020_cost_tracking_reporting.md`
-- `docs/adr/ADR-011-mlflow-observability.md`
+- `docs/DEPLOYMENT.md` (Docker deployment guide - already exists)
+- `docs/adr/ADR-012-docker-deployment.md` (if exists)
 
 ---
 

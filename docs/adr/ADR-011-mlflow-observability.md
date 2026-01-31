@@ -446,20 +446,22 @@ volumes:
 
 **Completed**:
 - ✅ Architecture designed (this ADR)
-- ✅ Documentation drafted (docs/OBSERVABILITY.md - 1,007 lines)
+- ✅ Documentation complete (docs/OBSERVABILITY.md - comprehensive guide)
 - ✅ Schema defined (SPEC.md `config.observability.mlflow`)
 - ✅ Three-tier strategy documented (ADR-014)
 - ✅ T-018: MLFlow integration foundation (2026-01-31)
+- ✅ T-019: MLFlow node instrumentation with automatic tracking (2026-01-31)
+- ✅ T-020: Cost tracking and reporting with CLI commands (2026-01-31)
+- ✅ T-021: Observability documentation (2026-01-31)
 - ✅ Cost tracking implementation with 9 Gemini models
 - ✅ MLFlowTracker with workflow/node-level tracking
-- ✅ 46 tests (37 unit + 9 integration) - all passing
+- ✅ CLI cost reporting: `configurable-agents report costs`
+- ✅ 544 unit tests passing (100% pass rate)
+- ✅ Feature gate updated (MLFlow fully supported in v0.1)
 
-**In Progress**:
-- ⏳ T-019: Node executor instrumentation (extract tokens, log prompts/responses)
-- ⏳ T-020: Cost reporting utilities
-- ⏳ T-021: OBSERVABILITY.md user documentation
+**Production Ready**: MLFlow observability is fully implemented and documented for v0.1
 
-**Next Steps**: T-019 - Instrument node executor to enable automatic node-level tracking
+**Next Steps**: T-022 - Docker deployment with MLFlow UI in containers
 
 ---
 
