@@ -13,6 +13,20 @@ For detailed task-by-task implementation notes, see [implementation logs](docs/i
 
 ### Added
 
+**Docker Artifact Generator** (T-022):
+- Deployment artifact generation for Docker containers in `src/configurable_agents/deploy/`
+- 7 template files for complete Docker deployment (Dockerfile, FastAPI server, docker-compose, etc.)
+- Multi-stage Dockerfile with health check and MLFlow UI integration
+- FastAPI server template with sync/async hybrid execution (timeout-based)
+- Automatic example input generation from workflow state schema
+- Template engine using Python's `string.Template` (zero dependencies)
+- Configurable ports (API: 8000, MLFlow: 5000), sync timeout (30s default), container names
+- Generated artifacts: Dockerfile (1.4KB), server.py (6.4KB), requirements.txt, docker-compose.yml, .env.example, README.md (5.9KB), .dockerignore, workflow.yaml
+- Comprehensive README template with API reference, management commands, troubleshooting
+- 24 new tests (21 unit + 3 integration) - all passing
+- Total: 568 unit tests (100% pass rate)
+- Implementation: `DeploymentArtifactGenerator` class with `generate_deployment_artifacts()` function
+
 **Observability Documentation** (T-021):
 - Comprehensive MLFlow documentation in `docs/OBSERVABILITY.md`
 - Configuration reference added to `docs/CONFIG_REFERENCE.md` (~60 lines)

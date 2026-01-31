@@ -1,0 +1,46 @@
+# Docker build context exclusions
+# Reduces image size and build time
+
+# Python
+__pycache__/
+*.py[cod]
+*$$py.class
+*.so
+.Python
+
+# Virtual environments
+venv/
+env/
+ENV/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Testing
+.pytest_cache/
+.coverage
+htmlcov/
+
+# MLFlow (generated at runtime)
+mlruns/
+
+# Secrets
+.env
+.env.*
+!.env.example
+
+# Git
+.git/
+.gitignore
+
+# Docker
+Dockerfile
+.dockerignore
+docker-compose.yml
+
+# Documentation
+README.md
+*.md

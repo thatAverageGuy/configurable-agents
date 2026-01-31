@@ -1,0 +1,17 @@
+version: '3.8'
+
+services:
+  workflow:
+    build: .
+    container_name: ${container_name}
+    ports:
+      - "${api_port}:${api_port}"
+      - "${mlflow_port}:${mlflow_port}"
+    environment:
+      # API keys loaded from .env file
+      - GOOGLE_API_KEY=$${GOOGLE_API_KEY}
+      - SERPER_API_KEY=$${SERPER_API_KEY}
+    volumes:
+      # Persist MLFlow traces across container restarts
+      - ./mlruns:/app/mlruns
+    restart: unless-stopped
