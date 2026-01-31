@@ -15,6 +15,7 @@ import pytest
 
 from configurable_agents.cli import (
     Colors,
+    cmd_report_costs,
     cmd_run,
     cmd_validate,
     colorize,
@@ -565,12 +566,270 @@ edges:
     assert "valid" in result.stdout.lower()
 
 
+# --- Tests: cmd_report_costs ---
+
+
+@patch("configurable_agents.cli.CostReporter")
+@patch("configurable_agents.cli.get_date_range_filter")
+def test_cmd_report_costs_success(mock_date_filter, mock_reporter_class):
+    """Test successful cost report generation."""
+    from argparse import Namespace
+    from datetime import datetime
+
+    from configurable_agents.observability import CostEntry, CostSummary
+
+    # Mock date filter
+    start_date = datetime(2026, 1, 1)
+    end_date = datetime(2026, 1, 31)
+    mock_date_filter.return_value = (start_date, end_date)
+
+    # Mock cost reporter
+    mock_reporter = MagicMock()
+    mock_reporter_class.return_value = mock_reporter
+
+    # Mock cost entries
+    mock_entries = [
+        CostEntry(
+            run_id="run_1",
+            run_name="test",
+            workflow_name="workflow_a",
+            start_time=datetime(2026, 1, 15),
+            duration_seconds=10.0,
+            status="success",
+            total_cost_usd=0.005,
+            input_tokens=100,
+            output_tokens=400,
+            node_count=2,
+            model="gemini-1.5-flash",
+        )
+    ]
+    mock_reporter.get_cost_entries.return_value = mock_entries
+
+    # Mock summary
+    mock_summary = CostSummary(
+        total_cost_usd=0.005,
+        total_runs=1,
+        total_tokens=500,
+        successful_runs=1,
+        failed_runs=0,
+        avg_cost_per_run=0.005,
+        avg_tokens_per_run=500.0,
+        date_range=(start_date, end_date),
+        breakdown_by_workflow={"workflow_a": 0.005},
+        breakdown_by_model={"gemini-1.5-flash": 0.005},
+    )
+    mock_reporter.generate_summary.return_value = mock_summary
+
+    # Create args
+    args = Namespace(
+        tracking_uri="file://./mlruns",
+        experiment=None,
+        workflow=None,
+        period="last_7_days",
+        start_date=None,
+        end_date=None,
+        status=None,
+        breakdown=False,
+        aggregate_by=None,
+        output=None,
+        format="json",
+        include_summary=True,
+        verbose=False,
+    )
+
+    # Execute
+    exit_code = cmd_report_costs(args)
+
+    # Verify
+    assert exit_code == 0
+    mock_reporter_class.assert_called_once_with(tracking_uri="file://./mlruns")
+    mock_date_filter.assert_called_once_with("last_7_days")
+    mock_reporter.get_cost_entries.assert_called_once()
+    mock_reporter.generate_summary.assert_called_once()
+
+
+@patch("configurable_agents.cli.CostReporter")
+def test_cmd_report_costs_no_entries(mock_reporter_class):
+    """Test cost report with no matching entries."""
+    from argparse import Namespace
+
+    # Mock cost reporter
+    mock_reporter = MagicMock()
+    mock_reporter_class.return_value = mock_reporter
+    mock_reporter.get_cost_entries.return_value = []  # No entries
+
+    # Create args
+    args = Namespace(
+        tracking_uri="file://./mlruns",
+        experiment=None,
+        workflow=None,
+        period=None,
+        start_date=None,
+        end_date=None,
+        status=None,
+        breakdown=False,
+        aggregate_by=None,
+        output=None,
+        format="json",
+        include_summary=True,
+        verbose=False,
+    )
+
+    # Execute
+    exit_code = cmd_report_costs(args)
+
+    # Verify
+    assert exit_code == 0  # Should still succeed with warning
+
+
+@patch("configurable_agents.cli.CostReporter")
+def test_cmd_report_costs_mlflow_unavailable(mock_reporter_class):
+    """Test error when MLFlow is not available."""
+    from argparse import Namespace
+
+    # Mock RuntimeError when initializing reporter
+    mock_reporter_class.side_effect = RuntimeError("MLFlow is not installed")
+
+    # Create args
+    args = Namespace(
+        tracking_uri="file://./mlruns",
+        experiment=None,
+        workflow=None,
+        period=None,
+        start_date=None,
+        end_date=None,
+        status=None,
+        breakdown=False,
+        aggregate_by=None,
+        output=None,
+        format="json",
+        include_summary=True,
+        verbose=False,
+    )
+
+    # Execute
+    exit_code = cmd_report_costs(args)
+
+    # Verify error
+    assert exit_code == 1
+
+
+@patch("configurable_agents.cli.CostReporter")
+@patch("configurable_agents.cli.get_date_range_filter")
+def test_cmd_report_costs_with_export(mock_date_filter, mock_reporter_class, tmp_path):
+    """Test cost report with export to JSON file."""
+    from argparse import Namespace
+    from datetime import datetime
+
+    from configurable_agents.observability import CostEntry, CostSummary
+
+    # Mock date filter
+    mock_date_filter.return_value = (datetime(2026, 1, 1), datetime(2026, 1, 31))
+
+    # Mock cost reporter
+    mock_reporter = MagicMock()
+    mock_reporter_class.return_value = mock_reporter
+
+    mock_entries = [
+        CostEntry(
+            run_id="run_1",
+            run_name="test",
+            workflow_name="test",
+            start_time=datetime(2026, 1, 15),
+            duration_seconds=10.0,
+            status="success",
+            total_cost_usd=0.005,
+            input_tokens=100,
+            output_tokens=400,
+            node_count=2,
+        )
+    ]
+    mock_reporter.get_cost_entries.return_value = mock_entries
+
+    mock_summary = CostSummary(
+        total_cost_usd=0.005,
+        total_runs=1,
+        total_tokens=500,
+        successful_runs=1,
+        failed_runs=0,
+        avg_cost_per_run=0.005,
+        avg_tokens_per_run=500.0,
+        date_range=(datetime(2026, 1, 1), datetime(2026, 1, 31)),
+        breakdown_by_workflow={"test": 0.005},
+        breakdown_by_model={},
+    )
+    mock_reporter.generate_summary.return_value = mock_summary
+
+    # Create args with output file
+    output_file = tmp_path / "costs.json"
+    args = Namespace(
+        tracking_uri="file://./mlruns",
+        experiment=None,
+        workflow=None,
+        period=None,
+        start_date=None,
+        end_date=None,
+        status=None,
+        breakdown=False,
+        aggregate_by=None,
+        output=str(output_file),
+        format="json",
+        include_summary=True,
+        verbose=False,
+    )
+
+    # Execute
+    exit_code = cmd_report_costs(args)
+
+    # Verify
+    assert exit_code == 0
+    mock_reporter.export_to_json.assert_called_once_with(
+        mock_entries, str(output_file), include_summary=True
+    )
+
+
+@patch("configurable_agents.cli.CostReporter")
+def test_cmd_report_costs_invalid_period(mock_reporter_class):
+    """Test error with invalid period."""
+    from argparse import Namespace
+
+    # Mock cost reporter
+    mock_reporter = MagicMock()
+    mock_reporter_class.return_value = mock_reporter
+
+    # Create args with invalid period (will fail at get_date_range_filter)
+    args = Namespace(
+        tracking_uri="file://./mlruns",
+        experiment=None,
+        workflow=None,
+        period="invalid_period",  # Invalid
+        start_date=None,
+        end_date=None,
+        status=None,
+        breakdown=False,
+        aggregate_by=None,
+        output=None,
+        format="json",
+        include_summary=True,
+        verbose=False,
+    )
+
+    # Execute
+    with patch("configurable_agents.cli.get_date_range_filter") as mock_filter:
+        mock_filter.side_effect = ValueError("Invalid period")
+        exit_code = cmd_report_costs(args)
+
+    # Verify error
+    assert exit_code == 1
+
+
 # --- Test Summary ---
-# Total: 42 tests
+# Total: 47 tests
 # - Input parsing: 11 tests
 # - Color output: 8 tests
 # - Argument parser: 6 tests
 # - cmd_run: 9 tests
 # - cmd_validate: 4 tests
+# - cmd_report_costs: 5 tests
 # - main(): 2 tests
 # - Integration: 2 tests
