@@ -7,8 +7,8 @@
 
 **Last Updated**: 2026-01-31
 **Current Phase**: Phase 4 (Observability & Docker Deployment)
-**Latest Completion**: T-019 (MLFlow Instrumentation) - 2026-01-31
-**Next Action**: T-020 (Cost Tracking & Reporting)
+**Latest Completion**: T-020 (Cost Tracking & Reporting) - 2026-01-31
+**Next Action**: T-021 (Observability Documentation)
 
 ---
 
@@ -16,11 +16,11 @@
 
 ### Progress Overview
 
-- **Overall**: 20/27 tasks complete (74%)
+- **Overall**: 21/27 tasks complete (78%)
 - **Phase 1** (Foundation): ✅ 8/8 complete
 - **Phase 2** (Core Execution): ✅ 6/6 complete
 - **Phase 3** (Polish & UX): ✅ 4/4 complete
-- **Phase 4** (Observability & Docker): 2/7 complete
+- **Phase 4** (Observability & Docker): 3/7 complete
 - **Phase 5** (Future): 3 tasks deferred to v0.2+
 
 ### What Works Right Now
@@ -46,82 +46,100 @@ result = run_workflow("workflow.yaml", {"topic": "AI"})
 - ✅ CLI interface with smart input parsing
 - ✅ MLFlow observability foundation (cost tracking, workflow metrics)
 - ✅ Automatic node-level tracking (token extraction, prompt/response logging)
-- ✅ 492 unit tests passing (100% pass rate)
+- ✅ Cost reporting utilities with CLI commands (JSON/CSV export)
+- ✅ 544 unit tests passing (100% pass rate)
 - ✅ Complete user documentation
 
 **What Doesn't Work Yet**:
-- ❌ Cost reporting utilities (T-020)
 - ❌ MLFlow user documentation (T-021)
 - ❌ Docker deployment (T-022-024)
 - ❌ Conditional routing (v0.2+)
 - ❌ Multi-LLM support (v0.2+)
 
-### Latest Completion: T-019 (MLFlow Instrumentation)
+### Latest Completion: T-020 (Cost Tracking & Reporting)
 
 **Completed**: 2026-01-31
-**What**: Instrumented node executor for automatic MLFlow tracking with token extraction
+**What**: MLFlow cost reporting utilities with CLI commands for querying and exporting workflow execution costs
 **Impact**:
-- LLM provider now extracts token counts from LangChain responses
-- Node executor automatically logs metrics, prompts, and responses to MLFlow
-- Token usage tracked across retries for accurate cost calculation
-- All 455 unit tests updated and passing
-- Zero overhead when MLFlow disabled (graceful degradation)
+- Users can now query MLFlow to see workflow execution costs with `configurable-agents report costs`
+- Export cost reports to JSON or CSV for analysis and budgeting
+- Filter reports by date range (today, last 7 days, last 30 days, custom)
+- Summary statistics and detailed per-run breakdowns with node-level metrics
+- Fail-fast validation for data quality (missing MLFlow, corrupted data)
+- 39 new tests (29 unit + 5 CLI + 5 integration)
 
-**Key Changes**:
-- `src/configurable_agents/llm/provider.py` - Returns tuple `(result, usage)` with token metadata
-- `src/configurable_agents/core/node_executor.py` - Wraps execution in `tracker.track_node()`
-- `src/configurable_agents/core/graph_builder.py` - Propagates tracker to node functions
-- `src/configurable_agents/runtime/executor.py` - Initializes tracker before graph building
-- `tests/llm/test_provider.py`, `tests/core/test_node_executor.py`, `tests/core/test_graph_builder.py` - Updated mocks
+**Key Features**:
+- CLI command: `configurable-agents report costs` with multiple filters
+- Date range filters: `--range today|last_7_days|last_30_days|custom`
+- Custom date filtering: `--start-date` and `--end-date`
+- Output formats: table (default), JSON, CSV
+- Export to file: `--output report.json`
+- Workflow and experiment filtering
+- Graceful error handling for missing data
 
-**Implementation Log**: `implementation_logs/phase_4_observability_docker/T-019_mlflow_instrumentation.md`
+**Key Files**:
+- `src/configurable_agents/observability/cost_reporter.py` - MLFlow query and aggregation utilities
+- `src/configurable_agents/cli.py` - Added `report costs` command
+- `tests/observability/test_cost_reporter.py` - 29 unit tests
+- `tests/observability/test_cost_reporter_cli.py` - 5 CLI tests
+- `tests/observability/test_cost_reporter_integration.py` - 5 integration tests
+
+**Implementation Log**: `implementation_logs/phase_4_observability_docker/T-020_cost_tracking_reporting.md`
 
 ---
 
 ## 📋 Next Action (Start Here!)
 
-### Task: T-020 - Cost Tracking & Reporting
+### Task: T-021 - Observability Documentation
 
-**Goal**: Build cost reporting utilities to query and aggregate MLFlow metrics for workflow cost analysis.
+**Goal**: Write comprehensive user-facing documentation for MLFlow observability features.
 
 **Acceptance Criteria**:
-1. Create cost aggregation utility in `observability/cost_reporter.py`
-2. Query MLFlow experiments for workflow runs
-3. Aggregate costs across workflows (daily, weekly, monthly)
-4. Generate cost reports with breakdown by:
-   - Workflow name
-   - Model used
-   - Time period
-   - Node-level breakdown (optional)
-5. Export reports as JSON/CSV
-6. Add CLI command: `configurable-agents report costs`
-7. Unit tests with mocked MLFlow queries (15 tests)
-8. Integration test with real MLFlow database
+1. Create `docs/OBSERVABILITY.md` covering:
+   - Overview: Why observability matters for LLM workflows
+   - MLFlow quick start (install, enable, view UI)
+   - Configuration reference (all observability options explained)
+   - What gets tracked (workflow-level, node-level, costs)
+   - Cost tracking and reporting guide (CLI usage examples)
+   - Docker integration (MLFlow UI in container)
+   - Troubleshooting common issues
+   - Best practices for production usage
+2. Update `docs/CONFIG_REFERENCE.md` (add observability section)
+3. Update `docs/QUICKSTART.md` (mention observability as optional feature)
+4. Update `README.md` (add observability features to key features section)
+5. Create example workflow with MLFlow enabled: `examples/article_writer_mlflow.yaml`
 
-**Key Considerations**:
-- Use MLFlow Python API to query runs and metrics
-- Support filtering by experiment, workflow name, date range
-- Handle missing MLFlow gracefully (warn user)
-- Costs already tracked by T-018/T-019, just need aggregation
+**Key Sections for OBSERVABILITY.md**:
+- Getting Started (3 steps to enable MLFlow)
+- Configuration Options (tracking_uri, experiment_name, run_name, etc.)
+- What Gets Tracked (params, metrics, artifacts)
+- Cost Reporting CLI Guide (with examples)
+- MLFlow UI Guide (viewing runs, comparing experiments)
+- Docker Deployment with MLFlow
+- Advanced Topics (remote backends, retention, PII redaction)
+- Troubleshooting (common errors and fixes)
 
 **Key Files to Create**:
-- `src/configurable_agents/observability/cost_reporter.py` - Report generation
-- `tests/observability/test_cost_reporter.py` - Unit tests
+- `docs/OBSERVABILITY.md` (~600-800 lines)
+- `examples/article_writer_mlflow.yaml`
 
 **Key Files to Modify**:
-- `src/configurable_agents/cli.py` - Add `report` command
-- `tests/test_cli.py` - Test report command
+- `docs/CONFIG_REFERENCE.md` (add observability section)
+- `docs/QUICKSTART.md` (mention observability)
+- `README.md` (update features list)
 
 **Dependencies**:
 - ✅ T-018 (MLFlow Foundation) - COMPLETE
 - ✅ T-019 (MLFlow Instrumentation) - COMPLETE
+- ✅ T-020 (Cost Tracking & Reporting) - COMPLETE
 
-**Estimated Effort**: 2-3 hours
+**Estimated Effort**: 1-2 days
 
 **Related Documentation**:
-- `implementation_logs/phase_4_observability_docker/T-018_mlflow_integration_foundation.md` - CostEstimator API
-- `implementation_logs/phase_4_observability_docker/T-019_mlflow_instrumentation.md` - Node tracking
-- MLFlow Python API: https://mlflow.org/docs/latest/python_api/index.html
+- `implementation_logs/phase_4_observability_docker/T-018_mlflow_integration_foundation.md`
+- `implementation_logs/phase_4_observability_docker/T-019_mlflow_instrumentation.md`
+- `implementation_logs/phase_4_observability_docker/T-020_cost_tracking_reporting.md`
+- `docs/adr/ADR-011-mlflow-observability.md`
 
 ---
 

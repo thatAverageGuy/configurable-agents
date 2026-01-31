@@ -5,8 +5,8 @@
 Config-driven LLM agent runtime that turns your ideas into executable workflows in minutes, not days.
 
 [![Status](https://img.shields.io/badge/status-alpha-orange)]()
-[![Version](https://img.shields.io/badge/version-0.1.0--dev%20(74%25)-blue)]()
-[![Progress](https://img.shields.io/badge/tasks-20%2F27%20complete-brightgreen)]()
+[![Version](https://img.shields.io/badge/version-0.1.0--dev%20(78%25)-blue)]()
+[![Progress](https://img.shields.io/badge/tasks-21%2F27%20complete-brightgreen)]()
 [![Python](https://img.shields.io/badge/python-3.10%2B-blue)]()
 [![License](https://img.shields.io/badge/license-MIT-green)]()
 
@@ -80,6 +80,7 @@ configurable-agents run article_writer.yaml --input topic="AI Safety"
 ### 🔍 Observability (v0.1)
 - **MLFlow integration**: Track every workflow run
 - **Cost monitoring**: Token usage and $ per execution
+- **Cost reporting CLI**: Query and export costs with filters
 - **Prompt inspection**: View resolved prompts and LLM responses
 - **Built-in dashboard**: MLFlow UI at http://localhost:5000
 
@@ -88,6 +89,14 @@ config:
   observability:
     mlflow:
       enabled: true
+```
+
+```bash
+# Query costs for the last 7 days
+configurable-agents report costs --range last_7_days
+
+# Export to CSV
+configurable-agents report costs --format csv --output report.csv
 ```
 
 ### 🐳 Docker Deployment (v0.1)
@@ -111,7 +120,7 @@ curl -X POST http://localhost:8000/run \
 
 | Version | Status | Target | Theme | Focus |
 |---------|--------|--------|-------|-------|
-| **v0.1** | 🔄 70% (20/27) | March 2026 | Production Ready | Linear flows + Observability + Docker |
+| **v0.1** | 🔄 78% (21/27) | March 2026 | Production Ready | Linear flows + Observability + Docker |
 | **v0.2** | 📋 Planned | Q2 2026 | Intelligence | Conditionals, loops, multi-LLM |
 | **v0.3** | 🔮 Future | Q3 2026 | Optimization | DSPy, parallel execution |
 | **v0.4** | 🌟 Vision | Q4 2026 | Ecosystem | Visual tools, cloud deploy |
@@ -122,7 +131,7 @@ curl -X POST http://localhost:8000/run \
 
 ### v0.1 - Production Ready (Current)
 
-**Status**: 74% complete (20/27 tasks) | **Target**: March 2026
+**Status**: 78% complete (21/27 tasks) | **Target**: March 2026
 
 #### ✅ Working Now
 
@@ -146,16 +155,20 @@ result = run_workflow("workflow.yaml", {"topic": "AI"})
 - ✅ Tool integration (Serper web search)
 - ✅ Parse-time validation (fail fast, save money)
 - ✅ CLI interface (run, validate, verbose)
-- ✅ 514 tests (28 integration + 486 unit)
+- ✅ 544 tests (28 integration + 516 unit)
 - ✅ Google Gemini integration
 
 #### ⏳ In Progress (Completing v0.1)
 
 **Observability** (T-018 to T-021):
 ```bash
-# MLFlow tracking (coming soon)
+# MLFlow tracking (enabled)
 configurable-agents run workflow.yaml --input topic="AI"
 mlflow ui  # View costs, traces, prompts at http://localhost:5000
+
+# Cost reporting (NEW in T-020)
+configurable-agents report costs --range last_7_days
+configurable-agents report costs --format json --output report.json
 ```
 
 **Docker Deployment** (T-022 to T-024):
@@ -332,13 +345,13 @@ See [Architecture Decision Records](docs/adr/) for detailed design choices.
 - ✅ T-016: Documentation
 - ✅ T-017: Integration Tests
 
-### Phase 3: Observability (0/4 complete)
-- ⏳ T-018: MLFlow Integration Foundation
-- ⏳ T-019: MLFlow Instrumentation
-- ⏳ T-020: Cost Tracking & Reporting
+### Phase 4: Observability (3/4 complete)
+- ✅ T-018: MLFlow Integration Foundation
+- ✅ T-019: MLFlow Instrumentation
+- ✅ T-020: Cost Tracking & Reporting
 - ⏳ T-021: Observability Documentation
 
-### Phase 3: Docker Deployment (0/3 complete)
+### Phase 4: Docker Deployment (0/3 complete)
 - ⏳ T-022: Docker Artifact Generator & Templates
 - ⏳ T-023: FastAPI Server with Sync/Async
 - ⏳ T-024: CLI Deploy Command & Streamlit Integration
@@ -348,9 +361,9 @@ See [Architecture Decision Records](docs/adr/) for detailed design choices.
 - ⏳ T-026: DSPy Integration Test
 - ⏳ T-027: Structured Output + DSPy
 
-**Overall Progress**: 20/27 tasks complete (74%)
+**Overall Progress**: 21/27 tasks complete (78%)
 
-**Next up**: T-019 (MLFlow Instrumentation)
+**Next up**: T-021 (Observability Documentation)
 
 Full task breakdown: [docs/TASKS.md](docs/TASKS.md)
 
@@ -382,7 +395,7 @@ Full task breakdown: [docs/TASKS.md](docs/TASKS.md)
   - *What's being built, task by task*
   - All 27 tasks for v0.1 with acceptance criteria
   - Dependencies and estimates
-  - Current progress tracker (20/27 complete)
+  - Current progress tracker (21/27 complete)
 
 - **[CONTEXT.md](docs/CONTEXT.md)** - Development context (living document)
   - *Current state, next action, and development standards*

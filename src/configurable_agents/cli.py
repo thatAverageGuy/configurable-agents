@@ -11,6 +11,10 @@ import sys
 from pathlib import Path
 from typing import Any, Dict, Optional
 
+from configurable_agents.observability import (
+    CostReporter,
+    get_date_range_filter,
+)
 from configurable_agents.runtime import (
     ConfigLoadError,
     ConfigValidationError,
@@ -280,6 +284,136 @@ def cmd_validate(args: argparse.Namespace) -> int:
         return 1
 
 
+def cmd_report_costs(args: argparse.Namespace) -> int:
+    """
+    Generate cost reports from MLFlow tracking data.
+
+    Args:
+        args: Parsed command-line arguments
+
+    Returns:
+        Exit code (0 for success, 1 for error)
+    """
+    try:
+        # Initialize cost reporter
+        tracking_uri = args.tracking_uri
+        reporter = CostReporter(tracking_uri=tracking_uri)
+
+        print_info(f"Querying MLFlow: {colorize(tracking_uri, Colors.CYAN)}")
+
+        # Parse date range
+        start_date = None
+        end_date = None
+
+        if args.period:
+            try:
+                start_date, end_date = get_date_range_filter(args.period)
+                print_info(
+                    f"Period: {colorize(args.period, Colors.CYAN)} "
+                    f"({start_date.strftime('%Y-%m-%d')} to {end_date.strftime('%Y-%m-%d')})"
+                )
+            except ValueError as e:
+                print_error(f"Invalid period: {e}")
+                return 1
+        elif args.start_date or args.end_date:
+            if args.start_date:
+                from datetime import datetime
+
+                start_date = datetime.fromisoformat(args.start_date)
+            if args.end_date:
+                from datetime import datetime
+
+                end_date = datetime.fromisoformat(args.end_date)
+
+        # Query cost entries
+        entries = reporter.get_cost_entries(
+            experiment_name=args.experiment,
+            workflow_name=args.workflow,
+            start_date=start_date,
+            end_date=end_date,
+            status_filter=args.status,
+        )
+
+        if not entries:
+            print_warning("No cost entries found matching the filters")
+            return 0
+
+        print_success(f"Found {len(entries)} workflow runs")
+
+        # Generate summary
+        summary = reporter.generate_summary(entries)
+
+        # Display summary
+        print(f"\n{colorize('Cost Summary:', Colors.BOLD)}")
+        print(f"  Total Cost:        ${summary.total_cost_usd:.6f}")
+        print(f"  Total Runs:        {summary.total_runs}")
+        print(f"  Successful:        {summary.successful_runs}")
+        print(f"  Failed:            {summary.failed_runs}")
+        print(f"  Total Tokens:      {summary.total_tokens:,}")
+        print(f"  Avg Cost/Run:      ${summary.avg_cost_per_run:.6f}")
+        print(f"  Avg Tokens/Run:    {summary.avg_tokens_per_run:.0f}")
+
+        # Display breakdowns if requested
+        if args.breakdown:
+            if summary.breakdown_by_workflow:
+                print(f"\n{colorize('Cost by Workflow:', Colors.BOLD)}")
+                for workflow, cost in sorted(
+                    summary.breakdown_by_workflow.items(), key=lambda x: x[1], reverse=True
+                ):
+                    print(f"  {workflow:<30} ${cost:.6f}")
+
+            if summary.breakdown_by_model:
+                print(f"\n{colorize('Cost by Model:', Colors.BOLD)}")
+                for model, cost in sorted(
+                    summary.breakdown_by_model.items(), key=lambda x: x[1], reverse=True
+                ):
+                    print(f"  {model:<30} ${cost:.6f}")
+
+        # Aggregate by period if requested
+        if args.aggregate_by:
+            print(f"\n{colorize(f'Cost by {args.aggregate_by.capitalize()}:', Colors.BOLD)}")
+            aggregated = reporter.aggregate_by_period(entries, period=args.aggregate_by)
+            for period_key, cost in sorted(aggregated.items()):
+                print(f"  {period_key:<15} ${cost:.6f}")
+
+        # Export to file if requested
+        if args.output:
+            output_format = args.format.lower()
+            if output_format == "json":
+                reporter.export_to_json(
+                    entries, args.output, include_summary=args.include_summary
+                )
+            elif output_format == "csv":
+                reporter.export_to_csv(entries, args.output)
+            else:
+                print_error(f"Invalid format: {output_format}")
+                return 1
+
+            print_success(f"Exported to {args.output}")
+
+        return 0
+
+    except RuntimeError as e:
+        print_error(f"MLFlow not available: {e}")
+        print_info("Install MLFlow with: pip install mlflow")
+        return 1
+
+    except ValueError as e:
+        print_error(f"Invalid input: {e}")
+        if args.verbose:
+            import traceback
+
+            print(traceback.format_exc(), file=sys.stderr)
+        return 1
+
+    except Exception as e:
+        print_error(f"Unexpected error: {e}")
+        import traceback
+
+        print(traceback.format_exc(), file=sys.stderr)
+        return 1
+
+
 def create_parser() -> argparse.ArgumentParser:
     """
     Create CLI argument parser.
@@ -298,6 +432,12 @@ Examples:
 
   # Validate a config without running
   configurable-agents validate workflow.yaml
+
+  # Generate cost report for last 7 days
+  configurable-agents report costs --period last_7_days --breakdown
+
+  # Export cost data to CSV
+  configurable-agents report costs --output costs.csv --format csv
 
   # Run with verbose logging
   configurable-agents run workflow.yaml --input name="Alice" --verbose
@@ -342,6 +482,84 @@ For more information, visit: https://github.com/yourusername/configurable-agents
         "-v", "--verbose", action="store_true", help="Enable verbose output"
     )
     validate_parser.set_defaults(func=cmd_validate)
+
+    # Report command (with subcommands)
+    report_parser = subparsers.add_parser(
+        "report",
+        help="Generate reports from MLFlow data",
+        description="Generate cost and usage reports",
+    )
+    report_subparsers = report_parser.add_subparsers(
+        dest="report_command", help="Report type"
+    )
+
+    # Report costs subcommand
+    costs_parser = report_subparsers.add_parser(
+        "costs",
+        help="Generate cost reports",
+        description="Query MLFlow for cost data and generate reports",
+    )
+    costs_parser.add_argument(
+        "--tracking-uri",
+        default="file://./mlruns",
+        help="MLFlow tracking URI (default: file://./mlruns)",
+    )
+    costs_parser.add_argument(
+        "--experiment",
+        help="Filter by experiment name",
+    )
+    costs_parser.add_argument(
+        "--workflow",
+        help="Filter by workflow name",
+    )
+    costs_parser.add_argument(
+        "--period",
+        choices=["today", "yesterday", "last_7_days", "last_30_days", "this_month"],
+        help="Filter by predefined time period",
+    )
+    costs_parser.add_argument(
+        "--start-date",
+        help="Filter runs after this date (ISO format: YYYY-MM-DD)",
+    )
+    costs_parser.add_argument(
+        "--end-date",
+        help="Filter runs before this date (ISO format: YYYY-MM-DD)",
+    )
+    costs_parser.add_argument(
+        "--status",
+        choices=["success", "failure"],
+        help="Filter by run status",
+    )
+    costs_parser.add_argument(
+        "--breakdown",
+        action="store_true",
+        help="Show cost breakdown by workflow and model",
+    )
+    costs_parser.add_argument(
+        "--aggregate-by",
+        choices=["daily", "weekly", "monthly"],
+        help="Aggregate costs by time period",
+    )
+    costs_parser.add_argument(
+        "-o", "--output",
+        help="Export results to file (JSON or CSV based on --format)",
+    )
+    costs_parser.add_argument(
+        "--format",
+        choices=["json", "csv"],
+        default="json",
+        help="Output format (default: json)",
+    )
+    costs_parser.add_argument(
+        "--include-summary",
+        action="store_true",
+        default=True,
+        help="Include summary in JSON export (default: True)",
+    )
+    costs_parser.add_argument(
+        "-v", "--verbose", action="store_true", help="Enable verbose output"
+    )
+    costs_parser.set_defaults(func=cmd_report_costs)
 
     return parser
 

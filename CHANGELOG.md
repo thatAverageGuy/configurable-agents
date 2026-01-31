@@ -13,6 +13,19 @@ For detailed task-by-task implementation notes, see [implementation logs](docs/i
 
 ### Added
 
+**Cost Tracking & Reporting** (T-020):
+- CLI cost reporting: `configurable-agents report costs` with multiple filters
+- MLFlow cost query and aggregation utilities in `observability/cost_reporter.py`
+- Date range filters: `--range today|last_7_days|last_30_days|custom`
+- Custom date filtering with `--start-date` and `--end-date`
+- Output formats: table (default), JSON, CSV with `--format` flag
+- Export to file with `--output report.json` or `report.csv`
+- Summary statistics: total cost, run count, average cost, model breakdown
+- Detailed per-run breakdowns with node-level metrics and token counts
+- Workflow and experiment filtering
+- Fail-fast validation for missing MLFlow or corrupted data
+- 39 new tests (29 unit + 5 CLI + 5 integration) - all passing
+
 **MLFlow Node Instrumentation** (T-019):
 - Automatic node-level tracking with token extraction from LangChain responses
 - LLM provider now returns tuple `(result, usage_metadata)` with token counts
@@ -21,6 +34,7 @@ For detailed task-by-task implementation notes, see [implementation logs](docs/i
 - Token usage tracked across retries for accurate cost calculation
 - Zero overhead when MLFlow disabled (graceful degradation maintained)
 - All 492 unit tests passing (fixed 15 observability test mocking errors)
+- Updated to 544 tests after T-020 (+39 new tests, +13 integration tests)
 
 **MLFlow Observability Foundation** (T-018):
 - MLFlow integration for workflow execution tracking and cost monitoring
