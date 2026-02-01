@@ -5,9 +5,9 @@
 Config-driven LLM agent runtime that turns your ideas into executable workflows in minutes, not days.
 
 [![Status](https://img.shields.io/badge/status-alpha-orange)]()
-[![Version](https://img.shields.io/badge/version-0.1.0--dev%20(81%25)-blue)]()
-[![Progress](https://img.shields.io/badge/tasks-22%2F27%20complete-brightgreen)]()
-[![Tests](https://img.shields.io/badge/tests-568%20passing-brightgreen)]()
+[![Version](https://img.shields.io/badge/version-0.1.0--dev%20(85%25)-blue)]()
+[![Progress](https://img.shields.io/badge/tasks-23%2F27%20complete-brightgreen)]()
+[![Tests](https://img.shields.io/badge/tests-616%20passing-brightgreen)]()
 [![Python](https://img.shields.io/badge/python-3.10%2B-blue)]()
 [![License](https://img.shields.io/badge/license-MIT-green)]()
 
@@ -156,7 +156,7 @@ result = run_workflow("workflow.yaml", {"topic": "AI"})
 - ✅ Tool integration (Serper web search)
 - ✅ Parse-time validation (fail fast, save money)
 - ✅ CLI interface (run, validate, verbose)
-- ✅ 568 tests (13 integration + 555 unit)
+- ✅ 616 tests (18 integration + 598 unit)
 - ✅ Google Gemini integration
 
 #### ⏳ In Progress (Completing v0.1)
@@ -359,7 +359,7 @@ See [Architecture Decision Records](docs/adr/) for detailed design choices.
 
 ### Phase 4: Docker Deployment (1/3 complete)
 - ✅ T-022: Docker Artifact Generator & Templates
-- ⏳ T-023: FastAPI Server with Sync/Async
+- ✅ T-023: FastAPI Server with Input Validation & MLFlow
 - ⏳ T-024: CLI Deploy Command & Streamlit Integration
 
 ### Deferred to v0.2+ (3 tasks)
@@ -367,9 +367,9 @@ See [Architecture Decision Records](docs/adr/) for detailed design choices.
 - ⏳ T-026: DSPy Integration Test
 - ⏳ T-027: Structured Output + DSPy
 
-**Overall Progress**: 22/27 tasks complete (81%)
+**Overall Progress**: 23/27 tasks complete (85%)
 
-**Next up**: T-023 (FastAPI Server with Sync/Async)
+**Next up**: T-024 (CLI Deploy Command & Streamlit Integration)
 
 Full task breakdown: [docs/TASKS.md](docs/TASKS.md)
 

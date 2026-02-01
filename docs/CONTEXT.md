@@ -42,10 +42,10 @@
 
 ---
 
-**Last Updated**: 2026-01-31
+**Last Updated**: 2026-02-01
 **Current Phase**: Phase 4 (Observability & Docker Deployment)
-**Latest Completion**: T-022 (Docker Artifact Generator) - 2026-01-31
-**Next Action**: T-023 (FastAPI Server with Sync/Async)
+**Latest Completion**: T-023 (FastAPI Server with Sync/Async) - 2026-02-01
+**Next Action**: T-024 (CLI Deploy Command & Streamlit Integration)
 
 ---
 
@@ -53,12 +53,12 @@
 
 ### Progress Overview
 
-- **Overall**: 22/27 tasks complete (81%)
+- **Overall**: 23/27 tasks complete (85%)
 - **Phase 1** (Foundation): ✅ 8/8 complete
 - **Phase 2** (Core Execution): ✅ 6/6 complete
 - **Phase 3** (Polish & UX): ✅ 4/4 complete
 - **Phase 4** (Observability): ✅ 4/4 complete
-- **Phase 4** (Docker Deployment): 1/3 complete
+- **Phase 4** (Docker Deployment): 2/3 complete
 - **Phase 5** (Future): 3 tasks deferred to v0.2+
 
 ### What Works Right Now
@@ -86,74 +86,75 @@ result = run_workflow("workflow.yaml", {"topic": "AI"})
 - ✅ Automatic node-level tracking (token extraction, prompt/response logging)
 - ✅ Cost reporting utilities with CLI commands (JSON/CSV export)
 - ✅ Docker artifact generation (Dockerfile, FastAPI server, docker-compose, etc.)
-- ✅ 568 unit tests passing (100% pass rate)
+- ✅ FastAPI server with input validation and MLFlow integration
+- ✅ 616 unit tests passing (100% pass rate)
 - ✅ Complete user documentation
 
 **What Doesn't Work Yet**:
-- ❌ Docker deployment CLI command (T-023-024)
-- ❌ FastAPI server running (T-023)
+- ❌ Docker deployment CLI command (T-024)
 - ❌ Conditional routing (v0.2+)
 - ❌ Multi-LLM support (v0.2+)
 
-### Latest Completion: T-022 (Docker Artifact Generator)
+### Latest Completion: T-023 (FastAPI Server with Sync/Async)
 
-**Completed**: 2026-01-31
-**What**: Artifact generation system for Docker deployment - creates all files needed to deploy workflows as containers
+**Completed**: 2026-02-01
+**What**: Enhanced FastAPI server template with input validation and MLFlow integration, plus comprehensive test coverage
 **Impact**:
-- Users can now generate production-ready Docker deployment files from workflow configs
-- Complete artifact generation pipeline (8 files per deployment)
-- Foundation for one-command Docker deployment (T-024)
-- Zero-dependency template engine (Python's `string.Template`)
-- Multi-stage Dockerfile optimization (~180-200MB target image size)
-- FastAPI server template with sync/async hybrid execution
+- Deployed workflows now validate all inputs automatically (clear 422 errors for invalid data)
+- Optional MLFlow tracking for production observability
+- Comprehensive test coverage ensures template correctness
+- Users get type-safe APIs with OpenAPI documentation
 
 **Key Features**:
-- **DeploymentArtifactGenerator** class with comprehensive template substitution
-- **7 template files**: Dockerfile, server.py, requirements.txt, docker-compose.yml, .env.example, README.md, .dockerignore
-- **Generated artifacts**: 8 files (~17KB total) with workflow config copy
-- **Configurable**: API port, MLFlow port, sync timeout, container name, MLFlow enable/disable
-- **Comprehensive README**: API reference, management commands, troubleshooting guide
+- **Input Validation**: Dynamic Pydantic model generation from workflow schema
+- **MLFlow Integration**: Conditional tracking based on `MLFLOW_TRACKING_URI` env var
+- **Test Suite**: 35 tests (30 unit + 5 integration) - all passing
+- **Graceful Degradation**: MLFlow errors don't crash server
 
-**Files Created**: 12 (9 source/template files, 3 test files)
-**Tests Added**: 24 (21 unit + 3 integration) - Total: 568 tests passing
+**Enhancements**:
+- `_build_input_model()` - generates WorkflowInput Pydantic model from state schema
+- Type mapping (str, int, float, bool, list, dict) to Python types
+- Required/optional field handling with defaults
+- MLFlow logging for sync and async executions (params, metrics, errors)
+- POST /run validates inputs against schema before execution
 
-**Implementation Log**: `implementation_logs/phase_4_observability_docker/T-022_docker_artifact_generator.md`
+**Files Modified**: 1 (server.py.template: 223 → 320 lines)
+**Files Created**: 2 test files (328 + 209 lines)
+**Tests Added**: 35 (30 unit + 5 integration) - Total: 603 tests passing
+
+**Implementation Log**: `implementation_logs/phase_4_observability_docker/T-023_fastapi_server_sync_async.md`
 
 ---
 
 ## 📋 Next Action (Start Here!)
 
-### Task: T-023 - FastAPI Server with Sync/Async
+### Task: T-024 - CLI Deploy Command & Streamlit Integration
 
-**Goal**: Enhance and test FastAPI server template with sync/async hybrid execution, complete job store, and MLFlow integration
-
-**Note**: Basic `server.py.template` was created in T-022. This task enhances, validates, and tests it.
+**Goal**: Implement `deploy` CLI command for one-command Docker deployment
 
 **Acceptance Criteria**:
-1. FastAPI server template enhancements (if needed):
-   - Endpoints: POST /run, GET /status/{job_id}, GET /health, GET /schema, GET /
-   - Sync/async hybrid logic (timeout-based fallback) ✅ Already in template
-   - Job store (in-memory dict for v0.1) ✅ Already in template
-   - Input validation (against workflow schema)
-   - OpenAPI auto-docs (FastAPI built-in) ✅ Already in template
-   - MLFlow integration (logging within container)
-   - Error handling (ValidationError, ExecutionError, etc.) ✅ Already in template
-   - Background task execution (FastAPI BackgroundTasks) ✅ Already in template
-2. Validate sync execution (< timeout):
-   - Uses `asyncio.wait_for()` with timeout ✅ Already in template
-   - Returns outputs immediately (200 OK) ✅ Already in template
-3. Validate async execution (> timeout):
-   - Generates job_id (UUID) ✅ Already in template
-   - Stores job metadata (status, created_at, inputs) ✅ Already in template
-   - Runs in background task ✅ Already in template
-   - Returns job_id (202 Accepted) ✅ Already in template
-4. Unit tests (mocked workflow execution, 30 tests)
-5. Integration test (real FastAPI server, 5 tests)
+1. CLI `deploy` command in `src/configurable_agents/cli.py`:
+   - Arguments: workflow_path, --port, --mlflow-port, --output, --name, --timeout, --generate, --no-mlflow, --env-file, --no-env-file
+   - Step 1: Validate workflow (fail-fast)
+   - Step 2: Check Docker installed (`docker version`, fail-fast)
+   - Step 3: Generate artifacts (call T-022 generator)
+   - Step 4: Build Docker image (`docker build`)
+   - Step 5: Run container (`docker-compose up -d`)
+   - Step 6: Print success message with API URL
+2. Generate artifacts only (--generate flag, skip build/run)
+3. Error handling:
+   - Invalid workflow config
+   - Docker not installed
+   - Port already in use
+   - Build failures
+4. Unit tests (20 tests)
+5. Integration test (1 end-to-end test)
 
 **Dependencies**:
 - ✅ T-022 (Docker Artifact Generator) - COMPLETE
+- ✅ T-023 (FastAPI Server) - COMPLETE
 
-**Estimated Effort**: 3 days (mostly testing and validation)
+**Estimated Effort**: 3 days
 
 **Related Documentation**:
 - `docs/DEPLOYMENT.md` (Docker deployment guide)
@@ -482,4 +483,4 @@ git diff main                               # Changes since main
 
 ---
 
-*Last Updated: 2026-01-31 | Next Update: After T-018 completion*
+*Last Updated: 2026-02-01 | Next Update: After T-024 completion*

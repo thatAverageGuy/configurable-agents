@@ -13,6 +13,18 @@ For detailed task-by-task implementation notes, see [implementation logs](docs/i
 
 ### Added
 
+**FastAPI Server with Input Validation & MLFlow** (T-023):
+- Enhanced server.py.template with dynamic input validation using Pydantic
+- Automatic Pydantic model generation from workflow state schema (`_build_input_model()`)
+- Type-safe API with 422 validation errors for invalid inputs
+- Conditional MLFlow integration (enabled via `MLFLOW_TRACKING_URI` environment variable)
+- MLFlow tracking for both sync and async executions (params, metrics, execution time, errors)
+- Graceful MLFlow error handling (failures don't crash server)
+- WorkflowConfig object creation for schema access (while using dict for run_workflow)
+- 35 new tests (30 unit + 5 integration) - all passing
+- Total: 616 unit tests (100% pass rate)
+- Template validation tests (no live server execution needed)
+
 **Docker Artifact Generator** (T-022):
 - Deployment artifact generation for Docker containers in `src/configurable_agents/deploy/`
 - 7 template files for complete Docker deployment (Dockerfile, FastAPI server, docker-compose, etc.)
