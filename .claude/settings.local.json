@@ -4,7 +4,9 @@
       "Bash(python -m pytest:*)",
       "Bash(wc:*)",
       "Bash(done)",
-      "Bash(pytest:*)"
+      "Bash(pytest:*)",
+      "WebFetch(domain:mlflow.org)",
+      "WebSearch"
     ]
   }
 }

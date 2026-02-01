@@ -107,6 +107,12 @@ class DeploymentArtifactGenerator:
         # 8. workflow.yaml (copy original config)
         artifacts["workflow.yaml"] = self._copy_workflow_config(output_dir / "workflow.yaml")
 
+        # 9. Copy source code for local installation
+        artifacts["src/"] = self._copy_source_code(output_dir)
+
+        # 10. Copy pyproject.toml for package installation
+        artifacts["pyproject.toml"] = self._copy_pyproject_toml(output_dir / "pyproject.toml")
+
         return artifacts
 
     def _build_template_variables(
@@ -134,10 +140,12 @@ class DeploymentArtifactGenerator:
         workflow_version = self.config.flow.version or "1.0.0"
 
         # CMD line for Dockerfile (with or without MLFlow)
+        # Note: MLFlow always runs on port 5000 INSIDE container
+        # The mlflow_port parameter is only for HOST-side port mapping
         if enable_mlflow and mlflow_port > 0:
             cmd_line = (
-                f"CMD mlflow ui --host 0.0.0.0 --port {mlflow_port} "
-                f"--backend-store-uri file:///app/mlruns & python server.py"
+                "CMD mlflow ui --host 0.0.0.0 --port 5000 "
+                "--backend-store-uri file:///app/mlruns & python server.py"
             )
             mlflow_requirement = "mlflow>=2.9.0"
         else:
@@ -292,6 +300,53 @@ class DeploymentArtifactGenerator:
 
         config_dict = self.config.model_dump(mode="json", exclude_none=True)
         output_path.write_text(yaml.dump(config_dict, sort_keys=False), encoding="utf-8")
+
+        return output_path
+
+    def _copy_source_code(self, output_dir: Path) -> Path:
+        """
+        Copy configurable-agents source code to output directory.
+
+        Args:
+            output_dir: Output directory
+
+        Returns:
+            Path to copied src directory
+        """
+        # Find project root (where pyproject.toml is)
+        project_root = Path(__file__).parents[3]
+        src_dir = project_root / "src"
+
+        if not src_dir.exists():
+            raise FileNotFoundError(f"Source directory not found: {src_dir}")
+
+        # Copy entire src/ directory
+        dest_src_dir = output_dir / "src"
+        if dest_src_dir.exists():
+            shutil.rmtree(dest_src_dir)
+
+        shutil.copytree(src_dir, dest_src_dir)
+
+        return dest_src_dir
+
+    def _copy_pyproject_toml(self, output_path: Path) -> Path:
+        """
+        Copy pyproject.toml to output directory.
+
+        Args:
+            output_path: Output file path
+
+        Returns:
+            Path to copied file
+        """
+        # Find project root (where pyproject.toml is)
+        project_root = Path(__file__).parents[3]
+        pyproject_path = project_root / "pyproject.toml"
+
+        if not pyproject_path.exists():
+            raise FileNotFoundError(f"pyproject.toml not found: {pyproject_path}")
+
+        shutil.copy2(pyproject_path, output_path)
 
         return output_path
 

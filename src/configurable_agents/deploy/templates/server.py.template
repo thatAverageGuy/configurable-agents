@@ -16,7 +16,7 @@ from fastapi import BackgroundTasks, FastAPI, HTTPException
 from pydantic import BaseModel, Field, create_model, ValidationError
 
 from configurable_agents.config import WorkflowConfig, parse_config_file
-from configurable_agents.runtime import run_workflow
+from configurable_agents.runtime import run_workflow_from_config
 
 # MLFlow integration (optional)
 MLFLOW_ENABLED = os.getenv("MLFLOW_TRACKING_URI") is not None
@@ -153,7 +153,7 @@ async def run_workflow_async(job_id: str, inputs: Dict[str, Any]):
             print(f"Warning: MLFlow tracking failed: {e}")
 
     try:
-        result = await asyncio.to_thread(run_workflow, config_dict, inputs)
+        result = await asyncio.to_thread(run_workflow_from_config, workflow_config, inputs)
         execution_time_ms = int((time.time() - start_time) * 1000)
 
         # Log metrics to MLFlow
@@ -239,7 +239,7 @@ async def run_workflow_endpoint(inputs: WorkflowInput, background_tasks: Backgro
     try:
         # Attempt sync execution with timeout
         result = await asyncio.wait_for(
-            asyncio.to_thread(run_workflow, config_dict, inputs_dict),
+            asyncio.to_thread(run_workflow_from_config, workflow_config, inputs_dict),
             timeout=SYNC_TIMEOUT
         )
 

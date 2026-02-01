@@ -9,9 +9,13 @@ Provides MLFlow-based tracking of workflow executions, including:
 
 import json
 import logging
+import os
 import time
+import urllib.request
+import socket
 from contextlib import contextmanager
 from typing import Any, Dict, Optional
+from urllib.parse import urlparse
 
 from configurable_agents.config import ObservabilityMLFlowConfig, WorkflowConfig
 from configurable_agents.observability.cost_estimator import CostEstimator
@@ -125,15 +129,65 @@ class MLFlowTracker:
         # Use workflow-level default
         return self.mlflow_config.log_prompts
 
+    def _check_tracking_server_accessible(self, timeout: float = 3.0) -> bool:
+        """
+        Check if MLFlow tracking server is accessible (for HTTP/HTTPS URIs).
+
+        Args:
+            timeout: Connection timeout in seconds (default: 3.0)
+
+        Returns:
+            True if server is accessible or URI is file-based, False otherwise
+        """
+        tracking_uri = self.mlflow_config.tracking_uri
+
+        # File-based URIs don't need server check
+        if tracking_uri.startswith("file://") or not tracking_uri.startswith(("http://", "https://")):
+            return True
+
+        try:
+            # Parse URL to get host and port
+            parsed = urlparse(tracking_uri)
+            host = parsed.hostname or "localhost"
+            port = parsed.port or (443 if parsed.scheme == "https" else 80)
+
+            # Try to connect with timeout
+            with socket.create_connection((host, port), timeout=timeout):
+                return True
+
+        except (socket.timeout, socket.error, OSError) as e:
+            logger.warning(
+                f"MLFlow tracking server not accessible at {tracking_uri}: {e}"
+            )
+            return False
+        except Exception as e:
+            logger.warning(f"Failed to check MLFlow server accessibility: {e}")
+            return False
+
     def _initialize_mlflow(self) -> None:
         """Initialize MLFlow tracking URI and experiment."""
         if not self.enabled:
             return
 
         try:
+            # Check if tracking server is accessible (for HTTP URIs)
+            tracking_uri = self.mlflow_config.tracking_uri
+            if not self._check_tracking_server_accessible(timeout=3.0):
+                # Fallback to SQLite instead of disabling
+                logger.warning(
+                    f"MLFlow tracking server not accessible at {tracking_uri}. "
+                    "Falling back to local SQLite tracking (sqlite:///mlflow.db). "
+                    "If using http:// URI, ensure MLFlow server is running."
+                )
+                tracking_uri = "sqlite:///mlflow.db"
+
             # Set tracking URI
-            mlflow.set_tracking_uri(self.mlflow_config.tracking_uri)
-            logger.debug(f"MLFlow tracking URI: {self.mlflow_config.tracking_uri}")
+            mlflow.set_tracking_uri(tracking_uri)
+            logger.debug(f"MLFlow tracking URI: {tracking_uri}")
+
+            # Configure environment variables for faster timeouts
+            # MLFlow uses requests library which respects these
+            os.environ.setdefault("MLFLOW_HTTP_REQUEST_TIMEOUT", "10")
 
             # Set or create experiment
             experiment = mlflow.set_experiment(self.mlflow_config.experiment_name)
@@ -141,6 +195,10 @@ class MLFlowTracker:
                 f"MLFlow experiment: {self.mlflow_config.experiment_name} "
                 f"(ID: {experiment.experiment_id})"
             )
+
+            # Enable auto-instrumentation if configured (MLFlow 3.9+)
+            if self.mlflow_config.autolog_enabled:
+                self._enable_autolog()
 
         except Exception as e:
             logger.error(f"Failed to initialize MLFlow: {e}")

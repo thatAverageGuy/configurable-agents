@@ -13,7 +13,22 @@ For detailed task-by-task implementation notes, see [implementation logs](docs/i
 
 ### Added
 
-**CLI Deploy Command** (T-024):
+**Streamlit Docker Deployment UI** (T-024 Part 2):
+- Interactive web UI for Docker deployment with tabbed interface
+- "Run Workflow" tab: Direct workflow execution with input parsing
+- "Deploy to Docker" tab: Complete deployment workflow with progress tracking
+- Workflow configuration reuse between tabs via session state
+- Deployment settings: container name, ports, output directory, sync timeout
+- Environment variable handling: upload .env file, paste key=value pairs, or skip
+- Real-time deployment progress with 7-step status display
+- Results display: endpoints table, curl examples, container management
+- Container management panel: view logs, stop, remove containers
+- Port availability validation before deployment
+- Docker availability checks with helpful error messages
+- Container persistence explained (survives Streamlit shutdown)
+- 87 lines → 674 lines (comprehensive deployment UX)
+
+**CLI Deploy Command** (T-024 Part 1):
 - One-command Docker deployment: `configurable-agents deploy workflow.yaml`
 - Validates config → checks Docker → generates artifacts → builds image → runs container
 - Rich terminal output with color-coded messages and Unicode symbols
@@ -100,7 +115,49 @@ For detailed task-by-task implementation notes, see [implementation logs](docs/i
 - CONTEXT.md for quick LLM session resumption
 - Organized implementation logs by phase (19 comprehensive task records)
 
+### Fixed
+
+**Critical Deployment Bugs** (BUG-001 through BUG-004):
+
+**BUG-001: Docker Build PyPI Dependency** (Critical, 2026-02-02):
+- **Issue**: Docker build failed trying to install `configurable-agents==0.1.0-dev` from PyPI
+- **Root Cause**: Package not published, requirements.txt tried PyPI install
+- **Fix**: Modified Dockerfile to copy source code and install locally via `pip install .`
+- **Impact**: Docker deployment completely blocked → Now works
+- **Files**: Dockerfile.template, requirements.txt.template, generator.py (+58 lines)
+
+**BUG-002: Server Template Wrong Function** (Critical, 2026-02-02):
+- **Issue**: Deployed API returned 500 error: "expected str, bytes or os.PathLike object, not dict"
+- **Root Cause**: server.py called `run_workflow(config_dict)` instead of `run_workflow_from_config(workflow_config)`
+- **Fix**: Changed import and calls to use correct runtime function
+- **Impact**: Workflow execution completely blocked → Now works
+- **Files**: server.py.template (3 lines)
+
+**BUG-003: MLFlow Port Mapping Mismatch** (High, 2026-02-02):
+- **Issue**: MLFlow UI not accessible in deployed containers
+- **Root Cause**: Generator used `mlflow_port` for both host and container ports, breaking mapping
+- **Fix**: Hardcoded container ports (8000, 5000), use user ports only for host-side mapping
+- **Impact**: MLFlow observability broken → Now accessible
+- **Files**: Dockerfile.template, generator.py (8 lines)
+
+**BUG-004: MLFlow Blocking Without Server** (High, 2026-02-02):
+- **Issue**: Workflows hung 30-60 seconds when MLFlow server not running (http:// URI)
+- **Root Cause**: No connection pre-check, long default timeouts
+- **Fix**: Added 3-second pre-check, fast fail-fast with helpful warnings, configured 10s HTTP timeout
+- **Impact**: Workflows appeared frozen → Now fail fast (< 3 seconds)
+- **Files**: mlflow_tracker.py (+45 lines)
+
+**Bug Documentation**:
+- Created `docs/bugs/` directory with comprehensive bug reports
+- 4 detailed bug reports (48 KB total, ~5,000 words)
+- Bug tracking README with templates and guidelines
+- Average resolution time: < 1 hour per bug
+
 ### Changed
+- MLFlow tracker now pre-checks server accessibility before blocking
+- Docker deployment artifacts now include source code for local installation
+- Container ports hardcoded (8000, 5000), host ports configurable
+- test_config.yaml updated to use `file://./mlruns` (file-based tracking)
 - Updated ObservabilityMLFlowConfig schema to match SPEC.md (added tracking_uri, experiment_name, run_name, log_artifacts)
 - Simplified CHANGELOG.md to standard format (detailed notes moved to implementation logs)
 - Archived project status tracking (now in CONTEXT.md and TASKS.md)

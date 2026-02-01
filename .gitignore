@@ -63,3 +63,4 @@ checkpoints.db
 # Keep docs and CLAUDE.md
 # docs/*
 # CLAUDE.md
+deploy/*

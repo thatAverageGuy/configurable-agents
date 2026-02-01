@@ -42,10 +42,10 @@
 
 ---
 
-**Last Updated**: 2026-02-01
-**Current Phase**: Phase 4 Complete ✅ (Observability & Docker Deployment)
-**Latest Completion**: T-024 (CLI Deploy Command) - 2026-02-01
-**Next Action**: v0.2 planning (deferred tasks: T-025, T-026, T-027)
+**Last Updated**: 2026-02-02
+**Current Phase**: Phase 4 Complete ✅ + Critical Bug Fixes ✅
+**Latest Completion**: T-024 Part 2 (Streamlit Docker Deployment UI) + BUG-001 through BUG-004 - 2026-02-02
+**Next Action**: MLFlow 3.9 Upgrade (Agents & GenAI features, modern tracing, better error handling)
 
 ---
 
@@ -70,6 +70,12 @@ configurable-agents run article_writer.yaml --input topic="AI Safety"
 # Config validation
 configurable-agents validate workflow.yaml
 
+# One-command Docker deployment
+configurable-agents deploy workflow.yaml
+
+# Streamlit web UI
+streamlit run streamlit_app.py
+
 # Python API
 from configurable_agents.runtime import run_workflow
 result = run_workflow("workflow.yaml", {"topic": "AI"})
@@ -82,59 +88,72 @@ result = run_workflow("workflow.yaml", {"topic": "AI"})
 - ✅ Tool registry (Serper web search)
 - ✅ LangGraph execution engine
 - ✅ CLI interface with smart input parsing
-- ✅ MLFlow observability foundation (cost tracking, workflow metrics)
+- ✅ MLFlow observability foundation (cost tracking, workflow metrics, fast fail-fast)
 - ✅ Automatic node-level tracking (token extraction, prompt/response logging)
 - ✅ Cost reporting utilities with CLI commands (JSON/CSV export)
-- ✅ Docker artifact generation (Dockerfile, FastAPI server, docker-compose, etc.)
-- ✅ FastAPI server with input validation and MLFlow integration
+- ✅ Docker artifact generation (Dockerfile, FastAPI server, docker-compose, source installation)
+- ✅ FastAPI server with input validation and MLFlow integration (correct runtime function)
 - ✅ One-command Docker deployment (`configurable-agents deploy`)
-- ✅ 66 CLI tests passing (100% pass rate)
+- ✅ Streamlit web UI with tabbed interface (Run Workflow + Deploy to Docker)
+- ✅ Container management UI (view logs, stop, remove)
+- ✅ Port mapping fixes (hardcoded container ports, configurable host ports)
+- ✅ MLFlow server pre-check (3-second timeout, helpful warnings)
+- ✅ 67 CLI tests passing (100% pass rate)
 - ✅ Complete user documentation
+- ✅ Comprehensive bug tracking system (docs/bugs/ with 4 detailed reports)
 
 **What Doesn't Work Yet**:
 - ❌ Conditional routing (v0.2+)
 - ❌ Multi-LLM support (v0.2+)
-- ❌ Streamlit UI (deferred)
+- ⚠️ MLFlow using older patterns (needs upgrade to 3.9 for GenAI/agent features)
 
-### Latest Completion: T-024 (CLI Deploy Command)
+### Latest Completion: T-024 Part 2 (Streamlit Docker Deployment UI) + Bug Fixes
 
-**Completed**: 2026-02-01
-**What**: One-command Docker deployment for workflows via CLI
+**Completed**: 2026-02-02
+**What**: Interactive web UI for Docker deployment + 4 critical bug fixes
 **Impact**:
-- Users can deploy workflows as production containers with a single command
-- Complete end-to-end deployment: validate → build → run
-- Rich terminal feedback with actionable error messages
-- Production-ready deployment infrastructure complete
+- **Streamlit UI**: Users can run and deploy workflows via friendly web interface
+- **Bug Fixes**: All deployment blockers resolved, system fully functional end-to-end
+- **Production Ready**: Workflows can be run locally, deployed to Docker, and tracked with MLFlow
 
-**Key Features**:
-- **One-Command Deploy**: `configurable-agents deploy workflow.yaml`
-- **Comprehensive Validation**: Config, Docker availability, port conflicts
-- **Rich Terminal Output**: Color-coded messages, Unicode symbols (with ASCII fallback)
-- **Smart Port Checking**: Socket-based detection (catches Docker + non-Docker processes)
-- **Environment File Handling**: Auto-detect, custom paths, skip, validation
-- **Container Name Sanitization**: Lowercase, alphanumeric + dash/underscore
-- **Generate-Only Mode**: `--generate` flag for artifact creation without Docker
-- **Build Metrics**: Reports build time and image size
-- **Success Guidance**: Prints endpoints, curl examples, management commands
+**Key Features (Streamlit UI)**:
+- **Tabbed Interface**: "Run Workflow" + "Deploy to Docker" tabs
+- **Run Workflow Tab**: Direct execution with smart input parsing (JSON, str, int, bool)
+- **Deploy to Docker Tab**: Complete deployment workflow with 7-step progress tracking
+- **Configuration Reuse**: Workflow YAML shared between tabs via session state
+- **Deployment Settings**: Container name, API/MLFlow ports, output directory, sync timeout
+- **Environment Variables**: Upload .env file, paste key=value pairs, or skip
+- **Real-Time Progress**: Visual progress bar with status messages (validating, building, deploying)
+- **Results Display**: Endpoints table, curl examples, container management buttons
+- **Container Management**: View logs, stop, remove containers directly from UI
+- **Pre-Deployment Validation**: Config, Docker availability, port conflicts
+- **Helpful Errors**: Actionable error messages with fix suggestions
+
+**Critical Bug Fixes**:
+- **BUG-001** (Critical): Docker build PyPI dependency → Fixed with source installation
+- **BUG-002** (Critical): Server template wrong function → Fixed runtime function calls
+- **BUG-003** (High): MLFlow port mapping mismatch → Fixed container port hardcoding
+- **BUG-004** (High): MLFlow blocking without server → Fixed with 3s pre-check, fast fail-fast
 
 **Implementation Highlights**:
-- 9-step deployment pipeline (validate → Docker check → generate → build → run)
-- Port availability checked before build (fail fast)
-- Uses `docker version` (tests daemon, not just CLI)
-- Uses `docker run -d` (explicit control over ports, not docker-compose)
-- Smart error handling with actionable suggestions
-- Verbose mode for detailed debugging
+- `streamlit_app.py`: 87 lines → 674 lines (comprehensive deployment UX)
+- Subprocess-based Docker commands (persists after Streamlit shutdown)
+- Session state management for cross-tab data sharing
+- Error handling with st.error(), st.warning(), st.info() for helpful feedback
+- Source code installation in Docker (no PyPI dependency)
+- Hardcoded container ports (8000, 5000), configurable host ports
+- MLFlow pre-check with 3-second timeout (prevents 30-60s hangs)
+- Bug documentation system: `docs/bugs/` with 4 detailed reports (48 KB, ~5,000 words)
 
-**Files Modified**: 2 (cli.py +371 lines, test_cli.py updated imports)
-**Files Created**: 2 test files (677 + 171 lines)
-**Tests Added**: 23 (22 unit + 1 integration)
-**Total CLI Tests**: 66 passing (100% pass rate)
+**Files Modified**: 6 (streamlit_app.py, Dockerfile.template, requirements.txt.template, generator.py, server.py.template, mlflow_tracker.py)
+**Total Changes**: ~150 lines added/modified across templates and tracker
+**Bug Reports**: 4 comprehensive reports with root cause analysis, fixes, lessons learned
 
 ---
 
 ## 📋 Next Action (Start Here!)
 
-### Phase 4 Complete! ✅
+### Phase 4 Complete! ✅ + Critical Bugs Fixed ✅
 
 **All v0.1 Core Features Complete**:
 - ✅ Foundation (8 tasks)
@@ -142,20 +161,55 @@ result = run_workflow("workflow.yaml", {"topic": "AI"})
 - ✅ Polish & UX (4 tasks)
 - ✅ Observability (4 tasks)
 - ✅ Docker Deployment (3 tasks)
+- ✅ Streamlit UI (T-024 Part 2)
+- ✅ Critical Bug Fixes (BUG-001 through BUG-004)
 
-**Total**: 23/27 tasks complete (85%)
+**Total**: 24/27 tasks complete (89%)
 
-**Remaining**: 4 tasks deferred to future versions
+**Current Status**: **Production-ready system with all deployment working end-to-end**
+
+### 🎯 Immediate Next Action: MLFlow 3.9 Upgrade (T-028)
+
+**Goal**: Upgrade from MLFlow 2.9+ (current) to MLFlow 3.9 with modern GenAI/agent features
+
+**Why Now?**:
+- ✅ Current MLFlow works but uses older patterns (2.x style)
+- 🆕 MLFlow 3.9 has dedicated agent/GenAI tracing features
+- 🆕 New `mlflow.trace()` decorator for automatic tracing
+- 🆕 Better span/trace model for complex agent workflows
+- 🆕 SQLite default (better performance than file-based)
+- 🆕 Improved error handling and fail-fast patterns
+- 🎯 Align with latest best practices for LLM/agent applications
+
+**What Changed in MLFlow 3.x**:
+1. **Default backend**: `file://./mlruns` → `sqlite:///mlflow.db` (3.7+)
+2. **GenAI tracing**: New `mlflow.trace()`, `mlflow.start_span()` APIs
+3. **Agent support**: Built-in patterns for multi-step agent workflows
+4. **Better LLM integration**: Auto-instrumentation for 15+ frameworks (LangChain, OpenAI, Anthropic, etc.)
+5. **Performance**: SQLite backend faster for queries and concurrent writes
+
+**Scope**:
+- Upgrade dependencies: `mlflow>=2.9.0` → `mlflow>=3.9.0`
+- Refactor `mlflow_tracker.py` to use modern tracing APIs
+- Update error handling: fallback to SQLite if server unreachable
+- Migrate from manual logging to auto-instrumentation (where applicable)
+- Update documentation and examples
+- Ensure backward compatibility (file-based still works)
+
+**Deliverables**:
+- [ ] ADR-018: MLFlow 3.9 Upgrade Strategy (why, what, how)
+- [ ] Updated `mlflow_tracker.py` with modern APIs
+- [ ] Migration guide for existing users
+- [ ] Updated examples with new patterns
+- [ ] Updated OBSERVABILITY.md documentation
+- [ ] Integration tests with MLFlow 3.9
+- [ ] Implementation log: `T-028_mlflow_39_upgrade.md`
+
+**After This**:
 - T-025: Error Message Improvements (v0.2)
 - T-026: DSPy Integration Test (v0.3)
 - T-027: Structured Output + DSPy (v0.3)
-
-**Status**: **Production-ready system complete!**
-
-**Next Steps**:
-1. Create implementation log for T-024
-2. Consider v0.2 planning (conditional routing, multi-LLM)
-3. Release preparation (final docs review, README polish)
+- v0.2 Planning: Conditional routing, multi-LLM support
 
 ---
 
@@ -474,10 +528,16 @@ git diff main                               # Changes since main
 - `implementation_logs/phase_3_polish_ux/T-016_documentation.md`
 - `implementation_logs/phase_3_polish_ux/T-017_integration_tests.md`
 
-### Phase 4 (Observability & Docker) - Next
+### Phase 4 (Observability & Docker) - Complete ✅
 
-- `implementation_logs/phase_4_observability_docker/T-018_mlflow_integration_foundation.md` (create after completion)
+- `implementation_logs/phase_4_observability_docker/T-018_mlflow_integration_foundation.md`
+- `implementation_logs/phase_4_observability_docker/T-019_mlflow_instrumentation.md`
+- `implementation_logs/phase_4_observability_docker/T-020_cost_tracking_reporting.md`
+- `implementation_logs/phase_4_observability_docker/T-021_observability_documentation.md`
+- `implementation_logs/phase_4_observability_docker/T-022_docker_artifact_generator.md`
+- `implementation_logs/phase_4_observability_docker/T-023_fastapi_server.md`
+- `implementation_logs/phase_4_observability_docker/T-024_cli_deploy_command.md`
 
 ---
 
-*Last Updated: 2026-02-01 | Next Update: After T-024 completion*
+*Last Updated: 2026-02-02 | All v0.1 Tasks Complete - Ready for v0.2 Planning*
