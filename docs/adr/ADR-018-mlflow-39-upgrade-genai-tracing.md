@@ -1,11 +1,12 @@
-# ADR-018: MLFlow 3.9 Upgrade for GenAI/Agent Tracing
+# ADR-018: MLFlow 3.9 Comprehensive Migration for GenAI/Agent Tracing
 
-**Status**: Proposed
-**Date**: 2026-02-02
+**Status**: Planning - Deferred Implementation
+**Date**: 2026-02-02 (Updated: 2026-02-02)
 **Deciders**: Technical Lead
 **Related**: ADR-011 (MLFlow Observability Foundation), T-018-021 (MLFlow Implementation)
 **Supersedes**: None
-**Implements**: T-028 (MLFlow 3.9 Upgrade)
+**Implements**: T-028 (MLFlow 3.9 Comprehensive Migration)
+**Migration Approach**: Full migration, no backward compatibility
 
 ---
 
@@ -183,24 +184,40 @@ class MLFlowTracker:
 
 ### Migration Strategy
 
-**Phase 1: Backward Compatible Upgrade** (Safe)
-- Upgrade dependency to `mlflow>=3.9.0`
-- Keep existing `MLFlowTracker` API unchanged
-- Add auto-instrumentation as **optional** enhancement
-- Default backend: Keep `file://./mlruns` for existing users
-- SQLite fallback for new users or server failures
+**UPDATED APPROACH: Comprehensive Migration (No Backward Compatibility)**
 
-**Phase 2: Modern API Adoption** (Recommended)
-- Introduce `@mlflow.trace` decorator wrapper
-- Enable `mlflow.langchain.autolog()` for LangGraph
-- Deprecate manual `track_node()` calls (still supported)
-- Add configuration option: `use_autolog: true` (default: false for v0.2)
+This ADR has been updated to reflect a **full migration strategy** rather than gradual phases:
 
-**Phase 3: Full Migration** (Future, v0.3+)
-- Make auto-instrumentation default
-- Remove legacy `track_node()` manual tracking
-- Switch default backend to SQLite
-- Migrate examples and docs fully to 3.9 patterns
+**Key Principles**:
+1. **Thorough Feature Documentation First**: Exhaustively document ALL MLFlow 3.9 features before planning
+2. **Comprehensive Planning**: Analyze every MLFlow 3.9 capability against our codebase to determine what to adopt
+3. **Full Migration**: Migrate completely to MLFlow 3.9 patterns in one comprehensive update
+4. **No Backward Compatibility**: Remove old patterns, fully embrace new APIs
+5. **Maximize Observability**: Use MLFlow capabilities to their fullest extent, extending beyond current implementation
+6. **Deferred Implementation**: Implementation will begin when explicitly approved (green flag)
+
+**Planning Phase** (Current):
+- ✅ Initial research completed (MLFlow 3.9 features identified)
+- ✅ ADR-018 created with preliminary analysis
+- 🔄 **Next**: Comprehensive MLFlow 3.9 feature documentation
+- 🔄 **Next**: Detailed codebase analysis and migration planning
+- 🔄 **Next**: Enhanced observability design (leverage all MLFlow capabilities)
+- ⏸️ **Deferred**: Implementation (waiting for green flag)
+
+**Implementation Phase** (Future):
+- Complete rewrite of `MLFlowTracker` using MLFlow 3.9 best practices
+- Adopt ALL relevant MLFlow 3.9 features (tracing, auto-instrumentation, GenAI dashboard, etc.)
+- Migrate to SQLite default with graceful fallback
+- Remove deprecated patterns from codebase
+- Update all documentation, examples, and tests
+- Deploy as breaking change (will require version bump consideration)
+
+**Rationale for Comprehensive Approach**:
+- Better to do one clean migration than multiple partial updates
+- Allows us to rethink observability strategy from scratch
+- Maximizes benefit from MLFlow 3.9 capabilities
+- Cleaner codebase without legacy compatibility code
+- Opportunity to extend observability beyond current scope
 
 ---
 
@@ -208,79 +225,158 @@ class MLFlowTracker:
 
 ### Positive
 
-1. **Less Code to Maintain**:
-   - Auto-instrumentation reduces `mlflow_tracker.py` complexity
-   - No manual span creation for LangChain/LangGraph calls
-   - Built-in error handling and retries
+1. **Maximized Observability**:
+   - Full utilization of MLFlow 3.9 GenAI features
+   - Opportunity to extend tracking beyond current scope
+   - Access to ALL modern observability patterns
+   - GenAI dashboard with agent-specific metrics
+   - Tool call visualization and quality metrics
 
-2. **Better User Experience**:
-   - GenAI dashboard shows agent-specific metrics
-   - Tool call visualization out-of-the-box
-   - Quality metrics with LLM judges
+2. **Cleaner Architecture**:
+   - No backward compatibility cruft
+   - Modern, idiomatic MLFlow 3.9 code
+   - Auto-instrumentation reduces boilerplate
+   - Aligned with MLFlow best practices
 
 3. **Performance Improvements**:
-   - SQLite backend faster for queries
+   - SQLite backend faster for queries (2-5x)
    - Better concurrent write handling
-   - Smaller disk footprint
+   - Graceful fallback prevents blocking
 
 4. **Future-Proof**:
    - Aligned with MLFlow's GenAI direction
-   - Access to new features (streaming, distributed tracing)
+   - Access to streaming, distributed tracing, LLM judges
    - Community support focused on 3.x
 
-5. **Better Integration**:
-   - LangGraph automatically traced
-   - No custom instrumentation needed
-   - Consistent with MLFlow best practices
+5. **Better Developer Experience**:
+   - Comprehensive feature documentation
+   - Thorough planning before implementation
+   - Clear understanding of all capabilities
 
 ### Negative
 
-1. **Breaking Changes** (Mitigated):
-   - Default backend change (3.7+): File → SQLite
-   - **Mitigation**: Auto-detect existing `./mlruns`, graceful fallback
+1. **Breaking Changes**:
+   - Existing configs may need updates
+   - API changes in MLFlowTracker
+   - Examples and docs need full rewrite
+   - **Acceptance**: Willing to make breaking changes for better architecture
 
-2. **Migration Effort** (Moderate):
-   - Update `mlflow_tracker.py` (~200 lines)
-   - Update tests (mock new APIs)
-   - Update documentation and examples
-   - **Estimated**: 1-2 days
+2. **Implementation Effort** (Higher):
+   - Complete rewrite of `mlflow_tracker.py`
+   - All tests need updating
+   - All documentation needs updating
+   - All examples need migration
+   - **Estimated**: 3-5 days (after planning complete)
 
-3. **Learning Curve** (Low):
-   - New APIs (`@mlflow.trace`, `autolog()`)
-   - Span/trace mental model vs nested runs
-   - **Mitigation**: Comprehensive docs and examples
+3. **Deferred Timeline**:
+   - Not starting implementation immediately
+   - Requires thorough planning phase first
+   - **Acceptance**: Quality over speed
 
-4. **Version Compatibility** (Minor):
-   - Users with MLFlow 2.x configs need migration
-   - **Mitigation**: Backward-compatible Phase 1 approach
+4. **No Incremental Value**:
+   - Can't ship improvements until full migration complete
+   - All-or-nothing approach
+   - **Mitigation**: Current system works, no urgency
 
-5. **Testing Complexity** (Minor):
-   - Need to mock new auto-instrumentation
-   - **Mitigation**: MLFlow provides test utilities
+### Opportunities
 
-### Neutral
+1. **Rethink Observability Strategy**:
+   - What ELSE could we track with MLFlow 3.9?
+   - Better metrics, better artifacts, better visualization
+   - LLM judges for quality assessment
+   - Streaming trace support
 
-1. **File-based Backend Still Supported**:
-   - Users can still use `file://./mlruns`
-   - No forced migration to SQLite
-
-2. **Optional Auto-Instrumentation**:
-   - Can still use manual tracking if preferred
-   - Gradual adoption possible
-
-3. **Existing Data Compatible**:
-   - MLFlow 3.9 reads MLFlow 2.x data
-   - No data migration needed
+2. **Extend Beyond Current Scope**:
+   - Distributed tracing for multi-service workflows
+   - Online monitoring with auto-running judges
+   - Custom metrics and evaluation
+   - Integration with other observability tools
 
 ---
 
 ## Implementation Plan
+
+### Current Status: Planning Phase
+
+**Approach**: Thorough documentation and planning BEFORE implementation
+
+### Phase 1: Comprehensive Feature Documentation (Not Started)
+
+**Objective**: Document ALL MLFlow 3.9 features exhaustively
+
+**Tasks**:
+- [ ] Document MLFlow 3.9 Tracing API (`@mlflow.trace`, `start_span`, etc.)
+- [ ] Document auto-instrumentation (`autolog()` for all supported frameworks)
+- [ ] Document GenAI dashboard features and capabilities
+- [ ] Document online monitoring and LLM judges
+- [ ] Document SQLite backend features and migration
+- [ ] Document streaming trace support
+- [ ] Document distributed tracing capabilities
+- [ ] Document all agent-specific features
+- [ ] Document all performance improvements
+- [ ] Research MLFlow 3.9 best practices and patterns
+- [ ] Research community examples and case studies
+
+**Deliverable**: Comprehensive MLFlow 3.9 feature reference document
+
+### Phase 2: Codebase Analysis and Migration Planning (Not Started)
+
+**Objective**: Analyze our codebase against MLFlow 3.9 capabilities
+
+**Tasks**:
+- [ ] Map current `MLFlowTracker` to MLFlow 3.9 equivalents
+- [ ] Identify which MLFlow 3.9 features to adopt
+- [ ] Design new `MLFlowTracker` architecture
+- [ ] Plan schema changes (new config options)
+- [ ] Plan observability enhancements (what ELSE to track?)
+- [ ] Design graceful fallback strategy
+- [ ] Plan migration for examples and documentation
+- [ ] Identify breaking changes and mitigation strategies
+- [ ] Design test strategy for new features
+- [ ] Estimate implementation effort
+
+**Deliverable**: Detailed migration plan with code architecture
+
+### Phase 3: Enhanced Observability Design (Not Started)
+
+**Objective**: Maximize observability using all MLFlow 3.9 capabilities
+
+**Tasks**:
+- [ ] Design enhanced metrics strategy
+- [ ] Design enhanced artifacts strategy
+- [ ] Design LLM judge integration
+- [ ] Design quality assessment automation
+- [ ] Design streaming trace support
+- [ ] Identify new observability opportunities
+- [ ] Design dashboard visualization strategy
+
+**Deliverable**: Enhanced observability design document
+
+### Phase 4: Implementation (Deferred - Awaiting Green Flag)
+
+**Objective**: Execute comprehensive migration
+
+**Tasks**: (Will be detailed after planning phases complete)
+- [ ] Rewrite `MLFlowTracker` with MLFlow 3.9 patterns
+- [ ] Update `schema.py` with new config options
+- [ ] Implement graceful fallback to SQLite
+- [ ] Implement auto-instrumentation support
+- [ ] Update all tests
+- [ ] Update all documentation
+- [ ] Update all examples
+- [ ] Performance benchmarking
+- [ ] Integration testing
+
+**Deliverable**: Fully migrated MLFlow 3.9 implementation
 
 ### Prerequisites
 
 - [x] All current observability features working (T-018-021 complete)
 - [x] Current tests passing
 - [x] Bug fixes complete (BUG-001 through BUG-004)
+- [x] ADR-018 updated with comprehensive approach
+- [ ] Green flag to begin planning phases
+- [ ] Green flag to begin implementation phase
 
 ### Phase 1: Safe Upgrade (T-028 Part 1) - 1 day
 

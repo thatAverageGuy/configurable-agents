@@ -171,19 +171,19 @@ class MLFlowTracker:
 
         try:
             # Check if tracking server is accessible (for HTTP URIs)
-            tracking_uri = self.mlflow_config.tracking_uri
             if not self._check_tracking_server_accessible(timeout=3.0):
-                # Fallback to SQLite instead of disabling
                 logger.warning(
-                    f"MLFlow tracking server not accessible at {tracking_uri}. "
-                    "Falling back to local SQLite tracking (sqlite:///mlflow.db). "
-                    "If using http:// URI, ensure MLFlow server is running."
+                    f"MLFlow tracking server not accessible at {self.mlflow_config.tracking_uri}. "
+                    "Disabling MLFlow tracking. "
+                    "If using http:// URI, ensure MLFlow server is running. "
+                    "For local tracking, use: tracking_uri='file://./mlruns'"
                 )
-                tracking_uri = "sqlite:///mlflow.db"
+                self.enabled = False
+                return
 
             # Set tracking URI
-            mlflow.set_tracking_uri(tracking_uri)
-            logger.debug(f"MLFlow tracking URI: {tracking_uri}")
+            mlflow.set_tracking_uri(self.mlflow_config.tracking_uri)
+            logger.debug(f"MLFlow tracking URI: {self.mlflow_config.tracking_uri}")
 
             # Configure environment variables for faster timeouts
             # MLFlow uses requests library which respects these
@@ -195,10 +195,6 @@ class MLFlowTracker:
                 f"MLFlow experiment: {self.mlflow_config.experiment_name} "
                 f"(ID: {experiment.experiment_id})"
             )
-
-            # Enable auto-instrumentation if configured (MLFlow 3.9+)
-            if self.mlflow_config.autolog_enabled:
-                self._enable_autolog()
 
         except Exception as e:
             logger.error(f"Failed to initialize MLFlow: {e}")

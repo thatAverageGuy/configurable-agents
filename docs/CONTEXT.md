@@ -43,9 +43,10 @@
 ---
 
 **Last Updated**: 2026-02-02
-**Current Phase**: Phase 4 Complete ✅ + Critical Bug Fixes ✅
+**Current Phase**: Phase 4 Complete ✅ + Critical Bug Fixes ✅ + Planning Phase for MLFlow 3.9 🔄
 **Latest Completion**: T-024 Part 2 (Streamlit Docker Deployment UI) + BUG-001 through BUG-004 - 2026-02-02
-**Next Action**: MLFlow 3.9 Upgrade (Agents & GenAI features, modern tracing, better error handling)
+**Next Action**: MLFlow 3.9 Comprehensive Migration Planning (Deferred Implementation - Awaiting Green Flag)
+**Status**: All v0.1 features complete, system fully functional, ready for comprehensive MLFlow upgrade when approved
 
 ---
 
@@ -168,42 +169,87 @@ result = run_workflow("workflow.yaml", {"topic": "AI"})
 
 **Current Status**: **Production-ready system with all deployment working end-to-end**
 
-### 🎯 Immediate Next Action: MLFlow 3.9 Upgrade (T-028)
+### 🎯 Immediate Next Action: MLFlow 3.9 Comprehensive Migration (T-028) ⏸️
 
-**Goal**: Upgrade from MLFlow 2.9+ (current) to MLFlow 3.9 with modern GenAI/agent features
+**Status**: ⏸️ **DEFERRED - Awaiting Green Flag to Begin**
 
-**Why Now?**:
-- ✅ Current MLFlow works but uses older patterns (2.x style)
-- 🆕 MLFlow 3.9 has dedicated agent/GenAI tracing features
-- 🆕 New `mlflow.trace()` decorator for automatic tracing
-- 🆕 Better span/trace model for complex agent workflows
-- 🆕 SQLite default (better performance than file-based)
-- 🆕 Improved error handling and fail-fast patterns
-- 🎯 Align with latest best practices for LLM/agent applications
+**Approach**: **Comprehensive Migration with Thorough Planning First**
 
-**What Changed in MLFlow 3.x**:
-1. **Default backend**: `file://./mlruns` → `sqlite:///mlflow.db` (3.7+)
-2. **GenAI tracing**: New `mlflow.trace()`, `mlflow.start_span()` APIs
-3. **Agent support**: Built-in patterns for multi-step agent workflows
-4. **Better LLM integration**: Auto-instrumentation for 15+ frameworks (LangChain, OpenAI, Anthropic, etc.)
-5. **Performance**: SQLite backend faster for queries and concurrent writes
+**Goal**: Complete migration from MLFlow 2.9+ to MLFlow 3.9 with maximum observability
 
-**Scope**:
-- Upgrade dependencies: `mlflow>=2.9.0` → `mlflow>=3.9.0`
-- Refactor `mlflow_tracker.py` to use modern tracing APIs
-- Update error handling: fallback to SQLite if server unreachable
-- Migrate from manual logging to auto-instrumentation (where applicable)
-- Update documentation and examples
-- Ensure backward compatibility (file-based still works)
+**Migration Philosophy**:
+- ✅ Thorough feature documentation BEFORE planning
+- ✅ Comprehensive planning BEFORE implementation
+- ✅ Full migration all at once (no backward compatibility)
+- ✅ Maximize observability using MLFlow 3.9 to its fullest
+- ✅ Extend tracking beyond current scope where valuable
 
-**Deliverables**:
-- [ ] ADR-018: MLFlow 3.9 Upgrade Strategy (why, what, how)
-- [ ] Updated `mlflow_tracker.py` with modern APIs
-- [ ] Migration guide for existing users
-- [ ] Updated examples with new patterns
-- [ ] Updated OBSERVABILITY.md documentation
-- [ ] Integration tests with MLFlow 3.9
-- [ ] Implementation log: `T-028_mlflow_39_upgrade.md`
+**Why Comprehensive Approach?**:
+1. **Better Architecture**: Clean migration better than incremental patches
+2. **Maximize Value**: Full utilization of MLFlow 3.9 capabilities
+3. **Rethink Strategy**: Opportunity to enhance observability design
+4. **Future-Proof**: Aligned with latest MLFlow best practices
+5. **Clean Code**: No backward compatibility cruft
+
+**Planning Phases** (Will execute when green flag given):
+
+**Phase 1: Comprehensive Feature Documentation**
+- Document ALL MLFlow 3.9 features exhaustively
+- Research tracing API, auto-instrumentation, GenAI dashboard, LLM judges
+- Document streaming support, distributed tracing, agent patterns
+- Research best practices and community examples
+- **Deliverable**: Comprehensive MLFlow 3.9 feature reference
+
+**Phase 2: Codebase Analysis & Migration Planning**
+- Map current `MLFlowTracker` to MLFlow 3.9 equivalents
+- Identify which features to adopt
+- Design new architecture from scratch
+- Plan schema changes, observability enhancements
+- Estimate effort, identify breaking changes
+- **Deliverable**: Detailed migration plan with code architecture
+
+**Phase 3: Enhanced Observability Design**
+- Design enhanced metrics, artifacts, visualization strategy
+- Plan LLM judge integration, quality assessment
+- Identify new observability opportunities
+- **Deliverable**: Enhanced observability design document
+
+**Phase 4: Implementation**
+- Complete rewrite of `MLFlowTracker` with MLFlow 3.9 patterns
+- Update all tests, documentation, examples
+- Performance benchmarking, integration testing
+- **Deliverable**: Fully migrated MLFlow 3.9 implementation
+
+**Current State**:
+- ✅ ADR-018 created and updated with comprehensive approach
+- ✅ CONTEXT.md updated with migration plan
+- ⏸️ Waiting for green flag to begin Phase 1 (Feature Documentation)
+
+**Key MLFlow 3.9 Capabilities to Explore**:
+1. `@mlflow.trace` decorator and span/trace model
+2. `mlflow.langchain.autolog()` auto-instrumentation
+3. GenAI dashboard with agent metrics
+4. Online monitoring with LLM judges
+5. SQLite backend with graceful fallback
+6. Streaming trace support
+7. Distributed tracing
+8. Tool call tracking and visualization
+
+**Documentation Status**:
+- ✅ ADR-018: MLFlow 3.9 Comprehensive Migration (updated with new approach)
+- ✅ CONTEXT.md: Updated with planning-first strategy
+- ⏸️ MLFLOW_39_UPGRADE_GUIDE.md: Will be recreated during planning phases
+- ⏸️ MLFLOW_39_UPGRADE_SUMMARY.md: Will be recreated during planning phases
+
+**Deliverables** (After Green Flag):
+- [ ] **Phase 1**: Comprehensive MLFlow 3.9 feature documentation
+- [ ] **Phase 2**: Detailed migration plan with code architecture
+- [ ] **Phase 3**: Enhanced observability design document
+- [ ] **Phase 4**: Fully rewritten `mlflow_tracker.py` with MLFlow 3.9 patterns
+- [ ] **Phase 4**: Updated schema.py with new config options
+- [ ] **Phase 4**: Updated all tests, examples, documentation
+- [ ] **Phase 4**: Integration tests and performance benchmarks
+- [ ] **Phase 4**: Implementation log: `T-028_mlflow_39_comprehensive_migration.md`
 
 **After This**:
 - T-025: Error Message Improvements (v0.2)

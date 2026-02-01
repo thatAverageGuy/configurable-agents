@@ -1,5 +1,19 @@
 # MLFlow 3.9 Upgrade - Executive Summary
 
+> **⚠️ IMPORTANT**: This document represents the **initial incremental migration approach**.
+>
+> **Strategy has been updated** to a **comprehensive, all-at-once migration** with thorough planning first.
+>
+> See **ADR-018** for the updated comprehensive migration strategy.
+>
+> This document will be recreated during the planning phases with the new approach.
+>
+> **Status**: Superseded - Reference only
+
+---
+
+# Original Summary (Incremental Approach - Superseded)
+
 **Prepared**: 2026-02-02
 **Decision**: ADR-018
 **Implementation Guide**: MLFLOW_39_UPGRADE_GUIDE.md
