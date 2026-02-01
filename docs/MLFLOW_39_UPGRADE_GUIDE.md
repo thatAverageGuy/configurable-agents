@@ -1,5 +1,19 @@
 # MLFlow 3.9 Upgrade Implementation Guide
 
+> **⚠️ IMPORTANT**: This document represents the **initial incremental migration approach**.
+>
+> **Strategy has been updated** to a **comprehensive, all-at-once migration** with thorough planning first.
+>
+> See **ADR-018** for the updated comprehensive migration strategy.
+>
+> This document will be recreated during the planning phases with the new approach.
+>
+> **Status**: Superseded - Reference only
+
+---
+
+# Original Document (Incremental Approach - Superseded)
+
 **Task**: T-028 (MLFlow 3.9 Upgrade for GenAI/Agent Tracing)
 **Decision**: ADR-018
 **Target**: MLFlow 2.9+ → MLFlow 3.9
