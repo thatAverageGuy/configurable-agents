@@ -7,10 +7,14 @@ Provides commands for running and validating workflow configurations.
 import argparse
 import json
 import logging
+import socket
+import subprocess
 import sys
+import time
 from pathlib import Path
 from typing import Any, Dict, Optional
 
+from configurable_agents.deploy import generate_deployment_artifacts
 from configurable_agents.observability import (
     CostReporter,
     get_date_range_filter,
@@ -84,6 +88,20 @@ def print_info(message: str) -> None:
 def print_warning(message: str) -> None:
     """Print warning message in yellow."""
     print(f"{colorize(_WARNING, Colors.YELLOW)} {message}")
+
+
+def is_port_in_use(port: int) -> bool:
+    """
+    Check if TCP port is already in use on localhost.
+
+    Args:
+        port: Port number to check
+
+    Returns:
+        True if port is in use, False otherwise
+    """
+    with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
+        return s.connect_ex(('localhost', port)) == 0
 
 
 def parse_input_args(input_args: list[str]) -> Dict[str, Any]:
@@ -284,6 +302,294 @@ def cmd_validate(args: argparse.Namespace) -> int:
         return 1
 
 
+def cmd_deploy(args: argparse.Namespace) -> int:
+    """
+    Deploy workflow as Docker container.
+
+    Args:
+        args: Parsed command-line arguments
+
+    Returns:
+        Exit code (0 for success, 1 for error)
+    """
+    config_path = args.config_file
+
+    # Step 1: Validate config file exists and is valid
+    if not Path(config_path).exists():
+        print_error(f"Config file not found: {config_path}")
+        return 1
+
+    print_info(f"Validating workflow config: {colorize(config_path, Colors.CYAN)}")
+
+    try:
+        validate_workflow(config_path)
+        print_success("Config validation passed")
+    except ConfigLoadError as e:
+        print_error(f"Failed to load config: {e}")
+        if args.verbose:
+            import traceback
+            print(traceback.format_exc(), file=sys.stderr)
+        return 1
+    except ConfigValidationError as e:
+        print_error(f"Config validation failed: {e}")
+        if args.verbose:
+            import traceback
+            print(traceback.format_exc(), file=sys.stderr)
+        return 1
+
+    # Step 2: Check Docker installed and running
+    print_info("Checking Docker availability...")
+    try:
+        result = subprocess.run(
+            ["docker", "version"],
+            capture_output=True,
+            text=True,
+            timeout=5
+        )
+        if result.returncode != 0:
+            print_error("Docker daemon is not running")
+            print_info("Please start Docker Desktop or the Docker daemon")
+            return 1
+        print_success("Docker is available")
+    except FileNotFoundError:
+        print_error("Docker is not installed")
+        print_info("Install Docker from: https://docs.docker.com/get-docker/")
+        return 1
+    except subprocess.TimeoutExpired:
+        print_error("Docker command timed out")
+        print_info("Please check if Docker is responding")
+        return 1
+
+    # Step 3: Generate deployment artifacts
+    output_dir = Path(args.output_dir)
+    print_info(f"Generating deployment artifacts in: {colorize(str(output_dir), Colors.CYAN)}")
+
+    # Load config to get workflow name if --name not provided
+    from configurable_agents.config import parse_config_file, WorkflowConfig
+    try:
+        config_dict = parse_config_file(config_path)
+        workflow_config = WorkflowConfig(**config_dict)
+        workflow_name = workflow_config.flow.name
+    except Exception as e:
+        print_error(f"Failed to load workflow config: {e}")
+        if args.verbose:
+            import traceback
+            print(traceback.format_exc(), file=sys.stderr)
+        return 1
+
+    # Sanitize container name
+    container_name = args.name or workflow_name
+    # Convert to lowercase and replace invalid characters with dash
+    container_name = "".join(
+        c if c.isalnum() or c in ("-", "_") else "-"
+        for c in container_name.lower()
+    )
+
+    # Determine MLFlow settings
+    mlflow_port = 0 if args.no_mlflow else args.mlflow_port
+    enable_mlflow = not args.no_mlflow
+
+    try:
+        artifacts = generate_deployment_artifacts(
+            config_path=config_path,
+            output_dir=output_dir,
+            api_port=args.api_port,
+            mlflow_port=mlflow_port,
+            sync_timeout=args.timeout,
+            enable_mlflow=enable_mlflow,
+            container_name=container_name,
+        )
+
+        print_success(f"Generated {len(artifacts)} deployment artifacts:")
+        for artifact_name, artifact_path in artifacts.items():
+            print(f"  {colorize(artifact_name, Colors.GRAY)}: {artifact_path}")
+
+    except Exception as e:
+        print_error(f"Failed to generate artifacts: {e}")
+        if args.verbose:
+            import traceback
+            print(traceback.format_exc(), file=sys.stderr)
+        return 1
+
+    # Step 4: Exit early if --generate flag
+    if args.generate:
+        print_info("Artifacts generated. Skipping Docker build and run.")
+        print_info(f"To build manually, run: docker build -t {container_name}:latest {output_dir}")
+        return 0
+
+    # Step 5: Check port availability
+    print_info("Checking port availability...")
+
+    if is_port_in_use(args.api_port):
+        print_error(f"Port {args.api_port} is already in use")
+        print_info(f"Try a different port with: --api-port <port>")
+        return 1
+
+    if enable_mlflow and mlflow_port > 0 and is_port_in_use(mlflow_port):
+        print_error(f"Port {mlflow_port} is already in use")
+        print_info(f"Try a different port with: --mlflow-port <port> or disable with --no-mlflow")
+        return 1
+
+    print_success("Ports are available")
+
+    # Step 6: Handle environment file
+    env_file_path = Path(args.env_file)
+    env_file_args = []
+
+    if args.no_env_file:
+        print_warning("Environment file disabled. Configure environment manually if needed.")
+    else:
+        if not env_file_path.exists():
+            if args.env_file == ".env":
+                # Default .env doesn't exist - just warn
+                print_warning(f"Default .env file not found. Container will use environment defaults.")
+                env_example = Path(output_dir) / '.env.example'
+                print_info(f"Copy {env_example} to .env to customize environment")
+            else:
+                # Custom env file specified but doesn't exist - fail
+                print_error(f"Environment file not found: {env_file_path}")
+                return 1
+        else:
+            # Env file exists - validate format and use it
+            try:
+                # Basic validation: check for suspicious content
+                content = env_file_path.read_text()
+                if not content.strip():
+                    print_warning(f"Environment file {env_file_path} is empty")
+                else:
+                    # Check for basic format issues
+                    for line_num, line in enumerate(content.split('\n'), 1):
+                        line = line.strip()
+                        if line and not line.startswith('#') and '=' not in line:
+                            print_warning(f"Line {line_num} in {env_file_path} may be malformed: {line}")
+
+                env_file_args = ["--env-file", str(env_file_path)]
+                print_success(f"Using environment file: {env_file_path}")
+            except Exception as e:
+                print_warning(f"Could not validate environment file: {e}")
+                # Still use it - Docker will validate
+                env_file_args = ["--env-file", str(env_file_path)]
+
+    # Step 7: Build Docker image
+    print_info(f"Building Docker image: {colorize(f'{container_name}:latest', Colors.CYAN)}")
+
+    build_start = time.time()
+    try:
+        result = subprocess.run(
+            ["docker", "build", "-t", f"{container_name}:latest", str(output_dir)],
+            capture_output=True,
+            text=True,
+            timeout=300  # 5 minutes
+        )
+
+        if result.returncode != 0:
+            print_error("Docker build failed")
+            print(result.stderr, file=sys.stderr)
+            return 1
+
+        build_time = time.time() - build_start
+        print_success(f"Image built successfully in {build_time:.1f}s")
+
+        # Get image size
+        try:
+            size_result = subprocess.run(
+                ["docker", "images", container_name, "--format", "{{.Size}}"],
+                capture_output=True,
+                text=True,
+                timeout=5
+            )
+            if size_result.returncode == 0:
+                image_size = size_result.stdout.strip()
+                print_info(f"Image size: {colorize(image_size, Colors.GRAY)}")
+        except Exception:
+            pass  # Size check is optional
+
+    except subprocess.TimeoutExpired:
+        print_error("Docker build timed out after 5 minutes")
+        return 1
+    except Exception as e:
+        print_error(f"Build failed: {e}")
+        if args.verbose:
+            import traceback
+            print(traceback.format_exc(), file=sys.stderr)
+        return 1
+
+    # Step 8: Run container (detached)
+    print_info(f"Starting container: {colorize(container_name, Colors.CYAN)}")
+
+    # Build docker run command
+    port_args = ["-p", f"{args.api_port}:8000"]
+    if enable_mlflow and mlflow_port > 0:
+        port_args.extend(["-p", f"{mlflow_port}:5000"])
+
+    docker_run_cmd = [
+        "docker", "run", "-d",
+        "--name", container_name,
+        *port_args,
+        *env_file_args,
+        f"{container_name}:latest"
+    ]
+
+    try:
+        result = subprocess.run(
+            docker_run_cmd,
+            capture_output=True,
+            text=True,
+            timeout=30
+        )
+
+        if result.returncode != 0:
+            stderr = result.stderr.lower()
+            if "conflict" in stderr or "already in use" in stderr:
+                print_error(f"Container '{container_name}' already exists")
+                print_info(f"Remove it with: docker rm -f {container_name}")
+                return 1
+            else:
+                print_error("Failed to start container")
+                print(result.stderr, file=sys.stderr)
+                return 1
+
+        container_id = result.stdout.strip()[:12]  # Short ID
+        print_success(f"Container started: {colorize(container_id, Colors.GRAY)}")
+
+    except subprocess.TimeoutExpired:
+        print_error("Container start timed out")
+        return 1
+    except Exception as e:
+        print_error(f"Failed to start container: {e}")
+        if args.verbose:
+            import traceback
+            print(traceback.format_exc(), file=sys.stderr)
+        return 1
+
+    # Step 9: Print success message with URLs and examples
+    print()
+    print(f"{colorize('=' * 60, Colors.GREEN)}")
+    print(f"{colorize('Deployment successful!', Colors.BOLD + Colors.GREEN)}")
+    print(f"{colorize('=' * 60, Colors.GREEN)}")
+    print()
+    print(f"{colorize('Endpoints:', Colors.BOLD)}")
+    print(f"  API:          http://localhost:{args.api_port}/execute")
+    print(f"  Docs:         http://localhost:{args.api_port}/docs")
+    print(f"  Health:       http://localhost:{args.api_port}/health")
+    if enable_mlflow and mlflow_port > 0:
+        print(f"  MLFlow UI:    http://localhost:{mlflow_port}")
+    print()
+    print(f"{colorize('Example Usage:', Colors.BOLD)}")
+    print(f"  curl -X POST http://localhost:{args.api_port}/execute \\")
+    print(f"    -H 'Content-Type: application/json' \\")
+    print(f"    -d '{{}}'")
+    print()
+    print(f"{colorize('Container Management:', Colors.BOLD)}")
+    print(f"  View logs:    docker logs {container_name}")
+    print(f"  Stop:         docker stop {container_name}")
+    print(f"  Restart:      docker restart {container_name}")
+    print(f"  Remove:       docker rm -f {container_name}")
+    print()
+
+    return 0
+
+
 def cmd_report_costs(args: argparse.Namespace) -> int:
     """
     Generate cost reports from MLFlow tracking data.
@@ -433,6 +739,12 @@ Examples:
   # Validate a config without running
   configurable-agents validate workflow.yaml
 
+  # Deploy workflow as Docker container
+  configurable-agents deploy workflow.yaml --api-port 8000
+
+  # Generate deployment artifacts only (no Docker build)
+  configurable-agents deploy workflow.yaml --generate --output-dir ./my_deploy
+
   # Generate cost report for last 7 days
   configurable-agents report costs --period last_7_days --breakdown
 
@@ -482,6 +794,65 @@ For more information, visit: https://github.com/yourusername/configurable-agents
         "-v", "--verbose", action="store_true", help="Enable verbose output"
     )
     validate_parser.set_defaults(func=cmd_validate)
+
+    # Deploy command
+    deploy_parser = subparsers.add_parser(
+        "deploy",
+        help="Deploy workflow as Docker container",
+        description="Generate deployment artifacts and run workflow in Docker container"
+    )
+    deploy_parser.add_argument("config_file", help="Path to workflow config (YAML/JSON)")
+    deploy_parser.add_argument(
+        "--output-dir",
+        default="./deploy",
+        help="Artifacts output directory (default: ./deploy)"
+    )
+    deploy_parser.add_argument(
+        "--api-port",
+        type=int,
+        default=8000,
+        help="FastAPI server port (default: 8000)"
+    )
+    deploy_parser.add_argument(
+        "--mlflow-port",
+        type=int,
+        default=5000,
+        help="MLFlow UI port (default: 5000)"
+    )
+    deploy_parser.add_argument(
+        "--name",
+        help="Container name (default: workflow name from config)"
+    )
+    deploy_parser.add_argument(
+        "--timeout",
+        type=int,
+        default=30,
+        help="Sync/async threshold in seconds (default: 30)"
+    )
+    deploy_parser.add_argument(
+        "--generate",
+        action="store_true",
+        help="Generate artifacts only, skip Docker build and run"
+    )
+    deploy_parser.add_argument(
+        "--no-mlflow",
+        action="store_true",
+        help="Disable MLFlow UI in container"
+    )
+    deploy_parser.add_argument(
+        "--env-file",
+        default=".env",
+        help="Environment variables file (default: .env)"
+    )
+    deploy_parser.add_argument(
+        "--no-env-file",
+        action="store_true",
+        help="Skip environment file (configure manually)"
+    )
+    deploy_parser.add_argument(
+        "-v", "--verbose", action="store_true", help="Enable verbose output"
+    )
+    deploy_parser.set_defaults(func=cmd_deploy)
 
     # Report command (with subcommands)
     report_parser = subparsers.add_parser(

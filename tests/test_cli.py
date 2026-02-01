@@ -15,11 +15,13 @@ import pytest
 
 from configurable_agents.cli import (
     Colors,
+    cmd_deploy,
     cmd_report_costs,
     cmd_run,
     cmd_validate,
     colorize,
     create_parser,
+    is_port_in_use,
     main,
     parse_input_args,
     print_error,

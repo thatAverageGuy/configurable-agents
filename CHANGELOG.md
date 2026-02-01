@@ -13,6 +13,18 @@ For detailed task-by-task implementation notes, see [implementation logs](docs/i
 
 ### Added
 
+**CLI Deploy Command** (T-024):
+- One-command Docker deployment: `configurable-agents deploy workflow.yaml`
+- Validates config → checks Docker → generates artifacts → builds image → runs container
+- Rich terminal output with color-coded messages and Unicode symbols
+- Port availability checking (API and MLFlow ports)
+- Environment file handling (auto-detect .env, custom paths, skip option)
+- Container name sanitization (lowercase, alphanumeric + dash/underscore)
+- Generate-only mode (--generate flag) for artifact generation without Docker
+- Comprehensive error handling with actionable suggestions
+- 22 unit tests + 1 integration test - all passing
+- Total: 66 CLI tests passing (44 existing + 22 new deploy tests)
+
 **FastAPI Server with Input Validation & MLFlow** (T-023):
 - Enhanced server.py.template with dynamic input validation using Pydantic
 - Automatic Pydantic model generation from workflow state schema (`_build_input_model()`)
