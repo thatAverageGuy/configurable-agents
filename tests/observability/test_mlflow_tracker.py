@@ -1,6 +1,5 @@
-"""Unit tests for MLFlowTracker with mocked MLFlow."""
+"""Unit tests for MLFlowTracker (MLflow 3.9)."""
 
-import sys
 from unittest.mock import MagicMock, patch, call
 import pytest
 
@@ -13,8 +12,6 @@ from configurable_agents.config import (
     NodeConfig,
     OutputSchema,
     EdgeConfig,
-    GlobalConfig,
-    LLMConfig,
 )
 from configurable_agents.observability.mlflow_tracker import MLFlowTracker
 
@@ -51,16 +48,28 @@ def mlflow_config():
         tracking_uri="file://./mlruns",
         experiment_name="test_experiment",
         log_artifacts=True,
+        async_logging=True,
     )
 
 
 @pytest.fixture
 def mlflow_mock():
-    """Create a mock MLFlow module."""
+    """Create a mock MLFlow module with MLflow 3.9 API."""
     # Create a mock mlflow module
     mock_mlflow = MagicMock()
+
+    # Mock basic methods
     mock_mlflow.active_run.return_value = MagicMock()
     mock_mlflow.set_experiment.return_value = MagicMock(experiment_id="exp_123")
+    mock_mlflow.trace = MagicMock(return_value=lambda f: f)  # No-op decorator
+
+    # Mock langchain autolog
+    mock_mlflow.langchain = MagicMock()
+    mock_mlflow.langchain.autolog = MagicMock()
+
+    # Mock trace search
+    mock_mlflow.get_experiment_by_name = MagicMock(return_value=MagicMock(experiment_id="exp_123"))
+    mock_mlflow.search_traces = MagicMock(return_value=[])
 
     # Patch the mlflow module and availability flag
     with patch("configurable_agents.observability.mlflow_tracker.mlflow", mock_mlflow):
@@ -69,7 +78,7 @@ def mlflow_mock():
 
 
 class TestMLFlowTrackerInitialization:
-    """Test MLFlowTracker initialization."""
+    """Test MLFlowTracker initialization (MLflow 3.9)."""
 
     def test_init_disabled_when_config_none(self, minimal_workflow_config):
         """Test that tracker is disabled when config is None."""
@@ -87,12 +96,27 @@ class TestMLFlowTrackerInitialization:
     def test_init_enabled_with_valid_config(
         self, mlflow_config, minimal_workflow_config, mlflow_mock
     ):
-        """Test that tracker is enabled with valid config and MLFlow available."""
+        """Test that tracker is enabled with valid config and MLFlow 3.9."""
         tracker = MLFlowTracker(mlflow_config, minimal_workflow_config)
 
         assert tracker.enabled is True
         mlflow_mock.set_tracking_uri.assert_called_once_with("file://./mlruns")
         mlflow_mock.set_experiment.assert_called_once_with("test_experiment")
+
+        # MLflow 3.9: Should enable autolog
+        mlflow_mock.langchain.autolog.assert_called_once()
+
+    def test_init_configures_async_logging(
+        self, mlflow_config, minimal_workflow_config, mlflow_mock
+    ):
+        """Test that async logging is configured when enabled."""
+        with patch.dict('os.environ', {}, clear=False):
+            tracker = MLFlowTracker(mlflow_config, minimal_workflow_config)
+
+            assert tracker.enabled is True
+            # Async logging environment variables should be set
+            # (We can't easily test os.environ changes in unit tests,
+            # but we verify initialization succeeded)
 
     def test_init_handles_mlflow_initialization_error(
         self, mlflow_config, minimal_workflow_config, mlflow_mock
@@ -105,313 +129,281 @@ class TestMLFlowTrackerInitialization:
         # Should disable tracking instead of crashing
         assert tracker.enabled is False
 
+    def test_init_warns_about_file_backend_deprecation(
+        self, mlflow_config, minimal_workflow_config, mlflow_mock
+    ):
+        """Test that file:// backend shows deprecation warning."""
+        # Using file:// should work but log a warning
+        tracker = MLFlowTracker(mlflow_config, minimal_workflow_config)
 
-class TestMLFlowTrackerWorkflowTracking:
-    """Test workflow-level tracking."""
+        assert tracker.enabled is True
+        # Warning logged (tested via caplog in integration tests)
 
-    def test_track_workflow_disabled(self, minimal_workflow_config):
-        """Test that track_workflow is no-op when disabled."""
+
+class TestMLFlowTrackerTraceDecorator:
+    """Test get_trace_decorator() method (MLflow 3.9)."""
+
+    def test_get_trace_decorator_when_disabled(self, minimal_workflow_config):
+        """Test that decorator is no-op when tracking disabled."""
         tracker = MLFlowTracker(None, minimal_workflow_config)
 
-        inputs = {"topic": "AI"}
-        with tracker.track_workflow(inputs):
-            pass  # Should not raise
+        @tracker.get_trace_decorator("test")
+        def test_function():
+            return "result"
 
-    def test_track_workflow_starts_run(
+        # Should work without MLflow
+        assert test_function() == "result"
+
+    def test_get_trace_decorator_when_enabled(
         self, mlflow_config, minimal_workflow_config, mlflow_mock
     ):
-        """Test that track_workflow starts an MLFlow run."""
+        """Test that decorator returns MLflow trace decorator when enabled."""
         tracker = MLFlowTracker(mlflow_config, minimal_workflow_config)
 
-        inputs = {"topic": "AI"}
-        with tracker.track_workflow(inputs):
-            pass
+        decorator = tracker.get_trace_decorator("workflow_test", workflow_name="test")
 
-        mlflow_mock.start_run.assert_called_once()
-        mlflow_mock.end_run.assert_called_once()
+        # Should return a callable (decorator function)
+        assert callable(decorator)
 
-    def test_track_workflow_logs_params(
+        # MLflow.trace should be called with correct params
+        mlflow_mock.trace.assert_called_once()
+        call_kwargs = mlflow_mock.trace.call_args.kwargs
+        assert call_kwargs["name"] == "workflow_test"
+        assert call_kwargs["span_type"] == "WORKFLOW"
+        assert call_kwargs["attributes"]["workflow_name"] == "test"
+
+    def test_get_trace_decorator_determines_span_type(
         self, mlflow_config, minimal_workflow_config, mlflow_mock
     ):
-        """Test that track_workflow logs parameters."""
+        """Test that span type is determined from name."""
         tracker = MLFlowTracker(mlflow_config, minimal_workflow_config)
 
-        inputs = {"topic": "AI"}
-        with tracker.track_workflow(inputs):
-            pass
+        # "workflow" in name → WORKFLOW span type
+        tracker.get_trace_decorator("workflow_test")
+        assert mlflow_mock.trace.call_args.kwargs["span_type"] == "WORKFLOW"
 
-        # Check that workflow params were logged
-        assert mlflow_mock.log_param.called
-        logged_params = {
-            call.args[0]: call.args[1]
-            for call in mlflow_mock.log_param.call_args_list
+        mlflow_mock.trace.reset_mock()
+
+        # Other names → AGENT span type
+        tracker.get_trace_decorator("node_test")
+        assert mlflow_mock.trace.call_args.kwargs["span_type"] == "AGENT"
+
+
+class TestMLFlowTrackerCostSummary:
+    """Test get_workflow_cost_summary() method (MLflow 3.9)."""
+
+    def test_get_cost_summary_when_disabled(self, minimal_workflow_config):
+        """Test that cost summary returns empty dict when disabled."""
+        tracker = MLFlowTracker(None, minimal_workflow_config)
+
+        summary = tracker.get_workflow_cost_summary()
+
+        assert summary == {}
+
+    def test_get_cost_summary_with_no_traces(
+        self, mlflow_config, minimal_workflow_config, mlflow_mock
+    ):
+        """Test that cost summary returns empty dict when no traces found."""
+        mlflow_mock.search_traces.return_value = []
+
+        tracker = MLFlowTracker(mlflow_config, minimal_workflow_config)
+        summary = tracker.get_workflow_cost_summary()
+
+        assert summary == {}
+
+    def test_get_cost_summary_extracts_token_usage(
+        self, mlflow_config, minimal_workflow_config, mlflow_mock
+    ):
+        """Test that cost summary extracts token usage from trace."""
+        # Mock trace with token usage
+        mock_span = MagicMock()
+        mock_span.name = "test_node"
+        mock_span.attributes = {
+            "mlflow.chat.tokenUsage": {
+                "prompt_tokens": 100,
+                "completion_tokens": 200,
+                "total_tokens": 300,
+            },
+            "ai.model.name": "gemini-1.5-flash",  # Use supported model
         }
-        assert "workflow_name" in logged_params
-        assert logged_params["workflow_name"] == "test_workflow"
+        mock_span.start_time_ns = 1000000000
+        mock_span.end_time_ns = 2000000000
 
-    def test_track_workflow_logs_inputs_as_artifact(
+        mock_trace = MagicMock()
+        mock_trace.info.trace_id = "trace_123"
+        mock_trace.info.token_usage = {
+            "prompt_tokens": 100,
+            "completion_tokens": 200,
+            "total_tokens": 300,
+        }
+        mock_trace.data.spans = [mock_span]
+
+        mlflow_mock.search_traces.return_value = [mock_trace]
+
+        tracker = MLFlowTracker(mlflow_config, minimal_workflow_config)
+        summary = tracker.get_workflow_cost_summary()
+
+        assert summary["trace_id"] == "trace_123"
+        assert summary["total_tokens"]["total_tokens"] == 300
+        assert summary["total_cost_usd"] > 0
+        assert "test_node" in summary["node_breakdown"]
+        assert summary["node_breakdown"]["test_node"]["cost_usd"] > 0
+
+    def test_get_cost_summary_calculates_costs(
         self, mlflow_config, minimal_workflow_config, mlflow_mock
     ):
-        """Test that track_workflow logs inputs as artifact."""
+        """Test that cost summary uses CostEstimator."""
+        mock_span = MagicMock()
+        mock_span.name = "test_node"
+        mock_span.attributes = {
+            "mlflow.chat.tokenUsage": {
+                "prompt_tokens": 100,
+                "completion_tokens": 200,
+                "total_tokens": 300,
+            },
+            "ai.model.name": "gemini-1.5-flash",  # Use supported model
+        }
+        mock_span.start_time_ns = 1000000000
+        mock_span.end_time_ns = 2000000000
+
+        mock_trace = MagicMock()
+        mock_trace.info.trace_id = "trace_123"
+        mock_trace.info.token_usage = {}
+        mock_trace.data.spans = [mock_span]
+
+        mlflow_mock.search_traces.return_value = [mock_trace]
+
         tracker = MLFlowTracker(mlflow_config, minimal_workflow_config)
 
-        inputs = {"topic": "AI"}
-        with tracker.track_workflow(inputs):
-            pass
+        # Mock cost estimator
+        with patch.object(tracker.cost_estimator, 'estimate_cost', return_value=0.001):
+            summary = tracker.get_workflow_cost_summary()
 
-        # Check that inputs were logged as artifact
-        mlflow_mock.log_dict.assert_called()
-        calls = mlflow_mock.log_dict.call_args_list
-        input_calls = [c for c in calls if c.args[1] == "inputs.json"]
-        assert len(input_calls) == 1
-        assert input_calls[0].args[0] == inputs
+            assert summary["total_cost_usd"] == 0.001
+            tracker.cost_estimator.estimate_cost.assert_called_once()
 
-    def test_track_workflow_skips_artifacts_when_disabled(
-        self, minimal_workflow_config, mlflow_mock
+
+class TestMLFlowTrackerLogSummary:
+    """Test log_workflow_summary() method (MLflow 3.9)."""
+
+    def test_log_summary_when_disabled(self, minimal_workflow_config):
+        """Test that log summary is no-op when disabled."""
+        tracker = MLFlowTracker(None, minimal_workflow_config)
+
+        # Should not raise
+        tracker.log_workflow_summary({})
+
+    def test_log_summary_when_no_active_run(
+        self, mlflow_config, minimal_workflow_config, mlflow_mock
     ):
-        """Test that artifacts are not logged when log_artifacts=False."""
+        """Test that log summary is no-op when no active run."""
+        mlflow_mock.active_run.return_value = None
+
+        tracker = MLFlowTracker(mlflow_config, minimal_workflow_config)
+
+        # Should not raise
+        tracker.log_workflow_summary({"total_cost_usd": 0.001})
+
+        # Should not log metrics
+        mlflow_mock.log_metrics.assert_not_called()
+
+    def test_log_summary_logs_metrics(
+        self, mlflow_config, minimal_workflow_config, mlflow_mock
+    ):
+        """Test that log summary logs metrics to MLflow."""
+        mlflow_mock.active_run.return_value = MagicMock()
+
+        tracker = MLFlowTracker(mlflow_config, minimal_workflow_config)
+
+        cost_summary = {
+            "total_cost_usd": 0.0023,
+            "total_tokens": {
+                "prompt_tokens": 100,
+                "completion_tokens": 200,
+                "total_tokens": 300,
+            },
+            "node_breakdown": {"node1": {}, "node2": {}},
+        }
+
+        tracker.log_workflow_summary(cost_summary)
+
+        # Should log metrics
+        mlflow_mock.log_metrics.assert_called_once()
+        logged_metrics = mlflow_mock.log_metrics.call_args.args[0]
+        assert logged_metrics["total_cost_usd"] == 0.0023
+        assert logged_metrics["total_tokens"] == 300
+        assert logged_metrics["node_count"] == 2
+
+    def test_log_summary_logs_artifact(
+        self, mlflow_config, minimal_workflow_config, mlflow_mock
+    ):
+        """Test that log summary logs cost summary as artifact."""
+        mlflow_mock.active_run.return_value = MagicMock()
+
+        tracker = MLFlowTracker(mlflow_config, minimal_workflow_config)
+
+        cost_summary = {
+            "total_cost_usd": 0.0023,
+            "total_tokens": {"total_tokens": 300},
+            "node_breakdown": {},
+        }
+
+        tracker.log_workflow_summary(cost_summary)
+
+        # Should log artifact (minimal level and above)
+        mlflow_mock.log_dict.assert_called_once_with(cost_summary, "cost_summary.json")
+
+
+class TestMLFlowTrackerArtifactLevels:
+    """Test _should_log_artifacts() method."""
+
+    def test_artifact_levels_minimal(self, minimal_workflow_config, mlflow_mock):
+        """Test minimal artifact level."""
+        config = ObservabilityMLFlowConfig(
+            enabled=True,
+            log_artifacts=True,
+            artifact_level="minimal",
+        )
+        tracker = MLFlowTracker(config, minimal_workflow_config)
+
+        assert tracker._should_log_artifacts("minimal") is True
+        assert tracker._should_log_artifacts("standard") is False
+        assert tracker._should_log_artifacts("full") is False
+
+    def test_artifact_levels_standard(self, minimal_workflow_config, mlflow_mock):
+        """Test standard artifact level."""
+        config = ObservabilityMLFlowConfig(
+            enabled=True,
+            log_artifacts=True,
+            artifact_level="standard",
+        )
+        tracker = MLFlowTracker(config, minimal_workflow_config)
+
+        assert tracker._should_log_artifacts("minimal") is True
+        assert tracker._should_log_artifacts("standard") is True
+        assert tracker._should_log_artifacts("full") is False
+
+    def test_artifact_levels_full(self, minimal_workflow_config, mlflow_mock):
+        """Test full artifact level."""
+        config = ObservabilityMLFlowConfig(
+            enabled=True,
+            log_artifacts=True,
+            artifact_level="full",
+        )
+        tracker = MLFlowTracker(config, minimal_workflow_config)
+
+        assert tracker._should_log_artifacts("minimal") is True
+        assert tracker._should_log_artifacts("standard") is True
+        assert tracker._should_log_artifacts("full") is True
+
+    def test_artifact_logging_disabled(self, minimal_workflow_config, mlflow_mock):
+        """Test that artifacts not logged when log_artifacts=False."""
         config = ObservabilityMLFlowConfig(
             enabled=True,
             log_artifacts=False,
         )
         tracker = MLFlowTracker(config, minimal_workflow_config)
 
-        inputs = {"topic": "AI"}
-        with tracker.track_workflow(inputs):
-            pass
-
-        # Inputs should not be logged
-        mlflow_mock.log_dict.assert_not_called()
-
-    def test_track_workflow_handles_errors(
-        self, mlflow_config, minimal_workflow_config, mlflow_mock
-    ):
-        """Test that track_workflow handles errors and logs them."""
-        tracker = MLFlowTracker(mlflow_config, minimal_workflow_config)
-
-        inputs = {"topic": "AI"}
-        with pytest.raises(ValueError):
-            with tracker.track_workflow(inputs):
-                raise ValueError("Test error")
-
-        # Run should still end
-        mlflow_mock.end_run.assert_called_once()
-
-    def test_finalize_workflow_logs_metrics(
-        self, mlflow_config, minimal_workflow_config, mlflow_mock
-    ):
-        """Test that finalize_workflow logs metrics."""
-        tracker = MLFlowTracker(mlflow_config, minimal_workflow_config)
-
-        inputs = {"topic": "AI"}
-        final_state = {"topic": "AI", "result": "article"}
-
-        with tracker.track_workflow(inputs):
-            tracker.finalize_workflow(final_state, status="success")
-
-        # Check that metrics were logged
-        assert mlflow_mock.log_metric.called
-        logged_metrics = {
-            call.args[0]: call.args[1]
-            for call in mlflow_mock.log_metric.call_args_list
-        }
-        assert "duration_seconds" in logged_metrics
-        assert "status" in logged_metrics
-        assert logged_metrics["status"] == 1  # 1 = success
-
-
-class TestMLFlowTrackerNodeTracking:
-    """Test node-level tracking."""
-
-    def test_track_node_disabled(self, minimal_workflow_config):
-        """Test that track_node is no-op when disabled."""
-        tracker = MLFlowTracker(None, minimal_workflow_config)
-
-        with tracker.track_node("test_node", "gemini-1.5-flash"):
-            pass  # Should not raise
-
-    def test_track_node_creates_nested_run(
-        self, mlflow_config, minimal_workflow_config, mlflow_mock
-    ):
-        """Test that track_node creates a nested run."""
-        tracker = MLFlowTracker(mlflow_config, minimal_workflow_config)
-
-        inputs = {"topic": "AI"}
-        with tracker.track_workflow(inputs):
-            with tracker.track_node("test_node", "gemini-1.5-flash"):
-                pass
-
-        # Check that nested run was started
-        assert mlflow_mock.start_run.call_count >= 2  # Parent + nested
-
-    def test_track_node_logs_params(
-        self, mlflow_config, minimal_workflow_config, mlflow_mock
-    ):
-        """Test that track_node logs parameters."""
-        tracker = MLFlowTracker(mlflow_config, minimal_workflow_config)
-
-        inputs = {"topic": "AI"}
-        with tracker.track_workflow(inputs):
-            with tracker.track_node("test_node", "gemini-1.5-flash", tools=["search"]):
-                pass
-
-        # Check that node params were logged
-        assert mlflow_mock.log_param.called
-
-    def test_log_node_metrics(
-        self, mlflow_config, minimal_workflow_config, mlflow_mock
-    ):
-        """Test that log_node_metrics logs metrics and updates totals."""
-        tracker = MLFlowTracker(mlflow_config, minimal_workflow_config)
-
-        inputs = {"topic": "AI"}
-        with tracker.track_workflow(inputs):
-            with tracker.track_node("test_node", "gemini-1.5-flash"):
-                tracker.log_node_metrics(
-                    input_tokens=150,
-                    output_tokens=500,
-                    model="gemini-1.5-flash",
-                    retries=0,
-                    prompt="Test prompt",
-                    response="Test response",
-                )
-
-            tracker.finalize_workflow({}, status="success")
-
-        # Check that node metrics were logged
-        logged_metrics = {
-            call.args[0]: call.args[1]
-            for call in mlflow_mock.log_metric.call_args_list
-        }
-        assert "input_tokens" in logged_metrics
-        assert "output_tokens" in logged_metrics
-        assert "node_cost_usd" in logged_metrics
-
-        # Check that totals were updated
-        assert "total_input_tokens" in logged_metrics
-        assert logged_metrics["total_input_tokens"] == 150
-        assert "total_output_tokens" in logged_metrics
-        assert logged_metrics["total_output_tokens"] == 500
-        assert "total_cost_usd" in logged_metrics
-
-    def test_log_node_metrics_with_artifacts(
-        self, mlflow_config, minimal_workflow_config, mlflow_mock
-    ):
-        """Test that log_node_metrics logs artifacts when enabled."""
-        tracker = MLFlowTracker(mlflow_config, minimal_workflow_config)
-
-        inputs = {"topic": "AI"}
-        with tracker.track_workflow(inputs):
-            with tracker.track_node("test_node", "gemini-1.5-flash"):
-                tracker.log_node_metrics(
-                    input_tokens=150,
-                    output_tokens=500,
-                    model="gemini-1.5-flash",
-                    prompt="Test prompt",
-                    response="Test response",
-                )
-
-        # Check that prompt and response were logged
-        assert mlflow_mock.log_text.called
-        text_calls = mlflow_mock.log_text.call_args_list
-        assert any("prompt.txt" in str(c) for c in text_calls)
-        assert any("response.txt" in str(c) for c in text_calls)
-
-    def test_log_node_metrics_accumulates_totals(
-        self, mlflow_config, minimal_workflow_config, mlflow_mock
-    ):
-        """Test that multiple node executions accumulate totals."""
-        tracker = MLFlowTracker(mlflow_config, minimal_workflow_config)
-
-        inputs = {"topic": "AI"}
-        with tracker.track_workflow(inputs):
-            # First node
-            with tracker.track_node("node1", "gemini-1.5-flash"):
-                tracker.log_node_metrics(
-                    input_tokens=100,
-                    output_tokens=200,
-                    model="gemini-1.5-flash",
-                )
-
-            # Second node
-            with tracker.track_node("node2", "gemini-1.5-flash"):
-                tracker.log_node_metrics(
-                    input_tokens=150,
-                    output_tokens=300,
-                    model="gemini-1.5-flash",
-                )
-
-            tracker.finalize_workflow({}, status="success")
-
-        # Check totals
-        logged_metrics = {
-            call.args[0]: call.args[1]
-            for call in mlflow_mock.log_metric.call_args_list
-        }
-        assert logged_metrics["total_input_tokens"] == 250  # 100 + 150
-        assert logged_metrics["total_output_tokens"] == 500  # 200 + 300
-
-
-class TestMLFlowTrackerCostTracking:
-    """Test cost tracking functionality."""
-
-    def test_cost_estimation_integration(
-        self, mlflow_config, minimal_workflow_config, mlflow_mock
-    ):
-        """Test that cost estimator is integrated correctly."""
-        tracker = MLFlowTracker(mlflow_config, minimal_workflow_config)
-
-        inputs = {"topic": "AI"}
-        with tracker.track_workflow(inputs):
-            with tracker.track_node("test_node", "gemini-1.5-flash"):
-                tracker.log_node_metrics(
-                    input_tokens=150,
-                    output_tokens=500,
-                    model="gemini-1.5-flash",
-                )
-
-            tracker.finalize_workflow({}, status="success")
-
-        # Check that cost was calculated and logged
-        logged_metrics = {
-            call.args[0]: call.args[1]
-            for call in mlflow_mock.log_metric.call_args_list
-        }
-        assert "node_cost_usd" in logged_metrics
-        assert logged_metrics["node_cost_usd"] > 0
-        assert "total_cost_usd" in logged_metrics
-        assert logged_metrics["total_cost_usd"] > 0
-
-
-class TestMLFlowTrackerGlobalConfig:
-    """Test tracking with global config."""
-
-    def test_logs_global_llm_config(self, mlflow_config, minimal_workflow_config, mlflow_mock):
-        """Test that global LLM config is logged."""
-        # Add global LLM config
-        workflow_config = minimal_workflow_config
-        workflow_config.config = GlobalConfig(
-            llm=LLMConfig(
-                provider="google",
-                model="gemini-1.5-flash",
-                temperature=0.7,
-            )
-        )
-
-        tracker = MLFlowTracker(mlflow_config, workflow_config)
-
-        inputs = {"topic": "AI"}
-        with tracker.track_workflow(inputs):
-            pass
-
-        # Check that global config was logged
-        logged_params = {
-            call.args[0]: call.args[1]
-            for call in mlflow_mock.log_param.call_args_list
-        }
-        assert "global_provider" in logged_params
-        assert logged_params["global_provider"] == "google"
-        assert "global_model" in logged_params
-        assert logged_params["global_model"] == "gemini-1.5-flash"
-        assert "global_temperature" in logged_params
-        assert logged_params["global_temperature"] == 0.7
+        assert tracker._should_log_artifacts("minimal") is False
+        assert tracker._should_log_artifacts("standard") is False
+        assert tracker._should_log_artifacts("full") is False

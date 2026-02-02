@@ -254,12 +254,13 @@ class ExecutionConfig(BaseModel):
 
 
 class ObservabilityMLFlowConfig(BaseModel):
-    """MLFlow observability config (v0.1+)."""
+    """MLFlow observability config (v0.1+, updated for MLflow 3.9)."""
 
     enabled: bool = Field(False, description="Enable MLFlow tracking")
     tracking_uri: str = Field(
         "file://./mlruns",
-        description="MLFlow backend URI (file://, postgresql://, s3://, etc.)"
+        description="MLFlow backend URI (file://, sqlite://, postgresql://, s3://, etc.). "
+        "Note: file:// is deprecated in MLflow 3.9, consider sqlite:///mlflow.db"
     )
     experiment_name: str = Field(
         "configurable_agents",
@@ -273,7 +274,7 @@ class ObservabilityMLFlowConfig(BaseModel):
     # Observability controls (workflow-level defaults, can be overridden per-node)
     log_prompts: bool = Field(
         True,
-        description="Show prompts/responses in MLFlow UI (not as files, default for all nodes)"
+        description="Show prompts/responses in MLFlow UI (auto-captured by autolog in 3.9)"
     )
     log_artifacts: bool = Field(
         True,
@@ -282,6 +283,12 @@ class ObservabilityMLFlowConfig(BaseModel):
     artifact_level: str = Field(
         "standard",
         description="Artifact detail level: 'minimal', 'standard', or 'full'"
+    )
+
+    # MLflow 3.9 features
+    async_logging: bool = Field(
+        True,
+        description="Enable async trace logging for zero-latency production (MLflow 3.5+)"
     )
 
     # Enterprise hooks (reserved for v0.2+, not enforced)

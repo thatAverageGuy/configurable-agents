@@ -240,31 +240,17 @@ def execute_node(
         if global_config and global_config.execution:
             max_retries = global_config.execution.max_retries
 
-        # Get model name for tracking
+        # Get model name (for logging and debugging)
         model_name = merged_llm_config.model or "gemini-1.5-flash"  # Default from config
 
-        # Prepare tool names for tracking
-        tool_names = node_config.tools if node_config.tools else None
-
-        # Track node execution with MLFlow
-        tracker_context = (
-            tracker.track_node(
-                node_id=node_id,
-                model=model_name,
-                tools=tool_names,
-                node_config=node_config,
-            )
-            if tracker
-            else None
-        )
+        # NOTE: Node-level tracing is now automatic via mlflow.langchain.autolog()
+        # The tracker parameter is kept for backward compatibility and config access,
+        # but actual tracing happens automatically - no manual track_node() needed!
 
         try:
-            # Enter tracking context if available
-            if tracker_context:
-                tracker_context.__enter__()
-
             # Call LLM with structured output enforcement
             # Tools are bound if present, retries handled automatically
+            # Token usage automatically captured by MLflow 3.9 via mlflow.langchain.autolog()
             result, usage = call_llm_structured(
                 llm=llm,
                 prompt=resolved_prompt,
@@ -274,35 +260,17 @@ def execute_node(
             )
             logger.info(f"Node '{node_id}': LLM call successful")
 
-            # Log node metrics if tracker available
-            if tracker:
-                # Convert result to JSON for response logging
-                try:
-                    response_text = result.model_dump_json(indent=2)
-                except Exception:
-                    response_text = str(result)
-
-                tracker.log_node_metrics(
-                    input_tokens=usage.input_tokens,
-                    output_tokens=usage.output_tokens,
-                    model=model_name,
-                    retries=max_retries - 1 if usage.input_tokens > 0 else 0,  # Estimate retries
-                    prompt=resolved_prompt,
-                    response=response_text,
-                )
+            # Log token usage for immediate visibility (MLflow captures this too)
+            logger.debug(
+                f"Node '{node_id}': {usage.input_tokens} input tokens, "
+                f"{usage.output_tokens} output tokens"
+            )
 
         except (LLMAPIError, ValidationError) as e:
             raise NodeExecutionError(
                 f"Node '{node_id}': LLM call failed: {e}",
                 node_id=node_id,
             )
-        finally:
-            # Exit tracking context if available
-            if tracker_context:
-                try:
-                    tracker_context.__exit__(None, None, None)
-                except Exception as e:
-                    logger.warning(f"Failed to exit tracker context: {e}")
 
         # ========================================
         # 7. UPDATE STATE
