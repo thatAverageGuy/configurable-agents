@@ -1,7 +1,7 @@
 # Technical Specification
 
 **Version**: v0.1 (Schema v1.0)
-**Last Updated**: 2026-01-24
+**Last Updated**: 2026-02-02
 
 **Philosophy**: Full Schema Day One (see ADR-009)
 - Schema supports all planned features (through v0.3)

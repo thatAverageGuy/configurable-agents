@@ -54,13 +54,13 @@
 
 ### Progress Overview
 
-- **Overall**: 23/27 tasks complete (85%)
+- **Overall**: 25/27 tasks complete (93%)
 - **Phase 1** (Foundation): ✅ 8/8 complete
 - **Phase 2** (Core Execution): ✅ 6/6 complete
 - **Phase 3** (Polish & UX): ✅ 4/4 complete
-- **Phase 4** (Observability): ✅ 4/4 complete
-- **Phase 4** (Docker Deployment): ✅ 3/3 complete
-- **Phase 5** (Future): 3 tasks deferred to v0.2+
+- **Phase 3** (Observability): ✅ 5/5 complete (includes T-028 MLFlow 3.9)
+- **Phase 3** (Docker Deployment): ✅ 3/3 complete
+- **Phase 4** (Deferred): 2 tasks deferred to v0.2+
 
 ### What Works Right Now
 
