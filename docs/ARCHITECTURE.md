@@ -2,7 +2,7 @@
 
 **Purpose**: High-level system design, patterns, and architecture
 **Audience**: Developers wanting to understand how the system works
-**Last Updated**: 2026-01-31
+**Last Updated**: 2026-02-02
 
 **For detailed decisions**: See [Architecture Decision Records](adr/)
 **For implementation tasks**: See [TASKS.md](TASKS.md)

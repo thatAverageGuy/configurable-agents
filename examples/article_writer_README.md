@@ -106,11 +106,11 @@ Result:
 ```yaml
 config:
   llm:
-    model: "gemini-1.5-flash"  # Fast, cost-effective model
-    temperature: 0.7            # Balance creativity/consistency
+    model: "gemini-2.5-flash-lite"  # Fast, cost-effective model
+    temperature: 0.7                 # Balance creativity/consistency
   execution:
-    timeout: 120                # 2 minutes max per node
-    max_retries: 3              # Retry on API failures
+    timeout: 120                     # 2 minutes max per node
+    max_retries: 3                   # Retry on API failures
 ```
 
 ## What You'll Learn
@@ -134,7 +134,7 @@ config:
 
 **Low quality output**
 - Adjust temperature (higher = more creative)
-- Try different model: `gemini-1.5-pro` (better quality, slower/pricier)
+- Try different model: `gemini-2.5-pro` (better quality, slower/pricier)
 - Improve prompt specificity
 
 ## Next Steps

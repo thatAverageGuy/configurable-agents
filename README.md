@@ -1,23 +1,45 @@
 # 🤖 Configurable Agents
 
-> **Transform YAML into production-grade AI agent workflows**
+> **Local-first, config-driven AI agent runtime for rapid prototyping and production deployment**
 
-Config-driven LLM agent runtime that turns your ideas into executable workflows in minutes, not days.
+Build production-grade LLM agent workflows without writing code. Define your workflow in YAML, validate instantly, deploy anywhere.
 
-[![Status](https://img.shields.io/badge/status-beta-yellow)]()
-[![Version](https://img.shields.io/badge/version-0.1.0--dev%20(89%25)-blue)]()
-[![Progress](https://img.shields.io/badge/tasks-24%2F27%20complete-brightgreen)]()
-[![Tests](https://img.shields.io/badge/tests-66%20CLI%20tests-brightgreen)]()
+[![Status](https://img.shields.io/badge/status-alpha-yellow)]()
+[![Version](https://img.shields.io/badge/version-0.1.0--dev-blue)]()
+[![Progress](https://img.shields.io/badge/tasks-25%2F27%20complete-brightgreen)]()
+[![Tests](https://img.shields.io/badge/tests-645%20passing-brightgreen)]()
 [![Python](https://img.shields.io/badge/python-3.10%2B-blue)]()
 [![License](https://img.shields.io/badge/license-MIT-green)]()
 
 ---
 
-## 🎯 Vision
+## 🎯 What & Why
 
-**From idea to production in minutes.**
+**A solo-developed, config-first agent runtime built for:**
 
-No code. No frameworks to learn. Just describe your workflow in YAML and run it.
+- **Developers** who need to prototype agent workflows in minutes, not days
+- **Researchers** experimenting with multi-agent architectures without infrastructure overhead
+- **Teams** validating LLM use cases before committing to custom code
+- **Practitioners** who want production deployments (Docker, observability) without DevOps complexity
+
+**Why this exists:**
+
+Building agent systems today requires stitching together LLM providers, orchestration frameworks, state management, observability, and deployment infrastructure. This project gives you all of that through a single YAML config.
+
+**Current state (v0.1):**
+
+This is a **working alpha** with complete foundational features: config validation, linear workflows, Docker deployment, MLFlow observability, and 645 passing tests. It's production-capable for straightforward agent workflows.
+
+**Future vision (time & budget permitting):**
+
+Evolve into a full-featured **agent swarm orchestrator** with:
+- Complex agent-to-agent communication and workflows
+- Conditional routing, loops, parallel execution
+- Multi-LLM coordination and optimization (DSPy)
+- Advanced observability and workflow management
+- All while maintaining **local-first execution** and config-driven simplicity
+
+This is a **solo project** currently focused on solid foundations. Community interest and contributions will shape the roadmap.
 
 ```yaml
 # article_writer.yaml
@@ -57,6 +79,7 @@ configurable-agents run article_writer.yaml --input topic="AI Safety"
 ### 🎨 Config-First Design
 - **YAML as code**: Your config IS your application
 - **No programming required**: Accessible to non-developers
+- **AI-assisted generation**: Use ChatGPT/Claude to write configs for you ([SYSTEM_PROMPT.md](SYSTEM_PROMPT.md))
 - **Version control friendly**: Track workflow evolution in git
 - **Shareable**: Exchange configs like recipes
 
@@ -122,7 +145,7 @@ curl -X POST http://localhost:8000/run \
 
 | Version | Status | Target | Theme | Focus |
 |---------|--------|--------|-------|-------|
-| **v0.1** | ✅ 89% (24/27) | March 2026 | Production Ready | Linear flows + Observability + Docker |
+| **v0.1** | ✅ 93% (25/27) | March 2026 | Production Ready | Linear flows + Observability + Docker |
 | **v0.2** | 📋 Planned | Q2 2026 | Intelligence | Conditionals, loops, multi-LLM |
 | **v0.3** | 🔮 Future | Q3 2026 | Optimization | DSPy, parallel execution |
 | **v0.4** | 🌟 Vision | Q4 2026 | Ecosystem | Visual tools, cloud deploy |
@@ -133,7 +156,7 @@ curl -X POST http://localhost:8000/run \
 
 ### v0.1 - Production Ready (Current)
 
-**Status**: 89% complete (24/27 tasks) | **Target**: March 2026
+**Status**: 93% complete (25/27 tasks) | **Target**: March 2026
 
 #### ✅ Working Now
 
@@ -156,26 +179,28 @@ result = run_workflow("workflow.yaml", {"topic": "AI"})
 - ✅ Structured LLM outputs (Pydantic validation)
 - ✅ Tool integration (Serper web search)
 - ✅ Parse-time validation (fail fast, save money)
-- ✅ CLI interface (run, validate, verbose)
-- ✅ 645 tests (18 integration + 627 unit)
+- ✅ CLI interface (run, validate, deploy, report)
+- ✅ 645 tests passing (18 integration + 627 unit)
 - ✅ Google Gemini integration
+- ✅ MLFlow 3.9 observability (automatic tracing)
+- ✅ Docker deployment (one-command containerization)
 
-#### ⏳ In Progress (Completing v0.1)
+#### Production Features
 
-**Observability** (T-018 to T-021):
+**Observability (MLFlow 3.9)**:
 ```bash
-# MLFlow tracking (enabled)
+# Automatic tracing with MLFlow 3.9
 configurable-agents run workflow.yaml --input topic="AI"
 mlflow ui  # View costs, traces, prompts at http://localhost:5000
 
-# Cost reporting (NEW in T-020)
+# Cost reporting and analytics
 configurable-agents report costs --range last_7_days
 configurable-agents report costs --format json --output report.json
 ```
 
-**Docker Deployment** (T-022 to T-024):
+**Docker Deployment**:
 ```bash
-# One-command deployment (NEW in T-024)
+# One-command deployment to production
 configurable-agents deploy workflow.yaml
 # ✓ Config validation passed
 # ✓ Docker is available
@@ -185,7 +210,7 @@ configurable-agents deploy workflow.yaml
 # ✓ Container started: abc123
 
 # Deployment successful!
-# → API:       http://localhost:8000/execute
+# → API:       http://localhost:8000/run
 # → Docs:      http://localhost:8000/docs
 # → Health:    http://localhost:8000/health
 # → MLFlow UI: http://localhost:5000
@@ -316,6 +341,39 @@ configurable-agents run hello.yaml --input name="Alice"
 
 ---
 
+## 🤖 AI-Assisted Config Generation
+
+**Don't want to write YAML by hand?** Use any LLM to generate configs for you!
+
+### How It Works
+
+1. Copy the prompt from **[SYSTEM_PROMPT.md](SYSTEM_PROMPT.md)**
+2. Paste it into ChatGPT, Claude, Gemini, or any LLM
+3. Describe your workflow in plain English
+4. Get a valid, ready-to-run YAML config
+
+### Example
+
+```
+You: [paste SYSTEM_PROMPT.md]
+You: "Create a workflow that researches a topic and writes a summary"
+LLM: [generates complete YAML config with research + summarize nodes]
+You: [save as workflow.yaml and run it]
+```
+
+**The prompt includes:**
+- ✅ Complete schema documentation (v1.0)
+- ✅ Current capabilities (v0.1: linear flows, Gemini, tools)
+- ✅ Type system reference (str, int, list, dict, objects)
+- ✅ Common patterns and examples
+- ✅ Validation rules (what works, what doesn't)
+- ✅ Model selection guide with pricing
+- ✅ Best practices
+
+**Try it now**: See [SYSTEM_PROMPT.md](SYSTEM_PROMPT.md) for the complete prompt
+
+---
+
 ## 🏗️ Architecture
 
 Built on proven technologies:
@@ -357,11 +415,12 @@ See [Architecture Decision Records](docs/adr/) for detailed design choices.
 - ✅ T-016: Documentation
 - ✅ T-017: Integration Tests
 
-### Phase 4: Observability (4/4 complete) ✅ COMPLETE
+### Phase 4: Observability (5/5 complete) ✅ COMPLETE
 - ✅ T-018: MLFlow Integration Foundation
 - ✅ T-019: MLFlow Instrumentation
 - ✅ T-020: Cost Tracking & Reporting
 - ✅ T-021: Observability Documentation
+- ✅ T-028: MLFlow 3.9 Migration (automatic tracing)
 
 ### Phase 4: Docker Deployment (3/3 complete) ✅ COMPLETE
 - ✅ T-022: Docker Artifact Generator & Templates
@@ -373,7 +432,7 @@ See [Architecture Decision Records](docs/adr/) for detailed design choices.
 - ⏳ T-026: DSPy Integration Test
 - ⏳ T-027: Structured Output + DSPy
 
-**Overall Progress**: 24/27 tasks complete (89%)
+**Overall Progress**: 25/27 tasks complete (93%)
 
 **Production Ready**: ✅ All core features complete (deployment infrastructure ready)
 **Next up**: v0.2 planning (conditional routing, multi-LLM support)
@@ -435,6 +494,12 @@ Full task breakdown: [docs/TASKS.md](docs/TASKS.md)
   - Complete technical context for each task
 
 ### User Guides
+
+- **[SYSTEM_PROMPT.md](SYSTEM_PROMPT.md)** - AI-assisted config generation ⭐ NEW
+  - *Copy-paste prompt for ChatGPT/Claude/Gemini*
+  - Generate valid configs by describing workflows in plain English
+  - Complete schema reference and examples
+  - Current capabilities and limitations
 
 - **[QUICKSTART.md](docs/QUICKSTART.md)** - Get started in 5 minutes
   - *Step-by-step tutorial for beginners*
