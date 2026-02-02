@@ -348,46 +348,75 @@ config:
 - `timeout_seconds` - Max time per node (default: 60)
 - `max_retries` - Retry count on failures (default: 3)
 
-### MLFlow Observability (v0.1+)
+### MLFlow 3.9 Observability (v0.1+)
 
-Track workflow costs, tokens, and performance with MLFlow:
+Track workflow costs, tokens, and performance with MLFlow 3.9 automatic tracing:
 
 ```yaml
 config:
   observability:
     mlflow:
+      # Core settings
       enabled: true                          # Enable tracking (default: false)
-      tracking_uri: "file://./mlruns"        # Storage backend (default)
+      tracking_uri: "sqlite:///mlflow.db"    # Storage backend (default)
       experiment_name: "my_workflows"        # Group related runs
+
+      # MLflow 3.9 features
+      async_logging: true                    # Async trace logging (default: true)
+
+      # Artifact control
+      log_artifacts: true                    # Save artifacts (default: true)
+      artifact_level: "standard"             # minimal | standard | full
+
+      # Optional
       run_name: null                         # Custom run naming (optional)
 ```
 
 **enabled** (bool, default: `false`):
 - Master switch for MLFlow tracking
 - When disabled, zero performance overhead
+- Activates MLflow 3.9 automatic tracing (`mlflow.langchain.autolog()`)
 
-**tracking_uri** (str, default: `"file://./mlruns"`):
+**tracking_uri** (str, default: `"sqlite:///mlflow.db"`):
 - Where to store tracking data
-- Local file storage: `file://./mlruns` or `file:///absolute/path`
-- Remote backends (v0.2+): `postgresql://...`, `s3://...`, `databricks://...`
+- **Recommended**: `sqlite:///mlflow.db` (default in MLflow 3.9)
+- **Deprecated**: `file://./mlruns` (still works, but shows warning)
+- **Remote**: `postgresql://...`, `s3://...`, `databricks://...`
 
 **experiment_name** (str, default: `"configurable_agents"`):
 - Logical grouping for related workflow runs
 - Use meaningful names: `"production"`, `"testing"`, `"article_workflows"`
 
+**async_logging** (bool, default: `true`):
+- **NEW in MLflow 3.9**: Enable async trace logging
+- Zero-latency production mode (non-blocking I/O)
+- Traces appear in UI with < 1s delay
+
+**log_artifacts** (bool, default: `true`):
+- Save artifacts (cost summaries, traces)
+- Disable to reduce storage usage
+
+**artifact_level** (str, default: `"standard"`):
+- `"minimal"`: Only cost summary
+- `"standard"`: Cost summary + basic traces
+- `"full"`: Everything (including prompts/responses)
+
 **run_name** (str, optional):
 - Template for individual run names
 - If not specified, MLFlow generates timestamp-based names
 
-**What gets tracked:**
-- Workflow-level: duration, total tokens, total cost, status
-- Node-level: per-node tokens, duration, prompts, responses
-- Artifacts: inputs.json, outputs.json, prompt.txt, response.txt
+**What gets tracked automatically:**
+- ✅ Workflow execution traces (root span)
+- ✅ Node execution spans (child spans)
+- ✅ Token usage per node (automatic from LLM responses)
+- ✅ Model names and parameters
+- ✅ Cost breakdown (computed from token usage)
+- ✅ Execution timestamps and durations
 
 **View traces:**
 ```bash
 # After running workflows with observability enabled
-mlflow ui
+mlflow ui --backend-store-uri sqlite:///mlflow.db
 
 # Open http://localhost:5000 in your browser
 ```
@@ -400,6 +429,9 @@ configurable-agents report costs --period last_7_days --breakdown
 # Export to CSV
 configurable-agents report costs --output report.csv --format csv
 ```
+
+**Migration from pre-3.9:**
+See [MLFLOW_39_USER_MIGRATION_GUIDE.md](MLFLOW_39_USER_MIGRATION_GUIDE.md) for migration instructions.
 
 For comprehensive documentation, see [OBSERVABILITY.md](OBSERVABILITY.md).
 

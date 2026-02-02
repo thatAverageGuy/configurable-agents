@@ -5,8 +5,8 @@
 Config-driven LLM agent runtime that turns your ideas into executable workflows in minutes, not days.
 
 [![Status](https://img.shields.io/badge/status-beta-yellow)]()
-[![Version](https://img.shields.io/badge/version-0.1.0--dev%20(85%25)-blue)]()
-[![Progress](https://img.shields.io/badge/tasks-23%2F27%20complete-brightgreen)]()
+[![Version](https://img.shields.io/badge/version-0.1.0--dev%20(89%25)-blue)]()
+[![Progress](https://img.shields.io/badge/tasks-24%2F27%20complete-brightgreen)]()
 [![Tests](https://img.shields.io/badge/tests-66%20CLI%20tests-brightgreen)]()
 [![Python](https://img.shields.io/badge/python-3.10%2B-blue)]()
 [![License](https://img.shields.io/badge/license-MIT-green)]()
@@ -79,17 +79,18 @@ configurable-agents run article_writer.yaml --input topic="AI Safety"
 - **Same config works everywhere**: Local → Docker → Cloud
 
 ### 🔍 Observability (v0.1)
-- **MLFlow integration**: Track every workflow run
-- **Cost monitoring**: Token usage and $ per execution
+- **MLFlow 3.9 integration**: Automatic tracing for every workflow run
+- **Cost monitoring**: Token usage and $ per execution (auto-calculated)
 - **Cost reporting CLI**: Query and export costs with filters
-- **Prompt inspection**: View resolved prompts and LLM responses
+- **Trace visualization**: GenAI dashboard with span waterfall
 - **Built-in dashboard**: MLFlow UI at http://localhost:5000
 
 ```yaml
 config:
   observability:
     mlflow:
-      enabled: true
+      enabled: true  # That's it! MLflow 3.9 auto-traces everything
+      tracking_uri: "sqlite:///mlflow.db"  # Recommended
 ```
 
 ```bash
@@ -121,7 +122,7 @@ curl -X POST http://localhost:8000/run \
 
 | Version | Status | Target | Theme | Focus |
 |---------|--------|--------|-------|-------|
-| **v0.1** | ✅ 85% (23/27) | March 2026 | Production Ready | Linear flows + Observability + Docker |
+| **v0.1** | ✅ 89% (24/27) | March 2026 | Production Ready | Linear flows + Observability + Docker |
 | **v0.2** | 📋 Planned | Q2 2026 | Intelligence | Conditionals, loops, multi-LLM |
 | **v0.3** | 🔮 Future | Q3 2026 | Optimization | DSPy, parallel execution |
 | **v0.4** | 🌟 Vision | Q4 2026 | Ecosystem | Visual tools, cloud deploy |
@@ -132,7 +133,7 @@ curl -X POST http://localhost:8000/run \
 
 ### v0.1 - Production Ready (Current)
 
-**Status**: 85% complete (23/27 tasks) | **Target**: March 2026
+**Status**: 89% complete (24/27 tasks) | **Target**: March 2026
 
 #### ✅ Working Now
 
@@ -156,7 +157,7 @@ result = run_workflow("workflow.yaml", {"topic": "AI"})
 - ✅ Tool integration (Serper web search)
 - ✅ Parse-time validation (fail fast, save money)
 - ✅ CLI interface (run, validate, verbose)
-- ✅ 616 tests (18 integration + 598 unit)
+- ✅ 645 tests (18 integration + 627 unit)
 - ✅ Google Gemini integration
 
 #### ⏳ In Progress (Completing v0.1)
@@ -372,7 +373,7 @@ See [Architecture Decision Records](docs/adr/) for detailed design choices.
 - ⏳ T-026: DSPy Integration Test
 - ⏳ T-027: Structured Output + DSPy
 
-**Overall Progress**: 23/27 tasks complete (85%)
+**Overall Progress**: 24/27 tasks complete (89%)
 
 **Production Ready**: ✅ All core features complete (deployment infrastructure ready)
 **Next up**: v0.2 planning (conditional routing, multi-LLM support)

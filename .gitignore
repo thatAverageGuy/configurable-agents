@@ -64,3 +64,4 @@ checkpoints.db
 # docs/*
 # CLAUDE.md
 deploy/*
+mlflow.db

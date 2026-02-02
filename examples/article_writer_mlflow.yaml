@@ -82,10 +82,11 @@ config:
     timeout: 120
     max_retries: 3
 
-  # MLFlow observability - tracks costs, tokens, prompts, and responses
+  # MLFlow 3.9 observability - automatic tracing with GenAI features
   observability:
     mlflow:
-      enabled: true                           # Enable MLFlow tracking
-      tracking_uri: "file://./mlruns"         # Local file storage (default)
+      enabled: true                           # Enable MLFlow 3.9 auto-tracing
+      tracking_uri: "sqlite:///mlflow.db"     # SQLite backend (recommended)
       experiment_name: "article_writer_demo"  # Group related runs
+      async_logging: true                     # Zero-latency production mode (default)
       # run_name: "run_{timestamp}"           # Optional custom run naming

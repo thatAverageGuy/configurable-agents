@@ -1,14 +1,9 @@
-"""Integration tests for MLFlow tracking with real MLFlow backend.
-
-These tests use a real MLFlow tracking server (file-based) to verify
-end-to-end MLFlow integration. They require MLFlow to be installed.
-
-Cost: Free (uses local file storage)
-"""
+"""Integration tests for MLFlow 3.9 tracking with real MLFlow backend."""
 
 import os
 import tempfile
 from pathlib import Path
+from unittest.mock import MagicMock, patch
 
 import pytest
 
@@ -29,33 +24,45 @@ from configurable_agents.observability.mlflow_tracker import (
     MLFLOW_AVAILABLE,
 )
 
-# Skip all tests if MLFlow is not installed
 pytestmark = pytest.mark.skipif(
     not MLFLOW_AVAILABLE,
-    reason="MLFlow not installed. Install with: pip install mlflow",
+    reason="MLFlow not installed. Install with: pip install mlflow>=3.9.0",
 )
 
 
 @pytest.fixture
 def temp_mlruns_dir():
     """Create a temporary directory for MLFlow tracking data."""
-    with tempfile.TemporaryDirectory() as tmpdir:
-        yield tmpdir
+    import mlflow
+    tmpdir = tempfile.mkdtemp()
+    yield tmpdir
+    # Close MLflow connections before cleanup
+    try:
+        mlflow.end_run()
+    except:
+        pass
+    # Give Windows time to release file handles
+    import time
+    time.sleep(0.1)
+    import shutil
+    try:
+        shutil.rmtree(tmpdir, ignore_errors=True)
+    except:
+        pass
 
 
 @pytest.fixture
 def mlflow_config(temp_mlruns_dir):
-    """Create MLFlow configuration with temporary storage."""
-    # Convert Windows path to file:// URI with forward slashes
-    from pathlib import Path
-    path = Path(temp_mlruns_dir).as_posix()
-    tracking_uri = f"file:///{path}" if path[1] == ':' else f"file://{path}"
+    """Create MLFlow configuration with SQLite backend."""
+    db_path = Path(temp_mlruns_dir) / "mlflow.db"
+    tracking_uri = f"sqlite:///{db_path.as_posix()}"
 
     return ObservabilityMLFlowConfig(
         enabled=True,
         tracking_uri=tracking_uri,
         experiment_name="test_integration",
         log_artifacts=True,
+        async_logging=False,  # Disable async for tests
     )
 
 
@@ -67,7 +74,6 @@ def workflow_config():
         flow=FlowMetadata(
             name="test_workflow",
             version="1.0.0",
-            description="Test workflow for MLFlow integration",
         ),
         state=StateSchema(
             fields={
@@ -78,7 +84,7 @@ def workflow_config():
         nodes=[
             NodeConfig(
                 id="test_node",
-                prompt="Generate content about {state.topic}",
+                prompt="Generate content about {topic}",
                 output_schema=OutputSchema(type="str"),
                 outputs=["result"],
             )
@@ -91,7 +97,6 @@ def workflow_config():
             llm=LLMConfig(
                 provider="google",
                 model="gemini-1.5-flash",
-                temperature=0.7,
             )
         ),
     )
@@ -99,251 +104,131 @@ def workflow_config():
 
 @pytest.mark.integration
 class TestMLFlowIntegration:
-    """Integration tests for MLFlow tracking."""
+    """Integration tests for MLFlow 3.9 tracking."""
 
-    def test_track_workflow_creates_run(
-        self, mlflow_config, workflow_config, temp_mlruns_dir
+    def test_initialization_creates_experiment(
+        self, mlflow_config, workflow_config
     ):
-        """Test that tracking creates an MLFlow run with artifacts."""
+        """Test that tracker initialization creates experiment."""
         tracker = MLFlowTracker(mlflow_config, workflow_config)
 
-        inputs = {"topic": "AI Safety"}
-        final_state = {"topic": "AI Safety", "result": "Article about AI Safety"}
+        assert tracker.enabled is True
+        # Verify experiment was created (integration with real MLflow)
+        import mlflow
+        experiment = mlflow.get_experiment_by_name("test_integration")
+        assert experiment is not None
 
-        with tracker.track_workflow(inputs):
-            tracker.finalize_workflow(final_state, status="success")
-
-        # Verify that MLFlow files were created
-        mlruns_path = Path(temp_mlruns_dir)
-        assert mlruns_path.exists()
-
-        # Check that experiment was created
-        experiment_dirs = list(mlruns_path.iterdir())
-        assert len(experiment_dirs) > 0
-
-    def test_track_node_creates_nested_run(
-        self, mlflow_config, workflow_config, temp_mlruns_dir
-    ):
-        """Test that node tracking creates nested runs."""
-        tracker = MLFlowTracker(mlflow_config, workflow_config)
-
-        inputs = {"topic": "AI"}
-
-        with tracker.track_workflow(inputs):
-            with tracker.track_node("test_node", "gemini-1.5-flash"):
-                tracker.log_node_metrics(
-                    input_tokens=150,
-                    output_tokens=500,
-                    model="gemini-1.5-flash",
-                    retries=0,
-                    prompt="Test prompt: Generate content about {state.topic}",
-                    response="Test response: Article about AI",
-                )
-
-            tracker.finalize_workflow(
-                {"topic": "AI", "result": "Article about AI"},
-                status="success",
-            )
-
-        # Verify MLFlow structure
-        mlruns_path = Path(temp_mlruns_dir)
-        assert mlruns_path.exists()
-
-    def test_disabled_tracking_no_files_created(
+    def test_disabled_tracking_no_initialization(
         self, workflow_config, temp_mlruns_dir
     ):
-        """Test that disabled tracking doesn't create MLFlow files."""
-        from pathlib import Path
-        path = Path(temp_mlruns_dir).as_posix()
-        tracking_uri = f"file:///{path}" if path[1] == ':' else f"file://{path}"
-
-        config = ObservabilityMLFlowConfig(
-            enabled=False,
-            tracking_uri=tracking_uri,
-        )
+        """Test that disabled tracking doesn't initialize MLflow."""
+        config = ObservabilityMLFlowConfig(enabled=False)
         tracker = MLFlowTracker(config, workflow_config)
 
-        inputs = {"topic": "AI"}
+        assert tracker.enabled is False
 
-        with tracker.track_workflow(inputs):
-            tracker.finalize_workflow({"topic": "AI", "result": "test"}, status="success")
-
-        # No MLFlow files should be created
-        mlruns_path = Path(temp_mlruns_dir)
-        # Directory might exist but should be empty (or minimal)
-        if mlruns_path.exists():
-            # Check that no experiment directories were created
-            experiment_dirs = [
-                d for d in mlruns_path.iterdir()
-                if d.is_dir() and not d.name.startswith(".")
-            ]
-            assert len(experiment_dirs) == 0
-
-    def test_artifacts_logged_when_enabled(
-        self, mlflow_config, workflow_config, temp_mlruns_dir
+    def test_trace_decorator_returns_callable(
+        self, mlflow_config, workflow_config
     ):
-        """Test that artifacts are logged when log_artifacts=True."""
+        """Test that get_trace_decorator returns working decorator."""
         tracker = MLFlowTracker(mlflow_config, workflow_config)
 
-        inputs = {"topic": "AI"}
+        decorator = tracker.get_trace_decorator(
+            "workflow_test",
+            workflow_name="test_workflow"
+        )
 
-        with tracker.track_workflow(inputs):
-            with tracker.track_node("test_node", "gemini-1.5-flash"):
-                tracker.log_node_metrics(
-                    input_tokens=150,
-                    output_tokens=500,
-                    model="gemini-1.5-flash",
-                    prompt="Test prompt",
-                    response="Test response",
-                )
+        @decorator
+        def test_func():
+            return "result"
 
-            tracker.finalize_workflow(
-                {"topic": "AI", "result": "test"},
-                status="success",
-            )
+        # Should execute without error
+        result = test_func()
+        assert result == "result"
 
-        # Artifacts should be created (inputs.json, outputs.json, prompt.txt, response.txt)
-        # We verify by checking that the mlruns directory has content
-        mlruns_path = Path(temp_mlruns_dir)
-        assert mlruns_path.exists()
-
-    def test_artifacts_not_logged_when_disabled(
-        self, workflow_config, temp_mlruns_dir
+    def test_cost_summary_with_mock_trace(
+        self, mlflow_config, workflow_config
     ):
-        """Test that artifacts are not logged when log_artifacts=False."""
-        from pathlib import Path
-        path = Path(temp_mlruns_dir).as_posix()
-        tracking_uri = f"file:///{path}" if path[1] == ':' else f"file://{path}"
+        """Test cost summary extraction from trace."""
+        tracker = MLFlowTracker(mlflow_config, workflow_config)
 
+        # Mock a trace with token usage
+        mock_span = MagicMock()
+        mock_span.name = "test_node"
+        mock_span.attributes = {
+            "mlflow.chat.tokenUsage": {
+                "prompt_tokens": 100,
+                "completion_tokens": 200,
+                "total_tokens": 300,
+            },
+            "ai.model.name": "gemini-1.5-flash",
+        }
+        mock_span.start_time_ns = 1000000000
+        mock_span.end_time_ns = 2000000000
+
+        mock_trace = MagicMock()
+        mock_trace.info.trace_id = "test_trace"
+        mock_trace.info.token_usage = {}
+        mock_trace.data.spans = [mock_span]
+
+        with patch("mlflow.search_traces", return_value=[mock_trace]):
+            with patch("mlflow.get_experiment_by_name", return_value=MagicMock(experiment_id="1")):
+                summary = tracker.get_workflow_cost_summary()
+
+        assert summary["trace_id"] == "test_trace"
+        assert summary["total_cost_usd"] > 0
+        assert "test_node" in summary["node_breakdown"]
+
+    def test_log_summary_creates_metrics(
+        self, mlflow_config, workflow_config
+    ):
+        """Test that log_workflow_summary logs metrics."""
+        tracker = MLFlowTracker(mlflow_config, workflow_config)
+
+        cost_summary = {
+            "total_cost_usd": 0.001,
+            "total_tokens": {"total_tokens": 300, "prompt_tokens": 100, "completion_tokens": 200},
+            "node_breakdown": {"node1": {}},
+        }
+
+        with patch("mlflow.active_run", return_value=MagicMock()):
+            with patch("mlflow.log_metrics") as mock_log:
+                with patch("mlflow.log_dict"):
+                    tracker.log_workflow_summary(cost_summary)
+
+                mock_log.assert_called_once()
+                logged = mock_log.call_args.args[0]
+                assert logged["total_cost_usd"] == 0.001
+                assert logged["total_tokens"] == 300
+
+    def test_artifact_levels(self, workflow_config, temp_mlruns_dir):
+        """Test artifact level configuration."""
+        db_path = Path(temp_mlruns_dir) / "mlflow.db"
+
+        # Test minimal level
         config = ObservabilityMLFlowConfig(
             enabled=True,
-            tracking_uri=tracking_uri,
-            experiment_name="test_no_artifacts",
-            log_artifacts=False,
+            tracking_uri=f"sqlite:///{db_path.as_posix()}",
+            log_artifacts=True,
+            artifact_level="minimal",
         )
         tracker = MLFlowTracker(config, workflow_config)
 
-        inputs = {"topic": "AI"}
+        assert tracker._should_log_artifacts("minimal") is True
+        assert tracker._should_log_artifacts("standard") is False
+        assert tracker._should_log_artifacts("full") is False
 
-        with tracker.track_workflow(inputs):
-            with tracker.track_node("test_node", "gemini-1.5-flash"):
-                tracker.log_node_metrics(
-                    input_tokens=150,
-                    output_tokens=500,
-                    model="gemini-1.5-flash",
-                    prompt="Test prompt",
-                    response="Test response",
-                )
+    def test_graceful_degradation_on_error(self, workflow_config, temp_mlruns_dir):
+        """Test that tracker degrades gracefully on MLflow errors."""
+        db_path = Path(temp_mlruns_dir) / "mlflow.db"
+        config = ObservabilityMLFlowConfig(
+            enabled=True,
+            tracking_uri=f"sqlite:///{db_path.as_posix()}",
+        )
 
-            tracker.finalize_workflow(
-                {"topic": "AI", "result": "test"},
-                status="success",
-            )
+        # Mock MLflow to raise error during initialization
+        with patch("mlflow.set_tracking_uri", side_effect=Exception("MLflow error")):
+            tracker = MLFlowTracker(config, workflow_config)
 
-        # Run should exist but with minimal artifacts
-        mlruns_path = Path(temp_mlruns_dir)
-        assert mlruns_path.exists()
-
-    def test_cost_tracking_accuracy(
-        self, mlflow_config, workflow_config, temp_mlruns_dir
-    ):
-        """Test that cost tracking calculates accurate costs."""
-        tracker = MLFlowTracker(mlflow_config, workflow_config)
-
-        inputs = {"topic": "AI"}
-
-        with tracker.track_workflow(inputs):
-            # First node
-            with tracker.track_node("node1", "gemini-1.5-flash"):
-                tracker.log_node_metrics(
-                    input_tokens=150,
-                    output_tokens=500,
-                    model="gemini-1.5-flash",
-                )
-
-            # Second node
-            with tracker.track_node("node2", "gemini-1.5-flash"):
-                tracker.log_node_metrics(
-                    input_tokens=200,
-                    output_tokens=600,
-                    model="gemini-1.5-flash",
-                )
-
-            tracker.finalize_workflow(
-                {"topic": "AI", "result": "test"},
-                status="success",
-            )
-
-        # Verify that costs were tracked
-        # Total tokens: 150+200=350 input, 500+600=1100 output
-        # Cost should be calculated based on Gemini 1.5 Flash pricing
-        assert tracker._total_input_tokens == 350
-        assert tracker._total_output_tokens == 1100
-        assert tracker._total_cost > 0
-
-    def test_retry_counting(
-        self, mlflow_config, workflow_config, temp_mlruns_dir
-    ):
-        """Test that retries are counted correctly."""
-        tracker = MLFlowTracker(mlflow_config, workflow_config)
-
-        inputs = {"topic": "AI"}
-
-        with tracker.track_workflow(inputs):
-            with tracker.track_node("test_node", "gemini-1.5-flash"):
-                tracker.log_node_metrics(
-                    input_tokens=150,
-                    output_tokens=500,
-                    model="gemini-1.5-flash",
-                    retries=2,  # Simulating 2 retries
-                )
-
-            tracker.finalize_workflow(
-                {"topic": "AI", "result": "test"},
-                status="success",
-            )
-
-        # Verify retry count
-        assert tracker._retry_count == 2
-
-    def test_error_handling(
-        self, mlflow_config, workflow_config, temp_mlruns_dir
-    ):
-        """Test that errors are handled and logged."""
-        tracker = MLFlowTracker(mlflow_config, workflow_config)
-
-        inputs = {"topic": "AI"}
-
-        with pytest.raises(ValueError):
-            with tracker.track_workflow(inputs):
-                raise ValueError("Simulated workflow error")
-
-        # Run should still be created with error status
-        mlruns_path = Path(temp_mlruns_dir)
-        assert mlruns_path.exists()
-
-    def test_multiple_workflows_same_experiment(
-        self, mlflow_config, workflow_config, temp_mlruns_dir
-    ):
-        """Test that multiple workflows can use the same experiment."""
-        # First workflow
-        tracker1 = MLFlowTracker(mlflow_config, workflow_config)
-        inputs1 = {"topic": "AI"}
-        with tracker1.track_workflow(inputs1):
-            tracker1.finalize_workflow(
-                {"topic": "AI", "result": "test1"},
-                status="success",
-            )
-
-        # Second workflow
-        tracker2 = MLFlowTracker(mlflow_config, workflow_config)
-        inputs2 = {"topic": "ML"}
-        with tracker2.track_workflow(inputs2):
-            tracker2.finalize_workflow(
-                {"topic": "ML", "result": "test2"},
-                status="success",
-            )
-
-        # Both should create runs in the same experiment
-        mlruns_path = Path(temp_mlruns_dir)
-        assert mlruns_path.exists()
+            # Should disable tracking instead of crashing
+            assert tracker.enabled is False

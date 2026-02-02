@@ -240,17 +240,36 @@ def run_workflow_from_config(
             original_error=e,
         )
 
-    # Phase 7: Execute graph with MLFlow tracking
+    # Phase 7: Execute graph with MLFlow 3.9 auto-tracing
     try:
         logger.info(f"Starting workflow execution: {workflow_name}")
         logger.debug(f"Initial state: {initial_state}")
 
-        with tracker.track_workflow(inputs=inputs):
+        # Define traced execution function (MLflow 3.9 @mlflow.trace)
+        @tracker.get_trace_decorator(
+            name=f"workflow_{workflow_name}",
+            workflow_name=workflow_name,
+            workflow_version=config.flow.version or "unversioned",
+            node_count=len(config.nodes),
+        )
+        def _execute_workflow():
+            """Execute workflow (automatically traced by MLflow via autolog)."""
             # LangGraph's invoke() returns dict, not BaseModel
-            final_state = graph.invoke(initial_state)
+            # Auto-traced via mlflow.langchain.autolog() - no manual tracking needed!
+            return graph.invoke(initial_state)
 
-            # Finalize MLFlow tracking
-            tracker.finalize_workflow(final_state, status="success")
+        # Execute workflow (tracing happens automatically)
+        final_state = _execute_workflow()
+
+        # Post-process: Calculate and log cost summary
+        if tracker.enabled:
+            cost_summary = tracker.get_workflow_cost_summary()
+            if cost_summary:
+                tracker.log_workflow_summary(cost_summary)
+                logger.info(
+                    f"Workflow cost: ${cost_summary.get('total_cost_usd', 0):.6f}, "
+                    f"{cost_summary.get('total_tokens', {}).get('total_tokens', 0)} tokens"
+                )
 
         execution_time = time.time() - start_time
         logger.info(

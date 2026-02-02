@@ -2,19 +2,22 @@
 
 **Comprehensive guide to tracking, monitoring, and optimizing your LLM workflows**
 
+**Updated for MLflow 3.9** (February 2026) - Now with automatic tracing!
+
 ---
 
 ## Table of Contents
 
 - [Overview](#overview)
 - [Quick Start](#quick-start)
-- [MLFlow Integration (v0.1)](#mlflow-integration-v01)
+- [MLFlow 3.9 Integration](#mlflow-39-integration)
 - [Configuration Reference](#configuration-reference)
 - [What Gets Tracked](#what-gets-tracked)
 - [Cost Tracking](#cost-tracking)
 - [Docker Integration](#docker-integration)
 - [Querying & Reporting](#querying--reporting)
 - [Best Practices](#best-practices)
+- [Migration from Pre-3.9](#migration-from-pre-39)
 - [OpenTelemetry (v0.2)](#opentelemetry-v02)
 - [Prometheus & Grafana (v0.3)](#prometheus--grafana-v03)
 - [Comparison Matrix](#comparison-matrix)
@@ -65,10 +68,10 @@ This guide covers all three tiers, with v0.1 focus on MLFlow.
 
 ## Quick Start
 
-### 1. Install MLFlow
+### 1. Install MLFlow 3.9+
 
 ```bash
-pip install mlflow
+pip install mlflow>=3.9.0
 ```
 
 (Already included if you installed `configurable-agents` with `pip install -e .`)
@@ -87,9 +90,11 @@ config:
     provider: google
     model: gemini-1.5-flash
 
-  observability:         # NEW
+  observability:
     mlflow:
-      enabled: true      # Enable tracking
+      enabled: true
+      tracking_uri: "sqlite:///mlflow.db"  # Recommended (default)
+      async_logging: true  # NEW: Zero-latency production mode
 
 state:
   fields:
@@ -97,7 +102,7 @@ state:
 
 nodes:
   - id: write
-    prompt: "Write an article about {state.topic}"
+    prompt: "Write an article about {topic}"
     outputs: [article]
     output_schema:
       type: object
@@ -119,90 +124,119 @@ configurable-agents run workflow.yaml --input topic="AI Safety"
 ```
 ✓ Validating workflow...
 ✓ Executing workflow...
-✓ MLFlow tracking enabled (file://./mlruns)
-✓ MLFlow run ID: a3f9b2c1d4e5678901234567
+✓ MLflow 3.9 auto-instrumentation enabled
+✓ Experiment: configurable_agents (ID: 1)
 
 Results:
 {
   "article": "AI Safety is a field of research..."
 }
 
-MLFlow UI: mlflow ui
+Workflow cost: $0.000450, 600 tokens
+
+MLFlow UI: mlflow ui --backend-store-uri sqlite:///mlflow.db
 ```
 
 ### 4. View Traces
 
 ```bash
-mlflow ui
+mlflow ui --backend-store-uri sqlite:///mlflow.db
 ```
 
 Open http://localhost:5000 in your browser.
 
-**What you'll see**:
-- List of all workflow runs
-- Metrics: duration, tokens, cost
-- Parameters: workflow name, model, temperature
-- Artifacts: inputs, outputs, prompts, responses
+**What you'll see** (MLflow 3.9 GenAI Dashboard):
+- **Trace Timeline**: Visual span waterfall for each workflow
+- **Token Usage**: Automatic token tracking per node
+- **Cost Breakdown**: Per-node and total costs
+- **Metrics**: Duration, tokens, cost, retries
+- **Artifacts**: Cost summary JSON
 
 ---
 
-## MLFlow Integration (v0.1)
+## MLFlow 3.9 Integration
 
-### Architecture
+### What's New in MLflow 3.9?
+
+**MLflow 3.9** (January 2026) introduced major improvements for GenAI observability:
+
+✅ **Automatic tracing** via `mlflow.langchain.autolog()` - no manual instrumentation
+✅ **Span/trace model** - cleaner hierarchy than nested runs
+✅ **Auto token tracking** - captures usage from LLM responses
+✅ **GenAI dashboard** - specialized UI for LLM workflows
+✅ **Async logging** - zero-latency production mode
+✅ **SQLite default** - better performance than deprecated file:// backend
+
+See [docs/MLFLOW_39_FEATURES.md](MLFLOW_39_FEATURES.md) for comprehensive feature documentation.
+
+### Architecture (MLflow 3.9)
 
 ```
 Workflow Execution
       ↓
-MLFlow Tracking (if enabled)
+mlflow.langchain.autolog()  ← Automatic instrumentation
       ↓
-file://./mlruns/
-├── experiments/
-│   └── 0/
-│       └── a3f9b2c1d4e5.../
-│           ├── params/
-│           ├── metrics/
-│           └── artifacts/
+@mlflow.trace decorator
+      ↓
+Traces & Spans (automatic)
+      ↓
+sqlite:///mlflow.db  OR  file://./mlruns (deprecated)
+├── traces/
+│   └── trace_abc123.../
+│       ├── spans/  (workflow, nodes)
+│       └── token_usage/  (automatic)
 ```
+
+**Key Difference from Pre-3.9**:
+- ❌ Old: Manual context managers (`with tracker.track_workflow()`)
+- ✅ New: Automatic tracing (just enable MLflow)
 
 ### What is MLFlow?
 
 **MLFlow** is an open-source platform for tracking machine learning experiments.
 
-**Why we chose it**:
-- ✅ LLM-native (tracks prompts, tokens, costs)
+**Why we chose it** (still valid with 3.9):
+- ✅ LLM-native (GenAI dashboard, token tracking)
 - ✅ Open-source (no vendor lock-in)
 - ✅ Self-hosted (free forever)
-- ✅ Scales (file → PostgreSQL → S3 → Databricks)
+- ✅ Scales (SQLite → PostgreSQL → S3 → Databricks)
 - ✅ DSPy-ready (v0.3 optimization)
+- ✅ **NEW**: Automatic tracing (no manual instrumentation)
 
 **Alternatives considered** (and why we rejected them):
 - LangSmith: SaaS-only, vendor lock-in
 - Weights & Biases: ML-focused, not LLM-native
 - Custom solution: Reinventing the wheel
 
-See [ADR-011](adr/ADR-011-mlflow-observability.md) for detailed rationale.
+See [ADR-011](adr/ADR-011-mlflow-observability.md) and [ADR-018](adr/ADR-018-mlflow-39-upgrade-genai-tracing.md) for detailed rationale.
 
 ### Storage Backends
 
-**v0.1: Local File Storage** (default):
+**Recommended: SQLite** (default in MLflow 3.9):
 ```yaml
 config:
   observability:
     mlflow:
-      tracking_uri: "file://./mlruns"  # Relative path
-      # or: "file:///absolute/path/mlruns"
+      tracking_uri: "sqlite:///mlflow.db"  # Recommended
 ```
 
 **Pros**:
 - Zero setup (works immediately)
+- Better performance than file://
 - Works offline
-- Simple debugging (files on disk)
+- Handles concurrent access well
+- Single-file database (easy backup)
 
 **Cons**:
-- Not suitable for team collaboration
-- Doesn't scale to high throughput
+- Not suitable for high-concurrency production (use PostgreSQL)
+- File-based (not cloud-native)
 
-**v0.2+: Remote Backends**:
+**Still Supported: File Backend** (deprecated):
+```yaml
+tracking_uri: "file://./mlruns"  # Still works, but shows deprecation warning
+```
+
+**Remote Backends** (team collaboration, production):
 ```yaml
 # PostgreSQL (team collaboration)
 tracking_uri: "postgresql://user:pass@db.example.com/mlflow"
@@ -218,38 +252,69 @@ tracking_uri: "databricks://workspace"
 
 ## Configuration Reference
 
-### Full Schema
+### Full Schema (MLflow 3.9)
 
 ```yaml
 config:
   observability:
     mlflow:
+      # Core settings
       enabled: true                          # Enable tracking (default: false)
-      tracking_uri: "file://./mlruns"        # Storage backend
+      tracking_uri: "sqlite:///mlflow.db"    # Storage backend (default)
       experiment_name: "my_workflows"        # Group related runs
+
+      # MLflow 3.9 features
+      async_logging: true                    # Async trace logging (default: true)
+
+      # Artifact control
+      log_artifacts: true                    # Save artifacts (default: true)
+      artifact_level: "standard"             # minimal | standard | full
+
+      # Optional
       run_name: null                         # Custom run naming (optional)
 ```
-
-**Note**: In v0.1, the config is minimal. Future versions may add options for artifact control, retention policies, and PII redaction.
 
 ### Field Descriptions
 
 **enabled** (bool, default: `false`):
 - Master switch for observability
 - If disabled, no performance overhead
+- MLflow 3.9 auto-tracing activates when enabled
 
-**tracking_uri** (str, default: `"file://./mlruns"`):
+**tracking_uri** (str, default: `"sqlite:///mlflow.db"`):
 - Where to store tracking data
-- Local: `file://./mlruns`
-- Remote: `postgresql://...`, `s3://...`, `databricks://...`
+- **Recommended**: `sqlite:///mlflow.db` (default in 3.9)
+- **Deprecated**: `file://./mlruns` (still works, but shows warning)
+- **Remote**: `postgresql://...`, `s3://...`, `databricks://...`
 
 **experiment_name** (str, default: `"configurable_agents"`):
 - Logical grouping for runs
 - Use meaningful names: `"production"`, `"testing"`, `"team_data_science"`
+- All runs in same experiment are comparable
+
+**async_logging** (bool, default: `true`):
+- **NEW in MLflow 3.9**: Enable async trace logging
+- Zero-latency production mode (non-blocking I/O)
+- 20+ concurrent workers, 2000-item queue, automatic retry
+- Traces appear in UI with < 1s delay
+- Set to `false` for tests or if you need synchronous guarantees
+
+**log_artifacts** (bool, default: `true`):
+- Save artifacts (cost summaries, traces)
+- Disable to reduce storage usage
+- Even when disabled, metrics are still logged
+
+**artifact_level** (str, default: `"standard"`):
+- Control artifact verbosity:
+  - `"minimal"`: Only cost summary
+  - `"standard"`: Cost summary + basic traces
+  - `"full"`: Everything (prompts, responses, intermediate outputs)
+- Higher levels = more storage, better debugging
 
 **run_name** (str, optional):
 - Template for individual run names
 - If not specified, MLFlow generates timestamp-based names
+- Example: `"workflow_{workflow_name}_{timestamp}"`
 
 ### Enterprise Hooks (v0.2+)
 
@@ -257,74 +322,142 @@ config:
 - Automatically delete runs older than N days
 - Useful for compliance (GDPR, data retention policies)
 - Example: `retention_days: 90` (keep 3 months)
+- Not enforced in v0.1 (design hook)
 
 **redact_pii** (bool, default: `false`):
 - Sanitize personally identifiable information before logging
 - Uses regex/NER to detect PII in inputs/outputs
 - Example: Email addresses, phone numbers, SSNs
+- Not enforced in v0.1 (design hook)
 
-**Note**: These are design hooks for future enterprise features. Not enforced in v0.1.
+**Note**: Enterprise hooks are placeholders for future features.
 
 ---
 
 ## What Gets Tracked
 
-### Workflow-Level Metrics
+### MLflow 3.9 Automatic Tracking
 
-**Parameters** (configuration):
-- `workflow_name`: `"article_writer"`
-- `workflow_version`: `"1.0.0"`
-- `schema_version`: `"1.0"`
-- `global_model`: `"gemini-1.5-flash"`
-- `global_temperature`: `0.7`
+**MLflow 3.9 automatically captures** (via `mlflow.langchain.autolog()`):
+- ✅ Workflow execution traces (entire workflow as root span)
+- ✅ Node execution spans (each node as child span)
+- ✅ Token usage (from LLM responses, per span)
+- ✅ Model names (gemini-1.5-flash, etc.)
+- ✅ Execution timestamps and durations
+- ✅ LLM tool calls (if tools used)
 
-**Metrics** (measurements):
-- `duration_seconds`: `5.2`
-- `total_input_tokens`: `150`
-- `total_output_tokens`: `500`
-- `total_cost_usd`: `0.0023`
-- `node_count`: `2`
-- `retry_count`: `0`
-- `status`: `1` (1 = success, 0 = failure)
+**We additionally compute**:
+- ✅ Cost breakdown (per node, using token usage)
+- ✅ Workflow metrics (total tokens, total cost)
+- ✅ Cost summary artifact (JSON with detailed breakdown)
 
-**Artifacts** (files):
-- `inputs.json`: Workflow inputs
-- `outputs.json`: Workflow outputs
-- `error.json`: Error details if workflow failed
-
-### Node-Level Traces (Nested Runs)
-
-Each node execution creates a nested MLFlow run:
-
-**Parameters**:
-- `node_id`: `"write"`
-- `node_model`: `"gemini-1.5-flash"` (if overridden)
-- `tools`: `"[]"` (or list of tools used)
-
-**Metrics**:
-- `node_duration_ms`: `2100`
-- `input_tokens`: `150`
-- `output_tokens`: `500`
-- `node_cost_usd`: `0.0015`
-- `retries`: `0`
-
-**Artifacts** (files):
-- `prompt.txt`: Full resolved prompt template
-- `response.txt`: Full raw LLM response (JSON formatted)
-
-### Example Trace Hierarchy
+### Trace Structure (MLflow 3.9 Span Model)
 
 ```
-Workflow: article_writer (5.2s)
-├─ params: workflow_name=article_writer, global_model=gemini-1.5-flash
-├─ metrics: duration_seconds=5.2, cost_usd=0.0023
-├─ artifacts: inputs.json, outputs.json
-└─ nested_runs:
-    ├─ Node: write (2.1s)
-    │   ├─ params: node_id=write, tools=[]
-    │   ├─ metrics: node_duration_ms=2100, input_tokens=150, output_tokens=500
-    │   └─ artifacts: prompt.txt, response.txt
+Trace: workflow_article_writer
+├─ Span Type: WORKFLOW
+├─ Attributes:
+│  ├─ workflow_name: "article_writer"
+│  ├─ workflow_version: "1.0.0"
+│  └─ node_count: 2
+├─ Spans (children):
+│  ├─ Span: research_node
+│  │  ├─ Span Type: AGENT
+│  │  ├─ Attributes:
+│  │  │  ├─ ai.model.name: "gemini-1.5-flash"
+│  │  │  └─ mlflow.chat.tokenUsage:  ← Automatic!
+│  │  │     ├─ prompt_tokens: 150
+│  │  │     ├─ completion_tokens: 500
+│  │  │     └─ total_tokens: 650
+│  │  └─ Duration: 2100ms
+│  └─ Span: write_node
+│     ├─ Span Type: AGENT
+│     ├─ Attributes:
+│     │  ├─ ai.model.name: "gemini-1.5-flash"
+│     │  └─ mlflow.chat.tokenUsage:  ← Automatic!
+│     │     ├─ prompt_tokens: 200
+│     │     ├─ completion_tokens: 600
+│     │     └─ total_tokens: 800
+│     └─ Duration: 3000ms
 ```
+
+### Workflow-Level Metrics (Logged by Framework)
+
+**Metrics** (numeric):
+- `total_cost_usd`: `0.0023` - Total workflow cost
+- `total_tokens`: `1450` - Total tokens across all nodes
+- `prompt_tokens`: `350` - Input tokens
+- `completion_tokens`: `1100` - Output tokens
+- `node_count`: `2` - Number of nodes executed
+
+**Artifacts** (files):
+- `cost_summary.json`: Detailed cost breakdown per node
+
+### Per-Node Tracking (Automatic via Spans)
+
+**Captured automatically by MLflow 3.9**:
+- Span name: Node ID
+- Span type: `AGENT`
+- Start/end timestamps
+- Duration (nanoseconds)
+- Token usage in `mlflow.chat.tokenUsage` attribute
+- Model name in `ai.model.name` attribute
+- Tool calls in `mlflow.tool` attributes (if tools used)
+
+**Computed by framework**:
+- Per-node cost (from token usage + pricing table)
+- Per-node duration (milliseconds)
+
+### Example Cost Summary Artifact
+
+```json
+{
+  "trace_id": "abc123...",
+  "workflow_name": "article_writer",
+  "workflow_version": "1.0.0",
+  "total_tokens": {
+    "prompt_tokens": 350,
+    "completion_tokens": 1100,
+    "total_tokens": 1450
+  },
+  "total_cost_usd": 0.0023,
+  "node_breakdown": {
+    "research_node": {
+      "tokens": {
+        "prompt_tokens": 150,
+        "completion_tokens": 500,
+        "total_tokens": 650
+      },
+      "cost_usd": 0.0015,
+      "model": "gemini-1.5-flash",
+      "duration_ms": 2100
+    },
+    "write_node": {
+      "tokens": {
+        "prompt_tokens": 200,
+        "completion_tokens": 600,
+        "total_tokens": 800
+      },
+      "cost_usd": 0.0020,
+      "model": "gemini-1.5-flash",
+      "duration_ms": 3000
+    }
+  }
+}
+```
+
+### What's Different from Pre-3.9?
+
+**Old (Pre-3.9)**: Nested MLflow runs
+- Workflow = Parent run
+- Nodes = Nested child runs
+- Manual tracking code required
+
+**New (3.9+)**: Trace & Span model
+- Workflow = Root span (type: WORKFLOW)
+- Nodes = Child spans (type: AGENT)
+- Automatic tracking via `autolog()`
+- Better visualization in MLflow UI
 
 ---
 
@@ -699,6 +832,85 @@ inputs = {
 
 ---
 
+## Migration from Pre-3.9
+
+### For Config File Users (Most Users)
+
+**Good news**: No changes required! Your configs continue to work.
+
+MLflow 3.9 is **backward compatible** for config files:
+
+```yaml
+# This config works with both pre-3.9 and 3.9+
+config:
+  observability:
+    mlflow:
+      enabled: true
+```
+
+**Optional improvements**:
+1. Switch to SQLite backend: `tracking_uri: "sqlite:///mlflow.db"`
+2. Enable async logging: `async_logging: true`
+
+See [docs/MLFLOW_39_USER_MIGRATION_GUIDE.md](MLFLOW_39_USER_MIGRATION_GUIDE.md) for detailed migration instructions.
+
+### For Python API Users
+
+If you were using the Python API directly (rare), APIs have changed:
+
+**Removed**:
+- ❌ `tracker.track_workflow()` - No longer needed (automatic)
+- ❌ `tracker.track_node()` - No longer needed (automatic)
+- ❌ `tracker.log_node_metrics()` - Captured automatically
+- ❌ `tracker.finalize_workflow()` - No longer needed
+
+**New APIs**:
+- ✅ `tracker.get_trace_decorator(name, **attrs)` - Get @mlflow.trace decorator
+- ✅ `tracker.get_workflow_cost_summary()` - Get cost breakdown from traces
+- ✅ `tracker.log_workflow_summary(cost_summary)` - Log metrics to MLflow
+
+**Migration example**:
+
+```python
+# OLD (Pre-3.9) - Don't use
+with tracker.track_workflow(inputs):
+    with tracker.track_node("node1", "gemini-1.5-flash"):
+        result = llm.invoke(prompt)
+        tracker.log_node_metrics(tokens=100, ...)
+    tracker.finalize_workflow(state, status="success")
+
+# NEW (3.9+) - Just enable tracker
+tracker = MLFlowTracker(config, workflow_config)
+
+# Define traced function
+@tracker.get_trace_decorator("workflow", workflow_name="test")
+def execute():
+    return graph.invoke(state)
+
+# Execute (tracing happens automatically)
+result = execute()
+
+# Get cost summary
+cost_summary = tracker.get_workflow_cost_summary()
+tracker.log_workflow_summary(cost_summary)
+```
+
+### Data Migration
+
+**Old traces are preserved**:
+- File-based runs in `file://./mlruns` remain accessible
+- MLflow 3.9 can query old runs
+- Historical data is not lost
+
+**New traces use new format**:
+- Span/trace model (not nested runs)
+- Stored in same backend
+- Queries work across both formats
+
+**No action required**: Old and new traces coexist in same backend.
+
+---
+
 ## OpenTelemetry (v0.2)
 
 **Status**: Planned for v0.2 (Q2 2026)
@@ -1045,4 +1257,4 @@ CMD mlflow ui --host 0.0.0.0 --port 5000
 
 ---
 
-**Last Updated**: 2026-01-30
+**Last Updated**: 2026-02-02 (MLflow 3.9 migration)
