@@ -1,28 +1,33 @@
 """SQLite implementation of storage repository interfaces.
 
-Provides concrete implementations of AbstractWorkflowRunRepository and
-AbstractExecutionStateRepository using SQLAlchemy 2.0 with SQLite backend.
+Provides concrete implementations of AbstractWorkflowRunRepository,
+AbstractExecutionStateRepository, AgentRegistryRepository, and
+ChatSessionRepository using SQLAlchemy 2.0 with SQLite backend.
 
 All database operations use context manager pattern for automatic
 transaction handling and connection cleanup.
 """
 
 import json
+import uuid
 from datetime import datetime
 from typing import Any, Dict, List, Optional
 
-from sqlalchemy import Engine, Select, create_engine, select
+from sqlalchemy import Engine, Select, create_engine, select, text
 from sqlalchemy.orm import Session
 
 from configurable_agents.storage.base import (
     AbstractExecutionStateRepository,
     AbstractWorkflowRunRepository,
     AgentRegistryRepository,
+    ChatSessionRepository,
 )
 from configurable_agents.storage.models import (
     ExecutionStateRecord,
     WorkflowRunRecord,
     AgentRecord,
+    ChatSession,
+    ChatMessage,
 )
 
 
@@ -409,3 +414,174 @@ class SqliteAgentRegistryRepository(AgentRegistryRepository):
 
             session.commit()
             return count
+
+
+class SQLiteChatSessionRepository(ChatSessionRepository):
+    """SQLite implementation of chat session repository.
+
+    Provides CRUD operations for ChatSession and ChatMessage using
+    SQLite backend. Uses context managers for automatic transaction
+    handling.
+
+    Attributes:
+        engine: SQLAlchemy Engine instance for database connections
+    """
+
+    def __init__(self, engine: Engine) -> None:
+        """Initialize repository with database engine.
+
+        Args:
+            engine: SQLAlchemy Engine instance (created by factory)
+        """
+        self.engine = engine
+
+        # Enable WAL mode for concurrent access
+        self._enable_wal_mode()
+
+    def _enable_wal_mode(self) -> None:
+        """Enable WAL mode for better concurrent access.
+
+        WAL (Write-Ahead Logging) allows concurrent reads and writes,
+        which is important for multi-user chat sessions.
+        """
+        with self.engine.connect() as conn:
+            conn.execute(text("PRAGMA journal_mode=WAL"))
+            conn.commit()
+
+    def create_session(self, user_identifier: str) -> str:
+        """Create a new chat session.
+
+        Args:
+            user_identifier: Browser fingerprint or IP for session tracking
+
+        Returns:
+            session_id: UUID of the created session
+        """
+        session_id = str(uuid.uuid4())
+
+        with Session(self.engine) as session:
+            chat_session = ChatSession(
+                session_id=session_id,
+                user_identifier=user_identifier,
+                status="in_progress",
+            )
+            session.add(chat_session)
+            session.commit()
+
+        return session_id
+
+    def get_session(self, session_id: str) -> Optional[Dict[str, Any]]:
+        """Get a session by ID.
+
+        Args:
+            session_id: UUID of the session
+
+        Returns:
+            Dictionary with session data if found, None otherwise
+        """
+        with Session(self.engine) as session:
+            chat_session = session.get(ChatSession, session_id)
+            if chat_session is None:
+                return None
+            return chat_session.to_dict()
+
+    def add_message(
+        self,
+        session_id: str,
+        role: str,
+        content: str,
+        metadata: Optional[Dict[str, Any]] = None,
+    ) -> None:
+        """Add a message to a session.
+
+        Args:
+            session_id: UUID of the session
+            role: Message role ("user" or "assistant")
+            content: Message content
+            metadata: Optional JSON metadata (model, tokens, etc.)
+
+        Raises:
+            ValueError: If session_id not found
+        """
+        with Session(self.engine) as session:
+            # Verify session exists
+            chat_session = session.get(ChatSession, session_id)
+            if chat_session is None:
+                raise ValueError(f"Chat session not found: {session_id}")
+
+            # Create message
+            message = ChatMessage(
+                session_id=session_id,
+                role=role,
+                content=content,
+                message_metadata=json.dumps(metadata) if metadata else None,
+            )
+            session.add(message)
+
+            # Update session's updated_at timestamp
+            chat_session.updated_at = datetime.utcnow()
+
+            session.commit()
+
+    def get_messages(self, session_id: str) -> List[Dict[str, Any]]:
+        """Get all messages for a session.
+
+        Args:
+            session_id: UUID of the session
+
+        Returns:
+            List of message dictionaries ordered by created_at ASC
+        """
+        with Session(self.engine) as session:
+            stmt: Select[ChatMessage] = (
+                select(ChatMessage)
+                .where(ChatMessage.session_id == session_id)
+                .order_by(ChatMessage.created_at.asc())
+            )
+            messages = list(session.scalars(stmt).all())
+
+            return [m.to_dict() for m in messages]
+
+    def update_config(self, session_id: str, config_yaml: str) -> None:
+        """Save generated config to session.
+
+        Args:
+            session_id: UUID of the session
+            config_yaml: Generated YAML configuration
+
+        Raises:
+            ValueError: If session_id not found
+        """
+        with Session(self.engine) as session:
+            chat_session = session.get(ChatSession, session_id)
+            if chat_session is None:
+                raise ValueError(f"Chat session not found: {session_id}")
+
+            chat_session.generated_config = config_yaml
+            chat_session.status = "completed"
+            chat_session.updated_at = datetime.utcnow()
+
+            session.commit()
+
+    def list_recent_sessions(
+        self, user_identifier: str, limit: int = 10
+    ) -> List[Dict[str, Any]]:
+        """List recent sessions for a user.
+
+        Args:
+            user_identifier: User's identifier
+            limit: Maximum number of sessions to return
+
+        Returns:
+            List of session dictionaries ordered by updated_at DESC
+        """
+        with Session(self.engine) as session:
+            stmt: Select[ChatSession] = (
+                select(ChatSession)
+                .where(ChatSession.user_identifier == user_identifier)
+                .order_by(ChatSession.updated_at.desc())
+                .limit(limit)
+            )
+            sessions = list(session.scalars(stmt).all())
+
+            return [s.to_dict() for s in sessions]

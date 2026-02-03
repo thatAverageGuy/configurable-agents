@@ -4,8 +4,9 @@ Defines the database schema for workflow runs and execution state tracking.
 Uses SQLAlchemy 2.0 DeclarativeBase pattern with Mapped/mapped_column syntax.
 """
 
+import json
 from datetime import datetime, timedelta
-from typing import Optional
+from typing import Any, Dict, Optional
 
 from sqlalchemy import DateTime, Float, ForeignKey, Integer, String, Text
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
@@ -137,3 +138,88 @@ class AgentRecord(Base):
         ttl = self.ttl_seconds if self.ttl_seconds is not None else 60
         expiration_time = self.last_heartbeat + timedelta(seconds=ttl)
         return datetime.utcnow() < expiration_time
+
+
+class ChatSession(Base):
+    """ORM model for chat session storage.
+
+    Tracks a user's conversation history across multiple messages
+    for config generation. Sessions persist to enable context-aware
+    config generation and cross-device recovery.
+
+    Attributes:
+        session_id: UUID primary key for the session
+        user_identifier: Browser fingerprint or IP for session continuity
+        created_at: When the session was created
+        updated_at: Last message timestamp (auto-updated)
+        generated_config: Final YAML config (null until generated)
+        status: Session status ("in_progress", "completed", "abandoned")
+    """
+
+    __tablename__ = "chat_sessions"
+
+    session_id: Mapped[str] = mapped_column(String(36), primary_key=True)
+    user_identifier: Mapped[str] = mapped_column(String(256), index=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime, default=datetime.utcnow, onupdate=datetime.utcnow
+    )
+    generated_config: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    status: Mapped[str] = mapped_column(String(32), default="in_progress")
+
+    def to_dict(self) -> Dict[str, Any]:
+        """Convert session to dictionary representation.
+
+        Returns:
+            Dictionary with session data
+        """
+        return {
+            "session_id": self.session_id,
+            "user_identifier": self.user_identifier,
+            "created_at": self.created_at.isoformat() if self.created_at else None,
+            "updated_at": self.updated_at.isoformat() if self.updated_at else None,
+            "generated_config": self.generated_config,
+            "status": self.status,
+        }
+
+
+class ChatMessage(Base):
+    """ORM model for individual chat messages.
+
+    Stores user and assistant messages in order within a session.
+    Each message is part of a ChatSession.
+
+    Attributes:
+        id: Auto-increment primary key
+        session_id: Foreign key to chat_sessions.session_id
+        role: Message role ("user" or "assistant")
+        content: Message content text
+        created_at: When the message was created
+        metadata: JSON blob for LLM metadata (model, tokens, cost, etc.)
+    """
+
+    __tablename__ = "chat_messages"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    session_id: Mapped[str] = mapped_column(
+        String(36), ForeignKey("chat_sessions.session_id")
+    )
+    role: Mapped[str] = mapped_column(String(32))  # "user" or "assistant"
+    content: Mapped[str] = mapped_column(Text)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+    message_metadata: Mapped[Optional[str]] = mapped_column(Text, nullable=True)  # JSON (renamed from 'metadata' to avoid SQLAlchemy reserved word)
+
+    def to_dict(self) -> Dict[str, Any]:
+        """Convert message to dictionary representation.
+
+        Returns:
+            Dictionary with message data including parsed metadata
+        """
+        return {
+            "id": self.id,
+            "session_id": self.session_id,
+            "role": self.role,
+            "content": self.content,
+            "created_at": self.created_at.isoformat() if self.created_at else None,
+            "metadata": json.loads(self.message_metadata) if self.message_metadata else None,
+        }

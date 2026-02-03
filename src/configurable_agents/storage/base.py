@@ -13,7 +13,8 @@ from datetime import datetime
 from typing import Any, Dict, List, Optional
 
 # Forward declarations for ORM models (avoiding circular import)
-# WorkflowRunRecord, ExecutionStateRecord, and AgentRecord are defined in models.py
+# WorkflowRunRecord, ExecutionStateRecord, AgentRecord, ChatSession, and ChatMessage
+# are defined in models.py
 
 
 class AgentRegistryRepository(ABC):
@@ -272,5 +273,107 @@ class AbstractExecutionStateRepository(ABC):
             - state_data: The state dictionary (parsed from JSON)
             - created_at: Timestamp when checkpoint was saved
             Ordered by created_at ASC (oldest first)
+        """
+        raise NotImplementedError
+
+
+class ChatSessionRepository(ABC):
+    """Abstract repository for chat session persistence.
+
+    Provides CRUD operations for chat sessions and messages used by
+    the Gradio config generation UI. Supports conversation history
+    persistence across browser sessions.
+
+    Methods:
+        create_session: Create a new chat session
+        get_session: Retrieve a session by ID
+        add_message: Add a message to a session
+        get_messages: Get all messages for a session
+        update_config: Save generated config to session
+        list_recent_sessions: List recent sessions for a user
+    """
+
+    @abstractmethod
+    def create_session(self, user_identifier: str) -> str:
+        """Create a new chat session.
+
+        Args:
+            user_identifier: Browser fingerprint or IP for session tracking
+
+        Returns:
+            session_id: UUID of the created session
+        """
+        raise NotImplementedError
+
+    @abstractmethod
+    def get_session(self, session_id: str) -> Optional[Dict[str, Any]]:
+        """Get a session by ID.
+
+        Args:
+            session_id: UUID of the session
+
+        Returns:
+            Dictionary with session data if found, None otherwise
+        """
+        raise NotImplementedError
+
+    @abstractmethod
+    def add_message(
+        self,
+        session_id: str,
+        role: str,
+        content: str,
+        metadata: Optional[Dict[str, Any]] = None,
+    ) -> None:
+        """Add a message to a session.
+
+        Args:
+            session_id: UUID of the session
+            role: Message role ("user" or "assistant")
+            content: Message content
+            metadata: Optional JSON metadata (model, tokens, etc.)
+
+        Raises:
+            ValueError: If session_id not found
+        """
+        raise NotImplementedError
+
+    @abstractmethod
+    def get_messages(self, session_id: str) -> List[Dict[str, Any]]:
+        """Get all messages for a session.
+
+        Args:
+            session_id: UUID of the session
+
+        Returns:
+            List of message dictionaries ordered by created_at ASC
+        """
+        raise NotImplementedError
+
+    @abstractmethod
+    def update_config(self, session_id: str, config_yaml: str) -> None:
+        """Save generated config to session.
+
+        Args:
+            session_id: UUID of the session
+            config_yaml: Generated YAML configuration
+
+        Raises:
+            ValueError: If session_id not found
+        """
+        raise NotImplementedError
+
+    @abstractmethod
+    def list_recent_sessions(
+        self, user_identifier: str, limit: int = 10
+    ) -> List[Dict[str, Any]]:
+        """List recent sessions for a user.
+
+        Args:
+            user_identifier: User's identifier
+            limit: Maximum number of sessions to return
+
+        Returns:
+            List of session dictionaries ordered by updated_at DESC
         """
         raise NotImplementedError

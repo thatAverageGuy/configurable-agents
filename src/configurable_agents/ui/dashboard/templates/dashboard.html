@@ -1,0 +1,65 @@
+{% extends "base.html" %}
+
+{% block title %}Dashboard - Configurable Agents{% endblock %}
+
+{% block nav_dashboard %}class="active"{% endblock %}
+
+{% block content %}
+<div class="dashboard-container">
+    <header class="page-header">
+        <h1>Dashboard</h1>
+        <p class="subtitle">Real-time workflow and agent monitoring</p>
+    </header>
+
+    <!-- Summary Cards -->
+    <div class="summary-cards" hx-get="/dashboard/summary" hx-trigger="load, every 10s" hx-swap="outerHTML">
+        <div class="card">
+            <div class="card-icon workflows-icon"></div>
+            <div class="card-content">
+                <div class="card-label">Total Workflows</div>
+                <div class="card-value">{{ total_workflows }}</div>
+            </div>
+        </div>
+
+        <div class="card">
+            <div class="card-icon running-icon"></div>
+            <div class="card-content">
+                <div class="card-label">Running</div>
+                <div class="card-value">{{ running_workflows }}</div>
+            </div>
+        </div>
+
+        <div class="card">
+            <div class="card-icon agents-icon"></div>
+            <div class="card-content">
+                <div class="card-label">Registered Agents</div>
+                <div class="card-value">{{ registered_agents }}</div>
+            </div>
+        </div>
+
+        <div class="card">
+            <div class="card-icon cost-icon"></div>
+            <div class="card-content">
+                <div class="card-label">Total Cost</div>
+                <div class="card-value">${{ "%.6f"|format(total_cost) }}</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Quick Links -->
+    <div class="quick-links">
+        <a href="/workflows" class="quick-link">
+            <h3>View Workflows</h3>
+            <p>See all workflow runs with status and metrics</p>
+        </a>
+        <a href="/agents" class="quick-link">
+            <h3>View Agents</h3>
+            <p>Check registered agents and health status</p>
+        </a>
+        <a href="/mlflow" class="quick-link">
+            <h3>MLFlow UI</h3>
+            <p>Access detailed experiment tracking</p>
+        </a>
+    </div>
+</div>
+{% endblock %}
