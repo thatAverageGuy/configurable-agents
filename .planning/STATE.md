@@ -10,9 +10,9 @@ See: .planning/PROJECT.md (updated 2026-02-02)
 ## Current Position
 
 Phase: 2 of 4 (Agent Infrastructure)
-Plan: 02B of 6 in current phase
+Plan: 01B of 6 in current phase
 Status: Plan complete
-Last activity: 2026-02-03 -- Completed 02-02B-PLAN.md (Performance Profiling and Bottleneck Detection)
+Last activity: 2026-02-03 -- Completed 02-01B-PLAN.md (Agent Registry Client and Deployment Generator Integration)
 
 Progress: [###       ]  3/12 plans complete (25%)
 
@@ -76,6 +76,12 @@ Recent decisions affecting current work:
 - [02-02B]: Per-node timing captured via time.perf_counter() in decorator with try/finally
 - [02-02B]: MLFlow metrics: node_{node_id}_duration_ms and node_{node_id}_cost_usd
 - [02-02B]: bottleneck_info JSON field in WorkflowRunRecord for historical analysis
+- [02-01B]: Heartbeat interval default (20s) is ~1/3 of TTL (60s) for reliable refresh
+- [02-01B]: Retry delay (5s) on heartbeat HTTP errors balances responsiveness with load
+- [02-01B]: Host/port auto-detected from AGENT_HOST/AGENT_PORT env vars with socket.gethostname() fallback
+- [02-01B]: Deregistration is best-effort - errors logged but not raised (agent shutting down)
+- [02-01B]: Conditional code generation via template variables populated or empty based on enable_registry flag
+- [02-01B]: httpx>=0.26.0 used for async HTTP in registry client
 
 ### Pending Todos
 
@@ -88,5 +94,5 @@ None yet.
 ## Session Continuity
 
 Last session: 2026-02-03
-Stopped at: Completed 02-02B-PLAN.md (Performance Profiling and Bottleneck Detection)
+Stopped at: Completed 02-01B-PLAN.md (Agent Registry Client and Deployment Generator Integration)
 Resume file: None
