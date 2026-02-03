@@ -34,6 +34,9 @@ class DeploymentArtifactGenerator:
         sync_timeout: int = 30,
         enable_mlflow: bool = True,
         container_name: str | None = None,
+        enable_registry: bool = False,
+        registry_url: str | None = None,
+        agent_id: str | None = None,
     ) -> Dict[str, Path]:
         """
         Generate all deployment artifacts.
@@ -45,14 +48,21 @@ class DeploymentArtifactGenerator:
             sync_timeout: Sync/async threshold in seconds (default: 30)
             enable_mlflow: Include MLFlow UI in container (default: True)
             container_name: Container/image name (default: workflow name)
+            enable_registry: Enable agent registry integration (default: False)
+            registry_url: URL of agent registry server (required if enable_registry=True)
+            agent_id: Agent ID for registry (default: workflow name)
 
         Returns:
             Dict mapping artifact names to generated file paths
 
         Raises:
             FileNotFoundError: If template files are missing
-            ValueError: If output_dir is not a directory
+            ValueError: If output_dir is not a directory or registry enabled but URL missing
         """
+        # Validate registry parameters
+        if enable_registry and not registry_url:
+            raise ValueError("registry_url is required when enable_registry=True")
+
         # Validate output directory
         output_dir = Path(output_dir)
         output_dir.mkdir(parents=True, exist_ok=True)
@@ -64,6 +74,9 @@ class DeploymentArtifactGenerator:
             sync_timeout=sync_timeout,
             enable_mlflow=enable_mlflow,
             container_name=container_name or self.config.flow.name,
+            enable_registry=enable_registry,
+            registry_url=registry_url or "",
+            agent_id=agent_id or self.config.flow.name,
         )
 
         # Generate artifacts
@@ -122,6 +135,9 @@ class DeploymentArtifactGenerator:
         sync_timeout: int,
         enable_mlflow: bool,
         container_name: str,
+        enable_registry: bool = False,
+        registry_url: str = "",
+        agent_id: str = "",
     ) -> Dict[str, Any]:
         """
         Build template variable dictionary.
@@ -132,6 +148,9 @@ class DeploymentArtifactGenerator:
             sync_timeout: Sync/async threshold in seconds
             enable_mlflow: Include MLFlow UI
             container_name: Container/image name
+            enable_registry: Enable agent registry integration
+            registry_url: Agent registry server URL
+            agent_id: Agent ID for registry
 
         Returns:
             Dictionary of template variables for substitution
@@ -158,6 +177,54 @@ class DeploymentArtifactGenerator:
         # Package version (read from pyproject.toml or default)
         package_version = self._get_package_version()
 
+        # Registry-related template variables
+        # Generate code blocks that are either populated or empty based on enable_registry
+        if enable_registry:
+            registry_import = "from configurable_agents.registry import AgentRegistryClient"
+            heartbeat_interval = 20  # Default: TTL (60) / 3
+            registry_client_init = f"""# Agent registry client
+registry_client = AgentRegistryClient(
+    registry_url="{registry_url}",
+    agent_id="{agent_id}",
+    ttl_seconds=60,
+    heartbeat_interval={heartbeat_interval},
+)"""
+            registry_startup_handler = """@app.on_event("startup")
+async def registry_startup():
+    '''Register with agent registry and start heartbeat loop.'''
+    try:
+        await registry_client.register()
+        await registry_client.start_heartbeat_loop()
+        print(f"Registered agent '{agent_id}' with registry at {registry_url}")
+    except Exception as e:
+        print(f"Warning: Failed to register with agent registry: {e}")"""
+            registry_shutdown_handler = """@app.on_event("shutdown")
+async def registry_shutdown():
+    '''Deregister from agent registry on shutdown.'''
+    try:
+        await registry_client.deregister()
+        print(f"Deregistered agent '{agent_id}' from registry")
+    except Exception as e:
+        print(f"Warning: Failed to deregister from agent registry: {e}")"""
+            health_check_endpoints = """
+
+@app.get("/health/live")
+async def health_live():
+    '''Liveness probe - agent is running.'''
+    return {"status": "alive"}
+
+
+@app.get("/health/ready")
+async def health_ready():
+    '''Readiness probe - agent is ready to accept requests.'''
+    return {"status": "ready"}"""
+        else:
+            registry_import = ""
+            registry_client_init = "# Agent registry disabled"
+            registry_startup_handler = ""
+            registry_shutdown_handler = ""
+            health_check_endpoints = ""
+
         return {
             "workflow_name": workflow_name,
             "workflow_version": workflow_version,
@@ -170,6 +237,13 @@ class DeploymentArtifactGenerator:
             "example_input": example_input,
             "package_version": package_version,
             "generated_at": datetime.utcnow().isoformat() + "Z",
+            # Registry variables
+            "registry_enabled": str(enable_registry).lower(),
+            "registry_import": registry_import,
+            "registry_client_init": registry_client_init,
+            "registry_startup_handler": registry_startup_handler,
+            "registry_shutdown_handler": registry_shutdown_handler,
+            "health_check_endpoints": health_check_endpoints,
         }
 
     def _build_example_input(self) -> str:
@@ -359,6 +433,9 @@ def generate_deployment_artifacts(
     sync_timeout: int = 30,
     enable_mlflow: bool = True,
     container_name: str | None = None,
+    enable_registry: bool = False,
+    registry_url: str | None = None,
+    agent_id: str | None = None,
 ) -> Dict[str, Path]:
     """
     Generate Docker deployment artifacts from workflow config.
@@ -373,6 +450,9 @@ def generate_deployment_artifacts(
         sync_timeout: Sync/async threshold in seconds (default: 30)
         enable_mlflow: Include MLFlow UI in container (default: True)
         container_name: Container/image name (default: workflow name)
+        enable_registry: Enable agent registry integration (default: False)
+        registry_url: URL of agent registry server (required if enable_registry=True)
+        agent_id: Agent ID for registry (default: workflow name)
 
     Returns:
         Dict mapping artifact names to generated file paths
@@ -380,6 +460,7 @@ def generate_deployment_artifacts(
     Raises:
         FileNotFoundError: If config file or templates are missing
         ValidationError: If workflow config is invalid
+        ValueError: If registry enabled but URL missing
 
     Example:
         >>> artifacts = generate_deployment_artifacts(
@@ -408,6 +489,9 @@ def generate_deployment_artifacts(
         sync_timeout=sync_timeout,
         enable_mlflow=enable_mlflow,
         container_name=container_name,
+        enable_registry=enable_registry,
+        registry_url=registry_url,
+        agent_id=agent_id,
     )
 
     return artifacts
