@@ -29,6 +29,10 @@ from urllib.parse import urlparse
 
 from configurable_agents.config import ObservabilityMLFlowConfig, WorkflowConfig
 from configurable_agents.observability.cost_estimator import CostEstimator
+from configurable_agents.observability.multi_provider_tracker import (
+    MultiProviderCostTracker,
+    _extract_provider,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -88,6 +92,7 @@ class MLFlowTracker:
         self.mlflow_config = mlflow_config
         self.workflow_config = workflow_config
         self.cost_estimator = CostEstimator()
+        self.cost_tracker = MultiProviderCostTracker(mlflow_tracker=self)
 
         if self.enabled:
             self._initialize_mlflow_39()
@@ -248,12 +253,61 @@ class MLFlowTracker:
             attributes=attributes,
         )
 
+    def track_provider_call(
+        self, provider: str, model: str, response: Any
+    ) -> Dict[str, Any]:
+        """Track an LLM call with provider-aware cost tracking.
+
+        Delegates to MultiProviderCostTracker for token extraction and cost calculation.
+        Logs provider/model metrics to MLFlow when active run exists.
+
+        Args:
+            provider: Provider name (e.g., "openai", "anthropic", "google", "ollama")
+            model: Model name (e.g., "gpt-4o", "claude-3-opus", "gemini-pro")
+            response: LLM response object (LiteLLM response or provider response)
+
+        Returns:
+            Dict with: input_tokens, output_tokens, total_tokens, cost_usd, provider, model
+
+        Example:
+            >>> result = tracker.track_provider_call(
+            ...     provider="openai",
+            ...     model="gpt-4o",
+            ...     response=llm_response
+            ... )
+            >>> print(f"Cost: ${result['cost_usd']:.6f}")
+        """
+        # Delegate to cost tracker
+        result = self.cost_tracker.track_call(provider, model, response)
+
+        # Log to MLFlow if active run exists
+        if self.enabled and mlflow.active_run():
+            try:
+                # Log provider/model-specific metrics
+                mlflow.log_metrics({
+                    f"provider_{provider}_cost_usd": result["cost_usd"],
+                    f"provider_{provider}_tokens": result["total_tokens"],
+                    f"provider_{provider}_input_tokens": result["input_tokens"],
+                    f"provider_{provider}_output_tokens": result["output_tokens"],
+                })
+
+                # Log params for provider/model context
+                mlflow.log_params({
+                    f"last_call_provider": provider,
+                    f"last_call_model": model,
+                })
+
+            except Exception as e:
+                logger.warning(f"Failed to log provider call to MLFlow: {e}")
+
+        return result
+
     def get_workflow_cost_summary(self, trace_id: Optional[str] = None) -> Dict[str, Any]:
         """
         Calculate cost summary from trace token usage.
 
         Extracts token usage from MLflow trace metadata and calculates costs
-        using the CostEstimator. Provides both total and per-node breakdown.
+        using the CostEstimator. Provides total, per-node, and by_provider breakdown.
 
         Args:
             trace_id: Trace ID (default: get latest from current experiment)
@@ -263,13 +317,14 @@ class MLFlowTracker:
             - total_tokens: Total tokens used
             - total_cost_usd: Total estimated cost
             - node_breakdown: Per-node cost details
+            - by_provider: Per-provider cost breakdown (provider -> {cost, tokens, calls})
             - trace_id: Trace identifier
 
         Example:
             >>> cost = tracker.get_workflow_cost_summary()
             >>> print(f"Cost: ${cost['total_cost_usd']:.6f}")
-            >>> for node_id, details in cost['node_breakdown'].items():
-            ...     print(f"{node_id}: ${details['cost_usd']:.6f}")
+            >>> for provider, data in cost['by_provider'].items():
+            ...     print(f"{provider}: ${data['total_cost_usd']:.6f}")
         """
         if not self.enabled:
             return {}
@@ -304,6 +359,9 @@ class MLFlowTracker:
             node_costs = {}
             total_cost = 0.0
 
+            # Provider aggregation for by_provider breakdown
+            provider_costs: Dict[str, Dict[str, Any]] = {}
+
             for span in trace.data.spans:
                 # Get token usage from span attributes
                 span_attrs = span.attributes or {}
@@ -313,6 +371,9 @@ class MLFlowTracker:
                     model = span_attrs.get("ai.model.name", "unknown")
                     prompt_tokens = token_usage.get("prompt_tokens", 0)
                     completion_tokens = token_usage.get("completion_tokens", 0)
+
+                    # Extract provider from model name
+                    provider = _extract_provider(model)
 
                     cost = self.cost_estimator.estimate_cost(
                         model=model,
@@ -324,11 +385,27 @@ class MLFlowTracker:
                         "tokens": token_usage,
                         "cost_usd": cost,
                         "model": model,
+                        "provider": provider,
                         "duration_ms": (span.end_time_ns - span.start_time_ns) / 1_000_000
                         if span.end_time_ns and span.start_time_ns
                         else 0,
                     }
                     total_cost += cost
+
+                    # Aggregate by provider
+                    if provider not in provider_costs:
+                        provider_costs[provider] = {
+                            "total_cost_usd": 0.0,
+                            "total_tokens": 0,
+                            "input_tokens": 0,
+                            "output_tokens": 0,
+                            "calls": 0,
+                        }
+                    provider_costs[provider]["total_cost_usd"] += cost
+                    provider_costs[provider]["total_tokens"] += token_usage.get("total_tokens", 0)
+                    provider_costs[provider]["input_tokens"] += prompt_tokens
+                    provider_costs[provider]["output_tokens"] += completion_tokens
+                    provider_costs[provider]["calls"] += 1
 
             # Get total tokens from trace or sum from nodes
             if not total_tokens:
@@ -338,10 +415,22 @@ class MLFlowTracker:
                     "total_tokens": sum(n["tokens"].get("total_tokens", 0) for n in node_costs.values()),
                 }
 
+            # Build by_provider breakdown
+            by_provider = {}
+            for provider, data in provider_costs.items():
+                by_provider[provider] = {
+                    "total_cost_usd": round(data["total_cost_usd"], 6),
+                    "total_tokens": data["total_tokens"],
+                    "input_tokens": data["input_tokens"],
+                    "output_tokens": data["output_tokens"],
+                    "calls": data["calls"],
+                }
+
             return {
                 "total_tokens": total_tokens,
                 "total_cost_usd": total_cost,
                 "node_breakdown": node_costs,
+                "by_provider": by_provider,
                 "trace_id": trace.info.trace_id,
                 "workflow_name": self.workflow_config.flow.name,
                 "workflow_version": self.workflow_config.flow.version or "unversioned",
@@ -356,7 +445,8 @@ class MLFlowTracker:
         Log workflow summary metrics to MLflow.
 
         Logs cost and token metrics to the active MLflow run for easy querying
-        and dashboard visualization.
+        and dashboard visualization. Includes per-provider breakdown for
+        multi-provider cost tracking.
 
         Args:
             cost_summary: Cost summary from get_workflow_cost_summary()
@@ -371,23 +461,43 @@ class MLFlowTracker:
         try:
             total_tokens = cost_summary.get("total_tokens", {})
 
-            # Log metrics
-            mlflow.log_metrics({
+            # Log base metrics
+            metrics = {
                 "total_cost_usd": cost_summary.get("total_cost_usd", 0),
                 "total_tokens": total_tokens.get("total_tokens", 0),
                 "prompt_tokens": total_tokens.get("prompt_tokens", 0),
                 "completion_tokens": total_tokens.get("completion_tokens", 0),
                 "node_count": len(cost_summary.get("node_breakdown", {})),
-            })
+            }
+
+            # Log per-provider metrics
+            by_provider = cost_summary.get("by_provider", {})
+            for provider, data in by_provider.items():
+                metrics[f"provider_{provider}_cost_usd"] = data.get("total_cost_usd", 0)
+                metrics[f"provider_{provider}_tokens"] = data.get("total_tokens", 0)
+                metrics[f"provider_{provider}_input_tokens"] = data.get("input_tokens", 0)
+                metrics[f"provider_{provider}_output_tokens"] = data.get("output_tokens", 0)
+                metrics[f"provider_{provider}_calls"] = data.get("calls", 0)
+
+            mlflow.log_metrics(metrics)
 
             # Log cost summary as artifact (minimal level and above)
             if self._should_log_artifacts("minimal"):
                 mlflow.log_dict(cost_summary, "cost_summary.json")
 
+            # Log provider breakdown
+            if by_provider and self._should_log_artifacts("minimal"):
+                provider_summary = {
+                    "total_cost_usd": cost_summary.get("total_cost_usd", 0),
+                    "by_provider": by_provider,
+                }
+                mlflow.log_dict(provider_summary, "provider_cost_summary.json")
+
             logger.info(
                 f"Workflow summary logged: "
                 f"{total_tokens.get('total_tokens', 0)} tokens, "
-                f"${cost_summary.get('total_cost_usd', 0):.6f}"
+                f"${cost_summary.get('total_cost_usd', 0):.6f}, "
+                f"{len(by_provider)} providers"
             )
 
         except Exception as e:
