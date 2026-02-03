@@ -36,6 +36,7 @@ from configurable_agents.runtime import (
     run_workflow,
     validate_workflow,
 )
+from configurable_agents.ui.dashboard import create_dashboard_app
 
 # Rich library for formatted tables
 try:
@@ -1323,6 +1324,84 @@ def cmd_agent_registry_cleanup(args: argparse.Namespace) -> int:
     return 0
 
 
+def cmd_dashboard(args: argparse.Namespace) -> int:
+    """
+    Launch the orchestration dashboard server.
+
+    Args:
+        args: Parsed command-line arguments
+
+    Returns:
+        Exit code (0 for success, 1 for error)
+    """
+    db_url = args.db_url
+    mlflow_uri = args.mlflow_uri
+
+    print_info(f"Starting dashboard server on {colorize(f'{args.host}:{args.port}', Colors.CYAN)}")
+    print_info(f"Database: {colorize(db_url, Colors.GRAY)}")
+
+    if mlflow_uri:
+        print_info(f"MLFlow UI: {colorize(mlflow_uri, Colors.GRAY)}")
+
+    # Import uvicorn for running the server
+    try:
+        import uvicorn
+    except ImportError:
+        print_error("uvicorn is required to run the dashboard server")
+        print_info("Install with: pip install uvicorn[standard]")
+        return 1
+
+    # Create dashboard app
+    try:
+        dashboard = create_dashboard_app(
+            db_url=db_url,
+            mlflow_tracking_uri=mlflow_uri,
+        )
+        app = dashboard.get_app()
+    except Exception as e:
+        print_error(f"Failed to create dashboard app: {e}")
+        if args.verbose:
+            import traceback
+
+            print(traceback.format_exc(), file=sys.stderr)
+        return 1
+
+    # Print server URLs
+    print()
+    print(f"{colorize('=' * 60, Colors.GREEN)}")
+    print(f"{colorize('Dashboard server started!', Colors.BOLD + Colors.GREEN)}")
+    print(f"{colorize('=' * 60, Colors.GREEN)}")
+    print()
+    print(f"{colorize('Endpoints:', Colors.BOLD)}")
+    print(f"  Dashboard:    http://localhost:{args.port}/")
+    print(f"  Workflows:    http://localhost:{args.port}/workflows")
+    print(f"  Agents:       http://localhost:{args.port}/agents")
+    if mlflow_uri:
+        print(f"  MLFlow UI:    http://localhost:{args.port}/mlflow")
+    print()
+
+    # Run server
+    try:
+        uvicorn.run(
+            app,
+            host=args.host,
+            port=args.port,
+            log_level="info" if args.verbose else "warning",
+        )
+    except KeyboardInterrupt:
+        print_info("\nDashboard server stopped")
+        return 0
+    except Exception as e:
+        print_error(f"Server error: {e}")
+        if args.verbose:
+            import traceback
+
+            print(traceback.format_exc(), file=sys.stderr)
+        return 1
+
+    return 0
+
+
 def create_parser() -> argparse.ArgumentParser:
     """
     Create CLI argument parser.
@@ -1723,6 +1802,38 @@ For more information, visit: https://github.com/yourusername/configurable-agents
         "-v", "--verbose", action="store_true", help="Enable verbose output"
     )
     registry_cleanup_parser.set_defaults(func=cmd_agent_registry_cleanup)
+
+    # Dashboard command
+    dashboard_parser = subparsers.add_parser(
+        "dashboard",
+        help="Launch the orchestration dashboard",
+        description="Launch the web-based orchestration dashboard for monitoring workflows and agents",
+    )
+    dashboard_parser.add_argument(
+        "--host",
+        default="0.0.0.0",
+        help="Host to bind to (default: 0.0.0.0)",
+    )
+    dashboard_parser.add_argument(
+        "--port",
+        type=int,
+        default=7861,
+        help="Port to listen on (default: 7861)",
+    )
+    dashboard_parser.add_argument(
+        "--db-url",
+        default="sqlite:///configurable_agents.db",
+        help="Database URL for storage (default: sqlite:///configurable_agents.db)",
+    )
+    dashboard_parser.add_argument(
+        "--mlflow-uri",
+        default=None,
+        help="MLFlow tracking URI for embedded UI (default: None)",
+    )
+    dashboard_parser.add_argument(
+        "-v", "--verbose", action="store_true", help="Enable verbose output"
+    )
+    dashboard_parser.set_defaults(func=cmd_dashboard)
 
     return parser
 

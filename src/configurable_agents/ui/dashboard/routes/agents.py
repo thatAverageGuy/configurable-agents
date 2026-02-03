@@ -81,13 +81,15 @@ def _parse_capabilities(agent_metadata: Optional[str]) -> List[str]:
         metadata = json.loads(agent_metadata)
         if isinstance(metadata, dict):
             # Try common capability keys
-            capabilities = metadata.get("capabilities", [])
-            if isinstance(capabilities, list):
-                return capabilities
+            if "capabilities" in metadata:
+                capabilities = metadata.get("capabilities")
+                if isinstance(capabilities, list) and capabilities:
+                    return capabilities
             # Try nodes as capabilities
-            nodes = metadata.get("nodes", [])
-            if isinstance(nodes, list):
-                return [str(n) for n in nodes]
+            if "nodes" in metadata:
+                nodes = metadata.get("nodes")
+                if isinstance(nodes, list):
+                    return [str(n) for n in nodes]
         elif isinstance(metadata, list):
             return [str(item) for item in metadata]
     except (json.JSONDecodeError, TypeError):

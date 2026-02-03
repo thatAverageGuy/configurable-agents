@@ -72,6 +72,14 @@ class DashboardApp:
         if mlflow_tracking_uri:
             self._mount_mlflow(mlflow_tracking_uri)
 
+        # Store repositories in app state for route access
+        self.app.state.workflow_repo = workflow_repo
+        self.app.state.agent_registry_repo = agent_registry_repo
+        self.app.state.templates = self.templates
+
+        # Include routers
+        self._include_routers()
+
         # Create main routes
         self._create_main_dashboard_routes()
 
@@ -81,6 +89,18 @@ class DashboardApp:
             """Add common context to all requests."""
             response = await call_next(request)
             return response
+
+    def _include_routers(self) -> None:
+        """Include dashboard routers."""
+        from configurable_agents.ui.dashboard.routes import (
+            workflows_router,
+            agents_router,
+            metrics_router,
+        )
+
+        self.app.include_router(workflows_router)
+        self.app.include_router(agents_router)
+        self.app.include_router(metrics_router)
 
     def _setup_templates(self, template_dir: Optional[Path] = None) -> None:
         """Configure Jinja2 templates.
