@@ -5,34 +5,34 @@
 See: .planning/PROJECT.md (updated 2026-02-02)
 
 **Core value:** Local-first, config-driven agent orchestration with full observability and zero cloud lock-in
-**Current focus:** Phase 2 - Agent Infrastructure
+**Current focus:** Phase 3 - Interfaces and Triggers
 
 ## Current Position
 
-Phase: 2 of 4 (Agent Infrastructure)
-Plan: 01C of 6 in current phase
-Status: In progress
-Last activity: 2026-02-03 -- Completed 02-01C-PLAN.md (Agent Registry CLI & Tests)
+Phase: 3 of 4 (Interfaces and Triggers)
+Plan: 0 of 3 in current phase
+Status: Ready to start
+Last activity: 2026-02-03 -- Completed Phase 2 (Agent Infrastructure)
 
-Progress: [#######   ]  7/12 plans complete (58%)
+Progress: [##########]  10/10 plans complete (100% of Phases 1-2)
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 13
-- Average duration: 18 min
-- Total execution time: 3.98 hours
+- Total plans completed: 10
+- Average duration: 17 min
+- Total execution time: 2.83 hours
 
 **By Phase:**
 
 | Phase | Plans | Total | Avg/Plan |
 |-------|-------|-------|----------|
 | 1     | 4     | 65    | 16 min   |
-| 2     | 7     | 144   | 21 min   |
+| 2     | 6     | 106   | 18 min   |
 
 **Recent Trend:**
-- Last 5 plans: 02-01B (20 min), 02-02A (16 min), 02-02B (19 min), 02-01C (41 min), 02-02C (18 min)
-- Trend: Phase 2 agent infrastructure progressing, observability complete
+- Last 5 plans: 02-01B (7 min), 02-02A (16 min), 02-02B (19 min), 02-02C (18 min), 02-01C (41 min)
+- Trend: Phase 2 complete, ready for Phase 3 (Interfaces and Triggers)
 
 *Updated after each plan completion*
 
@@ -61,16 +61,16 @@ Recent decisions affecting current work:
 - [01-04]: Storage repos attached to tracker object to avoid changing build_graph signature
 - [01-04]: All storage operations wrapped in try/except for graceful degradation
 - [01-04]: Per-node state includes truncated output values (500 chars max) for storage efficiency
-- [02-02A]: MultiProviderCostTracker aggregates costs by provider/model combination
-- [02-22A]: Provider detection supports openai, anthropic, google, ollama from model names
-- [02-02A]: Ollama models return $0.00 cost (local models have no API fees)
-- [02-02A]: Per-provider metrics logged to MLFlow as provider_{name}_cost_usd for UI filtering
 - [02-01A]: Agent registry uses agent_metadata field name to avoid SQLAlchemy reserved attribute
 - [02-01A]: AgentRecord has custom __init__ for default TTL (60s) and heartbeat timestamps
 - [02-01A]: Agent registration is idempotent - re-registering updates existing record
 - [02-01A]: Background cleanup runs every 60 seconds via asyncio.create_task()
 - [02-01A]: TTL heartbeat pattern - agents refresh TTL via /heartbeat endpoint
 - [02-01A]: Session management pattern for SQLAlchemy in FastAPI endpoints
+- [02-02A]: MultiProviderCostTracker aggregates costs by provider/model combination
+- [02-02A]: Provider detection supports openai, anthropic, google, ollama from model names
+- [02-02A]: Ollama models return $0.00 cost (local models have no API fees)
+- [02-02A]: Per-provider metrics logged to MLFlow as provider_{name}_cost_usd for UI filtering
 - [02-02B]: Thread-local storage for BottleneckAnalyzer enables parallel execution safety
 - [02-02B]: Bottleneck threshold uses > (strictly greater than) for detection
 - [02-02B]: Per-node timing captured via time.perf_counter() in decorator with try/finally
@@ -82,20 +82,17 @@ Recent decisions affecting current work:
 - [02-01B]: Deregistration is best-effort - errors logged but not raised (agent shutting down)
 - [02-01B]: Conditional code generation via template variables populated or empty based on enable_registry flag
 - [02-01B]: httpx>=0.26.0 used for async HTTP in registry client
-- [02-01C]: Heartbeat background task runs on separate async task with while True loop
-- [02-01C]: Shutdown Event set by signal handler for graceful cleanup
-- [02-01C]: Cleanup interval (60s) matches default TTL for efficient stale agent removal
-- [02-01C]: SQLAlchemy Session injected into cleanup endpoint for storage access
 - [02-02C]: Rich library (>=13.0.0) for formatted CLI table output
 - [02-02C]: Lazy MLFlow import in CLI functions allows help without MLFlow installed
 - [02-02C]: CLI observability group with status/cost-report/profile-report subcommands
 - [02-02C]: --enable-profiling flag sets CONFIGURABLE_AGENTS_PROFILING env var for runtime control
 - [02-02C]: Cost report highlights most expensive provider in bold/yellow
 - [02-02C]: Profile report highlights slowest node in bold/red, bottlenecks (>50%) in yellow
-- [02-01C]: CLI uses argparse instead of Typer for consistency with existing commands
+- [02-01C]: CLI uses argparse for consistency with existing commands
 - [02-01C]: Rich library for formatted table output in list command
 - [02-01C]: httpx.AsyncClient with ASGITransport for server testing (avoids httpx 0.28 compatibility)
 - [02-01C]: Heartbeat loop CancelledError handling exits immediately instead of retrying
+- [02-02C]: Orchestrator-initiated registration (ARCH-02) deferred to Phase 3 for dashboard integration
 
 ### Pending Todos
 
@@ -108,5 +105,5 @@ None yet.
 ## Session Continuity
 
 Last session: 2026-02-03
-Stopped at: Completed 02-01C-PLAN.md (Agent Registry CLI & Tests)
+Stopped at: Phase 2 complete, ready for Phase 3 planning
 Resume file: None

@@ -12,8 +12,8 @@ Transform the existing v0.1 linear workflow runner into a full-featured local-fi
 
 Decimal phases appear between their surrounding integers in numeric order.
 
-- [ ] **Phase 1: Core Engine** - Multi-LLM support, advanced control flow, storage abstraction, and execution traces
-- [ ] **Phase 2: Agent Infrastructure** - Minimal containers, agent lifecycle, and production observability
+- [x] **Phase 1: Core Engine** - Multi-LLM support, advanced control flow, storage abstraction, and execution traces
+- [x] **Phase 2: Agent Infrastructure** - Minimal containers, agent lifecycle, and production observability
 - [ ] **Phase 3: Interfaces and Triggers** - Chat UI, orchestration dashboard, and external webhook integrations
 - [ ] **Phase 4: Advanced Capabilities** - Code sandboxes, long-term memory, tool ecosystem, and MLFlow optimization
 
@@ -33,10 +33,10 @@ Decimal phases appear between their surrounding integers in numeric order.
 **Plans**: 4 plans (3 waves)
 
 Plans:
-- [ ] 01-01-PLAN.md -- Storage abstraction layer (pluggable backend interface with SQLite implementation) [Wave 1]
-- [ ] 01-02-PLAN.md -- Multi-LLM provider integration (LiteLLM abstraction with OpenAI, Anthropic, Gemini, Ollama support) [Wave 1]
-- [ ] 01-03-PLAN.md -- Advanced control flow (conditional branching, loop execution, parallel node execution via LangGraph) [Wave 2, depends on 01-02]
-- [ ] 01-04-PLAN.md -- Storage-executor integration and execution traces (workflow run persistence, per-node metrics, OBS-04) [Wave 3, depends on 01-01, 01-03]
+- [x] 01-01-PLAN.md -- Storage abstraction layer (pluggable backend interface with SQLite implementation) [Wave 1]
+- [x] 01-02-PLAN.md -- Multi-LLM provider integration (LiteLLM abstraction with OpenAI, Anthropic, Gemini, Ollama support) [Wave 1]
+- [x] 01-03-PLAN.md -- Advanced control flow (conditional branching, loop execution, parallel node execution via LangGraph) [Wave 2, depends on 01-02]
+- [x] 01-04-PLAN.md -- Storage-executor integration and execution traces (workflow run persistence, per-node metrics, OBS-04) [Wave 3, depends on 01-01, 01-03]
 
 ### Phase 2: Agent Infrastructure
 **Goal**: Users can deploy minimal agent containers that self-register, maintain health, and produce detailed observable metrics across all providers
@@ -48,11 +48,22 @@ Plans:
   3. When an agent container crashes or is stopped, the registry removes it automatically after its TTL expires
   4. After running a multi-provider workflow, user can see unified cost breakdown across all LLM providers used
   5. User can identify the slowest node in a workflow through performance profiling output
-**Plans**: 2 plans (2 waves)
+**Plans**: 6 plans (3 waves)
+
+**Note:** Orchestrator-initiated registration (ARCH-02) is deferred to Phase 3. This phase implements agent-initiated registration only.
 
 Plans:
-- [ ] 02-01-PLAN.md -- Minimal agent containers and bidirectional registration (AgentRecord ORM, AgentRegistryServer, AgentRegistryClient with heartbeat, health endpoints) [Wave 1]
-- [ ] 02-02-PLAN.md -- Production observability (MultiProviderCostTracker, performance profiling decorator, BottleneckAnalyzer, CLI cost/profile reports) [Wave 2, depends on 02-01]
+**Wave 1 (parallel execution):**
+- [x] 02-01A-PLAN.md -- Storage layer and registry server (AgentRecord ORM, AgentRegistryRepository, AgentRegistryServer with FastAPI endpoints) [Wave 1]
+- [x] 02-02A-PLAN.md -- Multi-provider cost tracking (MultiProviderCostTracker, MLFlowTracker integration, provider detection) [Wave 1]
+- [x] 02-02B-PLAN.md -- Performance profiling (profile_node decorator, BottleneckAnalyzer, node_executor integration) [Wave 1]
+
+**Wave 2 (depends on Wave 1):**
+- [x] 02-01B-PLAN.md -- Registry client and generator integration (AgentRegistryClient with heartbeat, deployment generator updates) [Wave 2, depends on 02-01A]
+- [x] 02-02C-PLAN.md -- CLI integration (cost-report, profile-report, observability commands) [Wave 2, depends on 02-02A, 02-02B]
+
+**Wave 3 (depends on Wave 2):**
+- [x] 02-01C-PLAN.md -- CLI and tests (agent-registry CLI commands, registry test suite) [Wave 3, depends on 02-01B]
 
 ### Phase 3: Interfaces and Triggers
 **Goal**: Users can generate configs through conversation, manage running workflows through a dashboard, and trigger workflows from external messaging platforms
@@ -95,6 +106,6 @@ Phases execute in numeric order: 1 -> 2 -> 3 -> 4
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
 | 1. Core Engine | 4/4 | Complete | 2026-02-03 |
-| 2. Agent Infrastructure | 0/2 | Not started | - |
+| 2. Agent Infrastructure | 6/6 | Complete | 2026-02-03 |
 | 3. Interfaces and Triggers | 0/3 | Not started | - |
 | 4. Advanced Capabilities | 0/3 | Not started | - |

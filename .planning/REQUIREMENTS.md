@@ -21,9 +21,9 @@ Requirements for v1.0 release. Each maps to roadmap phases.
 ### Observability
 
 - [ ] **OBS-01**: System provides full MLFlow production features (prompt optimization, evaluations, A/B testing)
-- [ ] **OBS-02**: System tracks token costs across all configured LLM providers with unified reporting
-- [ ] **OBS-03**: System provides performance profiling and bottleneck detection for workflow executions
-- [ ] **OBS-04**: System generates detailed workflow execution traces with per-node metrics (latency, tokens, cost)
+- [x] **OBS-02**: System tracks token costs across all configured LLM providers with unified reporting
+- [x] **OBS-03**: System provides performance profiling and bottleneck detection for workflow executions
+- [x] **OBS-04**: System generates detailed workflow execution traces with per-node metrics (latency, tokens, cost)
 
 ### User Interface
 
@@ -36,10 +36,10 @@ Requirements for v1.0 release. Each maps to roadmap phases.
 
 ### Architecture
 
-- [ ] **ARCH-01**: Agent containers are minimal (~50-100MB) with MLFlow UI decoupled as separate sidecar
+- [x] **ARCH-01**: Agent containers are minimal (~50-100MB) with MLFlow UI decoupled as separate sidecar
 - [ ] **ARCH-02**: Agents support bidirectional registration (agent-initiated and orchestrator-initiated)
-- [ ] **ARCH-03**: Agent registry tracks active agents with heartbeat and TTL-based expiration
-- [ ] **ARCH-04**: Storage backend is pluggable (SQLite default, swappable to PostgreSQL/Redis without code changes)
+- [x] **ARCH-03**: Agent registry tracks active agents with heartbeat and TTL-based expiration
+- [x] **ARCH-04**: Storage backend is pluggable (SQLite default, swappable to PostgreSQL/Redis without code changes)
 - [ ] **ARCH-05**: Chat UI sessions persist conversation history in storage backend
 - [ ] **ARCH-06**: Long-term memory has dedicated storage backend (per-agent context storage)
 
@@ -89,18 +89,18 @@ Deferred to future release. Tracked but not in current roadmap.
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| RT-01 | Phase 1 | Pending |
-| RT-02 | Phase 1 | Pending |
-| RT-03 | Phase 1 | Pending |
-| RT-05 | Phase 1 | Pending |
-| RT-06 | Phase 1 | Pending |
-| ARCH-04 | Phase 1 | Pending |
-| OBS-04 | Phase 1 | Pending |
-| ARCH-01 | Phase 2 | Pending |
+| RT-01 | Phase 1 | Complete |
+| RT-02 | Phase 1 | Complete |
+| RT-03 | Phase 1 | Complete |
+| RT-05 | Phase 1 | Complete |
+| RT-06 | Phase 1 | Complete |
+| ARCH-04 | Phase 1 | Complete |
+| OBS-04 | Phase 1 | Complete |
+| ARCH-01 | Phase 2 | Complete |
 | ARCH-02 | Phase 2 | Pending |
-| ARCH-03 | Phase 2 | Pending |
-| OBS-02 | Phase 2 | Pending |
-| OBS-03 | Phase 2 | Pending |
+| ARCH-03 | Phase 2 | Complete |
+| OBS-02 | Phase 2 | Complete |
+| OBS-03 | Phase 2 | Complete |
 | UI-01 | Phase 3 | Pending |
 | UI-02 | Phase 3 | Pending |
 | UI-03 | Phase 3 | Pending |
@@ -124,4 +124,4 @@ Deferred to future release. Tracked but not in current roadmap.
 
 ---
 *Requirements defined: 2026-02-03*
-*Last updated: 2026-02-03 after roadmap creation*
+*Last updated: 2026-02-03 after Phase 2 completion*
