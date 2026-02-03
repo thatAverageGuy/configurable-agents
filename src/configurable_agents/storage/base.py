@@ -377,3 +377,54 @@ class ChatSessionRepository(ABC):
             List of session dictionaries ordered by updated_at DESC
         """
         raise NotImplementedError
+
+
+class WebhookEventRepository(ABC):
+    """Abstract repository for webhook event idempotency tracking.
+
+    Provides idempotency key storage to prevent replay attacks in webhook
+    processing. Each webhook event has a unique webhook_id that is checked
+    before processing.
+
+    Methods:
+        is_processed: Check if webhook event was already processed
+        mark_processed: Record webhook as processed
+        cleanup_old_events: Delete records older than N days
+    """
+
+    @abstractmethod
+    def is_processed(self, webhook_id: str) -> bool:
+        """Check if webhook event was already processed.
+
+        Args:
+            webhook_id: Unique identifier for the webhook event
+
+        Returns:
+            True if already processed, False otherwise
+        """
+        raise NotImplementedError
+
+    @abstractmethod
+    def mark_processed(self, webhook_id: str, provider: str) -> None:
+        """Record webhook as processed.
+
+        Uses INSERT OR IGNORE for idempotency - calling this multiple times
+        with the same webhook_id is safe.
+
+        Args:
+            webhook_id: Unique identifier for the webhook event
+            provider: Name of the webhook provider (e.g., "whatsapp", "telegram")
+        """
+        raise NotImplementedError
+
+    @abstractmethod
+    def cleanup_old_events(self, days: int = 7) -> int:
+        """Delete webhook event records older than N days.
+
+        Args:
+            days: Number of days to retain records (default: 7)
+
+        Returns:
+            Number of records deleted
+        """
+        raise NotImplementedError

@@ -1,5 +1,6 @@
 """Runtime executor for workflow execution."""
 
+import asyncio
 import json
 import logging
 import time
@@ -499,3 +500,43 @@ def validate_workflow(config_path: str) -> bool:
 
     logger.info("Validation complete: config is valid")
     return True
+
+
+async def run_workflow_async(
+    config_path: str,
+    inputs: Dict[str, Any],
+    verbose: bool = False,
+) -> Dict[str, Any]:
+    """
+    Execute workflow from config file asynchronously.
+
+    Wraps the synchronous run_workflow() function in an async wrapper
+    using asyncio.to_thread(), enabling background task execution from
+    FastAPI endpoints without blocking the event loop.
+
+    Args:
+        config_path: Path to YAML or JSON config file
+        inputs: Initial state inputs as dict
+        verbose: Enable verbose logging (DEBUG level)
+
+    Returns:
+        Final workflow state as dict
+
+    Raises:
+        ConfigLoadError: Failed to load or parse config file
+        ConfigValidationError: Config validation failed
+        StateInitializationError: Failed to initialize state
+        GraphBuildError: Failed to build execution graph
+        WorkflowExecutionError: Workflow execution failed
+
+    Example:
+        >>> result = await run_workflow_async("article_writer.yaml", {"topic": "AI Safety"})
+        >>> print(result["article"])
+    """
+    # Run the synchronous workflow function in a thread pool
+    # This prevents blocking the async event loop during workflow execution
+    loop = asyncio.get_event_loop()
+    return await loop.run_in_executor(
+        None,  # Use default thread pool executor
+        lambda: run_workflow(config_path, inputs, verbose=verbose),
+    )

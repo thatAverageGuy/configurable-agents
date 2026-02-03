@@ -21,6 +21,7 @@ from configurable_agents.storage.base import (
     AbstractWorkflowRunRepository,
     AgentRegistryRepository,
     ChatSessionRepository,
+    WebhookEventRepository,
 )
 from configurable_agents.storage.models import (
     ExecutionStateRecord,
@@ -28,6 +29,7 @@ from configurable_agents.storage.models import (
     AgentRecord,
     ChatSession,
     ChatMessage,
+    WebhookEventRecord,
 )
 
 
@@ -585,3 +587,91 @@ class SQLiteChatSessionRepository(ChatSessionRepository):
             sessions = list(session.scalars(stmt).all())
 
             return [s.to_dict() for s in sessions]
+
+
+class SqliteWebhookEventRepository(WebhookEventRepository):
+    """SQLite implementation of webhook event repository.
+
+    Provides idempotency tracking for webhook events to prevent replay attacks.
+    Uses context managers for automatic transaction handling.
+
+    Attributes:
+        engine: SQLAlchemy Engine instance for database connections
+    """
+
+    def __init__(self, engine: Engine) -> None:
+        """Initialize repository with database engine.
+
+        Args:
+            engine: SQLAlchemy Engine instance (created by factory)
+        """
+        self.engine = engine
+
+    def is_processed(self, webhook_id: str) -> bool:
+        """Check if webhook event was already processed.
+
+        Args:
+            webhook_id: Unique identifier for the webhook event
+
+        Returns:
+            True if already processed, False otherwise
+        """
+        with Session(self.engine) as session:
+            stmt: Select[WebhookEventRecord] = (
+                select(WebhookEventRecord)
+                .where(WebhookEventRecord.webhook_id == webhook_id)
+                .limit(1)
+            )
+            record = session.scalar(stmt)
+            return record is not None
+
+    def mark_processed(self, webhook_id: str, provider: str) -> None:
+        """Record webhook as processed.
+
+        Uses INSERT OR IGNORE for idempotency - calling this multiple times
+        with the same webhook_id is safe.
+
+        Args:
+            webhook_id: Unique identifier for the webhook event
+            provider: Name of the webhook provider (e.g., "whatsapp", "telegram")
+        """
+        with Session(self.engine) as session:
+            # Use raw SQL with INSERT OR IGNORE for idempotency
+            # SQLAlchemy's merge() doesn't work well with unique constraint violations
+            session.execute(
+                text(
+                    "INSERT OR IGNORE INTO webhook_events (webhook_id, provider, processed_at) "
+                    "VALUES (:webhook_id, :provider, :processed_at)"
+                ),
+                {"webhook_id": webhook_id, "provider": provider, "processed_at": datetime.utcnow()},
+            )
+            session.commit()
+
+    def cleanup_old_events(self, days: int = 7) -> int:
+        """Delete webhook event records older than N days.
+
+        Args:
+            days: Number of days to retain records (default: 7)
+
+        Returns:
+            Number of records deleted
+        """
+        with Session(self.engine) as session:
+            # Calculate cutoff time
+            from datetime import timedelta
+            cutoff = datetime.utcnow() - timedelta(days=days)
+
+            # Delete old records
+            stmt: Select[WebhookEventRecord] = (
+                select(WebhookEventRecord)
+                .where(WebhookEventRecord.processed_at < cutoff)
+            )
+            records = list(session.scalars(stmt).all())
+
+            count = 0
+            for record in records:
+                session.delete(record)
+                count += 1
+
+            session.commit()
+            return count

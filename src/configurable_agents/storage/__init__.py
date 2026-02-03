@@ -27,6 +27,7 @@ from configurable_agents.storage.base import (
     AbstractWorkflowRunRepository,
     AgentRegistryRepository,
     ChatSessionRepository,
+    WebhookEventRepository,
 )
 from configurable_agents.storage.factory import create_storage_backend
 from configurable_agents.storage.models import (
@@ -36,6 +37,7 @@ from configurable_agents.storage.models import (
     WorkflowRunRecord,
     ChatSession,
     ChatMessage,
+    WebhookEventRecord,
 )
 
 __all__ = [
@@ -44,6 +46,7 @@ __all__ = [
     "AbstractExecutionStateRepository",
     "AgentRegistryRepository",
     "ChatSessionRepository",
+    "WebhookEventRepository",
     # ORM models
     "Base",
     "WorkflowRunRecord",
@@ -51,6 +54,7 @@ __all__ = [
     "AgentRecord",
     "ChatSession",
     "ChatMessage",
+    "WebhookEventRecord",
     # Factory
     "create_storage_backend",
 ]

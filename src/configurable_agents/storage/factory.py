@@ -23,6 +23,7 @@ from configurable_agents.storage.base import (
     AbstractWorkflowRunRepository,
     AgentRegistryRepository,
     ChatSessionRepository,
+    WebhookEventRepository,
 )
 from configurable_agents.storage.models import Base
 from configurable_agents.storage.sqlite import (
@@ -30,6 +31,7 @@ from configurable_agents.storage.sqlite import (
     SQLiteWorkflowRunRepository,
     SqliteAgentRegistryRepository,
     SQLiteChatSessionRepository,
+    SqliteWebhookEventRepository,
 )
 
 
@@ -40,6 +42,7 @@ def create_storage_backend(
     AbstractExecutionStateRepository,
     AgentRegistryRepository,
     ChatSessionRepository,
+    WebhookEventRepository,
 ]:
     """Create storage backend repositories from configuration.
 
@@ -48,14 +51,15 @@ def create_storage_backend(
 
     Returns:
         Tuple of (workflow_run_repository, execution_state_repository,
-                  agent_registry_repository, chat_session_repository)
+                  agent_registry_repository, chat_session_repository,
+                  webhook_event_repository)
 
     Raises:
         ValueError: If backend type is not supported
 
     Example:
         >>> from configurable_agents.storage import create_storage_backend
-        >>> runs_repo, states_repo, agents_repo, chat_repo = create_storage_backend()
+        >>> runs_repo, states_repo, agents_repo, chat_repo, webhook_repo = create_storage_backend()
         >>> run = WorkflowRunRecord(id="123", workflow_name="test", status="running")
         >>> runs_repo.add(run)
     """
@@ -80,8 +84,9 @@ def create_storage_backend(
         states_repo = SQLiteExecutionStateRepository(engine)
         agents_repo = SqliteAgentRegistryRepository(engine)
         chat_repo = SQLiteChatSessionRepository(engine)
+        webhook_repo = SqliteWebhookEventRepository(engine)
 
-        return runs_repo, states_repo, agents_repo, chat_repo
+        return runs_repo, states_repo, agents_repo, chat_repo, webhook_repo
 
     # Unsupported backend
     raise ValueError(

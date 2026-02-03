@@ -223,3 +223,25 @@ class ChatMessage(Base):
             "created_at": self.created_at.isoformat() if self.created_at else None,
             "metadata": json.loads(self.message_metadata) if self.message_metadata else None,
         }
+
+
+class WebhookEventRecord(Base):
+    """ORM model for webhook event idempotency tracking.
+
+    Tracks processed webhook events to prevent replay attacks. Each webhook
+    should have a unique idempotency key (webhook_id) that is stored before
+    processing. If the same webhook_id is received again, it's a replay attack.
+
+    Attributes:
+        id: Auto-increment primary key
+        webhook_id: Unique identifier for the webhook event (from external provider)
+        provider: Name of the webhook provider (e.g., "whatsapp", "telegram", "generic")
+        processed_at: When the webhook was processed
+    """
+
+    __tablename__ = "webhook_events"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    webhook_id: Mapped[str] = mapped_column(String(255), unique=True, index=True, nullable=False)
+    provider: Mapped[str] = mapped_column(String(64), nullable=False)
+    processed_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, nullable=False)
