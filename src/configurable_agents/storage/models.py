@@ -4,7 +4,7 @@ Defines the database schema for workflow runs and execution state tracking.
 Uses SQLAlchemy 2.0 DeclarativeBase pattern with Mapped/mapped_column syntax.
 """
 
-from datetime import datetime
+from datetime import datetime, timedelta
 from typing import Optional
 
 from sqlalchemy import DateTime, Float, ForeignKey, Integer, String, Text
@@ -81,3 +81,47 @@ class ExecutionStateRecord(Base):
     node_id: Mapped[str] = mapped_column(String(128))
     state_data: Mapped[str] = mapped_column(Text)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+
+
+class AgentRecord(Base):
+    """ORM model for agent registry records.
+
+    Tracks registered agents in the system including their network location,
+    heartbeat status for TTL-based expiration, and metadata.
+
+    Attributes:
+        agent_id: Unique identifier for the agent (primary key)
+        agent_name: Human-readable name for the agent
+        host: Host address where the agent is running
+        port: Port number where the agent is listening
+        last_heartbeat: Timestamp of the last heartbeat from this agent
+        ttl_seconds: Time-to-live in seconds (default: 60)
+        agent_metadata: JSON blob with additional agent information
+        registered_at: When the agent first registered
+    """
+
+    __tablename__ = "agents"
+
+    agent_id: Mapped[str] = mapped_column(String(255), primary_key=True)
+    agent_name: Mapped[str] = mapped_column(String(256))
+    host: Mapped[str] = mapped_column(String(256))
+    port: Mapped[int] = mapped_column(Integer)
+    last_heartbeat: Mapped[datetime] = mapped_column(
+        DateTime, default=datetime.utcnow, index=True
+    )
+    ttl_seconds: Mapped[int] = mapped_column(Integer, default=60)
+    agent_metadata: Mapped[Optional[str]] = mapped_column(String(4000), nullable=True)
+    registered_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+
+    def is_alive(self) -> bool:
+        """Check if this agent is still alive based on TTL.
+
+        An agent is considered alive if the current time is before
+        the expiration time (last_heartbeat + ttl_seconds).
+
+        Returns:
+            True if agent is alive, False if expired
+        """
+        ttl = self.ttl_seconds if self.ttl_seconds is not None else 60
+        expiration_time = self.last_heartbeat + timedelta(seconds=ttl)
+        return datetime.utcnow() < expiration_time
