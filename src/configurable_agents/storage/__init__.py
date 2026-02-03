@@ -21,13 +21,13 @@ from configurable_agents.storage.base import (
     AbstractExecutionStateRepository,
     AbstractWorkflowRunRepository,
 )
+from configurable_agents.storage.factory import create_storage_backend
 from configurable_agents.storage.models import (
     Base,
     ExecutionStateRecord,
     WorkflowRunRecord,
 )
 
-# Factory will be added in Task 2
 __all__ = [
     # Abstract interfaces
     "AbstractWorkflowRunRepository",
@@ -36,4 +36,6 @@ __all__ = [
     "Base",
     "WorkflowRunRecord",
     "ExecutionStateRecord",
+    # Factory
+    "create_storage_backend",
 ]
