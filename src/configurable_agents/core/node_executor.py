@@ -35,7 +35,16 @@ from configurable_agents.llm import (
     create_llm,
     merge_llm_config,
 )
+from configurable_agents.observability.cost_estimator import CostEstimator
 from configurable_agents.tools import ToolConfigError, ToolNotFoundError, get_tool
+
+# Optional MLFlow import for direct metric logging
+try:
+    import mlflow
+    MLFLOW_AVAILABLE = True
+except ImportError:
+    mlflow = None
+    MLFLOW_AVAILABLE = False
 
 if TYPE_CHECKING:
     from configurable_agents.observability import MLFlowTracker
@@ -298,12 +307,57 @@ def execute_node(
             )
 
         node_duration = time.time() - node_start_time
+        node_duration_ms = node_duration * 1000
+
+        # ========================================
+        # 6.5: RECORD TO PROFILER AND LOG METRICS
+        # ========================================
+        # Record timing to BottleneckAnalyzer (if set by runtime executor)
+        # Lazy import to avoid circular dependency with runtime module
+        try:
+            from configurable_agents.runtime.profiler import get_profiler
+            analyzer = get_profiler()
+            if analyzer:
+                analyzer.record_node(node_id, node_duration_ms)
+        except ImportError:
+            pass  # Profiler not available
+
+        # Log per-node metrics to MLFlow
+        if MLFLOW_AVAILABLE and mlflow.active_run():
+            try:
+                mlflow.log_metric(f"node_{node_id}_duration_ms", node_duration_ms)
+                logger.debug(f"Logged MLFlow metric: node_{node_id}_duration_ms = {node_duration_ms:.2f}ms")
+            except Exception as e:
+                logger.warning(f"Failed to log node duration to MLFlow: {e}")
+
+        # Calculate cost using CostEstimator
+        cost_usd = 0.0
+        try:
+            cost_estimator = CostEstimator()
+            cost_usd = cost_estimator.estimate_cost(
+                model=model_name,
+                input_tokens=usage.input_tokens,
+                output_tokens=usage.output_tokens,
+            )
+            # Log per-node cost to MLFlow
+            if MLFLOW_AVAILABLE and mlflow.active_run():
+                try:
+                    mlflow.log_metric(f"node_{node_id}_cost_usd", cost_usd)
+                    logger.debug(f"Logged MLFlow metric: node_{node_id}_cost_usd = ${cost_usd:.6f}")
+                except Exception as e:
+                    logger.warning(f"Failed to log node cost to MLFlow: {e}")
+        except Exception as e:
+            logger.debug(f"Failed to estimate cost for node '{node_id}': {e}")
 
         # ========================================
         # 7. UPDATE STATE
         # ========================================
         # Copy-on-write: create new state instance (immutable pattern)
         new_state = state.model_copy()
+
+        # Add execution metadata to state (hidden fields for tracking)
+        setattr(new_state, f"_execution_time_ms_{node_id}", round(node_duration_ms, 2))
+        setattr(new_state, f"_cost_usd_{node_id}", round(cost_usd, 6))
 
         # Extract output values from LLM result and update state
         if node_config.output_schema.type == "object":
