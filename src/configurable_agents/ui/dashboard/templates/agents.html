@@ -1,0 +1,51 @@
+{% extends "base.html" %}
+
+{% block title %}Agents - Configurable Agents Dashboard{% endblock %}
+
+{% block nav_agents %}class="active"{% endblock %}
+
+{% block content %}
+<div class="dashboard-container">
+    <header class="page-header">
+        <h1>Registered Agents</h1>
+        <p class="subtitle">View and manage registered agents</p>
+    </header>
+
+    <!-- Actions -->
+    <div class="table-container">
+        <div class="table-header">
+            <h2>Agent Registry</h2>
+            <div class="filters">
+                <button class="btn btn-secondary"
+                        hx-post="/agents/refresh"
+                        hx-swap="outerHTML"
+                        hx-target="#agents-table">
+                    Refresh
+                </button>
+                <a href="/agents/all" class="btn btn-secondary">Show All</a>
+            </div>
+        </div>
+
+        <!-- Agents Table with HTMX auto-refresh -->
+        <div id="agents-table"
+             hx-get="/agents/table"
+             hx-swap="outerHTML"
+             hx-trigger="load, every 10s">
+            {% include "agents_table.html" %}
+        </div>
+    </div>
+</div>
+
+<!-- SSE Connection for Real-time Updates -->
+<div hx-ext="sse" sse-connect="/metrics/agents/stream" sse-swap="agent_update">
+    <!-- SSE events will trigger table refresh automatically -->
+</div>
+
+<script>
+    // Listen for SSE messages and refresh table on update
+    document.body.addEventListener('agent_update', function(evt) {
+        console.log('Agent update received');
+        // HTMX SSE extension handles the swap automatically
+    });
+</script>
+{% endblock %}
