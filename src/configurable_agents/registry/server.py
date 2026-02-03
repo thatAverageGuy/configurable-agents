@@ -59,7 +59,7 @@ class AgentRegistryServer:
         if registry_url.startswith("sqlite:///"):
             db_path = registry_url.replace("sqlite:///", "")
             config = StorageConfig(backend="sqlite", path=db_path)
-            _, _, self.repo = create_storage_backend(config)
+            _, _, self.repo, _, _ = create_storage_backend(config)
         else:
             raise ValueError(f"Unsupported registry URL: {registry_url}")
 
