@@ -40,6 +40,7 @@ class WorkflowRunRecord(Base):
         duration_seconds: Execution time in seconds
         total_tokens: Total tokens used across all LLM calls
         total_cost_usd: Total estimated cost in USD
+        bottleneck_info: JSON-serialized bottleneck analysis data
     """
 
     __tablename__ = "workflow_runs"
@@ -56,6 +57,7 @@ class WorkflowRunRecord(Base):
     duration_seconds: Mapped[Optional[float]] = mapped_column(Float, nullable=True)
     total_tokens: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
     total_cost_usd: Mapped[Optional[float]] = mapped_column(Float, nullable=True)
+    bottleneck_info: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
 
 
 class ExecutionStateRecord(Base):

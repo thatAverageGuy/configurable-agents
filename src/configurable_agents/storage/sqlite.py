@@ -141,6 +141,7 @@ class SQLiteWorkflowRunRepository(AbstractWorkflowRunRepository):
         total_cost_usd: float,
         outputs: Optional[str] = None,
         error_message: Optional[str] = None,
+        bottleneck_info: Optional[str] = None,
     ) -> None:
         """Update a workflow run with completion metrics.
 
@@ -152,6 +153,7 @@ class SQLiteWorkflowRunRepository(AbstractWorkflowRunRepository):
             total_cost_usd: Total estimated cost in USD
             outputs: JSON-serialized output data (optional)
             error_message: Error message if status is "failed" (optional)
+            bottleneck_info: JSON-serialized bottleneck analysis (optional)
 
         Raises:
             ValueError: If run_id not found
@@ -171,6 +173,8 @@ class SQLiteWorkflowRunRepository(AbstractWorkflowRunRepository):
                 run.outputs = outputs
             if error_message is not None:
                 run.error_message = error_message
+            if bottleneck_info is not None:
+                run.bottleneck_info = bottleneck_info
 
             session.commit()
 

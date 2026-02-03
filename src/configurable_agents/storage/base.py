@@ -198,6 +198,7 @@ class AbstractWorkflowRunRepository(ABC):
         total_cost_usd: float,
         outputs: Optional[str] = None,
         error_message: Optional[str] = None,
+        bottleneck_info: Optional[str] = None,
     ) -> None:
         """Update a workflow run with completion metrics.
 
@@ -209,6 +210,7 @@ class AbstractWorkflowRunRepository(ABC):
             total_cost_usd: Total estimated cost in USD
             outputs: JSON-serialized output data (optional)
             error_message: Error message if status is "failed" (optional)
+            bottleneck_info: JSON-serialized bottleneck analysis (optional)
 
         Raises:
             ValueError: If run_id not found

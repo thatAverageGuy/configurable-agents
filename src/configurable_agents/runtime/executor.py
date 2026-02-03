@@ -22,6 +22,12 @@ from configurable_agents.runtime.feature_gate import (
     UnsupportedFeatureError,
     validate_runtime_support,
 )
+from configurable_agents.runtime.profiler import (
+    BottleneckAnalyzer,
+    clear_profiler,
+    get_profiler,
+    set_profiler,
+)
 from configurable_agents.storage import create_storage_backend
 from configurable_agents.storage.models import WorkflowRunRecord
 
@@ -282,6 +288,11 @@ def run_workflow_from_config(
             original_error=e,
         )
 
+    # Phase 6.5: Initialize BottleneckAnalyzer for profiling
+    profiler_analyzer = BottleneckAnalyzer()
+    set_profiler(profiler_analyzer)
+    logger.debug("BottleneckAnalyzer initialized for workflow profiling")
+
     # Phase 7: Execute graph with MLFlow 3.9 auto-tracing
     try:
         logger.info(f"Starting workflow execution: {workflow_name}")
@@ -320,7 +331,40 @@ def run_workflow_from_config(
         )
         logger.debug(f"Final state: {final_state}")
 
-        # Update workflow run record with completion metrics
+        # Post-process: Log bottleneck analysis
+        bottleneck_summary = profiler_analyzer.get_summary()
+        if bottleneck_summary["node_count"] > 0:
+            logger.info(
+                f"Bottleneck analysis: {bottleneck_summary['node_count']} nodes, "
+                f"total node time: {bottleneck_summary['total_time_ms']:.2f}ms"
+            )
+
+            # Log slowest node
+            slowest = bottleneck_summary.get("slowest_node")
+            if slowest:
+                logger.info(
+                    f"Slowest node: {slowest['node_id']} "
+                    f"({slowest['avg_duration_ms']:.2f}ms avg, "
+                    f"{slowest['call_count']} calls, "
+                    f"{slowest['total_duration_ms']:.2f}ms total)"
+                )
+
+            # Log bottlenecks (>50% threshold)
+            bottlenecks = bottleneck_summary.get("bottlenecks", [])
+            if bottlenecks:
+                logger.info(f"Bottlenecks (>{50.0}% of total time):")
+                for b in bottlenecks:
+                    logger.info(
+                        f"  - {b['node_id']}: {b['percent_of_total']:.1f}% "
+                        f"({b['total_duration_ms']:.2f}ms total, "
+                        f"{b['avg_duration_ms']:.2f}ms avg, "
+                        f"{b['call_count']} calls)"
+                    )
+
+        # Clear profiler from thread-local context
+        clear_profiler()
+
+        # Update workflow run record with completion metrics (including bottleneck info)
         if workflow_run_repo and run_id:
             try:
                 # Get cost summary from tracker if available
@@ -335,6 +379,9 @@ def run_workflow_from_config(
                 # Convert final state to JSON for outputs
                 outputs_json = json.dumps(final_state, default=str)
 
+                # Serialize bottleneck summary to JSON for storage
+                bottleneck_json = json.dumps(bottleneck_summary, default=str) if bottleneck_summary["node_count"] > 0 else None
+
                 workflow_run_repo.update_run_completion(
                     run_id=run_id,
                     status="completed",
@@ -342,6 +389,7 @@ def run_workflow_from_config(
                     total_tokens=total_tokens,
                     total_cost_usd=total_cost,
                     outputs=outputs_json,
+                    bottleneck_info=bottleneck_json,
                 )
                 logger.debug(f"Updated workflow run record: {run_id} -> completed")
             except Exception as e:
@@ -355,6 +403,9 @@ def run_workflow_from_config(
             f"Workflow execution failed: {workflow_name} "
             f"(duration: {execution_time:.2f}s)"
         )
+
+        # Clear profiler from thread-local context (even on failure)
+        clear_profiler()
 
         # Update workflow run record with failure status
         if workflow_run_repo and run_id:
