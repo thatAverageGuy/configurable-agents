@@ -5,33 +5,34 @@
 See: .planning/PROJECT.md (updated 2026-02-02)
 
 **Core value:** Local-first, config-driven agent orchestration with full observability and zero cloud lock-in
-**Current focus:** Phase 1 - Core Engine
+**Current focus:** Phase 2 - Agent Infrastructure
 
 ## Current Position
 
-Phase: 1 of 4 (Core Engine)
-Plan: 4 of 4 in current phase
-Status: Phase complete
-Last activity: 2026-02-03 -- Completed 01-04-PLAN.md (Storage Integration)
+Phase: 2 of 4 (Agent Infrastructure)
+Plan: 02A of 6 in current phase
+Status: In progress
+Last activity: 2026-02-03 -- Completed 02-02A-PLAN.md (Multi-Provider Cost Tracking)
 
-Progress: [##########]
+Progress: [##        ]  2/12 plans complete (17%)
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 4
+- Total plans completed: 5
 - Average duration: 16 min
-- Total execution time: 1.07 hours
+- Total execution time: 1.33 hours
 
 **By Phase:**
 
 | Phase | Plans | Total | Avg/Plan |
 |-------|-------|-------|----------|
 | 1     | 4     | 65    | 16 min   |
+| 2     | 1     | 16    | 16 min   |
 
 **Recent Trend:**
-- Last 5 plans: 01-01 (8 min), 01-02 (23 min), 01-03 (23 min), 01-04 (11 min)
-- Trend: Phase 1 complete, ready for Phase 2 (Tool Integration & Orchestration)
+- Last 5 plans: 01-01 (8 min), 01-02 (23 min), 01-03 (23 min), 01-04 (11 min), 02-02A (16 min)
+- Trend: Phase 2 started with multi-provider cost tracking
 
 *Updated after each plan completion*
 
@@ -60,6 +61,10 @@ Recent decisions affecting current work:
 - [01-04]: Storage repos attached to tracker object to avoid changing build_graph signature
 - [01-04]: All storage operations wrapped in try/except for graceful degradation
 - [01-04]: Per-node state includes truncated output values (500 chars max) for storage efficiency
+- [02-02A]: MultiProviderCostTracker aggregates costs by provider/model combination
+- [02-02A]: Provider detection supports openai, anthropic, google, ollama from model names
+- [02-02A]: Ollama models return $0.00 cost (local models have no API fees)
+- [02-02A]: Per-provider metrics logged to MLFlow as provider_{name}_cost_usd for UI filtering
 
 ### Pending Todos
 
@@ -72,5 +77,5 @@ None yet.
 ## Session Continuity
 
 Last session: 2026-02-03
-Stopped at: Completed 01-04-PLAN.md (Storage Integration)
+Stopped at: Completed 02-02A-PLAN.md (Multi-Provider Cost Tracking)
 Resume file: None
