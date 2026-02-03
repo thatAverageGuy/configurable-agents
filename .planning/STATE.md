@@ -11,17 +11,17 @@ See: .planning/PROJECT.md (updated 2026-02-02)
 
 Phase: 3 of 4 (Interfaces and Triggers)
 Plan: 3 of 3 in current phase
-Status: Completed 03-03
-Last activity: 2026-02-03 -- Completed 03-03: Generic Webhook Infrastructure
+Status: Completed 03-03B
+Last activity: 2026-02-03 -- Completed 03-03B: WhatsApp and Telegram Webhooks
 
-Progress: [##########]  12/13 plans complete (92% of Phases 1-3)
+Progress: [##########]  13/13 plans complete (100% of Phases 1-3)
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 12
+- Total plans completed: 13
 - Average duration: 17 min
-- Total execution time: 3.5 hours
+- Total execution time: 3.7 hours
 
 **By Phase:**
 
@@ -29,11 +29,11 @@ Progress: [##########]  12/13 plans complete (92% of Phases 1-3)
 |-------|-------|-------|----------|
 | 1     | 4     | 65    | 16 min   |
 | 2     | 6     | 106   | 18 min   |
-| 3     | 2     | 43    | 22 min   |
+| 3     | 3     | 55    | 18 min   |
 
 **Recent Trend:**
-- Last 5 plans: 03-03 (12 min), 03-02 (32 min), 02-01C (41 min), 02-02C (18 min), 02-02B (19 min)
-- Trend: Phase 3 nearly complete, webhook infrastructure done
+- Last 5 plans: 03-03B (12 min), 03-03 (12 min), 03-02 (32 min), 02-01C (41 min), 02-02C (18 min)
+- Trend: Phase 3 complete, ready for Phase 4
 
 *Updated after each plan completion*
 
@@ -108,6 +108,12 @@ Recent decisions affecting current work:
 - [03-03]: Async wrapper run_workflow_async() using asyncio.run_in_executor()
 - [03-03]: Optional signature validation - only when WEBHOOK_SECRET configured
 - [03-03]: Generic webhook endpoint accepts workflow_name and inputs for universal triggering
+- [03-03B]: Used aiogram 3.x with modern async/await patterns (not legacy aiogram 2.x callbacks)
+- [03-03B]: Lazy initialization of platform handlers only when env vars configured
+- [03-03B]: Message chunking for Telegram's 4096 char limit and WhatsApp's 4096 char limit
+- [03-03B]: Factory functions for Bot and Dispatcher instead of singletons for testability
+- [03-03B]: CLI webhooks command follows existing patterns from dashboard command
+- [03-03B]: GET /webhooks/whatsapp returns challenge for Meta webhook verification
 
 ### Pending Todos
 
@@ -120,5 +126,5 @@ None yet.
 ## Session Continuity
 
 Last session: 2026-02-03
-Stopped at: Completed 03-03 - Generic Webhook Infrastructure
+Stopped at: Completed 03-03B - WhatsApp and Telegram Webhooks
 Resume file: None
