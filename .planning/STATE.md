@@ -10,29 +10,29 @@ See: .planning/PROJECT.md (updated 2026-02-02)
 ## Current Position
 
 Phase: 2 of 4 (Agent Infrastructure)
-Plan: 01B of 6 in current phase
-Status: Plan complete
-Last activity: 2026-02-03 -- Completed 02-01B-PLAN.md (Agent Registry Client and Deployment Generator Integration)
+Plan: 02C of 6 in current phase
+Status: Phase complete
+Last activity: 2026-02-03 -- Completed 02-02C-PLAN.md (Observability CLI Commands)
 
-Progress: [###       ]  3/12 plans complete (25%)
+Progress: [######    ]  6/12 plans complete (50%)
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 7
+- Total plans completed: 12
 - Average duration: 17 min
-- Total execution time: 1.99 hours
+- Total execution time: 3.39 hours
 
 **By Phase:**
 
 | Phase | Plans | Total | Avg/Plan |
 |-------|-------|-------|----------|
 | 1     | 4     | 65    | 16 min   |
-| 2     | 3     | 52    | 17 min   |
+| 2     | 6     | 103   | 17 min   |
 
 **Recent Trend:**
-- Last 5 plans: 01-04 (11 min), 02-02A (16 min), 02-01A (18 min), 02-01B (20 min), 02-02B (19 min)
-- Trend: Phase 2 agent infrastructure progressing steadily
+- Last 5 plans: 02-01B (20 min), 02-02A (16 min), 02-02B (19 min), 02-01C (18 min), 02-02C (18 min)
+- Trend: Phase 2 agent infrastructure complete, ready for Phase 3
 
 *Updated after each plan completion*
 
@@ -82,6 +82,16 @@ Recent decisions affecting current work:
 - [02-01B]: Deregistration is best-effort - errors logged but not raised (agent shutting down)
 - [02-01B]: Conditional code generation via template variables populated or empty based on enable_registry flag
 - [02-01B]: httpx>=0.26.0 used for async HTTP in registry client
+- [02-01C]: Heartbeat background task runs on separate async task with while True loop
+- [02-01C]: Shutdown Event set by signal handler for graceful cleanup
+- [02-01C]: Cleanup interval (60s) matches default TTL for efficient stale agent removal
+- [02-01C]: SQLAlchemy Session injected into cleanup endpoint for storage access
+- [02-02C]: Rich library (>=13.0.0) for formatted CLI table output
+- [02-02C]: Lazy MLFlow import in CLI functions allows help without MLFlow installed
+- [02-02C]: CLI observability group with status/cost-report/profile-report subcommands
+- [02-02C]: --enable-profiling flag sets CONFIGURABLE_AGENTS_PROFILING env var for runtime control
+- [02-02C]: Cost report highlights most expensive provider in bold/yellow
+- [02-02C]: Profile report highlights slowest node in bold/red, bottlenecks (>50%) in yellow
 
 ### Pending Todos
 
@@ -94,5 +104,5 @@ None yet.
 ## Session Continuity
 
 Last session: 2026-02-03
-Stopped at: Completed 02-01B-PLAN.md (Agent Registry Client and Deployment Generator Integration)
+Stopped at: Completed 02-02C-PLAN.md (Observability CLI Commands)
 Resume file: None
