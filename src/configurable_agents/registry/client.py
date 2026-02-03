@@ -204,8 +204,10 @@ class AgentRegistryClient:
                     # Sleep until next heartbeat
                     await asyncio.sleep(self.heartbeat_interval)
 
-                except (httpx.HTTPError, asyncio.CancelledError):
-                    # On CancelledError, re-raise to exit cleanly
+                except asyncio.CancelledError:
+                    # Exit immediately on cancellation
+                    raise
+                except httpx.HTTPError:
                     # On HTTP errors, sleep and retry
                     try:
                         await asyncio.sleep(retry_delay)
