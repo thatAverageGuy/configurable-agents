@@ -47,6 +47,10 @@ dev = [
 ]
 ui = [
     "streamlit>=1.30.0",
+    "gradio>=4.0.0",
+]
+chat = [
+    "gradio>=4.0.0",
 ]
 
 [project.scripts]
