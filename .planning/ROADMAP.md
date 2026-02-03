@@ -75,7 +75,7 @@ Plans:
   3. User can view all running workflows, their status, logs, and metrics on the orchestration dashboard and stop or restart a workflow from the UI
   4. User can see registered agents, their capabilities, and health status in the orchestration dashboard
   5. User can send a WhatsApp or Telegram message that triggers a workflow execution, and receive the result back in the same chat
-**Plans**: 3 plans (2 waves)
+**Plans**: 4 plans (3 waves)
 
 Plans:
 **Wave 1 (parallel execution):**
@@ -83,7 +83,10 @@ Plans:
 - [ ] 03-02-PLAN.md -- Orchestration dashboard (FastAPI + HTMX + SSE, agent discovery UI, MLFlow iframe embed, real-time metrics) [Wave 1]
 
 **Wave 2 (depends on Wave 1):**
-- [ ] 03-03-PLAN.md -- External trigger integrations (WhatsApp webhook, Telegram bot via aiogram, generic webhook with HMAC validation, idempotency tracking) [Wave 2, depends on 03-01, 03-02]
+- [ ] 03-03-PLAN.md -- Generic webhook infrastructure (HMAC validation, idempotency tracking, async workflow execution, generic webhook endpoint) [Wave 2, depends on 03-01, 03-02]
+
+**Wave 3 (depends on Wave 2):**
+- [ ] 03-03B-PLAN.md -- Platform webhook integrations (WhatsApp Business API handler, Telegram Bot API handler via aiogram 3.x) [Wave 3, depends on 03-03]
 
 ### Phase 4: Advanced Capabilities
 **Goal**: Users can run agent-generated code safely, leverage persistent memory across executions, use pre-built tools, and optimize prompts through MLFlow experimentation
@@ -110,5 +113,5 @@ Phases execute in numeric order: 1 -> 2 -> 3 -> 4
 |-------|----------------|--------|-----------|
 | 1. Core Engine | 4/4 | Complete | 2026-02-03 |
 | 2. Agent Infrastructure | 6/6 | Complete | 2026-02-03 |
-| 3. Interfaces and Triggers | 0/3 | Ready to start | - |
+| 3. Interfaces and Triggers | 0/4 | Ready to start | - |
 | 4. Advanced Capabilities | 0/3 | Not started | - |

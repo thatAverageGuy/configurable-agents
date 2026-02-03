@@ -8,7 +8,9 @@ Public API:
     - WebhookHandler: Generic webhook handler with HMAC validation
     - verify_signature: HMAC signature verification utility
     - WebhookError, InvalidSignatureError, ReplayAttackError: Exception classes
+    - WhatsAppWebhookHandler: WhatsApp Business API webhook handler
     - router: FastAPI router with generic webhook endpoint
+    - create_telegram_bot, create_dispatcher: Telegram bot factory functions
 
 Example:
     >>> from configurable_agents.webhooks import WebhookHandler
