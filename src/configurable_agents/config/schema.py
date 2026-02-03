@@ -210,7 +210,10 @@ class NodeConfig(BaseModel):
 class RouteCondition(BaseModel):
     """Condition for conditional routing (v0.2+)."""
 
-    logic: str = Field(..., description="Condition logic or 'default'")
+    logic: str = Field(
+        ...,
+        description="Condition logic or 'default'. Use 'state.field' references with operators (>, <, ==, !=, >=, <=, and, or, not). Example: 'state.score > 0.8' or 'state.approved and state.amount < 1000'",
+    )
 
 
 class Route(BaseModel):
@@ -218,6 +221,36 @@ class Route(BaseModel):
 
     condition: RouteCondition = Field(..., description="Route condition")
     to: str = Field(..., description="Target node")
+
+
+class LoopConfig(BaseModel):
+    """Loop configuration for retry/iteration edges."""
+
+    max_iterations: int = Field(
+        10,
+        gt=0,
+        le=100,
+        description="Maximum loop iterations before forced exit",
+    )
+    condition_field: str = Field(
+        ...,
+        description="State field to evaluate for loop termination (must be bool type)",
+    )
+    exit_to: str = Field(
+        "END", description="Node to route to when loop condition is met or max iterations reached"
+    )
+
+
+class ParallelConfig(BaseModel):
+    """Parallel execution configuration for fan-out edges."""
+
+    items_field: str = Field(
+        ..., description="State field containing list of items to fan out over"
+    )
+    target_node: str = Field(..., description="Node to execute for each item")
+    collect_field: str = Field(
+        ..., description="State field to collect results into (must be list type)"
+    )
 
 
 class EdgeConfig(BaseModel):
@@ -228,21 +261,35 @@ class EdgeConfig(BaseModel):
     routes: Optional[List[Route]] = Field(
         None, description="Conditional routes (v0.2+)"
     )
+    loop: Optional[LoopConfig] = Field(
+        None, description="Loop configuration (retry/iteration)"
+    )
+    parallel: Optional[ParallelConfig] = Field(
+        None, description="Parallel fan-out configuration"
+    )
 
     class Config:
         populate_by_name = True  # Allow both 'from' and 'from_'
 
     @model_validator(mode="after")
     def validate_to_or_routes(self) -> "EdgeConfig":
-        """Validate that either 'to' or 'routes' is specified, but not both."""
+        """Validate that exactly one of 'to', 'routes', 'loop', or 'parallel' is specified."""
         has_to = self.to is not None
         has_routes = self.routes is not None and len(self.routes) > 0
+        has_loop = self.loop is not None
+        has_parallel = self.parallel is not None
 
-        if not has_to and not has_routes:
-            raise ValueError("Edge must have either 'to' or 'routes'")
+        edge_types = sum([has_to, has_routes, has_loop, has_parallel])
 
-        if has_to and has_routes:
-            raise ValueError("Edge cannot have both 'to' and 'routes'")
+        if edge_types == 0:
+            raise ValueError(
+                "Edge must have exactly one of: 'to' (linear), 'routes' (conditional), 'loop' (iteration), or 'parallel' (fan-out)"
+            )
+
+        if edge_types > 1:
+            raise ValueError(
+                "Edge cannot have multiple edge types. Choose exactly one of: 'to', 'routes', 'loop', or 'parallel'"
+            )
 
         return self
 

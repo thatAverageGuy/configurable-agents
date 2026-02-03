@@ -108,7 +108,9 @@ def validate_config(config: WorkflowConfig) -> None:
     - State field cross-references
     - Type alignment checks
     - Graph connectivity validation
-    - Linear flow enforcement (v0.1)
+    - Conditional edge validation (routes)
+    - Loop edge validation
+    - Parallel edge validation
 
     Args:
         config: Workflow configuration to validate
@@ -119,6 +121,7 @@ def validate_config(config: WorkflowConfig) -> None:
     # Build indices for fast lookup
     node_ids = {node.id for node in config.nodes}
     state_fields = set(config.state.fields.keys())
+    state_field_types = {name: field.type for name, field in config.state.fields.items()}
 
     # 1. Validate node references in edges
     _validate_edge_references(config, node_ids)
@@ -138,11 +141,16 @@ def validate_config(config: WorkflowConfig) -> None:
     # 6. Validate state field types are valid
     _validate_state_types(config)
 
-    # 7. Validate linear flow constraints (v0.1) - check before graph structure
-    # This catches cycles and multiple edges which would cause graph structure failures
-    _validate_linear_flow(config, node_ids)
+    # 7. Validate conditional edges (routes)
+    _validate_conditional_edges(config, node_ids, state_fields)
 
-    # 8. Validate graph structure (connectivity, reachability)
+    # 8. Validate loop edges
+    _validate_loop_edges(config, node_ids, state_field_types)
+
+    # 9. Validate parallel edges
+    _validate_parallel_edges(config, node_ids, state_field_types)
+
+    # 10. Validate graph structure (connectivity, reachability)
     _validate_graph_structure(config, node_ids)
 
 
@@ -183,6 +191,28 @@ def _validate_edge_references(config: WorkflowConfig, node_ids: Set[str]) -> Non
                         suggestion=suggestion,
                         context=f"Edge: {edge.from_} -> routes",
                     )
+
+        # Validate 'loop.exit_to' (if loop edge)
+        if edge.loop:
+            if edge.loop.exit_to not in valid_nodes:
+                similar = _find_similar(edge.loop.exit_to, list(valid_nodes))
+                suggestion = f"Did you mean '{similar}'?" if similar else f"Valid nodes: {sorted(valid_nodes)}"
+                raise ValidationError(
+                    f"Edge {i}: loop.exit_to references unknown node '{edge.loop.exit_to}'",
+                    suggestion=suggestion,
+                    context=f"Edge: {edge.from_} -> loop",
+                )
+
+        # Validate 'parallel.target_node' (if parallel edge)
+        if edge.parallel:
+            if edge.parallel.target_node not in node_ids:
+                similar = _find_similar(edge.parallel.target_node, list(node_ids))
+                suggestion = f"Did you mean '{similar}'?" if similar else f"Valid nodes: {sorted(node_ids)}"
+                raise ValidationError(
+                    f"Edge {i}: parallel.target_node references unknown node '{edge.parallel.target_node}'",
+                    suggestion=suggestion,
+                    context=f"Edge: {edge.from_} -> parallel",
+                )
 
 
 def _validate_node_outputs(config: WorkflowConfig, state_fields: Set[str]) -> None:
@@ -367,6 +397,18 @@ def _validate_graph_structure(config: WorkflowConfig, node_ids: Set[str]) -> Non
             for route in edge.routes:
                 graph[edge.from_].add(route.to)
                 reverse_graph[route.to].add(edge.from_)
+        elif edge.loop:
+            # Loop edge: from_node can go to itself (loop) or exit_to
+            # Add edge to exit_to for connectivity check
+            graph[edge.from_].add(edge.loop.exit_to)
+            reverse_graph[edge.loop.exit_to].add(edge.from_)
+            # Also add self-loop for from_node (represents looping back)
+            graph[edge.from_].add(edge.from_)
+            reverse_graph[edge.from_].add(edge.from_)
+        elif edge.parallel:
+            # Parallel edge: from_node goes to target_node
+            graph[edge.from_].add(edge.parallel.target_node)
+            reverse_graph[edge.parallel.target_node].add(edge.from_)
 
     # 1. Check exactly one edge from START
     start_edges = graph.get("START", set())
@@ -380,7 +422,7 @@ def _validate_graph_structure(config: WorkflowConfig, node_ids: Set[str]) -> Non
         raise ValidationError(
             f"Multiple edges from START: {sorted(start_edges)}",
             suggestion="START should have exactly one outgoing edge",
-            context="Linear workflows must have a single entry point",
+            context="Workflows must have a single entry point",
         )
 
     # 2. Check all nodes reachable from START (forward BFS)
@@ -410,80 +452,149 @@ def _validate_graph_structure(config: WorkflowConfig, node_ids: Set[str]) -> Non
         )
 
 
-def _validate_linear_flow(config: WorkflowConfig, node_ids: Set[str]) -> None:
+def _validate_conditional_edges(
+    config: WorkflowConfig, node_ids: Set[str], state_fields: Set[str]
+) -> None:
     """
-    Validate v0.1 linear flow constraints.
+    Validate conditional edge (routes) configuration.
 
     Checks:
-    - No conditional routing (routes)
-    - No cycles in the graph
-    - Each node has at most one outgoing edge
+    - Each route.to is a valid node ID or "END"
+    - At least one route has condition.logic == "default" (fallback required)
+    - Condition logic references only valid state fields (basic check)
     """
-    # 1. Check for conditional routing
     for i, edge in enumerate(config.edges):
         if edge.routes:
-            raise ValidationError(
-                f"Edge {i}: Conditional routing not supported in v0.1",
-                suggestion="Use linear edges (from/to) instead. Conditional routing available in v0.2+ (8-12 weeks)",
-                context=f"Edge: {edge.from_} -> routes. See docs/PROJECT_VISION.md for roadmap",
+            # Check for default route (fallback)
+            has_default = any(
+                route.condition.logic == "default" for route in edge.routes
             )
+            if not has_default:
+                raise ValidationError(
+                    f"Edge {i} (from '{edge.from_}'): Conditional routes must have a default route",
+                    suggestion='Add a route with condition.logic="default" to handle unmatched cases',
+                    context="Every conditional edge needs a fallback route",
+                )
 
-    # 2. Check each node has at most one outgoing edge
-    outgoing_counts: Dict[str, int] = defaultdict(int)
-    for edge in config.edges:
-        outgoing_counts[edge.from_] += 1
+            # Validate each route's condition references valid state fields
+            for route in edge.routes:
+                if route.condition.logic != "default":
+                    # Extract state field references from condition logic
+                    # Basic check: look for state.X patterns and validate X exists
+                    for match in re.finditer(r"\bstate\.(\w+)\b", route.condition.logic):
+                        field_name = match.group(1)
+                        if field_name not in state_fields:
+                            similar = _find_similar(field_name, list(state_fields))
+                            suggestion = (
+                                f"Did you mean '{similar}'?"
+                                if similar
+                                else f"Available state fields: {sorted(state_fields)}"
+                            )
+                            raise ValidationError(
+                                f"Edge {i}: Route condition references unknown state field '{field_name}'",
+                                suggestion=suggestion,
+                                context=f"Condition: {route.condition.logic}",
+                            )
 
-    for node, count in outgoing_counts.items():
-        if node != "START" and count > 1:
-            raise ValidationError(
-                f"Node '{node}' has {count} outgoing edges",
-                suggestion="v0.1 supports linear flows only. Each node should have 0-1 outgoing edges",
-                context="Multiple outgoing edges require conditional routing (v0.2+)",
-            )
 
-    # 3. Check for cycles using DFS
-    graph: Dict[str, str] = {}
-    for edge in config.edges:
-        if edge.to:
-            graph[edge.from_] = edge.to
+def _validate_loop_edges(
+    config: WorkflowConfig, node_ids: Set[str], state_field_types: Dict[str, str]
+) -> None:
+    """
+    Validate loop edge configuration.
 
-    visited: Set[str] = set()
-    rec_stack: Set[str] = set()
+    Checks:
+    - loop.condition_field exists in state schema and is type "bool"
+    - loop.exit_to is a valid node ID or "END"
+    - The edge from_ node exists
+    """
+    for i, edge in enumerate(config.edges):
+        if edge.loop:
+            # Check condition_field exists and is bool type
+            condition_field = edge.loop.condition_field
+            if condition_field not in state_field_types:
+                similar = _find_similar(condition_field, list(state_field_types.keys()))
+                suggestion = (
+                    f"Did you mean '{similar}'?"
+                    if similar
+                    else f"Available state fields: {sorted(state_field_types.keys())}"
+                )
+                raise ValidationError(
+                    f"Edge {i}: loop.condition_field '{condition_field}' not found in state schema",
+                    suggestion=suggestion,
+                    context=f"Edge: {edge.from_} -> loop",
+                )
 
-    def has_cycle(node: str, path: List[str]) -> Optional[List[str]]:
-        """DFS to detect cycles. Returns cycle path if found."""
-        if node in rec_stack:
-            # Found cycle - extract cycle path
-            cycle_start = path.index(node)
-            return path[cycle_start:] + [node]
+            if state_field_types[condition_field] != "bool":
+                raise ValidationError(
+                    f"Edge {i}: loop.condition_field '{condition_field}' must be type 'bool', got '{state_field_types[condition_field]}'",
+                    suggestion="Change the state field type to 'bool' or use a different condition_field",
+                    context=f"Edge: {edge.from_} -> loop",
+                )
 
-        if node in visited:
-            return None
+            # Check exit_to is valid (already validated in _validate_edge_references, but skip check here)
 
-        visited.add(node)
-        rec_stack.add(node)
-        path.append(node)
+            # Check the from_ node exists (already validated)
 
-        # Visit next node
-        if node in graph:
-            next_node = graph[node]
-            cycle = has_cycle(next_node, path)
-            if cycle:
-                return cycle
 
-        path.pop()
-        rec_stack.remove(node)
-        return None
+def _validate_parallel_edges(
+    config: WorkflowConfig, node_ids: Set[str], state_field_types: Dict[str, str]
+) -> None:
+    """
+    Validate parallel edge configuration.
 
-    # Check from START
-    cycle = has_cycle("START", [])
-    if cycle:
-        cycle_str = " -> ".join(cycle)
-        raise ValidationError(
-            f"Cycle detected in workflow: {cycle_str}",
-            suggestion="Remove edges to break the cycle. Linear workflows cannot have loops (loops available in v0.2+)",
-            context="v0.1 supports linear flows only",
-        )
+    Checks:
+    - parallel.items_field exists in state schema and is a list type
+    - parallel.target_node is a valid node ID
+    - parallel.collect_field exists in state schema and is a list type
+    """
+    for i, edge in enumerate(config.edges):
+        if edge.parallel:
+            # Check items_field exists and is list type
+            items_field = edge.parallel.items_field
+            if items_field not in state_field_types:
+                similar = _find_similar(items_field, list(state_field_types.keys()))
+                suggestion = (
+                    f"Did you mean '{similar}'?"
+                    if similar
+                    else f"Available state fields: {sorted(state_field_types.keys())}"
+                )
+                raise ValidationError(
+                    f"Edge {i}: parallel.items_field '{items_field}' not found in state schema",
+                    suggestion=suggestion,
+                    context=f"Edge: {edge.from_} -> parallel",
+                )
+
+            if not state_field_types[items_field].startswith("list"):
+                raise ValidationError(
+                    f"Edge {i}: parallel.items_field '{items_field}' must be a list type (e.g., 'list[str]', 'list[int]'), got '{state_field_types[items_field]}'",
+                    suggestion="Change the state field type to a list type",
+                    context=f"Edge: {edge.from_} -> parallel",
+                )
+
+            # Check target_node is valid (already validated in _validate_edge_references)
+
+            # Check collect_field exists and is list type
+            collect_field = edge.parallel.collect_field
+            if collect_field not in state_field_types:
+                similar = _find_similar(collect_field, list(state_field_types.keys()))
+                suggestion = (
+                    f"Did you mean '{similar}'?"
+                    if similar
+                    else f"Available state fields: {sorted(state_field_types.keys())}"
+                )
+                raise ValidationError(
+                    f"Edge {i}: parallel.collect_field '{collect_field}' not found in state schema",
+                    suggestion=suggestion,
+                    context=f"Edge: {edge.from_} -> parallel",
+                )
+
+            if not state_field_types[collect_field].startswith("list"):
+                raise ValidationError(
+                    f"Edge {i}: parallel.collect_field '{collect_field}' must be a list type (e.g., 'list[str]', 'list[int]'), got '{state_field_types[collect_field]}'",
+                    suggestion="Change the state field type to a list type",
+                    context=f"Edge: {edge.from_} -> parallel",
+                )
 
 
 def _bfs(graph: Dict[str, Set[str]], start: str) -> Set[str]:

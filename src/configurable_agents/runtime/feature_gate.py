@@ -51,10 +51,9 @@ class UnsupportedFeatureError(Exception):
 
 def validate_runtime_support(config: WorkflowConfig) -> None:
     """
-    Validate that config only uses features supported by v0.1 runtime.
+    Validate that config only uses features supported by current runtime version.
 
     Checks for:
-    - Conditional routing (v0.2+ feature) - HARD BLOCK
     - Optimization config (v0.3+ feature) - SOFT BLOCK (warning)
     - Advanced observability (v0.2+ feature) - SOFT BLOCK (warning)
 
@@ -67,9 +66,6 @@ def validate_runtime_support(config: WorkflowConfig) -> None:
     Warnings:
         UserWarning: For soft blocks (features that will be ignored)
     """
-    # Check for conditional routing (v0.2+) - HARD BLOCK
-    _check_conditional_routing(config)
-
     # Check for optimization (v0.3+) - SOFT BLOCK
     _check_optimization(config)
 
@@ -79,21 +75,13 @@ def validate_runtime_support(config: WorkflowConfig) -> None:
 
 def _check_conditional_routing(config: WorkflowConfig) -> None:
     """
-    Check for conditional routing (routes in edges).
+    No-op: conditional routing is now supported.
 
-    This is a HARD BLOCK - raises UnsupportedFeatureError.
+    Previously checked for conditional routing (routes in edges) as a HARD BLOCK.
+    This feature is now supported in the current runtime version.
     """
-    for i, edge in enumerate(config.edges):
-        if edge.routes:
-            raise UnsupportedFeatureError(
-                feature="Conditional routing (edge routes)",
-                available_in="v0.2",
-                timeline="8-12 weeks from initial release",
-                workaround=(
-                    "Use linear edges (from/to) instead. "
-                    "For decision logic, create multiple separate workflows and chain them externally."
-                ),
-            )
+    # Feature is now supported - no-op
+    pass
 
 
 def _check_optimization(config: WorkflowConfig) -> None:
@@ -155,9 +143,12 @@ def get_supported_features() -> dict:
         Dict mapping feature categories to lists of supported features
     """
     return {
-        "version": "0.1.0-dev",
+        "version": "0.2.0-dev",
         "flow_control": [
             "Linear workflows (START -> nodes -> END)",
+            "Conditional routing (if/else based on state)",
+            "Loops and retries (with iteration limits)",
+            "Parallel node execution (fan-out/fan-in)",
             "Single entry point",
             "Sequential execution",
         ],
@@ -187,6 +178,9 @@ def get_supported_features() -> dict:
             "Type checking",
             "Graph validation",
             "Cross-reference checks",
+            "Route condition validation",
+            "Loop config validation",
+            "Parallel config validation",
         ],
         "observability": [
             "MLFlow integration",
@@ -196,20 +190,15 @@ def get_supported_features() -> dict:
             "CLI cost reporting",
         ],
         "not_supported": {
-            "v0.2": [
-                "Conditional routing (if/else)",
-                "Loops and retries",
-                "State persistence and resume",
-            ],
             "v0.3": [
                 "DSPy prompt optimization",
-                "Parallel node execution",
                 "Quality metrics and evaluation",
             ],
             "v0.4": [
                 "Visual workflow editor",
                 "One-click deployments",
                 "Plugin system",
+                "State persistence and resume",
             ],
         },
     }
