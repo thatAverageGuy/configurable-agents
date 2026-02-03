@@ -25,7 +25,7 @@ class TestFactory:
             tmp_path: pytest fixture for temporary directory
         """
         # Use default config (None)
-        runs_repo, states_repo = create_storage_backend()
+        runs_repo, states_repo, agents_repo, chat_repo, webhook_repo = create_storage_backend()
 
         assert isinstance(runs_repo, SQLiteWorkflowRunRepository)
         assert isinstance(states_repo, SQLiteExecutionStateRepository)
@@ -39,7 +39,7 @@ class TestFactory:
         db_path = tmp_path / "test.db"
         config = StorageConfig(backend="sqlite", path=str(db_path))
 
-        runs_repo, states_repo = create_storage_backend(config)
+        runs_repo, states_repo, agents_repo, chat_repo, webhook_repo = create_storage_backend(config)
 
         assert isinstance(runs_repo, SQLiteWorkflowRunRepository)
         assert isinstance(states_repo, SQLiteExecutionStateRepository)
@@ -53,7 +53,7 @@ class TestFactory:
         db_path = tmp_path / "test.db"
         config = StorageConfig(backend="sqlite", path=str(db_path))
 
-        runs_repo, states_repo = create_storage_backend(config)
+        runs_repo, states_repo, agents_repo, chat_repo, webhook_repo = create_storage_backend(config)
 
         # Check that tables exist by inspecting the engine
         inspector = inspect(runs_repo.engine)
@@ -78,7 +78,7 @@ class TestFactory:
         db_path = tmp_path / "test.db"
         config = StorageConfig(backend=f"sqlite:///{db_path}", path=str(db_path))
 
-        runs_repo, states_repo = create_storage_backend(config)
+        runs_repo, states_repo, agents_repo, chat_repo, webhook_repo = create_storage_backend(config)
 
         assert isinstance(runs_repo, SQLiteWorkflowRunRepository)
         assert isinstance(states_repo, SQLiteExecutionStateRepository)
