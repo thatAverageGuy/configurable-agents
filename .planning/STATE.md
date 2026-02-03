@@ -10,28 +10,28 @@ See: .planning/PROJECT.md (updated 2026-02-02)
 ## Current Position
 
 Phase: 1 of 4 (Core Engine)
-Plan: 1 of 4 in current phase
+Plan: 2 of 4 in current phase
 Status: In progress
-Last activity: 2026-02-03 -- Completed 01-01-PLAN.md (Storage Abstraction Layer)
+Last activity: 2026-02-03 -- Completed 01-02-PLAN.md (Multi-Provider LLM Support)
 
-Progress: [##.........]
+Progress: [###.........]
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 1
-- Average duration: 8 min
-- Total execution time: 0.13 hours
+- Total plans completed: 2
+- Average duration: 16 min
+- Total execution time: 0.52 hours
 
 **By Phase:**
 
 | Phase | Plans | Total | Avg/Plan |
 |-------|-------|-------|----------|
-| 1     | 1     | 4     | 8 min    |
+| 1     | 2     | 4     | 16 min   |
 
 **Recent Trend:**
-- Last 5 plans: 01-01 (8 min)
-- Trend: Started strong, on track
+- Last 5 plans: 01-01 (8 min), 01-02 (23 min)
+- Trend: On track, slightly longer duration for complex integration
 
 *Updated after each plan completion*
 
@@ -49,6 +49,10 @@ Recent decisions affecting current work:
 - [01-01]: SQLAlchemy 2.0 with DeclarativeBase and Mapped/mapped_column for type-safe ORM
 - [01-01]: Repository Pattern for storage abstraction enables SQLite to PostgreSQL migration
 - [01-01]: Context manager pattern (with Session) prevents transaction leaks in SQLAlchemy 2.0
+- [01-02]: Google provider uses direct implementation (not LiteLLM) for optimal LangChain compatibility
+- [01-02]: LiteLLM reserved for OpenAI, Anthropic, and Ollama providers
+- [01-02]: Ollama uses ollama_chat/ prefix per LiteLLM best practices
+- [01-02]: Ollama local models tracked as zero-cost in cost estimator
 
 ### Pending Todos
 
@@ -61,5 +65,5 @@ None yet.
 ## Session Continuity
 
 Last session: 2026-02-03
-Stopped at: Completed 01-01-PLAN.md
+Stopped at: Completed 01-02-PLAN.md (Multi-Provider LLM Support)
 Resume file: None
