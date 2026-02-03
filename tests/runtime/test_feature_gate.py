@@ -124,57 +124,58 @@ def test_valid_config_with_basic_logging():
 
 
 # ============================================
-# Conditional Routing Tests (v0.2+ - HARD BLOCK)
+# Conditional Routing Tests (NOW SUPPORTED)
 # ============================================
 
 
-def test_conditional_routing_blocked():
-    """Test that conditional routing raises UnsupportedFeatureError."""
+def test_conditional_routing_supported():
+    """Test that conditional routing is now supported in v0.2."""
     config = make_minimal_config(
+        state=StateSchema(
+            fields={
+                "input": StateFieldConfig(type="str", required=True),
+                "score": StateFieldConfig(type="float", default=0.5),
+                "output": StateFieldConfig(type="str", default=""),
+            }
+        ),
         edges=[
             EdgeConfig(
                 from_="START",
                 routes=[
-                    Route(condition=RouteCondition(logic="true"), to="process"),
+                    Route(condition=RouteCondition(logic="state.score > 0.8"), to="END"),
+                    Route(condition=RouteCondition(logic="default"), to="END"),
                 ],
             ),
-            EdgeConfig(from_="process", to="END"),
-        ]
+        ],
     )
 
-    with pytest.raises(UnsupportedFeatureError) as exc_info:
-        validate_runtime_support(config)
-
-    error = exc_info.value
-    assert error.feature == "Conditional routing (edge routes)"
-    assert error.available_in == "v0.2"
-    assert "8-12 weeks" in error.timeline
-    assert "linear edges" in error.workaround.lower()
-    assert "v0.2" in str(error)
+    # Should not raise - conditional routing is now supported
+    validate_runtime_support(config)
 
 
-def test_conditional_routing_error_message():
-    """Test that conditional routing error has helpful message."""
+def test_conditional_routing_with_default_route():
+    """Test that conditional edges with default route are supported."""
     config = make_minimal_config(
+        state=StateSchema(
+            fields={
+                "input": StateFieldConfig(type="str", required=True),
+                "approved": StateFieldConfig(type="bool", default=False),
+                "output": StateFieldConfig(type="str", default=""),
+            }
+        ),
         edges=[
             EdgeConfig(
                 from_="START",
                 routes=[
-                    Route(condition=RouteCondition(logic="true"), to="process"),
+                    Route(condition=RouteCondition(logic="state.approved"), to="END"),
+                    Route(condition=RouteCondition(logic="default"), to="END"),
                 ],
             ),
-            EdgeConfig(from_="process", to="END"),
-        ]
+        ],
     )
 
-    with pytest.raises(UnsupportedFeatureError) as exc_info:
-        validate_runtime_support(config)
-
-    error_msg = str(exc_info.value)
-    assert "not supported in v0.1" in error_msg
-    assert "Available in: v0.2" in error_msg
-    assert "timeline" in error_msg.lower()
-    assert "roadmap" in error_msg.lower()
+    # Should not raise - conditional routing is now supported
+    validate_runtime_support(config)
 
 
 # ============================================
@@ -320,37 +321,32 @@ def test_get_supported_features():
     features = get_supported_features()
 
     assert "version" in features
-    assert features["version"] == "0.1.0-dev"
+    assert features["version"] == "0.2.0-dev"
 
     assert "flow_control" in features
     assert "Linear workflows (START -> nodes -> END)" in features["flow_control"]
+    # Conditional routing, loops, and parallel are now supported
+    assert "Conditional routing (if/else based on state)" in features["flow_control"]
+    assert "Loops and retries (with iteration limits)" in features["flow_control"]
+    assert "Parallel node execution (fan-out/fan-in)" in features["flow_control"]
 
     assert "state" in features
     assert "nodes" in features
     assert "llm" in features
     assert "validation" in features
 
+    # v0.2 features moved to supported, v0.3 features remain unsupported
     assert "not_supported" in features
-    assert "v0.2" in features["not_supported"]
     assert "v0.3" in features["not_supported"]
 
 
 def test_check_feature_support_supported():
-    """Test checking support for a v0.1 feature."""
-    result = check_feature_support("Linear workflows (START -> nodes -> END)")
+    """Test checking support for a v0.2 feature (now supported)."""
+    result = check_feature_support("Conditional routing (if/else based on state)")
 
     assert result["supported"] is True
-    assert result["version"] == "0.1.0-dev"
+    assert result["version"] == "0.2.0-dev"
     assert "Available now" in result["timeline"]
-
-
-def test_check_feature_support_v02():
-    """Test checking support for a v0.2 feature."""
-    result = check_feature_support("Conditional routing (if/else)")
-
-    assert result["supported"] is False
-    assert result["version"] == "v0.2"
-    assert "8-12 weeks" in result["timeline"]
 
 
 def test_check_feature_support_v03():
@@ -377,26 +373,35 @@ def test_check_feature_support_unknown():
 
 
 def test_multiple_unsupported_features_hard_block_first():
-    """Test that hard blocks (conditional routing) fail before soft blocks warn."""
+    """Test that conditional routing is now supported (only optimization soft block)."""
+    # Conditional routing is now supported, so only optimization warns
     config = make_minimal_config(
+        state=StateSchema(
+            fields={
+                "input": StateFieldConfig(type="str", required=True),
+                "score": StateFieldConfig(type="float", default=0.5),
+                "output": StateFieldConfig(type="str", default=""),
+            }
+        ),
         optimization=OptimizationConfig(enabled=True),  # Soft block (v0.3)
         edges=[
             EdgeConfig(
                 from_="START",
-                routes=[  # Hard block (v0.2)
-                    Route(condition=RouteCondition(logic="true"), to="process"),
+                routes=[
+                    Route(condition=RouteCondition(logic="state.score > 0.8"), to="END"),
+                    Route(condition=RouteCondition(logic="default"), to="END"),
                 ],
             ),
-            EdgeConfig(from_="process", to="END"),
         ],
     )
 
-    # Should raise error for hard block, not get to soft block
-    with pytest.raises(UnsupportedFeatureError) as exc_info:
+    # Conditional routing is supported, only optimization should warn
+    with pytest.warns(UserWarning) as record:
         validate_runtime_support(config)
 
-    # Error should be about conditional routing, not optimization
-    assert "Conditional routing" in str(exc_info.value)
+    # Should have one warning about optimization only
+    assert len(record) == 1
+    assert "DSPy optimization" in str(record[0].message)
 
 
 def test_multiple_soft_blocks_all_warn():
