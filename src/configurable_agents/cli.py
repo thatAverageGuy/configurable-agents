@@ -1402,6 +1402,118 @@ def cmd_dashboard(args: argparse.Namespace) -> int:
     return 0
 
 
+def cmd_webhooks(args: argparse.Namespace) -> int:
+    """
+    Launch the webhook server for platform integrations.
+
+    Starts FastAPI server with webhook endpoints for WhatsApp,
+    Telegram, and generic workflow triggering.
+
+    Args:
+        args: Parsed command-line arguments
+
+    Returns:
+        Exit code (0 for success, 1 for error)
+    """
+    print_info(f"Starting webhook server on {colorize(f'{args.host}:{args.port}', Colors.CYAN)}")
+
+    # Import uvicorn for running the server
+    try:
+        import uvicorn
+    except ImportError:
+        print_error("uvicorn is required to run the webhook server")
+        print_info("Install with: pip install uvicorn[standard]")
+        return 1
+
+    # Create FastAPI app with webhook router
+    try:
+        from fastapi import FastAPI
+
+        from configurable_agents.webhooks import router as webhook_router
+
+        app = FastAPI(title="Configurable Agents Webhooks", version="0.1.0")
+        app.include_router(webhook_router)
+
+        # Add health check endpoint at root
+        @app.get("/")
+        async def root():
+            return {
+                "service": "configurable-agents-webhooks",
+                "version": "0.1.0",
+                "endpoints": {
+                    "health": "/webhooks/health",
+                    "generic": "/webhooks/generic",
+                    "whatsapp": "/webhooks/whatsapp",
+                    "telegram": "/webhooks/telegram",
+                },
+            }
+
+    except Exception as e:
+        print_error(f"Failed to create webhook app: {e}")
+        if args.verbose:
+            import traceback
+
+            print(traceback.format_exc(), file=sys.stderr)
+        return 1
+
+    # Print server URLs
+    print()
+    print(f"{colorize('=' * 60, Colors.GREEN)}")
+    print(f"{colorize('Webhook server started!', Colors.BOLD + Colors.GREEN)}")
+    print(f"{colorize('=' * 60, Colors.GREEN)}")
+    print()
+    print(f"{colorize('Endpoints:', Colors.BOLD)}")
+    print(f"  Health check: http://localhost:{args.port}/webhooks/health")
+    print(f"  Generic:      http://localhost:{args.port}/webhooks/generic")
+    print(f"  WhatsApp:     http://localhost:{args.port}/webhooks/whatsapp")
+    print(f"  Telegram:     http://localhost:{args.port}/webhooks/telegram")
+    print(f"  API docs:     http://localhost:{args.port}/docs")
+    print()
+
+    # Check platform configuration
+    from configurable_agents.webhooks.router import (
+        _get_telegram_token,
+        _get_whatsapp_config,
+    )
+
+    whatsapp_config = _get_whatsapp_config()
+    telegram_token = _get_telegram_token()
+
+    if all(whatsapp_config.values()):
+        print_success(f"WhatsApp:    {colorize('configured', Colors.GREEN)}")
+    else:
+        print_warning(f"WhatsApp:    {colorize('not configured', Colors.GRAY)}")
+        print_info("  Set WHATSAPP_PHONE_ID, WHATSAPP_ACCESS_TOKEN, WHATSAPP_VERIFY_TOKEN")
+
+    if telegram_token:
+        print_success(f"Telegram:    {colorize('configured', Colors.GREEN)}")
+    else:
+        print_warning(f"Telegram:    {colorize('not configured', Colors.GRAY)}")
+        print_info("  Set TELEGRAM_BOT_TOKEN")
+    print()
+
+    # Run server
+    try:
+        uvicorn.run(
+            app,
+            host=args.host,
+            port=args.port,
+            log_level="info" if args.verbose else "warning",
+        )
+    except KeyboardInterrupt:
+        print_info("\nWebhook server stopped")
+        return 0
+    except Exception as e:
+        print_error(f"Server error: {e}")
+        if args.verbose:
+            import traceback
+
+            print(traceback.format_exc(), file=sys.stderr)
+        return 1
+
+    return 0
+
+
 def create_parser() -> argparse.ArgumentParser:
     """
     Create CLI argument parser.
@@ -1834,6 +1946,28 @@ For more information, visit: https://github.com/yourusername/configurable-agents
         "-v", "--verbose", action="store_true", help="Enable verbose output"
     )
     dashboard_parser.set_defaults(func=cmd_dashboard)
+
+    # Webhooks command
+    webhooks_parser = subparsers.add_parser(
+        "webhooks",
+        help="Launch the webhook server",
+        description="Launch the webhook server for WhatsApp, Telegram, and generic workflow triggers",
+    )
+    webhooks_parser.add_argument(
+        "--host",
+        default="0.0.0.0",
+        help="Host to bind to (default: 0.0.0.0)",
+    )
+    webhooks_parser.add_argument(
+        "--port",
+        type=int,
+        default=7862,
+        help="Port to listen on (default: 7862)",
+    )
+    webhooks_parser.add_argument(
+        "-v", "--verbose", action="store_true", help="Enable verbose output"
+    )
+    webhooks_parser.set_defaults(func=cmd_webhooks)
 
     return parser
 
