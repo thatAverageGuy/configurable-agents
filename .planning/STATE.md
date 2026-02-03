@@ -10,29 +10,29 @@ See: .planning/PROJECT.md (updated 2026-02-02)
 ## Current Position
 
 Phase: 2 of 4 (Agent Infrastructure)
-Plan: 01A of 6 in current phase
+Plan: 02B of 6 in current phase
 Status: Plan complete
-Last activity: 2026-02-03 -- Completed 02-01A-PLAN.md (Agent Registry Storage and Server)
+Last activity: 2026-02-03 -- Completed 02-02B-PLAN.md (Performance Profiling and Bottleneck Detection)
 
-Progress: [##        ]  2/12 plans complete (17%)
+Progress: [###       ]  3/12 plans complete (25%)
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 6
+- Total plans completed: 7
 - Average duration: 17 min
-- Total execution time: 1.63 hours
+- Total execution time: 1.99 hours
 
 **By Phase:**
 
 | Phase | Plans | Total | Avg/Plan |
 |-------|-------|-------|----------|
 | 1     | 4     | 65    | 16 min   |
-| 2     | 2     | 34    | 17 min   |
+| 2     | 3     | 52    | 17 min   |
 
 **Recent Trend:**
-- Last 5 plans: 01-01 (8 min), 01-02 (23 min), 01-03 (23 min), 01-04 (11 min), 02-02A (16 min), 02-01A (18 min)
-- Trend: Phase 2 agent infrastructure in progress
+- Last 5 plans: 01-04 (11 min), 02-02A (16 min), 02-01A (18 min), 02-01B (20 min), 02-02B (19 min)
+- Trend: Phase 2 agent infrastructure progressing steadily
 
 *Updated after each plan completion*
 
@@ -71,6 +71,11 @@ Recent decisions affecting current work:
 - [02-01A]: Background cleanup runs every 60 seconds via asyncio.create_task()
 - [02-01A]: TTL heartbeat pattern - agents refresh TTL via /heartbeat endpoint
 - [02-01A]: Session management pattern for SQLAlchemy in FastAPI endpoints
+- [02-02B]: Thread-local storage for BottleneckAnalyzer enables parallel execution safety
+- [02-02B]: Bottleneck threshold uses > (strictly greater than) for detection
+- [02-02B]: Per-node timing captured via time.perf_counter() in decorator with try/finally
+- [02-02B]: MLFlow metrics: node_{node_id}_duration_ms and node_{node_id}_cost_usd
+- [02-02B]: bottleneck_info JSON field in WorkflowRunRecord for historical analysis
 
 ### Pending Todos
 
@@ -83,5 +88,5 @@ None yet.
 ## Session Continuity
 
 Last session: 2026-02-03
-Stopped at: Completed 02-01A-PLAN.md (Agent Registry Storage and Server)
+Stopped at: Completed 02-02B-PLAN.md (Performance Profiling and Bottleneck Detection)
 Resume file: None
