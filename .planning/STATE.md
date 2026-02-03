@@ -10,18 +10,18 @@ See: .planning/PROJECT.md (updated 2026-02-02)
 ## Current Position
 
 Phase: 3 of 4 (Interfaces and Triggers)
-Plan: 1 of 3 in current phase
-Status: Completed 03-01
-Last activity: 2026-02-03 -- Completed 03-01: Gradio Chat UI for Config Generation
+Plan: 3 of 3 in current phase
+Status: Completed 03-03
+Last activity: 2026-02-03 -- Completed 03-03: Generic Webhook Infrastructure
 
-Progress: [##########]  11/13 plans complete (85% of Phases 1-3)
+Progress: [##########]  12/13 plans complete (92% of Phases 1-3)
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 11
-- Average duration: 18 min
-- Total execution time: 3.3 hours
+- Total plans completed: 12
+- Average duration: 17 min
+- Total execution time: 3.5 hours
 
 **By Phase:**
 
@@ -29,11 +29,11 @@ Progress: [##########]  11/13 plans complete (85% of Phases 1-3)
 |-------|-------|-------|----------|
 | 1     | 4     | 65    | 16 min   |
 | 2     | 6     | 106   | 18 min   |
-| 3     | 1     | 31    | 31 min   |
+| 3     | 2     | 43    | 22 min   |
 
 **Recent Trend:**
-- Last 5 plans: 03-02 (32 min), 02-01C (41 min), 02-02C (18 min), 02-02B (19 min), 02-02A (16 min)
-- Trend: Phase 3 progressing, chat UI complete
+- Last 5 plans: 03-03 (12 min), 03-02 (32 min), 02-01C (41 min), 02-02C (18 min), 02-02B (19 min)
+- Trend: Phase 3 nearly complete, webhook infrastructure done
 
 *Updated after each plan completion*
 
@@ -103,6 +103,11 @@ Recent decisions affecting current work:
 - [03-01]: ChatMessage uses message_metadata column name to avoid SQLAlchemy reserved word
 - [03-01]: stream_chat() async generator pattern for non-blocking LLM responses
 - [03-01]: Session ID derived from request.client.host:port for browser-based continuity
+- [03-03]: HMAC signature verification uses hmac.compare_digest() for timing-attack safety
+- [03-03]: INSERT OR IGNORE pattern for idempotent webhook_id marking
+- [03-03]: Async wrapper run_workflow_async() using asyncio.run_in_executor()
+- [03-03]: Optional signature validation - only when WEBHOOK_SECRET configured
+- [03-03]: Generic webhook endpoint accepts workflow_name and inputs for universal triggering
 
 ### Pending Todos
 
@@ -115,5 +120,5 @@ None yet.
 ## Session Continuity
 
 Last session: 2026-02-03
-Stopped at: Completed 03-01 - Gradio Chat UI for Config Generation
+Stopped at: Completed 03-03 - Generic Webhook Infrastructure
 Resume file: None
