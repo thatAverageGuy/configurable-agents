@@ -29,12 +29,12 @@ Decimal phases appear between their surrounding integers in numeric order.
   3. User can write a YAML config where multiple nodes execute concurrently, and all results are collected before continuing
   4. User can switch a workflow's LLM provider from Gemini to OpenAI/Anthropic/Ollama by changing one line in the YAML config, and execution succeeds with the new provider
   5. User can run a complete workflow using only Ollama local models with no internet connection
-**Plans**: 3 plans
+**Plans**: 3 plans (2 waves)
 
 Plans:
-- [ ] 01-01: Storage abstraction layer (pluggable backend interface with SQLite implementation)
-- [ ] 01-02: Multi-LLM provider integration (LiteLLM abstraction with OpenAI, Anthropic, Gemini, Ollama support)
-- [ ] 01-03: Advanced control flow (conditional branching, loop execution, parallel node execution via LangGraph)
+- [ ] 01-01-PLAN.md -- Storage abstraction layer (pluggable backend interface with SQLite implementation) [Wave 1]
+- [ ] 01-02-PLAN.md -- Multi-LLM provider integration (LiteLLM abstraction with OpenAI, Anthropic, Gemini, Ollama support) [Wave 1]
+- [ ] 01-03-PLAN.md -- Advanced control flow (conditional branching, loop execution, parallel node execution via LangGraph) [Wave 2, depends on 01-02]
 
 ### Phase 2: Agent Infrastructure
 **Goal**: Users can deploy minimal agent containers that self-register, maintain health, and produce detailed observable metrics across all providers
@@ -92,7 +92,7 @@ Phases execute in numeric order: 1 -> 2 -> 3 -> 4
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 1. Core Engine | 0/3 | Not started | - |
+| 1. Core Engine | 0/3 | Planning complete | - |
 | 2. Agent Infrastructure | 0/2 | Not started | - |
 | 3. Interfaces and Triggers | 0/3 | Not started | - |
 | 4. Advanced Capabilities | 0/3 | Not started | - |
