@@ -3,11 +3,14 @@
 This module provides the main interface for creating and configuring LLM instances
 from workflow configuration. It abstracts away provider-specific details.
 
+Multi-provider support (v0.1+):
+    Supports OpenAI, Anthropic, Google Gemini, and Ollama via LiteLLM integration.
+
 Example:
     >>> from configurable_agents.llm import create_llm, call_llm_structured
     >>> from configurable_agents.config import LLMConfig
     >>>
-    >>> config = LLMConfig(provider="google", model="gemini-pro", temperature=0.7)
+    >>> config = LLMConfig(provider="openai", model="gpt-4o", temperature=0.7)
     >>> llm = create_llm(config)
 """
 
@@ -43,8 +46,8 @@ class LLMProviderError(Exception):
         message = (
             f"LLM provider '{provider}' is not supported.\n"
             f"Supported providers: {', '.join(supported_providers)}\n\n"
-            f"Note: v0.1 only supports Google Gemini. "
-            f"Additional providers coming in v0.2+ (8-12 weeks)."
+            f"Note: LiteLLM is required for multi-provider support. "
+            f"Install: pip install litellm>=1.80.0"
         )
         super().__init__(message)
 
@@ -68,6 +71,10 @@ def create_llm(llm_config: Any, global_config: Any = None) -> BaseChatModel:
     provider selection, configuration merging (node-level overrides global),
     and validation.
 
+    Multi-provider support (v0.1+):
+        Supports OpenAI, Anthropic, Google Gemini, and Ollama via LiteLLM.
+        Falls back to direct Google implementation if LiteLLM unavailable.
+
     Args:
         llm_config: LLMConfig object (can be node-level or global config)
         global_config: Optional global config to merge with (node config takes precedence)
@@ -81,7 +88,7 @@ def create_llm(llm_config: Any, global_config: Any = None) -> BaseChatModel:
 
     Example:
         >>> from configurable_agents.config import LLMConfig
-        >>> config = LLMConfig(provider="google", model="gemini-pro")
+        >>> config = LLMConfig(provider="openai", model="gpt-4o")
         >>> llm = create_llm(config)
     """
     # Import here to avoid issues with config module
@@ -116,22 +123,40 @@ def create_llm(llm_config: Any, global_config: Any = None) -> BaseChatModel:
 
         llm_config = LLMConfig(**merged)
 
-    # Default to Google Gemini (v0.1 only provider)
+    # Default to Google Gemini for backward compatibility
     provider = llm_config.provider or "google"
 
-    # Validate provider
-    supported_providers = ["google"]
-    if provider not in supported_providers:
-        raise LLMProviderError(provider, supported_providers)
+    # Supported providers (with LiteLLM)
+    supported_providers = ["openai", "anthropic", "google", "ollama"]
 
-    # Route to provider-specific implementation
+    # Try LiteLLM route first (multi-provider support)
+    try:
+        from configurable_agents.llm.litellm_provider import (
+            LITELLM_AVAILABLE,
+            create_litellm_llm,
+        )
+
+        if LITELLM_AVAILABLE:
+            # Validate provider
+            if provider not in supported_providers:
+                raise LLMProviderError(provider, supported_providers)
+
+            return create_litellm_llm(llm_config)
+    except ImportError:
+        # LiteLLM not available, fall back to Google-only path
+        pass
+
+    # Fallback: Google Gemini (works without LiteLLM)
     if provider == "google":
         from configurable_agents.llm.google import create_google_llm
 
         return create_google_llm(llm_config)
 
-    # Should never reach here due to validation above
-    raise LLMProviderError(provider, supported_providers)
+    # If we reach here, provider is not supported without LiteLLM
+    raise LLMProviderError(
+        provider,
+        ["google"],  # Only Google works without LiteLLM
+    )
 
 
 class LLMUsageMetadata:

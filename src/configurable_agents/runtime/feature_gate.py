@@ -174,7 +174,10 @@ def get_supported_features() -> dict:
             "Tool calling (single tool: serper_search)",
         ],
         "llm": [
+            "OpenAI models (GPT-4o, GPT-4o-mini, etc.)",
+            "Anthropic models (Claude Sonnet 4, Claude 3.5 Sonnet, etc.)",
             "Google Gemini models",
+            "Ollama local models (Llama 3, Mistral, etc.)",
             "Temperature control",
             "Max tokens",
             "Node-level overrides",
@@ -196,7 +199,6 @@ def get_supported_features() -> dict:
             "v0.2": [
                 "Conditional routing (if/else)",
                 "Loops and retries",
-                "Multiple LLM providers (OpenAI, Anthropic, Ollama)",
                 "State persistence and resume",
             ],
             "v0.3": [
