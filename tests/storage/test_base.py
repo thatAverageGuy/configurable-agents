@@ -41,6 +41,18 @@ class TestAbstractWorkflowRunRepository:
             def delete(self, run_id: str) -> None:
                 pass
 
+            def update_run_completion(
+                self,
+                run_id: str,
+                status: str,
+                duration_seconds: float,
+                total_tokens: int,
+                total_cost_usd: float,
+                outputs: str = None,
+                error_message: str = None,
+            ) -> None:
+                pass
+
         # Should not raise
         repo = ConcreteRepo()
         assert repo is not None

@@ -275,6 +275,89 @@ class TestSQLiteWorkflowRunRepo:
         with pytest.raises(ValueError, match="Workflow run not found"):
             runs_repo.delete("nonexistent")
 
+    def test_update_run_completion_with_all_fields(self, runs_repo, temp_engine) -> None:
+        """Test that update_run_completion sets all completion metrics.
+
+        Args:
+            runs_repo: Repository fixture
+            temp_engine: Engine fixture for direct query
+        """
+        run = WorkflowRunRecord(
+            id="test-run",
+            workflow_name="test_workflow",
+            status="running",
+        )
+        runs_repo.add(run)
+
+        # Update with completion metrics
+        runs_repo.update_run_completion(
+            run_id="test-run",
+            status="completed",
+            duration_seconds=5.5,
+            total_tokens=1000,
+            total_cost_usd=0.0015,
+            outputs='{"result": "done"}',
+        )
+
+        # Verify the update
+        with Session(temp_engine) as session:
+            updated = session.get(WorkflowRunRecord, "test-run")
+            assert updated.status == "completed"
+            assert updated.completed_at is not None
+            assert updated.duration_seconds == 5.5
+            assert updated.total_tokens == 1000
+            assert updated.total_cost_usd == 0.0015
+            assert updated.outputs == '{"result": "done"}'
+
+    def test_update_run_completion_with_error_message(self, runs_repo, temp_engine) -> None:
+        """Test that update_run_completion sets error message on failure.
+
+        Args:
+            runs_repo: Repository fixture
+            temp_engine: Engine fixture for direct query
+        """
+        run = WorkflowRunRecord(
+            id="test-run",
+            workflow_name="test_workflow",
+            status="running",
+        )
+        runs_repo.add(run)
+
+        # Update with failure status
+        runs_repo.update_run_completion(
+            run_id="test-run",
+            status="failed",
+            duration_seconds=2.0,
+            total_tokens=0,
+            total_cost_usd=0.0,
+            error_message="Something went wrong",
+        )
+
+        # Verify the update
+        with Session(temp_engine) as session:
+            updated = session.get(WorkflowRunRecord, "test-run")
+            assert updated.status == "failed"
+            assert updated.completed_at is not None
+            assert updated.duration_seconds == 2.0
+            assert updated.error_message == "Something went wrong"
+
+    def test_update_run_completion_nonexistent_run_raises_value_error(
+        self, runs_repo
+    ) -> None:
+        """Test that updating completion for non-existent run raises ValueError.
+
+        Args:
+            runs_repo: Repository fixture
+        """
+        with pytest.raises(ValueError, match="Workflow run not found"):
+            runs_repo.update_run_completion(
+                run_id="nonexistent",
+                status="completed",
+                duration_seconds=1.0,
+                total_tokens=100,
+                total_cost_usd=0.0001,
+            )
+
 
 class TestSQLiteExecutionStateRepo:
     """Tests for SQLiteExecutionStateRepository."""

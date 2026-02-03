@@ -1,7 +1,10 @@
 """Runtime executor for workflow execution."""
 
+import json
 import logging
 import time
+import uuid
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Dict, Optional
 
@@ -19,6 +22,8 @@ from configurable_agents.runtime.feature_gate import (
     UnsupportedFeatureError,
     validate_runtime_support,
 )
+from configurable_agents.storage import create_storage_backend
+from configurable_agents.storage.models import WorkflowRunRecord
 
 logger = logging.getLogger(__name__)
 
@@ -189,6 +194,18 @@ def run_workflow_from_config(
             original_error=e,
         )
 
+    # Phase 2.5: Initialize storage backend (optional, graceful degradation)
+    workflow_run_repo = None
+    execution_state_repo = None
+    storage_config = None
+    if config.config and config.config.storage:
+        storage_config = config.config.storage
+    try:
+        workflow_run_repo, execution_state_repo = create_storage_backend(storage_config)
+        logger.debug("Storage backend initialized")
+    except Exception as e:
+        logger.warning(f"Storage backend initialization failed, continuing without persistence: {e}")
+
     # Phase 3: Build state model
     try:
         logger.debug("Building state model...")
@@ -221,12 +238,37 @@ def run_workflow_from_config(
             original_error=e,
         )
 
+    # Phase 4.5: Create workflow run record (if storage available)
+    run_id = None
+    if workflow_run_repo:
+        try:
+            run_id = str(uuid.uuid4())
+            run_record = WorkflowRunRecord(
+                id=run_id,
+                workflow_name=workflow_name,
+                status="running",
+                config_snapshot=json.dumps(config.model_dump(), default=str),
+                inputs=json.dumps(inputs, default=str),
+                started_at=datetime.now(timezone.utc),
+            )
+            workflow_run_repo.add(run_record)
+            logger.debug(f"Persisted workflow run: {run_id}")
+        except Exception as e:
+            logger.warning(f"Failed to persist workflow run record: {e}")
+            run_id = None  # Disable further storage ops for this run
+
     # Phase 5: Initialize MLFlow tracker
     mlflow_config = None
     if config.config and config.config.observability:
         mlflow_config = config.config.observability.mlflow
 
     tracker = MLFlowTracker(mlflow_config, config)
+
+    # Attach storage repos to tracker for node executor access
+    if run_id and execution_state_repo:
+        tracker.execution_state_repo = execution_state_repo
+        tracker.run_id = run_id
+        logger.debug(f"Attached storage repos to tracker for run {run_id}")
 
     # Phase 6: Build and compile graph (with tracker for node instrumentation)
     try:
@@ -278,6 +320,33 @@ def run_workflow_from_config(
         )
         logger.debug(f"Final state: {final_state}")
 
+        # Update workflow run record with completion metrics
+        if workflow_run_repo and run_id:
+            try:
+                # Get cost summary from tracker if available
+                total_tokens = 0
+                total_cost = 0.0
+                if tracker.enabled:
+                    cost_summary = tracker.get_workflow_cost_summary()
+                    if cost_summary:
+                        total_tokens = cost_summary.get('total_tokens', {}).get('total_tokens', 0)
+                        total_cost = cost_summary.get('total_cost_usd', 0.0)
+
+                # Convert final state to JSON for outputs
+                outputs_json = json.dumps(final_state, default=str)
+
+                workflow_run_repo.update_run_completion(
+                    run_id=run_id,
+                    status="completed",
+                    duration_seconds=execution_time,
+                    total_tokens=total_tokens,
+                    total_cost_usd=total_cost,
+                    outputs=outputs_json,
+                )
+                logger.debug(f"Updated workflow run record: {run_id} -> completed")
+            except Exception as e:
+                logger.warning(f"Failed to update workflow run record on completion: {e}")
+
         return final_state
 
     except Exception as e:
@@ -286,6 +355,22 @@ def run_workflow_from_config(
             f"Workflow execution failed: {workflow_name} "
             f"(duration: {execution_time:.2f}s)"
         )
+
+        # Update workflow run record with failure status
+        if workflow_run_repo and run_id:
+            try:
+                workflow_run_repo.update_run_completion(
+                    run_id=run_id,
+                    status="failed",
+                    duration_seconds=execution_time,
+                    total_tokens=0,
+                    total_cost_usd=0.0,
+                    error_message=str(e)[:500],  # Truncate long error messages
+                )
+                logger.debug(f"Updated workflow run record: {run_id} -> failed")
+            except Exception as exc:
+                logger.warning(f"Failed to update workflow run record on failure: {exc}")
+
         raise WorkflowExecutionError(
             f"Workflow execution failed: {e}",
             phase="workflow_execution",

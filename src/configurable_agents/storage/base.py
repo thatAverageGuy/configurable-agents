@@ -96,6 +96,33 @@ class AbstractWorkflowRunRepository(ABC):
         """
         raise NotImplementedError
 
+    @abstractmethod
+    def update_run_completion(
+        self,
+        run_id: str,
+        status: str,
+        duration_seconds: float,
+        total_tokens: int,
+        total_cost_usd: float,
+        outputs: Optional[str] = None,
+        error_message: Optional[str] = None,
+    ) -> None:
+        """Update a workflow run with completion metrics.
+
+        Args:
+            run_id: Unique identifier for the workflow run
+            status: New status value ("completed" or "failed")
+            duration_seconds: Execution time in seconds
+            total_tokens: Total tokens used across all LLM calls
+            total_cost_usd: Total estimated cost in USD
+            outputs: JSON-serialized output data (optional)
+            error_message: Error message if status is "failed" (optional)
+
+        Raises:
+            ValueError: If run_id not found
+        """
+        raise NotImplementedError
+
 
 class AbstractExecutionStateRepository(ABC):
     """Abstract repository for execution state persistence.

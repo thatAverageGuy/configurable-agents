@@ -130,6 +130,48 @@ class SQLiteWorkflowRunRepository(AbstractWorkflowRunRepository):
             session.delete(run)
             session.commit()
 
+    def update_run_completion(
+        self,
+        run_id: str,
+        status: str,
+        duration_seconds: float,
+        total_tokens: int,
+        total_cost_usd: float,
+        outputs: Optional[str] = None,
+        error_message: Optional[str] = None,
+    ) -> None:
+        """Update a workflow run with completion metrics.
+
+        Args:
+            run_id: Unique identifier for the workflow run
+            status: New status value ("completed" or "failed")
+            duration_seconds: Execution time in seconds
+            total_tokens: Total tokens used across all LLM calls
+            total_cost_usd: Total estimated cost in USD
+            outputs: JSON-serialized output data (optional)
+            error_message: Error message if status is "failed" (optional)
+
+        Raises:
+            ValueError: If run_id not found
+        """
+        with Session(self.engine) as session:
+            run = session.get(WorkflowRunRecord, run_id)
+            if run is None:
+                raise ValueError(f"Workflow run not found: {run_id}")
+
+            run.status = status
+            run.completed_at = datetime.utcnow()
+            run.duration_seconds = duration_seconds
+            run.total_tokens = total_tokens
+            run.total_cost_usd = total_cost_usd
+
+            if outputs is not None:
+                run.outputs = outputs
+            if error_message is not None:
+                run.error_message = error_message
+
+            session.commit()
+
 
 class SQLiteExecutionStateRepository(AbstractExecutionStateRepository):
     """SQLite implementation of execution state repository.

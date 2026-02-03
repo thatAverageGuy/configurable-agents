@@ -16,8 +16,10 @@ Design decisions:
   (TODO T-011.1: Update template resolver to handle state. prefix natively)
 """
 
+import json
 import logging
 import re
+import time
 from typing import TYPE_CHECKING, Optional
 
 from pydantic import BaseModel, ValidationError
@@ -141,6 +143,10 @@ def execute_node(
     """
     node_id = node_config.id
 
+    # Extract storage repos from tracker (attached by executor)
+    execution_state_repo = getattr(tracker, 'execution_state_repo', None) if tracker else None
+    run_id = getattr(tracker, 'run_id', None) if tracker else None
+
     try:
         # ========================================
         # 1. RESOLVE INPUT MAPPINGS
@@ -247,6 +253,9 @@ def execute_node(
         # The tracker parameter is kept for backward compatibility and config access,
         # but actual tracing happens automatically - no manual track_node() needed!
 
+        # Start timing for node execution
+        node_start_time = time.time()
+
         try:
             # Call LLM with structured output enforcement
             # Tools are bound if present, retries handled automatically
@@ -267,10 +276,28 @@ def execute_node(
             )
 
         except (LLMAPIError, ValidationError) as e:
+            # Save failed execution state before raising
+            if execution_state_repo and run_id:
+                try:
+                    error_state = {
+                        "node_id": node_id,
+                        "duration_seconds": round(time.time() - node_start_time, 4),
+                        "status": "failed",
+                        "error": str(e)[:500],  # Truncate long error messages
+                    }
+                    execution_state_repo.save_state(
+                        run_id=run_id,
+                        state_data=error_state,
+                        node_id=node_id,
+                    )
+                except Exception:
+                    pass  # Double-fault: don't let storage errors mask the real error
             raise NodeExecutionError(
                 f"Node '{node_id}': LLM call failed: {e}",
                 node_id=node_id,
             )
+
+        node_duration = time.time() - node_start_time
 
         # ========================================
         # 7. UPDATE STATE
@@ -300,6 +327,57 @@ def execute_node(
 
         # Pydantic auto-validates on setattr
         # If validation fails, raises ValidationError (caught above)
+
+        # ========================================
+        # 6.5: PERSIST EXECUTION STATE (if storage available)
+        # ========================================
+        if execution_state_repo and run_id:
+            try:
+                state_snapshot = {
+                    "node_id": node_id,
+                    "duration_seconds": round(node_duration, 4),
+                    "input_tokens": usage.input_tokens,
+                    "output_tokens": usage.output_tokens,
+                    "total_tokens": usage.input_tokens + usage.output_tokens,
+                    "model": model_name,
+                    "status": "completed",
+                }
+
+                # Add cost if available from cost estimator
+                try:
+                    from configurable_agents.observability.cost_estimator import CostEstimator
+                    estimator = CostEstimator()
+                    cost = estimator.estimate_cost(
+                        model=model_name,
+                        input_tokens=usage.input_tokens,
+                        output_tokens=usage.output_tokens,
+                    )
+                    state_snapshot["cost_usd"] = cost
+                except Exception:
+                    state_snapshot["cost_usd"] = 0.0
+
+                # Include the output state values (for trace inspection)
+                output_values = {}
+                for output_name in node_config.outputs:
+                    val = getattr(new_state, output_name, None)
+                    if val is not None:
+                        # Truncate large string outputs for storage efficiency
+                        str_val = str(val)
+                        output_values[output_name] = str_val[:500] if len(str_val) > 500 else str_val
+                state_snapshot["outputs"] = output_values
+
+                execution_state_repo.save_state(
+                    run_id=run_id,
+                    state_data=state_snapshot,
+                    node_id=node_id,
+                )
+                logger.debug(
+                    f"Node '{node_id}': Saved execution state "
+                    f"(duration={node_duration:.3f}s, tokens={usage.input_tokens + usage.output_tokens})"
+                )
+            except Exception as e:
+                # Storage failure must not break execution
+                logger.warning(f"Node '{node_id}': Failed to save execution state: {e}")
 
         logger.info(
             f"Node '{node_id}': Execution complete, updated {len(node_config.outputs)} "
