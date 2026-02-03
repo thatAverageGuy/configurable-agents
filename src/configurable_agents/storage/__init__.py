@@ -18,7 +18,7 @@ Public API:
 
 Example:
     >>> from configurable_agents.storage import create_storage_backend
-    >>> runs_repo, states_repo, agents_repo, chat_repo = create_storage_backend()
+    >>> runs_repo, states_repo, agents_repo, chat_repo, webhook_repo = create_storage_backend()
     >>> # Use repositories for persistence operations
 """
 

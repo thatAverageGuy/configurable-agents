@@ -588,7 +588,7 @@ def create_gradio_chat_ui(
     # Create session repository if not provided
     if session_repo is None:
         from configurable_agents.storage import create_storage_backend
-        _, _, _, session_repo = create_storage_backend()
+        _, _, _, session_repo, _ = create_storage_backend()
 
     return GradioChatUI(llm_client, session_repo)
 

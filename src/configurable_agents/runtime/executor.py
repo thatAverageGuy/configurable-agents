@@ -208,7 +208,7 @@ def run_workflow_from_config(
     if config.config and config.config.storage:
         storage_config = config.config.storage
     try:
-        workflow_run_repo, execution_state_repo = create_storage_backend(storage_config)
+        workflow_run_repo, execution_state_repo, _, _, _ = create_storage_backend(storage_config)
         logger.debug("Storage backend initialized")
     except Exception as e:
         logger.warning(f"Storage backend initialization failed, continuing without persistence: {e}")
