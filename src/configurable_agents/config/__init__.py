@@ -23,6 +23,7 @@ from configurable_agents.config.schema import (
     RouteCondition,
     StateFieldConfig,
     StateSchema,
+    StorageConfig,
     WorkflowConfig,
 )
 from configurable_agents.config.types import (
@@ -60,6 +61,7 @@ __all__ = [
     "ObservabilityConfig",
     "ObservabilityMLFlowConfig",
     "ObservabilityLoggingConfig",
+    "StorageConfig",
     # Types
     "TypeParseError",
     "parse_type_string",

@@ -126,10 +126,30 @@ class OptimizeConfig(BaseModel):
 class LLMConfig(BaseModel):
     """LLM configuration (global or node-level)."""
 
-    provider: Optional[str] = Field(None, description="LLM provider (v0.1: only 'google')")
+    provider: Optional[str] = Field(
+        None, description="LLM provider: 'openai', 'anthropic', 'google', 'ollama'"
+    )
     model: Optional[str] = Field(None, description="Model name")
-    temperature: Optional[float] = Field(None, ge=0.0, le=1.0, description="Temperature (0.0-1.0)")
+    temperature: Optional[float] = Field(
+        None, ge=0.0, le=1.0, description="Temperature (0.0-1.0)"
+    )
     max_tokens: Optional[int] = Field(None, gt=0, description="Max tokens")
+    api_base: Optional[str] = Field(
+        None,
+        description="Custom API base URL (e.g., for Ollama: http://localhost:11434)",
+    )
+
+    @field_validator("provider")
+    @classmethod
+    def validate_provider(cls, v: Optional[str]) -> Optional[str]:
+        """Validate provider is supported."""
+        if v is not None:
+            supported = ["openai", "anthropic", "google", "ollama"]
+            if v not in supported:
+                raise ValueError(
+                    f"Provider '{v}' not supported. Supported providers: {supported}"
+                )
+        return v
 
     @field_validator("temperature")
     @classmethod
@@ -338,6 +358,13 @@ class ObservabilityConfig(BaseModel):
     )
 
 
+class StorageConfig(BaseModel):
+    """Storage backend configuration."""
+
+    backend: str = Field("sqlite", description="Storage backend type: 'sqlite' or connection URI")
+    path: str = Field("./workflows.db", description="SQLite database path (only for sqlite backend)")
+
+
 class GlobalConfig(BaseModel):
     """Global infrastructure configuration."""
 
@@ -346,6 +373,7 @@ class GlobalConfig(BaseModel):
     observability: Optional[ObservabilityConfig] = Field(
         None, description="Observability config (v0.2+)"
     )
+    storage: Optional[StorageConfig] = Field(None, description="Storage backend config")
 
 
 # ============================================
