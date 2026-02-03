@@ -10,29 +10,29 @@ See: .planning/PROJECT.md (updated 2026-02-02)
 ## Current Position
 
 Phase: 2 of 4 (Agent Infrastructure)
-Plan: 02A of 6 in current phase
-Status: In progress
-Last activity: 2026-02-03 -- Completed 02-02A-PLAN.md (Multi-Provider Cost Tracking)
+Plan: 01A of 6 in current phase
+Status: Plan complete
+Last activity: 2026-02-03 -- Completed 02-01A-PLAN.md (Agent Registry Storage and Server)
 
 Progress: [##        ]  2/12 plans complete (17%)
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 5
-- Average duration: 16 min
-- Total execution time: 1.33 hours
+- Total plans completed: 6
+- Average duration: 17 min
+- Total execution time: 1.63 hours
 
 **By Phase:**
 
 | Phase | Plans | Total | Avg/Plan |
 |-------|-------|-------|----------|
 | 1     | 4     | 65    | 16 min   |
-| 2     | 1     | 16    | 16 min   |
+| 2     | 2     | 34    | 17 min   |
 
 **Recent Trend:**
-- Last 5 plans: 01-01 (8 min), 01-02 (23 min), 01-03 (23 min), 01-04 (11 min), 02-02A (16 min)
-- Trend: Phase 2 started with multi-provider cost tracking
+- Last 5 plans: 01-01 (8 min), 01-02 (23 min), 01-03 (23 min), 01-04 (11 min), 02-02A (16 min), 02-01A (18 min)
+- Trend: Phase 2 agent infrastructure in progress
 
 *Updated after each plan completion*
 
@@ -62,9 +62,15 @@ Recent decisions affecting current work:
 - [01-04]: All storage operations wrapped in try/except for graceful degradation
 - [01-04]: Per-node state includes truncated output values (500 chars max) for storage efficiency
 - [02-02A]: MultiProviderCostTracker aggregates costs by provider/model combination
-- [02-02A]: Provider detection supports openai, anthropic, google, ollama from model names
+- [02-22A]: Provider detection supports openai, anthropic, google, ollama from model names
 - [02-02A]: Ollama models return $0.00 cost (local models have no API fees)
 - [02-02A]: Per-provider metrics logged to MLFlow as provider_{name}_cost_usd for UI filtering
+- [02-01A]: Agent registry uses agent_metadata field name to avoid SQLAlchemy reserved attribute
+- [02-01A]: AgentRecord has custom __init__ for default TTL (60s) and heartbeat timestamps
+- [02-01A]: Agent registration is idempotent - re-registering updates existing record
+- [02-01A]: Background cleanup runs every 60 seconds via asyncio.create_task()
+- [02-01A]: TTL heartbeat pattern - agents refresh TTL via /heartbeat endpoint
+- [02-01A]: Session management pattern for SQLAlchemy in FastAPI endpoints
 
 ### Pending Todos
 
@@ -77,5 +83,5 @@ None yet.
 ## Session Continuity
 
 Last session: 2026-02-03
-Stopped at: Completed 02-02A-PLAN.md (Multi-Provider Cost Tracking)
+Stopped at: Completed 02-01A-PLAN.md (Agent Registry Storage and Server)
 Resume file: None
