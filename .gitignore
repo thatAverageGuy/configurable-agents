@@ -65,3 +65,5 @@ checkpoints.db
 # CLAUDE.md
 deploy/*
 mlflow.db
+mlruns/*
+*.db
