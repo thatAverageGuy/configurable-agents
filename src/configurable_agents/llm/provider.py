@@ -129,7 +129,15 @@ def create_llm(llm_config: Any, global_config: Any = None) -> BaseChatModel:
     # Supported providers (with LiteLLM)
     supported_providers = ["openai", "anthropic", "google", "ollama"]
 
-    # Try LiteLLM route first (multi-provider support)
+    # Google provider: use direct implementation for better compatibility
+    # The direct Google provider has better compatibility with LangChain features
+    # like with_structured_output() and bind_tools()
+    if provider == "google":
+        from configurable_agents.llm.google import create_google_llm
+
+        return create_google_llm(llm_config)
+
+    # For other providers, try LiteLLM route
     try:
         from configurable_agents.llm.litellm_provider import (
             LITELLM_AVAILABLE,
@@ -143,14 +151,8 @@ def create_llm(llm_config: Any, global_config: Any = None) -> BaseChatModel:
 
             return create_litellm_llm(llm_config)
     except ImportError:
-        # LiteLLM not available, fall back to Google-only path
+        # LiteLLM not available, can't support non-Google providers
         pass
-
-    # Fallback: Google Gemini (works without LiteLLM)
-    if provider == "google":
-        from configurable_agents.llm.google import create_google_llm
-
-        return create_google_llm(llm_config)
 
     # If we reach here, provider is not supported without LiteLLM
     raise LLMProviderError(
@@ -213,7 +215,22 @@ def call_llm_structured(
 
     # Bind tools FIRST if provided (before structured output)
     if tools:
-        llm = llm.bind_tools(tools)
+        # Special handling for ChatLiteLLM with Google/Gemini to fix tool_choice
+        # VertexAI doesn't support tool_choice="any" which is LangChain's default
+        try:
+            from langchain_community.chat_models import ChatLiteLLM
+            if isinstance(llm, ChatLiteLLM):
+                model = getattr(llm, "model", "")
+                if isinstance(model, str) and "gemini/" in model:
+                    # Bind with explicit tool_choice="auto" instead of default "any"
+                    llm = llm.bind_tools(tools, tool_choice="auto")
+                else:
+                    llm = llm.bind_tools(tools)
+            else:
+                llm = llm.bind_tools(tools)
+        except (ImportError, AttributeError):
+            # Not a ChatLiteLLM or other issue, use default binding
+            llm = llm.bind_tools(tools)
 
     # Then bind structured output to LLM
     structured_llm = llm.with_structured_output(output_model, include_raw=True)

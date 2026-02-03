@@ -24,6 +24,10 @@ try:
     import litellm
 
     LITELLM_AVAILABLE = True
+
+    # Configure LiteLLM to drop unsupported parameters
+    # This is needed for VertexAI/Gemini which doesn't support some LangChain defaults
+    litellm.drop_params = True  # type: ignore
 except ImportError:
     LITELLM_AVAILABLE = False
     litellm = None  # type: ignore
@@ -115,6 +119,14 @@ def create_litellm_llm(llm_config: Any) -> Any:
 
     # Build LiteLLM model string
     model_string = get_litellm_model_string(provider, model)
+
+    # Configure LiteLLM to drop unsupported parameters
+    # This is needed for VertexAI/Gemini which doesn't support some LangChain defaults
+    litellm.drop_params = True  # type: ignore
+
+    # Also set it as an environment variable for extra safety
+    import os
+    os.environ["LITELLM_DROP_PARAMS"] = "true"
 
     # Build ChatLiteLLM kwargs
     kwargs = {"model": model_string}
