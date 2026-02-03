@@ -27,12 +27,12 @@ Requirements for v1.0 release. Each maps to roadmap phases.
 
 ### User Interface
 
-- [ ] **UI-01**: User can generate YAML configs through conversational chat interface (Gradio-based)
-- [ ] **UI-02**: Chat UI persists conversation history and config iterations across sessions
-- [ ] **UI-03**: User can manage running workflows through orchestration dashboard (FastAPI + HTMX)
-- [ ] **UI-04**: User can discover and register agents through the orchestration interface
-- [ ] **UI-05**: MLFlow UI is accessible within the orchestration dashboard (iframe integration)
-- [ ] **UI-06**: User can monitor agent status, logs, and metrics in real-time (streaming updates)
+- [x] **UI-01**: User can generate YAML configs through conversational chat interface (Gradio-based)
+- [x] **UI-02**: Chat UI persists conversation history and config iterations across sessions
+- [x] **UI-03**: User can manage running workflows through orchestration dashboard (FastAPI + HTMX)
+- [x] **UI-04**: User can discover and register agents through the orchestration interface
+- [x] **UI-05**: MLFlow UI is accessible within the orchestration dashboard (iframe integration)
+- [x] **UI-06**: User can monitor agent status, logs, and metrics in real-time (streaming updates)
 
 ### Architecture
 
@@ -40,14 +40,14 @@ Requirements for v1.0 release. Each maps to roadmap phases.
 - [ ] **ARCH-02**: Agents support bidirectional registration (agent-initiated and orchestrator-initiated)
 - [x] **ARCH-03**: Agent registry tracks active agents with heartbeat and TTL-based expiration
 - [x] **ARCH-04**: Storage backend is pluggable (SQLite default, swappable to PostgreSQL/Redis without code changes)
-- [ ] **ARCH-05**: Chat UI sessions persist conversation history in storage backend
+- [x] **ARCH-05**: Chat UI sessions persist conversation history in storage backend
 - [ ] **ARCH-06**: Long-term memory has dedicated storage backend (per-agent context storage)
 
 ### Integration
 
-- [ ] **INT-01**: User can trigger workflows from WhatsApp messages (webhook integration)
-- [ ] **INT-02**: User can trigger workflows from Telegram messages (bot integration)
-- [ ] **INT-03**: User can trigger workflows from any external system via generic webhook API
+- [x] **INT-01**: User can trigger workflows from WhatsApp messages (webhook integration)
+- [x] **INT-02**: User can trigger workflows from Telegram messages (bot integration)
+- [x] **INT-03**: User can trigger workflows from any external system via generic webhook API
 
 ## v2 Requirements
 
@@ -101,16 +101,16 @@ Deferred to future release. Tracked but not in current roadmap.
 | ARCH-03 | Phase 2 | Complete |
 | OBS-02 | Phase 2 | Complete |
 | OBS-03 | Phase 2 | Complete |
-| UI-01 | Phase 3 | Pending |
-| UI-02 | Phase 3 | Pending |
-| UI-03 | Phase 3 | Pending |
-| UI-04 | Phase 3 | Pending |
-| UI-05 | Phase 3 | Pending |
-| UI-06 | Phase 3 | Pending |
-| ARCH-05 | Phase 3 | Pending |
-| INT-01 | Phase 3 | Pending |
-| INT-02 | Phase 3 | Pending |
-| INT-03 | Phase 3 | Pending |
+| UI-01 | Phase 3 | Complete |
+| UI-02 | Phase 3 | Complete |
+| UI-03 | Phase 3 | Complete |
+| UI-04 | Phase 3 | Complete |
+| UI-05 | Phase 3 | Complete |
+| UI-06 | Phase 3 | Complete |
+| ARCH-05 | Phase 3 | Complete |
+| INT-01 | Phase 3 | Complete |
+| INT-02 | Phase 3 | Complete |
+| INT-03 | Phase 3 | Complete |
 | RT-04 | Phase 4 | Pending |
 | RT-07 | Phase 4 | Pending |
 | RT-08 | Phase 4 | Pending |
@@ -124,4 +124,4 @@ Deferred to future release. Tracked but not in current roadmap.
 
 ---
 *Requirements defined: 2026-02-03*
-*Last updated: 2026-02-03 after Phase 2 completion*
+*Last updated: 2026-02-03 after Phase 3 completion*

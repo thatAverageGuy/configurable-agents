@@ -14,7 +14,7 @@ Decimal phases appear between their surrounding integers in numeric order.
 
 - [x] **Phase 1: Core Engine** - Multi-LLM support, advanced control flow, storage abstraction, and execution traces
 - [x] **Phase 2: Agent Infrastructure** - Minimal containers, agent lifecycle, and production observability
-- [ ] **Phase 3: Interfaces and Triggers** - Chat UI, orchestration dashboard, and external webhook integrations
+- [x] **Phase 3: Interfaces and Triggers** - Chat UI, orchestration dashboard, and external webhook integrations
 - [ ] **Phase 4: Advanced Capabilities** - Code sandboxes, long-term memory, tool ecosystem, and MLFlow optimization
 
 ## Phase Details
@@ -89,8 +89,8 @@ Plans:
 - [x] 03-03B-PLAN.md -- Platform webhook integrations (WhatsApp Business API handler, Telegram Bot API handler via aiogram 3.x) [Wave 3, depends on 03-03]
 
 **Wave 4 (gap closure):**
-- [ ] 03-04-PLAN.md -- Workflow restart implementation (integrate run_workflow_async into dashboard restart endpoint)
-- [ ] 03-05-PLAN.md -- Test fixture unpacking fix (update tests to unpack 6 values from create_storage_backend)
+- [x] 03-04-PLAN.md -- Workflow restart implementation (integrate run_workflow_async into dashboard restart endpoint)
+- [x] 03-05-PLAN.md -- Test fixture unpacking fix (update tests to unpack 5 values from create_storage_backend)
 
 ### Phase 4: Advanced Capabilities
 **Goal**: Users can run agent-generated code safely, leverage persistent memory across executions, use pre-built tools, and optimize prompts through MLFlow experimentation
@@ -117,5 +117,5 @@ Phases execute in numeric order: 1 -> 2 -> 3 -> 4
 |-------|----------------|--------|-----------|
 | 1. Core Engine | 4/4 | Complete | 2026-02-03 |
 | 2. Agent Infrastructure | 6/6 | Complete | 2026-02-03 |
-| 3. Interfaces and Triggers | 3/6 (gap closure pending) | In Progress | - |
+| 3. Interfaces and Triggers | 6/6 | Complete | 2026-02-03 |
 | 4. Advanced Capabilities | 0/3 | Not started | - |
