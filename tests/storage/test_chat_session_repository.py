@@ -20,7 +20,7 @@ from configurable_agents.storage import create_storage_backend, ChatSessionRepos
 @pytest.fixture
 def chat_repo():
     """Create a fresh ChatSessionRepository for each test."""
-    _, _, _, chat_repo = create_storage_backend()
+    workflow_repo, state_repo, agent_repo, chat_repo, webhook_repo = create_storage_backend()
     return chat_repo
 
 
@@ -150,10 +150,11 @@ flow:
 
     def test_list_recent_sessions_with_limit(self, chat_repo: ChatSessionRepository, sample_user_id: str):
         """Test recent sessions respect the limit parameter."""
-        # Create 5 sessions
+        # Create 5 sessions with messages to ensure distinct timestamps
         session_ids = []
         for i in range(5):
             session_ids.append(chat_repo.create_session(sample_user_id))
+            chat_repo.add_message(session_ids[-1], "user", f"Message {i}")
 
         # List with limit of 3
         sessions = chat_repo.list_recent_sessions(sample_user_id, limit=3)
