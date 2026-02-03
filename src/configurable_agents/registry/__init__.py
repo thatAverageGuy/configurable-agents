@@ -24,10 +24,12 @@ Example:
 # Re-export storage models for convenience
 from configurable_agents.storage.models import AgentRecord
 
-# Server and client components (will be implemented in this module)
+# Server and client components
 from configurable_agents.registry.server import AgentRegistryServer
+from configurable_agents.registry.client import AgentRegistryClient
 
 __all__ = [
     "AgentRegistryServer",
+    "AgentRegistryClient",
     "AgentRecord",
 ]
