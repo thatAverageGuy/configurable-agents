@@ -48,11 +48,11 @@ Plans:
   3. When an agent container crashes or is stopped, the registry removes it automatically after its TTL expires
   4. After running a multi-provider workflow, user can see unified cost breakdown across all LLM providers used
   5. User can identify the slowest node in a workflow through performance profiling output
-**Plans**: 2 plans
+**Plans**: 2 plans (2 waves)
 
 Plans:
-- [ ] 02-01: Minimal agent containers and bidirectional registration (slim Docker images, agent registry with heartbeat/TTL)
-- [ ] 02-02: Production observability (multi-provider cost tracking, performance profiling, bottleneck detection)
+- [ ] 02-01-PLAN.md -- Minimal agent containers and bidirectional registration (AgentRecord ORM, AgentRegistryServer, AgentRegistryClient with heartbeat, health endpoints) [Wave 1]
+- [ ] 02-02-PLAN.md -- Production observability (MultiProviderCostTracker, performance profiling decorator, BottleneckAnalyzer, CLI cost/profile reports) [Wave 2, depends on 02-01]
 
 ### Phase 3: Interfaces and Triggers
 **Goal**: Users can generate configs through conversation, manage running workflows through a dashboard, and trigger workflows from external messaging platforms
