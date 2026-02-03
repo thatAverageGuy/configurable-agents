@@ -4,16 +4,21 @@ Provides endpoints for viewing workflow runs, status, and metrics
 with dynamic updates via Server-Sent Events (SSE).
 """
 
+import asyncio
 import json
+import os
+import tempfile
 from datetime import datetime
-from typing import List, Optional
+from typing import Any, Dict, List, Optional
 
-from fastapi import APIRouter, Request, Response, Depends
-from fastapi.responses import HTMLResponse
+import yaml
+from fastapi import APIRouter, BackgroundTasks, Request, Response, Depends
+from fastapi.responses import HTMLResponse, JSONResponse
 from fastapi.templating import Jinja2Templates
 from sqlalchemy import Select, create_engine, select
 from sqlalchemy.orm import Session
 
+from configurable_agents.runtime.executor import run_workflow_async
 from configurable_agents.storage.base import AbstractWorkflowRunRepository
 from configurable_agents.storage.models import WorkflowRunRecord
 
@@ -273,33 +278,108 @@ async def workflow_cancel(
 @router.post("/{run_id}/restart")
 async def workflow_restart(
     run_id: str,
+    background_tasks: BackgroundTasks,
     workflow_repo: AbstractWorkflowRunRepository = Depends(_get_workflow_repo),
 ):
     """Restart a workflow with the same inputs.
 
-    This is a placeholder - actual restart functionality would require
-    access to the workflow executor and config.
+    Extracts the original config from the workflow run record,
+    creates a temporary config file, and re-executes the workflow
+    using the original inputs.
     """
     # Get the original run
     run = workflow_repo.get(run_id)
 
     if run is None:
-        return Response(content="Workflow run not found", status_code=404)
+        return JSONResponse(
+            content={"error": "Workflow run not found"},
+            status_code=404
+        )
 
-    # Parse inputs if available
-    inputs = {}
+    # Cannot restart running workflows
+    if run.status == "running":
+        return JSONResponse(
+            content={"error": "Cannot restart a running workflow"},
+            status_code=400
+        )
+
+    # Parse original inputs
+    inputs: Dict[str, Any] = {}
     if run.inputs:
         try:
             inputs = json.loads(run.inputs)
         except (json.JSONDecodeError, TypeError):
-            pass
+            return JSONResponse(
+                content={"error": "Failed to parse original inputs"},
+                status_code=500
+            )
 
-    # For now, return a message indicating restart would be available
-    # with executor integration
-    return Response(
-        content="Workflow restart requires executor integration (coming soon)",
-        status_code=501,
-    )
+    # Parse config snapshot
+    if not run.config_snapshot:
+        return JSONResponse(
+            content={"error": "No config snapshot available for this run"},
+            status_code=500
+        )
+
+    try:
+        config_dict = json.loads(run.config_snapshot)
+    except (json.JSONDecodeError, TypeError) as e:
+        return JSONResponse(
+            content={"error": f"Failed to parse config snapshot: {e}"},
+            status_code=500
+        )
+
+    # Create temporary config file
+    temp_config_path = None
+    try:
+        # Create a temporary YAML file with the config
+        with tempfile.NamedTemporaryFile(
+            mode='w',
+            suffix='.yaml',
+            delete=False
+        ) as temp_file:
+            temp_config_path = temp_file.name
+            yaml.dump(config_dict, temp_file)
+
+        # Execute workflow in background
+        async def _run_restart_workflow() -> None:
+            """Execute workflow and clean up temp file."""
+            try:
+                await run_workflow_async(temp_config_path, inputs)
+            except Exception as e:
+                # Error is logged by run_workflow_async, workflow record will show failed status
+                pass
+            finally:
+                # Clean up temporary config file
+                try:
+                    os.unlink(temp_config_path)
+                except Exception:
+                    pass
+
+        # Schedule background execution
+        background_tasks.add_task(_run_restart_workflow)
+
+        return JSONResponse(
+            content={
+                "status": "restarted",
+                "message": "Workflow restart initiated",
+                "original_run_id": run_id
+            },
+            status_code=200
+        )
+
+    except Exception as e:
+        # Clean up temp file if something went wrong
+        if temp_config_path and os.path.exists(temp_config_path):
+            try:
+                os.unlink(temp_config_path)
+            except Exception:
+                pass
+
+        return JSONResponse(
+            content={"error": f"Failed to restart workflow: {e}"},
+            status_code=500
+        )
 
 
 def _get_all_runs(repo: AbstractWorkflowRunRepository, limit: int = 100) -> List[WorkflowRunRecord]:
