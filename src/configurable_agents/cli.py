@@ -2,22 +2,28 @@
 Command-line interface for configurable-agents.
 
 Provides commands for running and validating workflow configurations.
+Also provides observability commands for cost and profiling reports.
 """
 
 import argparse
 import json
 import logging
+import os
 import socket
 import subprocess
 import sys
 import time
+from datetime import datetime
 from pathlib import Path
-from typing import Any, Dict, Optional
+from typing import Any, Dict, List, Optional
 
 from configurable_agents.deploy import generate_deployment_artifacts
 from configurable_agents.observability import (
     CostReporter,
     get_date_range_filter,
+)
+from configurable_agents.observability.multi_provider_tracker import (
+    generate_cost_report,
 )
 from configurable_agents.runtime import (
     ConfigLoadError,
@@ -29,6 +35,19 @@ from configurable_agents.runtime import (
     run_workflow,
     validate_workflow,
 )
+
+# Rich library for formatted tables
+try:
+    from rich.console import Console
+    from rich.table import Table
+    from rich.panel import Panel
+    from rich.text import Text
+    RICH_AVAILABLE = True
+except ImportError:
+    RICH_AVAILABLE = False
+    Console = None
+    Table = None
+    Panel = None
 
 # ANSI color codes for terminal output
 class Colors:
@@ -61,6 +80,7 @@ _CHECK = "\u2713" if _UNICODE_SUPPORTED else "+"  # ✓ or +
 _CROSS = "\u2717" if _UNICODE_SUPPORTED else "x"  # ✗ or x
 _INFO = "\u2139" if _UNICODE_SUPPORTED else "i"  # ℹ or i
 _WARNING = "\u26a0" if _UNICODE_SUPPORTED else "!"  # ⚠ or !
+_BULLET = "\u2022" if _UNICODE_SUPPORTED else "*"  # • or *
 
 
 def colorize(text: str, color: str) -> str:
@@ -174,6 +194,11 @@ def cmd_run(args: argparse.Namespace) -> int:
     except ValueError as e:
         print_error(f"Invalid input format: {e}")
         return 1
+
+    # Set profiling flag via environment variable
+    if args.enable_profiling:
+        os.environ["CONFIGURABLE_AGENTS_PROFILING"] = "1"
+        print_info(f"Profiling enabled for this run")
 
     # Print execution info
     print_info(f"Loading workflow: {colorize(config_path, Colors.CYAN)}")
@@ -720,6 +745,431 @@ def cmd_report_costs(args: argparse.Namespace) -> int:
         return 1
 
 
+def cmd_cost_report(args: argparse.Namespace) -> int:
+    """
+    Generate unified cost report from MLFlow experiment data.
+
+    Args:
+        args: Parsed command-line arguments
+
+    Returns:
+        Exit code (0 for success, 1 for error)
+    """
+    if not RICH_AVAILABLE:
+        print_error("Rich library is required for cost-report command")
+        print_info("Install with: pip install rich>=13.0.0")
+        return 1
+
+    try:
+        experiment_name = args.experiment
+        mlflow_uri = args.mlflow_uri
+
+        if not experiment_name:
+            print_error("--experiment is required for cost-report")
+            return 1
+
+        # Generate cost report
+        report = generate_cost_report(experiment_name, mlflow_uri=mlflow_uri)
+
+        console = Console()
+
+        # Display title
+        console.print()
+        title = Text(f"Cost Report: {experiment_name}", style="bold cyan")
+        console.print(Panel(title, expand=False))
+        console.print()
+
+        # Create table for provider breakdown
+        table = Table(title=None)
+        table.add_column("Provider/Model", style="cyan", no_wrap=False)
+        table.add_column("Tokens", justify="right", style="green")
+        table.add_column("Cost USD", justify="right", style="yellow")
+        table.add_column("Calls", justify="right", style="blue")
+
+        # Find most expensive provider for highlighting
+        most_expensive_key = None
+        most_expensive_cost = 0.0
+        provider_rows = []
+
+        for provider, data in report.get("by_provider", {}).items():
+            provider_cost = data.get("total_cost_usd", 0.0)
+            provider_tokens = data.get("total_tokens", 0)
+            provider_calls = data.get("run_count", 0)
+            provider_models = data.get("models", {})
+
+            # Track most expensive provider
+            if provider_cost > most_expensive_cost:
+                most_expensive_cost = provider_cost
+                most_expensive_key = provider
+
+            provider_rows.append((provider, provider_cost, provider_tokens, provider_calls, provider_models))
+
+        # Sort by cost descending
+        provider_rows.sort(key=lambda x: x[1], reverse=True)
+
+        # Add rows to table
+        for provider, cost, tokens, calls, models in provider_rows:
+            # Show individual models if more than one
+            if len(models) > 1:
+                # Provider header row
+                style = "bold yellow" if provider == most_expensive_key else ""
+                table.add_row(
+                    f"{provider}/",
+                    f"{tokens:,}",
+                    f"${cost:.6f}",
+                    f"{calls}",
+                    style=style
+                )
+                # Model sub-rows
+                for model_name, model_data in models.items():
+                    model_style = "dim" if provider != most_expensive_key else "yellow"
+                    table.add_row(
+                        f"  {model_name}",
+                        f"{model_data['total_tokens']:,}",
+                        f"${model_data['total_cost_usd']:.6f}",
+                        f"{model_data['run_count']}",
+                        style=model_style
+                    )
+            else:
+                # Single model - show directly
+                model_name = list(models.keys())[0] if models else "unknown"
+                style = "bold yellow" if provider == most_expensive_key else ""
+                table.add_row(
+                    f"{provider}/{model_name}",
+                    f"{tokens:,}",
+                    f"${cost:.6f}",
+                    f"{calls}",
+                    style=style
+                )
+
+        # Add totals row
+        total_cost = report.get("total_cost_usd", 0.0)
+        total_tokens = report.get("total_tokens", 0)
+        total_calls = sum(r[3] for r in provider_rows)
+
+        table.add_row()
+        table.add_row(
+            "TOTAL",
+            f"{total_tokens:,}",
+            f"${total_cost:.6f}",
+            f"{total_calls}",
+            style="bold"
+        )
+
+        console.print(table)
+        console.print()
+
+        # Highlight most expensive provider
+        if most_expensive_key:
+            print_info(f"Most expensive provider: {colorize(most_expensive_key, Colors.BOLD + Colors.YELLOW)} (${most_expensive_cost:.6f})")
+
+        return 0
+
+    except RuntimeError as e:
+        print_error(f"MLFlow not available: {e}")
+        print_info("Install MLFlow with: pip install mlflow>=3.9.0")
+        return 1
+
+    except ValueError as e:
+        print_error(f"Invalid input: {e}")
+        if args.verbose:
+            import traceback
+            print(traceback.format_exc(), file=sys.stderr)
+        return 1
+
+    except Exception as e:
+        print_error(f"Unexpected error: {e}")
+        import traceback
+        print(traceback.format_exc(), file=sys.stderr)
+        return 1
+
+
+def cmd_profile_report(args: argparse.Namespace) -> int:
+    """
+    Generate profiling report with bottleneck analysis.
+
+    Args:
+        args: Parsed command-line arguments
+
+    Returns:
+        Exit code (0 for success, 1 for error)
+    """
+    if not RICH_AVAILABLE:
+        print_error("Rich library is required for profile-report command")
+        print_info("Install with: pip install rich>=13.0.0")
+        return 1
+
+    try:
+        import mlflow
+        from mlflow.tracking import MlflowClient
+
+        mlflow_uri = args.mlflow_uri
+        run_id = args.run_id
+
+        # Set tracking URI if provided
+        if mlflow_uri:
+            mlflow.set_tracking_uri(mlflow_uri)
+
+        client = MlflowClient()
+
+        # Get the run
+        if run_id:
+            run = client.get_run(run_id)
+        else:
+            # Get latest run from default experiment
+            from mlflow.entities import ViewType
+            experiments = client.search_experiments(view_type=ViewType.ACTIVE_ONLY)
+            if not experiments:
+                print_error("No MLFlow experiments found")
+                return 1
+
+            # Use first experiment (usually Default)
+            experiment_id = experiments[0].experiment_id
+            runs = client.search_runs(
+                experiment_ids=[experiment_id],
+                order_by=["start_time DESC"],
+                max_results=1
+            )
+            if not runs:
+                print_error(f"No runs found in experiment: {experiments[0].name}")
+                return 1
+
+            run = runs[0]
+            run_id = run.info.run_id
+
+        console = Console()
+
+        # Display title
+        console.print()
+        title = Text(f"Profile Report: {run_id[:8]}", style="bold cyan")
+        console.print(Panel(title, expand=False))
+        console.print()
+
+        # Extract node timing metrics
+        metrics = run.data.metrics
+        node_timings = {}
+
+        for metric_name, metric_value in metrics.items():
+            if metric_name.startswith("node_") and metric_name.endswith("_duration_ms"):
+                # Extract node_id from metric name
+                # Format: node_{node_id}_duration_ms
+                parts = metric_name.split("_")
+                if len(parts) >= 3:
+                    node_id = "_".join(parts[1:-2])  # Handle node_ids with underscores
+                    if node_id not in node_timings:
+                        node_timings[node_id] = {"duration_ms": 0.0, "cost_usd": 0.0, "calls": 0}
+                    node_timings[node_id]["duration_ms"] = metric_value
+                    node_timings[node_id]["calls"] = 1
+
+            elif metric_name.startswith("node_") and metric_name.endswith("_cost_usd"):
+                parts = metric_name.split("_")
+                if len(parts) >= 3:
+                    node_id = "_".join(parts[1:-2])
+                    if node_id not in node_timings:
+                        node_timings[node_id] = {"duration_ms": 0.0, "cost_usd": 0.0, "calls": 0}
+                    node_timings[node_id]["cost_usd"] = metric_value
+
+        if not node_timings:
+            print_warning("No profiling data found for this run")
+            print_info("Run with --enable-profiling flag to capture profiling data")
+            return 0
+
+        # Calculate totals
+        total_duration = sum(t["duration_ms"] for t in node_timings.values())
+        total_cost = sum(t["cost_usd"] for t in node_timings.values())
+        total_calls = sum(t["calls"] for t in node_timings.values())
+
+        # Find slowest node
+        slowest_node = max(node_timings.items(), key=lambda x: x[1]["duration_ms"])
+        slowest_node_id, slowest_data = slowest_node
+
+        # Create table
+        table = Table(title=None)
+        table.add_column("Node ID", style="cyan", no_wrap=False)
+        table.add_column("Avg Duration (ms)", justify="right", style="green")
+        table.add_column("Total Duration (ms)", justify="right", style="green")
+        table.add_column("Calls", justify="right", style="blue")
+        table.add_column("% of Total", justify="right", style="yellow")
+        table.add_column("Cost USD", justify="right", style="magenta")
+
+        # Add rows sorted by total duration
+        for node_id, timing_data in sorted(node_timings.items(), key=lambda x: x[1]["duration_ms"], reverse=True):
+            duration_ms = timing_data["duration_ms"]
+            cost_usd = timing_data["cost_usd"]
+            calls = timing_data["calls"]
+            avg_duration = duration_ms / calls if calls > 0 else 0
+            percent_of_total = (duration_ms / total_duration * 100) if total_duration > 0 else 0
+
+            # Highlight slowest node in bold red
+            style = "bold red" if node_id == slowest_node_id else ""
+            # Highlight bottlenecks (>50%) in yellow
+            if percent_of_total > 50 and node_id != slowest_node_id:
+                style = "bold yellow"
+
+            table.add_row(
+                node_id,
+                f"{avg_duration:.1f}",
+                f"{duration_ms:.1f}",
+                f"{calls}",
+                f"{percent_of_total:.1f}%",
+                f"${cost_usd:.6f}" if cost_usd > 0 else "-",
+                style=style
+            )
+
+        # Add totals row
+        table.add_row()
+        table.add_row(
+            "TOTAL",
+            "-",
+            f"{total_duration:.1f}",
+            f"{total_calls}",
+            "100.0%",
+            f"${total_cost:.6f}",
+            style="bold"
+        )
+
+        console.print(table)
+        console.print()
+
+        # Highlight slowest node
+        print_warning(f"Slowest node: {colorize(slowest_node_id, Colors.BOLD + Colors.RED)} ({slowest_data['duration_ms']:.1f}ms avg)")
+
+        # Highlight bottlenecks
+        bottlenecks = []
+        for node_id, timing_data in node_timings.items():
+            percent = (timing_data["duration_ms"] / total_duration * 100) if total_duration > 0 else 0
+            if percent > 50:
+                bottlenecks.append((node_id, percent))
+
+        if bottlenecks:
+            print()
+            print_warning("Bottlenecks (>50% of total time):")
+            for node_id, percent in sorted(bottlenecks, key=lambda x: x[1], reverse=True):
+                print(f"  {colorize(_BULLET, Colors.YELLOW)} {node_id}: {percent:.1f}%")
+
+        console.print()
+        return 0
+
+    except ImportError:
+        print_error("MLFlow not available")
+        print_info("Install MLFlow with: pip install mlflow>=3.9.0")
+        return 1
+
+    except Exception as e:
+        print_error(f"Unexpected error: {e}")
+        if args.verbose:
+            import traceback
+            print(traceback.format_exc(), file=sys.stderr)
+        return 1
+
+
+def cmd_observability_status(args: argparse.Namespace) -> int:
+    """
+    Show MLFlow observability status.
+
+    Args:
+        args: Parsed command-line arguments
+
+    Returns:
+        Exit code (0 for success, 1 for error)
+    """
+    if not RICH_AVAILABLE:
+        print_error("Rich library is required for observability status command")
+        print_info("Install with: pip install rich>=13.0.0")
+        return 1
+
+    try:
+        import mlflow
+        from mlflow.tracking import MlflowClient
+        from mlflow.entities import ViewType
+        from datetime import timedelta
+
+        mlflow_uri = args.mlflow_uri
+
+        # Set tracking URI if provided
+        if mlflow_uri:
+            mlflow.set_tracking_uri(mlflow_uri)
+
+        client = MlflowClient()
+        console = Console()
+
+        # Get tracking URI
+        tracking_uri = mlflow.get_tracking_uri()
+
+        # Test connection
+        connected = True
+        connection_status = colorize("Connected", Colors.GREEN)
+        try:
+            experiments = client.search_experiments(view_type=ViewType.ACTIVE_ONLY)
+        except Exception as e:
+            connected = False
+            connection_status = colorize(f"Disconnected: {e}", Colors.RED)
+            experiments = []
+
+        console.print()
+        title = Text("Observability Status", style="bold cyan")
+        console.print(Panel(title, expand=False))
+        console.print()
+
+        # Display status
+        status_table = Table(title=None, show_header=False)
+        status_table.add_column("Property", style="cyan")
+        status_table.add_column("Value", style="green")
+
+        status_table.add_row("MLFlow Connection", connection_status)
+        status_table.add_row("MLFlow URI", tracking_uri)
+
+        console.print(status_table)
+        console.print()
+
+        if connected and experiments:
+            # Show experiment count
+            print_success(f"Found {len(experiments)} experiment(s)")
+
+            # Show recent runs (last 24 hours)
+            console.print()
+            console.print(colorize("Recent Activity (Last 24 Hours):", Colors.BOLD))
+
+            recent_cutoff = datetime.now() - timedelta(hours=24)
+            total_recent_runs = 0
+
+            for exp in experiments[:5]:  # Limit to first 5 experiments
+                try:
+                    runs = client.search_runs(
+                        experiment_ids=[exp.experiment_id],
+                        filter_string="attributes.start_time > '{}'".format(recent_cutoff.isoformat()),
+                        max_results=1000
+                    )
+                    total_recent_runs += len(runs)
+
+                    if runs:
+                        console.print(f"  {colorize(exp.name, Colors.CYAN)}: {len(runs)} run(s)")
+
+                except Exception:
+                    # Skip experiments with query errors
+                    pass
+
+            if total_recent_runs == 0:
+                print_info("No runs in the last 24 hours")
+            else:
+                print_success(f"Total recent runs: {total_recent_runs}")
+
+        console.print()
+        return 0
+
+    except ImportError:
+        print_error("MLFlow not available")
+        print_info("Install MLFlow with: pip install mlflow>=3.9.0")
+        return 1
+
+    except Exception as e:
+        print_error(f"Unexpected error: {e}")
+        if args.verbose:
+            import traceback
+            print(traceback.format_exc(), file=sys.stderr)
+        return 1
+
+
 def create_parser() -> argparse.ArgumentParser:
     """
     Create CLI argument parser.
@@ -778,6 +1228,11 @@ For more information, visit: https://github.com/yourusername/configurable-agents
     )
     run_parser.add_argument(
         "-v", "--verbose", action="store_true", help="Enable verbose logging (DEBUG level)"
+    )
+    run_parser.add_argument(
+        "--enable-profiling",
+        action="store_true",
+        help="Enable performance profiling for this run (captures node timing data)",
     )
     run_parser.set_defaults(func=cmd_run)
 
@@ -931,6 +1386,116 @@ For more information, visit: https://github.com/yourusername/configurable-agents
         "-v", "--verbose", action="store_true", help="Enable verbose output"
     )
     costs_parser.set_defaults(func=cmd_report_costs)
+
+    # Cost-report command (unified multi-provider cost reporting)
+    cost_report_parser = subparsers.add_parser(
+        "cost-report",
+        help="Generate unified cost report by provider",
+        description="Generate cost breakdown by provider from MLFlow experiment data",
+    )
+    cost_report_parser.add_argument(
+        "--experiment",
+        required=True,
+        help="MLFlow experiment name (required)",
+    )
+    cost_report_parser.add_argument(
+        "--mlflow-uri",
+        default=None,
+        help="MLFlow tracking URI (default: from config or file://./mlruns)",
+    )
+    cost_report_parser.add_argument(
+        "-v", "--verbose", action="store_true", help="Enable verbose output"
+    )
+    cost_report_parser.set_defaults(func=cmd_cost_report)
+
+    # Profile-report command (bottleneck analysis)
+    profile_report_parser = subparsers.add_parser(
+        "profile-report",
+        help="Generate profiling report with bottleneck analysis",
+        description="Analyze workflow execution times and identify bottlenecks",
+    )
+    profile_report_parser.add_argument(
+        "--run-id",
+        default=None,
+        help="MLFlow run ID (default: latest run)",
+    )
+    profile_report_parser.add_argument(
+        "--mlflow-uri",
+        default=None,
+        help="MLFlow tracking URI (default: from config or file://./mlruns)",
+    )
+    profile_report_parser.add_argument(
+        "-v", "--verbose", action="store_true", help="Enable verbose output"
+    )
+    profile_report_parser.set_defaults(func=cmd_profile_report)
+
+    # Observability command group
+    observability_parser = subparsers.add_parser(
+        "observability",
+        help="Observability commands for MLFlow integration",
+        description="Manage and inspect MLFlow observability data",
+    )
+    observability_subparsers = observability_parser.add_subparsers(
+        dest="observability_command", help="Observability subcommands"
+    )
+
+    # Observability status subcommand
+    obs_status_parser = observability_subparsers.add_parser(
+        "status",
+        help="Show MLFlow connection and status",
+        description="Display MLFlow connection status and recent run information",
+    )
+    obs_status_parser.add_argument(
+        "--mlflow-uri",
+        default=None,
+        help="MLFlow tracking URI (default: from config or file://./mlruns)",
+    )
+    obs_status_parser.add_argument(
+        "-v", "--verbose", action="store_true", help="Enable verbose output"
+    )
+    obs_status_parser.set_defaults(func=cmd_observability_status)
+
+    # Observability cost-report subcommand (alias to main command)
+    obs_cost_parser = observability_subparsers.add_parser(
+        "cost-report",
+        help="Generate unified cost report (alias)",
+        description="Alias for cost-report command",
+    )
+    obs_cost_parser.add_argument(
+        "--experiment",
+        required=True,
+        help="MLFlow experiment name (required)",
+    )
+    obs_cost_parser.add_argument(
+        "--mlflow-uri",
+        default=None,
+        help="MLFlow tracking URI (default: from config or file://./mlruns)",
+    )
+    obs_cost_parser.add_argument(
+        "-v", "--verbose", action="store_true", help="Enable verbose output"
+    )
+    obs_cost_parser.set_defaults(func=cmd_cost_report)
+
+    # Observability profile-report subcommand (alias to main command)
+    obs_profile_parser = observability_subparsers.add_parser(
+        "profile-report",
+        help="Generate profiling report (alias)",
+        description="Alias for profile-report command",
+    )
+    obs_profile_parser.add_argument(
+        "--run-id",
+        default=None,
+        help="MLFlow run ID (default: latest run)",
+    )
+    obs_profile_parser.add_argument(
+        "--mlflow-uri",
+        default=None,
+        help="MLFlow tracking URI (default: from config or file://./mlruns)",
+    )
+    obs_profile_parser.add_argument(
+        "-v", "--verbose", action="store_true", help="Enable verbose output"
+    )
+    obs_profile_parser.set_defaults(func=cmd_profile_report)
 
     return parser
 

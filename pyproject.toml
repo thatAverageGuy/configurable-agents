@@ -33,6 +33,7 @@ dependencies = [
     "python-dotenv>=1.0.0",
     "mlflow>=3.9.0",
     "sqlalchemy>=2.0.46",
+    "rich>=13.0.0",
 ]
 
 [project.optional-dependencies]
