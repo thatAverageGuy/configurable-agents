@@ -113,6 +113,16 @@ class AgentRecord(Base):
     agent_metadata: Mapped[Optional[str]] = mapped_column(String(4000), nullable=True)
     registered_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
 
+    def __init__(self, **kwargs: object) -> None:
+        """Initialize AgentRecord with default TTL and heartbeat if not provided."""
+        ttl_seconds = kwargs.pop("ttl_seconds", 60)
+        kwargs["ttl_seconds"] = ttl_seconds
+        if "last_heartbeat" not in kwargs:
+            kwargs["last_heartbeat"] = datetime.utcnow()
+        if "registered_at" not in kwargs:
+            kwargs["registered_at"] = datetime.utcnow()
+        super().__init__(**kwargs)
+
     def is_alive(self) -> bool:
         """Check if this agent is still alive based on TTL.
 

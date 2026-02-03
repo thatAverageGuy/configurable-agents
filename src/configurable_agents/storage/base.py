@@ -13,7 +13,99 @@ from datetime import datetime
 from typing import Any, Dict, List, Optional
 
 # Forward declarations for ORM models (avoiding circular import)
-# WorkflowRunRecord and ExecutionStateRecord are defined in models.py
+# WorkflowRunRecord, ExecutionStateRecord, and AgentRecord are defined in models.py
+
+
+class AgentRegistryRepository(ABC):
+    """Abstract repository for agent registry persistence.
+
+    Provides CRUD operations for agent registration records with support
+    for TTL-based expiration tracking via heartbeat updates.
+
+    Methods:
+        add: Register a new agent
+        get: Retrieve a single agent by ID
+        list_all: List all agents (optionally including expired ones)
+        update_heartbeat: Refresh an agent's last_heartbeat timestamp
+        delete: Remove an agent from the registry
+        delete_expired: Remove all expired agents from the registry
+    """
+
+    @abstractmethod
+    def add(self, agent: Any) -> None:
+        """Register a new agent.
+
+        Args:
+            agent: AgentRecord instance to persist
+
+        Raises:
+            IntegrityError: If agent_id already exists
+        """
+        raise NotImplementedError
+
+    @abstractmethod
+    def get(self, agent_id: str) -> Optional[Any]:
+        """Get an agent by ID.
+
+        Args:
+            agent_id: Unique identifier for the agent
+
+        Returns:
+            AgentRecord if found, None otherwise
+        """
+        raise NotImplementedError
+
+    @abstractmethod
+    def list_all(self, include_dead: bool = False) -> List[Any]:
+        """List all registered agents.
+
+        Args:
+            include_dead: If False, only return agents where is_alive() is True.
+                         If True, return all agents regardless of TTL status.
+
+        Returns:
+            List of AgentRecord instances
+        """
+        raise NotImplementedError
+
+    @abstractmethod
+    def update_heartbeat(self, agent_id: str) -> None:
+        """Update an agent's heartbeat timestamp.
+
+        Sets last_heartbeat to the current time, effectively refreshing
+        the agent's TTL.
+
+        Args:
+            agent_id: Unique identifier for the agent
+
+        Raises:
+            ValueError: If agent_id not found
+        """
+        raise NotImplementedError
+
+    @abstractmethod
+    def delete(self, agent_id: str) -> None:
+        """Delete an agent from the registry.
+
+        Args:
+            agent_id: Unique identifier for the agent
+
+        Raises:
+            ValueError: If agent_id not found
+        """
+        raise NotImplementedError
+
+    @abstractmethod
+    def delete_expired(self) -> int:
+        """Delete all expired agents from the registry.
+
+        An agent is considered expired if the current time is after
+        its expiration time (last_heartbeat + ttl_seconds).
+
+        Returns:
+            Number of agents deleted
+        """
+        raise NotImplementedError
 
 
 class AbstractWorkflowRunRepository(ABC):

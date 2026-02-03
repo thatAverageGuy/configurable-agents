@@ -17,10 +17,12 @@ from sqlalchemy.orm import Session
 from configurable_agents.storage.base import (
     AbstractExecutionStateRepository,
     AbstractWorkflowRunRepository,
+    AgentRegistryRepository,
 )
 from configurable_agents.storage.models import (
     ExecutionStateRecord,
     WorkflowRunRecord,
+    AgentRecord,
 )
 
 
@@ -271,3 +273,135 @@ class SQLiteExecutionStateRepository(AbstractExecutionStateRepository):
                 }
                 for r in records
             ]
+
+
+class SqliteAgentRegistryRepository(AgentRegistryRepository):
+    """SQLite implementation of agent registry repository.
+
+    Provides CRUD operations for AgentRecord using SQLite backend.
+    Uses context managers for automatic transaction handling.
+
+    Attributes:
+        engine: SQLAlchemy Engine instance for database connections
+    """
+
+    def __init__(self, engine: Engine) -> None:
+        """Initialize repository with database engine.
+
+        Args:
+            engine: SQLAlchemy Engine instance (created by factory)
+        """
+        self.engine = engine
+
+    def add(self, agent: AgentRecord) -> None:
+        """Register a new agent.
+
+        Args:
+            agent: AgentRecord instance to persist
+
+        Raises:
+            IntegrityError: If agent_id already exists
+        """
+        with Session(self.engine) as session:
+            session.add(agent)
+            session.commit()
+
+    def get(self, agent_id: str) -> Optional[AgentRecord]:
+        """Get an agent by ID.
+
+        Args:
+            agent_id: Unique identifier for the agent
+
+        Returns:
+            AgentRecord if found, None otherwise
+        """
+        with Session(self.engine) as session:
+            return session.get(AgentRecord, agent_id)
+
+    def list_all(self, include_dead: bool = False) -> List[AgentRecord]:
+        """List all registered agents.
+
+        Args:
+            include_dead: If False, only return agents where is_alive() is True.
+                         If True, return all agents regardless of TTL status.
+
+        Returns:
+            List of AgentRecord instances
+        """
+        with Session(self.engine) as session:
+            stmt: Select[AgentRecord] = select(AgentRecord).order_by(
+                AgentRecord.registered_at.desc()
+            )
+            agents = list(session.scalars(stmt).all())
+
+            if not include_dead:
+                agents = [a for a in agents if a.is_alive()]
+
+            return agents
+
+    def update_heartbeat(self, agent_id: str) -> None:
+        """Update an agent's heartbeat timestamp.
+
+        Sets last_heartbeat to the current time, effectively refreshing
+        the agent's TTL.
+
+        Args:
+            agent_id: Unique identifier for the agent
+
+        Raises:
+            ValueError: If agent_id not found
+        """
+        with Session(self.engine) as session:
+            agent = session.get(AgentRecord, agent_id)
+            if agent is None:
+                raise ValueError(f"Agent not found: {agent_id}")
+
+            agent.last_heartbeat = datetime.utcnow()
+            session.commit()
+
+    def delete(self, agent_id: str) -> None:
+        """Delete an agent from the registry.
+
+        Args:
+            agent_id: Unique identifier for the agent
+
+        Raises:
+            ValueError: If agent_id not found
+        """
+        with Session(self.engine) as session:
+            agent = session.get(AgentRecord, agent_id)
+            if agent is None:
+                raise ValueError(f"Agent not found: {agent_id}")
+
+            session.delete(agent)
+            session.commit()
+
+    def delete_expired(self) -> int:
+        """Delete all expired agents from the registry.
+
+        An agent is considered expired if the current time is after
+        its expiration time (last_heartbeat + ttl_seconds).
+
+        Returns:
+            Number of agents deleted
+        """
+        with Session(self.engine) as session:
+            # Calculate the cutoff time for expired agents
+            now = datetime.utcnow()
+
+            # Query all agents
+            stmt: Select[AgentRecord] = select(AgentRecord)
+            agents = list(session.scalars(stmt).all())
+
+            # Filter and delete expired agents
+            expired_agents = [
+                a for a in agents if not a.is_alive()
+            ]
+
+            count = 0
+            for agent in expired_agents:
+                session.delete(agent)
+                count += 1
+
+            session.commit()
+            return count

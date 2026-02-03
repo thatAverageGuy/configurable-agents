@@ -21,11 +21,13 @@ from configurable_agents.config.schema import StorageConfig
 from configurable_agents.storage.base import (
     AbstractExecutionStateRepository,
     AbstractWorkflowRunRepository,
+    AgentRegistryRepository,
 )
 from configurable_agents.storage.models import Base
 from configurable_agents.storage.sqlite import (
     SQLiteExecutionStateRepository,
     SQLiteWorkflowRunRepository,
+    SqliteAgentRegistryRepository,
 )
 
 
@@ -34,6 +36,7 @@ def create_storage_backend(
 ) -> Tuple[
     AbstractWorkflowRunRepository,
     AbstractExecutionStateRepository,
+    AgentRegistryRepository,
 ]:
     """Create storage backend repositories from configuration.
 
@@ -41,14 +44,14 @@ def create_storage_backend(
         config: StorageConfig instance. If None, uses defaults (sqlite, ./workflows.db)
 
     Returns:
-        Tuple of (workflow_run_repository, execution_state_repository)
+        Tuple of (workflow_run_repository, execution_state_repository, agent_registry_repository)
 
     Raises:
         ValueError: If backend type is not supported
 
     Example:
         >>> from configurable_agents.storage import create_storage_backend
-        >>> runs_repo, states_repo = create_storage_backend()
+        >>> runs_repo, states_repo, agents_repo = create_storage_backend()
         >>> run = WorkflowRunRecord(id="123", workflow_name="test", status="running")
         >>> runs_repo.add(run)
     """
@@ -71,8 +74,9 @@ def create_storage_backend(
         # Create repositories
         runs_repo = SQLiteWorkflowRunRepository(engine)
         states_repo = SQLiteExecutionStateRepository(engine)
+        agents_repo = SqliteAgentRegistryRepository(engine)
 
-        return runs_repo, states_repo
+        return runs_repo, states_repo, agents_repo
 
     # Unsupported backend
     raise ValueError(
