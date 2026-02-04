@@ -101,9 +101,10 @@ None yet.
 | 003 | Use ServiceSpec args instead of functools.partial | 2026-02-05 | 30d8d84 | [003-use-service-spec-args](./quick/003-use-service-spec-args/) |
 | 004 | Fix bound method pickle in ProcessManager | 2026-02-05 | 7597c32 | [004-fix-bound-method-pickle](./quick/004-fix-bound-method-pickle/) |
 | 005 | Add process debug logging | 2026-02-05 | 481c06b | [005-add-process-debug-logging](./quick/005-add-process-debug-logging/) |
+| 006 | Add uvicorn import to cli.py | 2026-02-05 | e0c8bd9 | [006-add-uvicorn-import](./quick/006-add-uvicorn-import/) |
 
 ## Session Continuity
 
-Last session: 2026-02-05 - Completed quick task 005: Add process debug logging
+Last session: 2026-02-05 - Completed quick task 006: Add uvicorn import
 Stopped at: Quick task complete
 Resume file: None
