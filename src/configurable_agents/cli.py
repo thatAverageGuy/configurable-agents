@@ -202,7 +202,7 @@ def cmd_run(args: argparse.Namespace) -> int:
     db_url = f"sqlite:///{StorageConfig().path}"
 
     try:
-        if RICH_AVAILABLE and Console:
+        if RICH_AVAILABLE:
             from rich.console import Console
             console = Console()
             with console.status("[bold blue]Ensuring database is ready...", spinner="dots"):
