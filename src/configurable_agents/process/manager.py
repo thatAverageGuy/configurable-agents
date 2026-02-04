@@ -4,11 +4,19 @@ Provides ProcessManager for spawning, monitoring, and gracefully shutting
 down multiple services (Dashboard, Chat UI, etc.) as separate processes.
 """
 
+import json
 import signal
 import sys
 from dataclasses import dataclass
+from datetime import datetime
 from multiprocessing import Process
 from typing import Any, Callable, Dict, List, Optional
+
+from sqlalchemy import create_engine, select
+from sqlalchemy.orm import Session
+
+from configurable_agents.config.schema import StorageConfig
+from configurable_agents.storage.models import SessionState
 
 
 @dataclass
@@ -223,7 +231,7 @@ class ProcessManager:
 
         # Note: save_session will be implemented in Task 4
         # For now, this is a no-op that will be enhanced later
-        self._save_session_noop(active_workflows=[])
+        self.save_session(active_workflows=[])
 
         if self._verbose:
             print(f"[ProcessManager] Shutting down {len(self._processes)} processes...")
@@ -249,33 +257,45 @@ class ProcessManager:
         self._processes.clear()
         self._shutdown_flag = True
 
-    # Session state persistence methods (no-op stubs for Task 1)
-    # These will be fully implemented in Task 4 after SessionState model exists
+    # Session state persistence methods
 
-    def _save_session_noop(
-        self,
-        active_workflows: Optional[List[str]] = None,
-        session_data: Optional[Dict[str, Any]] = None,
-    ) -> bool:
-        """Save session state - no-op stub (implemented in Task 4).
-
-        Args:
-            active_workflows: List of workflow IDs currently running
-            session_data: Optional dict with additional session state
+    def _get_session_state(self) -> Optional[SessionState]:
+        """Get or create the session state record from database.
 
         Returns:
-            True (stub always returns True)
+            SessionState object or None if database not available
         """
-        # Session persistence will be added in Task 4
-        # This is a placeholder to maintain the API signature
-        return True
+        try:
+            engine = create_engine(
+                f"sqlite:///{StorageConfig().path}",
+                connect_args={"check_same_thread": False}
+            )
+
+            with Session(engine) as session:
+                # Try to get existing session state
+                stmt = select(SessionState).where(SessionState.id == "default")
+                result = session.scalar(stmt)
+
+                if result:
+                    return result
+
+                # Create new session state (default is dirty=True for crash detection)
+                new_state = SessionState(id="default", dirty_shutdown=1)
+                session.add(new_state)
+                session.commit()
+                return new_state
+
+        except Exception as e:
+            if self._verbose:
+                print(f"[ProcessManager] Warning: Could not access session state: {e}")
+            return None
 
     def save_session(
         self,
         active_workflows: Optional[List[str]] = None,
         session_data: Optional[Dict[str, Any]] = None,
     ) -> bool:
-        """Save session state - no-op stub (implemented in Task 4).
+        """Save current session state to database.
 
         Call this during shutdown to save active workflows and mark clean shutdown.
 
@@ -284,24 +304,103 @@ class ProcessManager:
             session_data: Optional dict with additional session state
 
         Returns:
-            True (stub always returns True)
+            True if saved successfully, False otherwise
         """
-        # Session persistence will be added in Task 4
-        return True
+        try:
+            engine = create_engine(
+                f"sqlite:///{StorageConfig().path}",
+                connect_args={"check_same_thread": False}
+            )
+
+            with Session(engine) as session:
+                # Get or create session state
+                stmt = select(SessionState).where(SessionState.id == "default")
+                state_obj = session.scalar(stmt)
+
+                if state_obj is None:
+                    state_obj = SessionState(id="default", dirty_shutdown=1)
+                    session.add(state_obj)
+
+                # Mark clean shutdown and save state
+                state_obj.dirty_shutdown = 0
+                state_obj.active_workflows = json.dumps(active_workflows or [])
+                state_obj.session_data = json.dumps(session_data or {})
+                state_obj.last_updated = datetime.utcnow()
+
+                session.merge(state_obj)
+                session.commit()
+                return True
+
+        except Exception as e:
+            if self._verbose:
+                print(f"[ProcessManager] Warning: Could not save session state: {e}")
+            return False
 
     def check_restore_session(self) -> Optional[Dict[str, Any]]:
-        """Check for dirty shutdown - no-op stub (implemented in Task 4).
+        """Check if previous session had a dirty shutdown and get restoration data.
+
+        Call this during startup to detect crashes and offer restoration.
 
         Returns:
-            None (stub always returns None)
+            Dict with restoration data if dirty shutdown detected, None otherwise.
+            Dict contains: {'active_workflows': [...], 'session_data': {...} }
         """
-        # Session restoration will be added in Task 4
-        return None
+        try:
+            state = self._get_session_state()
+            if state is None or not state.is_dirty:
+                return None
+
+            # Parse saved state
+            active_workflows = []
+            session_data = {}
+
+            if state.active_workflows:
+                try:
+                    active_workflows = json.loads(state.active_workflows)
+                except json.JSONDecodeError:
+                    pass
+
+            if state.session_data:
+                try:
+                    session_data = json.loads(state.session_data)
+                except json.JSONDecodeError:
+                    pass
+
+            return {
+                "active_workflows": active_workflows,
+                "session_data": session_data,
+                "last_session_start": state.session_start.isoformat() if state.session_start else None,
+            }
+
+        except Exception as e:
+            if self._verbose:
+                print(f"[ProcessManager] Warning: Could not check session state: {e}")
+            return None
 
     def mark_session_dirty(self) -> None:
-        """Mark session as dirty - no-op stub (implemented in Task 4).
+        """Mark session as dirty (crash possible).
 
         Call this at startup so that any crash will be detected next time.
         """
-        # Session marking will be added in Task 4
-        pass
+        try:
+            engine = create_engine(
+                f"sqlite:///{StorageConfig().path}",
+                connect_args={"check_same_thread": False}
+            )
+
+            with Session(engine) as session:
+                stmt = select(SessionState).where(SessionState.id == "default")
+                state_obj = session.scalar(stmt)
+
+                if state_obj is None:
+                    state_obj = SessionState(id="default", dirty_shutdown=1)
+                    session.add(state_obj)
+                else:
+                    state_obj.dirty_shutdown = 1
+                    state_obj.session_start = datetime.utcnow()
+
+                session.commit()
+
+        except Exception as e:
+            if self._verbose:
+                print(f"[ProcessManager] Warning: Could not mark session dirty: {e}")

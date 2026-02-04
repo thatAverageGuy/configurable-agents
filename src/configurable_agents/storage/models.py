@@ -394,3 +394,40 @@ class OrchestratorRecord(Base):
             "registered_at": self.registered_at.isoformat() if self.registered_at else None,
             "is_alive": self.is_alive(),
         }
+
+
+class SessionState(Base):
+    """ORM model for session state persistence and crash detection.
+
+    Tracks the current session state across application restarts, enabling
+    crash detection and recovery. A single row should exist with id='default'.
+
+    Attributes:
+        id: Primary key, always 'default' for singleton pattern
+        session_start: When the current session started
+        dirty_shutdown: True if previous session crashed (not cleanly shut down)
+        active_workflows: JSON list of workflow IDs that were running
+        session_data: JSON blob for additional session state (chat history, filters, etc.)
+        last_updated: Timestamp of last state update
+    """
+
+    __tablename__ = "session_state"
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default="default")
+    session_start: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+    dirty_shutdown: Mapped[int] = mapped_column(Integer, nullable=False, default=1)  # Boolean as int
+    active_workflows: Mapped[Optional[str]] = mapped_column(Text, nullable=True)  # JSON list
+    session_data: Mapped[Optional[str]] = mapped_column(Text, nullable=True)  # JSON dict
+    last_updated: Mapped[datetime] = mapped_column(
+        DateTime, default=datetime.utcnow, onupdate=datetime.utcnow
+    )
+
+    @property
+    def is_dirty(self) -> bool:
+        """Check if previous shutdown was dirty (crash)."""
+        return bool(self.dirty_shutdown)
+
+    def mark_clean(self) -> None:
+        """Mark shutdown as clean."""
+        self.dirty_shutdown = 0
+        self.active_workflows = None
