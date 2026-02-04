@@ -19,6 +19,41 @@ from configurable_agents.config.schema import StorageConfig
 from configurable_agents.storage.models import SessionState
 
 
+def _run_service_wrapper(
+    service_name: str,
+    target_func: Callable,
+    target_args: tuple,
+    target_kwargs: dict,
+    verbose: bool,
+) -> None:
+    """Wrapper to run a service target in child process - module level for pickle compatibility.
+
+    On Windows, multiprocessing uses the 'spawn' method which requires all Process
+    targets and their arguments to be pickleable. Instance methods (bound methods)
+    cannot be pickled because they contain references to the entire instance.
+
+    This function is defined at module level (not as a class method) specifically
+    to avoid pickle issues on Windows.
+
+    Args:
+        service_name: Human-readable service name for logging
+        target_func: The actual callable to invoke (must be module-level for pickle)
+        target_args: Positional arguments to pass to target
+        target_kwargs: Keyword arguments to pass to target
+        verbose: Enable verbose logging
+    """
+    try:
+        target_func(*target_args, **target_kwargs)
+    except KeyboardInterrupt:
+        if verbose:
+            print(f"[ProcessManager] {service_name} received KeyboardInterrupt")
+        sys.exit(0)
+    except Exception as e:
+        if verbose:
+            print(f"[ProcessManager] {service_name} error: {e}", file=sys.stderr)
+        sys.exit(1)
+
+
 @dataclass
 class ServiceSpec:
     """Specification for a service to run as a separate process.
@@ -85,7 +120,8 @@ class ProcessManager:
     def start_all(self) -> None:
         """Spawn all registered services as separate processes.
 
-        Each service runs in its own child process using multiprocessing.Process
+        Each service runs in its own child process using the module-level
+        _run_service_wrapper function (required for Windows pickle compatibility)
         with daemon=False to ensure clean shutdown behavior.
 
         Raises:
@@ -96,8 +132,8 @@ class ProcessManager:
 
         for service in self._services:
             process = Process(
-                target=self._run_service,
-                args=(service,),
+                target=_run_service_wrapper,
+                args=(service.name, service.target, service.args, service.kwargs or {}, self._verbose),
                 name=service.name,
                 daemon=False,  # Don't use daemon to ensure clean shutdown
             )
@@ -109,28 +145,6 @@ class ProcessManager:
 
         # Register signal handlers after spawning processes
         self._register_signal_handlers()
-
-    def _run_service(self, service: ServiceSpec) -> None:
-        """Run a service target with error handling.
-
-        This method runs in the child process. It wraps the service target
-        to catch and log any exceptions before the process exits.
-
-        Args:
-            service: ServiceSpec describing the service to run
-        """
-        try:
-            service.target(*service.args, **(service.kwargs or {}))
-        except KeyboardInterrupt:
-            # Graceful exit on Ctrl+C
-            if self._verbose:
-                print(f"[ProcessManager] {service.name} received KeyboardInterrupt")
-            sys.exit(0)
-        except Exception as e:
-            # Log error but don't crash
-            if self._verbose:
-                print(f"[ProcessManager] {service.name} error: {e}", file=sys.stderr)
-            sys.exit(1)
 
     def _register_signal_handlers(self) -> None:
         """Register signal handlers for graceful shutdown.
