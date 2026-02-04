@@ -9,13 +9,14 @@ See: .planning/PROJECT.md (updated 2026-02-04)
 
 ## Current Position
 
-Phase: v1.0 MILESTONE COMPLETE
-Status: Shipped 2026-02-04
-Last activity: 2026-02-04 — v1.0 milestone complete and archived
+Milestone: v1.1 Core UX Polish
+Phase: Requirements gathering
+Plan: —
+Status: Defining requirements
+Last activity: 2026-02-04 — v1.1 milestone started
 
 Progress: [##########]  v1.0 SHIPPED (4 phases, 19 plans, 27/27 requirements)
-                         [##########]  Milestone archived to milestones/v1.0-*
-                         [##########]  Ready for next milestone planning
+                         [░░░░░░░░░░]  v1.1 PLANNING (gathering UX requirements)
 
 ## Milestone Archives
 
@@ -156,5 +157,5 @@ None yet.
 ## Session Continuity
 
 Last session: 2026-02-04
-Stopped at: ARCH-02 bidirectional registration complete
-Resume file: .planning/phases/04-advanced-capabilities/.continue-here.md
+Stopped at: Starting v1.1 milestone — requirements gathering
+Resume file: None (new milestone)

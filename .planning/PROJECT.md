@@ -15,6 +15,21 @@ The **combination** of four pillars makes this unique - remove any one and it be
 
 This is the only platform that delivers enterprise-grade agent orchestration with zero cloud lock-in, config-first simplicity, and production observability from day one.
 
+## Current Milestone: v1.1 Core UX Polish
+
+**Goal:** Streamline developer experience with single-command startup, unified workspace, auto-initialization, and intuitive navigation.
+
+**Target improvements:**
+- Single command startup (one command spins up entire UI)
+- Auto-initialization (MLFlow/SQLite databases created on first launch)
+- Navigation redesign (better information architecture)
+- Key status visibility (active workflows, agent status, recent runs prominent)
+- Clear entry point (guided starting point for new users)
+- Unified workspace (all functionality accessible from one UI)
+- Graceful MLFlow handling (auto-start or clear "not running" state)
+
+---
+
 ## Current State
 
 **Shipped:** v1.0 Foundation (2026-02-04)
@@ -92,6 +107,18 @@ TBD — Run `/gsd:new-milestone` to define v1.1 objectives
 - ✓ Telegram bot integration (trigger workflows from Telegram) — v1.0
 - ✓ External trigger API (generic webhook endpoint for third-party integrations) — v1.0
 
+### Active
+
+<!-- Current milestone scope: v1.1 Core UX Polish -->
+
+- [ ] **UX-01**: Single command startup (one command spins up entire UI with all dependencies)
+- [ ] **UX-02**: Auto-initialization (databases and tables created on first UI launch, no errors)
+- [ ] **UX-03**: Unified workspace (config generation, editing, deployment, monitoring in one UI)
+- [ ] **UX-04**: Navigation redesign (information architecture matches user mental model)
+- [ ] **UX-05**: Key status visibility (active workflows, agent status, recent runs prominent)
+- [ ] **UX-06**: Clear entry point (guided starting point for new users)
+- [ ] **UX-07**: Graceful MLFlow handling (auto-start or clear "not running" state with start button)
+
 ### Out of Scope
 
 **Deferred to v2+:**
@@ -166,4 +193,4 @@ Transform from a simple linear workflow runner (v0.1) into a full-featured local
 | Start with LangChain tool subset (10-20 tools) | Full registry (500+ tools) is overwhelming; start with common tools based on usage patterns | ✓ Good — 15 tools delivered (web: 3, file: 4, data: 4, system: 3), extensible design |
 
 ---
-*Last updated: 2026-02-04 after v1.0 milestone*
+*Last updated: 2026-02-04 after starting v1.1 milestone*
