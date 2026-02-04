@@ -15,18 +15,19 @@ The **combination** of four pillars makes this unique - remove any one and it be
 
 This is the only platform that delivers enterprise-grade agent orchestration with zero cloud lock-in, config-first simplicity, and production observability from day one.
 
-## Current Milestone: v1.1 Core UX Polish
+## Current Milestone: v1.2 Integration Testing & Critical Bug Fixes
 
-**Goal:** Streamline developer experience with single-command startup, unified workspace, auto-initialization, and intuitive navigation.
+**Goal:** Make the system actually work through comprehensive testing and fixing all critical bugs.
 
-**Target improvements:**
-- Single command startup (one command spins up entire UI)
-- Auto-initialization (MLFlow/SQLite databases created on first launch)
-- Navigation redesign (better information architecture)
-- Key status visibility (active workflows, agent status, recent runs prominent)
-- Clear entry point (guided starting point for new users)
-- Unified workspace (all functionality accessible from one UI)
-- Graceful MLFlow handling (auto-start or clear "not running" state)
+**Problem:** System claims 98% test pass rate but basic functionality is completely broken (CLI, UI, workflow execution all fail).
+
+**Target outcomes:**
+- All CLI commands work without errors
+- All Dashboard pages load and function correctly
+- Chat UI works end-to-end (config generation, multi-turn, download, validate)
+- Workflows run successfully from CLI
+- Workflows run successfully from UI
+- Integration tests prevent regression (real tests, not mocks)
 
 ---
 
@@ -109,15 +110,15 @@ TBD — Run `/gsd:new-milestone` to define v1.1 objectives
 
 ### Active
 
-<!-- Current milestone scope: v1.1 Core UX Polish -->
+<!-- Current milestone scope: v1.2 Integration Testing & Critical Bug Fixes -->
 
-- [ ] **UX-01**: Single command startup (one command spins up entire UI with all dependencies)
-- [ ] **UX-02**: Auto-initialization (databases and tables created on first UI launch, no errors)
-- [ ] **UX-03**: Unified workspace (config generation, editing, deployment, monitoring in one UI)
-- [ ] **UX-04**: Navigation redesign (information architecture matches user mental model)
-- [ ] **UX-05**: Key status visibility (active workflows, agent status, recent runs prominent)
-- [ ] **UX-06**: Clear entry point (guided starting point for new users)
-- [ ] **UX-07**: Graceful MLFlow handling (auto-start or clear "not running" state with start button)
+- [ ] **TEST-01**: CLI commands work (run, validate, deploy, ui, etc.)
+- [ ] **TEST-02**: Dashboard UI pages load and function (workflows, agents, experiments, optimization, MLFlow)
+- [ ] **TEST-03**: Chat UI works end-to-end (config generation, multi-turn conversations, download, validate)
+- [ ] **TEST-04**: Workflows execute from CLI without errors
+- [ ] **TEST-05**: Workflows execute from UI without errors
+- [ ] **TEST-06**: Integration tests cover critical user workflows (not mocked)
+- [ ] **TEST-07**: All tests pass and system actually works
 
 ### Out of Scope
 
@@ -135,8 +136,20 @@ TBD — Run `/gsd:new-milestone` to define v1.1 objectives
 
 ## Context
 
-**Current State (v1.0 - Shipped 2026-02-04):**
-Production-ready local-first agent orchestration platform. Delivered 27/27 requirements across 4 phases with 1,018+ tests (98%+ pass rate).
+**Current State (v1.2 - Testing Required):**
+System is essentially broken despite claimed 98% test pass rate.
+
+**Critical Bugs Discovered (2026-02-05):**
+- CLI `run` command: UnboundLocalError (FIXED)
+- Chat UI: Multi-turn conversations crash (history format wrong)
+- Chat UI: Download/Validate buttons crash (same history issue)
+- Dashboard: Workflows page crashes (missing macros.html)
+- Dashboard: Agents page crashes (Jinja2 underscore import)
+- Dashboard: MLFlow page returns 404
+- Dashboard: Optimization page shows MLFlow filesystem errors
+
+**Root Cause:**
+Tests are heavily mocked and don't verify actual functionality. No integration tests exist for real user workflows.
 
 **Technical Stack:**
 - Python 3.10+ runtime
@@ -193,4 +206,4 @@ Transform from a simple linear workflow runner (v0.1) into a full-featured local
 | Start with LangChain tool subset (10-20 tools) | Full registry (500+ tools) is overwhelming; start with common tools based on usage patterns | ✓ Good — 15 tools delivered (web: 3, file: 4, data: 4, system: 3), extensible design |
 
 ---
-*Last updated: 2026-02-04 after starting v1.1 milestone*
+*Last updated: 2026-02-05 after discovering critical bugs and starting v1.2 test & fix milestone*

@@ -9,13 +9,13 @@ See: .planning/PROJECT.md (updated 2026-02-04)
 
 ## Current Position
 
-Milestone: v1.1 Core UX Polish
-Phase: 5 of 6 (Foundation & Reliability)
-Plan: 3 of 3 in current phase
-Status: Phase complete, verified ✓
-Last activity: 2026-02-04 — Phase 5 execution complete, all 3 plans shipped and verified (12/12 truths)
+Milestone: v1.2 Integration Testing & Critical Bug Fixes
+Phase: Not started (defining requirements)
+Plan: —
+Status: Defining requirements for comprehensive testing
+Last activity: 2026-02-05 — Discovered critical bugs making system unusable, starting test & fix milestone
 
-Progress: [██████████░░░░░░░] 71% (22/31 plans complete from v1.0+v1.1)
+Progress: [░░░░░░░░░░░░░░░░░░░░] 0% (0/0 plans - new milestone)
 
 ## Milestone Archives
 
