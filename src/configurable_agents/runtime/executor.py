@@ -204,11 +204,12 @@ def run_workflow_from_config(
     # Phase 2.5: Initialize storage backend (optional, graceful degradation)
     workflow_run_repo = None
     execution_state_repo = None
+    memory_repo = None
     storage_config = None
     if config.config and config.config.storage:
         storage_config = config.config.storage
     try:
-        workflow_run_repo, execution_state_repo, _, _, _ = create_storage_backend(storage_config)
+        workflow_run_repo, execution_state_repo, _, _, _, memory_repo = create_storage_backend(storage_config)
         logger.debug("Storage backend initialized")
     except Exception as e:
         logger.warning(f"Storage backend initialization failed, continuing without persistence: {e}")
@@ -272,9 +273,14 @@ def run_workflow_from_config(
     tracker = MLFlowTracker(mlflow_config, config)
 
     # Attach storage repos to tracker for node executor access
-    if run_id and execution_state_repo:
-        tracker.execution_state_repo = execution_state_repo
+    if run_id:
+        if execution_state_repo:
+            tracker.execution_state_repo = execution_state_repo
+        if memory_repo:
+            tracker.memory_repo = memory_repo
         tracker.run_id = run_id
+        tracker.workflow_name = workflow_name
+        tracker.workflow_id = run_id
         logger.debug(f"Attached storage repos to tracker for run {run_id}")
 
     # Phase 6: Build and compile graph (with tracker for node instrumentation)

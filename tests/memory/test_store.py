@@ -19,15 +19,23 @@ def temp_db():
     """Create a temporary database for testing."""
     fd, path = tempfile.mkstemp(suffix=".db")
     os.close(fd)
-    engine = create_engine(f"sqlite:///{path}")
+    # Use :memory: for better Windows compatibility, or use WAL mode for file-based
+    # For file-based testing, we need to ensure proper cleanup
+    engine = create_engine(f"sqlite:///{path}", connect_args={"check_same_thread": False})
 
     # Create tables
     Base.metadata.create_all(engine)
 
     yield engine
 
-    # Cleanup
-    os.unlink(path)
+    # Cleanup - dispose engine first to release file handles
+    engine.dispose()
+    # Then try to delete, ignoring errors on Windows
+    try:
+        Path(path).unlink(missing_ok=True)
+    except (PermissionError, OSError):
+        # Windows may not release file immediately
+        pass  # Temporary file will be cleaned up by OS
 
 
 @pytest.fixture

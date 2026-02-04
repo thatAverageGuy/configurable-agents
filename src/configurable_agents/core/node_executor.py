@@ -7,6 +7,8 @@ Integrates:
 - Tool registry (T-008): Load and bind tools
 - Output builder (T-007): Enforce output schema
 - State builder (T-006): Manage workflow state
+- Memory (T-12): Persistent agent memory with namespaced keys
+- Tools (T-13): Pre-built tools for web, file, data, system operations
 
 Design decisions:
 - Copy-on-write state updates (immutable pattern)
@@ -20,11 +22,11 @@ import json
 import logging
 import re
 import time
-from typing import TYPE_CHECKING, Optional
+from typing import TYPE_CHECKING, Any, Optional, Union
 
 from pydantic import BaseModel, ValidationError
 
-from configurable_agents.config.schema import GlobalConfig, NodeConfig
+from configurable_agents.config.schema import GlobalConfig, MemoryConfig, NodeConfig, ToolConfig
 from configurable_agents.core.output_builder import OutputBuilderError, build_output_model
 from configurable_agents.core.template import TemplateResolutionError, resolve_prompt
 from configurable_agents.llm import (
@@ -35,7 +37,9 @@ from configurable_agents.llm import (
     create_llm,
     merge_llm_config,
 )
+from configurable_agents.memory import AgentMemory
 from configurable_agents.observability.cost_estimator import CostEstimator
+from configurable_agents.storage.base import MemoryRepository
 from configurable_agents.tools import ToolConfigError, ToolNotFoundError, get_tool
 
 # Optional sandbox import for code execution
@@ -173,6 +177,14 @@ def execute_node(
     # Extract storage repos from tracker (attached by executor)
     execution_state_repo = getattr(tracker, 'execution_state_repo', None) if tracker else None
     run_id = getattr(tracker, 'run_id', None) if tracker else None
+    memory_repo = getattr(tracker, 'memory_repo', None) if tracker else None
+
+    # Extract workflow context from tracker (attached by runtime executor)
+    workflow_name = getattr(tracker, 'workflow_name', None) if tracker else None
+    workflow_id = getattr(tracker, 'workflow_id', None) if tracker else None
+
+    # Get agent_id from workflow name for memory namespacing
+    agent_id = workflow_name or "default_agent"
 
     try:
         # ========================================
@@ -220,14 +232,58 @@ def execute_node(
         )
 
         # ========================================
-        # 3. LOAD TOOLS
+        # 3. CREATE MEMORY CONTEXT (if enabled)
+        # ========================================
+        agent_memory = None
+        if node_config.memory and node_config.memory.enabled and memory_repo:
+            memory_config = node_config.memory
+            # Get scope (node-level overrides workflow-level defaults)
+            scope = memory_config.default_scope or "agent"
+
+            agent_memory = AgentMemory(
+                agent_id=agent_id,
+                workflow_id=workflow_id,
+                node_id=node_id,
+                scope=scope,
+                repo=memory_repo,
+            )
+            logger.debug(
+                f"Node '{node_id}': Memory enabled with scope '{scope}'"
+            )
+
+        # ========================================
+        # 4. LOAD TOOLS (with ToolConfig support)
         # ========================================
         tools = []
+        tool_error_modes = {}  # Track error handling per tool
         if node_config.tools:
             try:
-                tools = [get_tool(name) for name in node_config.tools]
+                for tool_config in node_config.tools:
+                    if isinstance(tool_config, str):
+                        # Simple string tool name
+                        tool = get_tool(tool_config)
+                        tools.append(tool)
+                        tool_error_modes[tool_config] = "fail"
+                    elif isinstance(tool_config, dict):
+                        # ToolConfig dict
+                        tool_name = tool_config.get("name")
+                        if not tool_name:
+                            raise NodeExecutionError(
+                                f"Node '{node_id}': Tool config missing 'name' field",
+                                node_id=node_id,
+                            )
+                        tool = get_tool(tool_name)
+                        tools.append(tool)
+                        tool_error_modes[tool_name] = tool_config.get("on_error", "fail")
+                    else:
+                        raise NodeExecutionError(
+                            f"Node '{node_id}': Invalid tool config type: {type(tool_config)}",
+                            node_id=node_id,
+                        )
+
+                tool_names = [t.name for t in tools]
                 logger.debug(
-                    f"Node '{node_id}': Loaded {len(tools)} tools: {node_config.tools}"
+                    f"Node '{node_id}': Loaded {len(tools)} tools: {tool_names}"
                 )
             except (ToolNotFoundError, ToolConfigError) as e:
                 raise NodeExecutionError(
@@ -236,7 +292,7 @@ def execute_node(
                 )
 
         # ========================================
-        # 3.5. CODE EXECUTION (if code field is present)
+        # 4.5. CODE EXECUTION (if code field is present)
         # ========================================
         if node_config.code and SANDBOX_AVAILABLE:
             logger.info(f"Node '{node_id}': Executing code in sandbox")
@@ -322,7 +378,11 @@ def execute_node(
                 )
                 # Execute code directly without sandbox (unsafe!)
                 try:
-                    exec_globals = {"inputs": resolved_inputs, "result": None}
+                    exec_globals = {
+                        "inputs": resolved_inputs,
+                        "result": None,
+                        "memory": agent_memory,  # Inject memory for code access
+                    }
                     exec(node_config.code, exec_globals)
                     new_state = state.model_copy()
                     output_name = node_config.outputs[0]
