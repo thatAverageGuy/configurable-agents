@@ -410,30 +410,7 @@ def cmd_deploy(args: argparse.Namespace) -> int:
             print(traceback.format_exc(), file=sys.stderr)
         return 1
 
-    # Step 2: Check Docker installed and running
-    print_info("Checking Docker availability...")
-    try:
-        result = subprocess.run(
-            ["docker", "version"],
-            capture_output=True,
-            text=True,
-            timeout=5
-        )
-        if result.returncode != 0:
-            print_error("Docker daemon is not running")
-            print_info("Please start Docker Desktop or the Docker daemon")
-            return 1
-        print_success("Docker is available")
-    except FileNotFoundError:
-        print_error("Docker is not installed")
-        print_info("Install Docker from: https://docs.docker.com/get-docker/")
-        return 1
-    except subprocess.TimeoutExpired:
-        print_error("Docker command timed out")
-        print_info("Please check if Docker is responding")
-        return 1
-
-    # Step 3: Generate deployment artifacts
+    # Step 2: Generate deployment artifacts (Docker check skipped for --generate mode)
     output_dir = Path(args.output_dir)
     print_info(f"Generating deployment artifacts in: {colorize(str(output_dir), Colors.CYAN)}")
 
@@ -484,11 +461,34 @@ def cmd_deploy(args: argparse.Namespace) -> int:
             print(traceback.format_exc(), file=sys.stderr)
         return 1
 
-    # Step 4: Exit early if --generate flag
+    # Step 3: Exit early if --generate flag
     if args.generate:
         print_info("Artifacts generated. Skipping Docker build and run.")
         print_info(f"To build manually, run: docker build -t {container_name}:latest {output_dir}")
         return 0
+
+    # Step 4: Check Docker installed and running (only for build/run mode)
+    print_info("Checking Docker availability...")
+    try:
+        result = subprocess.run(
+            ["docker", "version"],
+            capture_output=True,
+            text=True,
+            timeout=5
+        )
+        if result.returncode != 0:
+            print_error("Docker daemon is not running")
+            print_info("Please start Docker Desktop or the Docker daemon")
+            return 1
+        print_success("Docker is available")
+    except FileNotFoundError:
+        print_error("Docker is not installed")
+        print_info("Install Docker from: https://docs.docker.com/get-docker/")
+        return 1
+    except subprocess.TimeoutExpired:
+        print_error("Docker command timed out")
+        print_info("Please check if Docker is responding")
+        return 1
 
     # Step 5: Check port availability
     print_info("Checking port availability...")
