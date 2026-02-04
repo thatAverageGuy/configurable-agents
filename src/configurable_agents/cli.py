@@ -1466,6 +1466,150 @@ def cmd_chat(args: argparse.Namespace) -> int:
         return 1
 
 
+def cmd_ui(args: argparse.Namespace) -> int:
+    """
+    Launch the complete Configurable Agents UI (Dashboard + Chat).
+
+    Spawns both Dashboard and Chat UI as separate processes via ProcessManager,
+    providing unified progress feedback and graceful shutdown.
+
+    Args:
+        args: Parsed command-line arguments
+
+    Returns:
+        Exit code (0 for success, 1 for error)
+    """
+    # Import uvicorn here for error handling
+    try:
+        import uvicorn
+    except ImportError:
+        print_error("uvicorn is required to run the UI")
+        print_info("Install with: pip install uvicorn[standard]")
+        return 1
+
+    console = Console() if RICH_AVAILABLE else None
+
+    # Create ProcessManager
+    manager = ProcessManager(verbose=args.verbose)
+
+    # Check for previous crash (dirty shutdown) - will be fully enabled in Task 4
+    restore_data = manager.check_restore_session()
+    if restore_data and console:
+        console.print("[yellow]![/yellow] [bold]Previous session did not shut down cleanly[/bold]")
+        if restore_data.get("active_workflows"):
+            console.print(f"  [dim]Active workflows at time of crash: {len(restore_data['active_workflows'])}[/dim]")
+        console.print("[dim]Session state saved. Use dashboard to review workflow status.[/dim]")
+        console.print()
+    elif restore_data:
+        print_warning("Previous session did not shut down cleanly")
+        print_info("Session state saved. Use dashboard to review workflow status.")
+        print()
+
+    # Mark session as dirty (crash detection for next run) - no-op until Task 4
+    manager.mark_session_dirty()
+
+    # Define run functions that can be pickled (top-level, not closures)
+    def run_dashboard():
+        """Run dashboard server."""
+        dashboard = create_dashboard_app(
+            db_url=args.db_url,
+            mlflow_tracking_uri=args.mlflow_uri,
+        )
+        uvicorn.run(
+            dashboard.get_app(),
+            host=args.host,
+            port=args.dashboard_port,
+            log_level="info" if args.verbose else "warning",
+        )
+
+    def run_chat():
+        """Run chat UI."""
+        dashboard_url = f"http://{args.host}:{args.dashboard_port}"
+        from configurable_agents.ui import create_gradio_chat_ui
+        ui = create_gradio_chat_ui(dashboard_url=dashboard_url)
+        ui.launch(
+            server_name=args.host,
+            server_port=args.chat_port,
+            share=False,
+            quiet=not args.verbose,
+        )
+
+    # Add dashboard service
+    if console:
+        console.print(f"[bold blue]Starting Dashboard...[/bold blue]")
+    else:
+        print_info("Starting Dashboard...")
+
+    manager.add_service(ServiceSpec(
+        name="dashboard",
+        target=run_dashboard,
+    ))
+
+    if console:
+        console.print(f"[green]OK[/green] Dashboard configured on port {args.dashboard_port}")
+    else:
+        print_success(f"Dashboard configured on port {args.dashboard_port}")
+
+    # Add chat UI service
+    if not args.no_chat:
+        if console:
+            console.print(f"[bold blue]Starting Chat UI...[/bold blue]")
+        else:
+            print_info("Starting Chat UI...")
+
+        manager.add_service(ServiceSpec(
+            name="chat",
+            target=run_chat,
+        ))
+
+        if console:
+            console.print(f"[green]OK[/green] Chat UI configured on port {args.chat_port}")
+        else:
+            print_success(f"Chat UI configured on port {args.chat_port}")
+
+    # Start all services
+    print()
+    if console:
+        console.print(f"[bold green]Launching Configurable Agents UI[/bold green]")
+    else:
+        print_info("Launching Configurable Agents UI")
+
+    manager.start_all()
+
+    # Print access URLs
+    print()
+    print(f"{colorize('=' * 60, Colors.GREEN)}")
+    print(f"{colorize('Configurable Agents UI started!', Colors.BOLD + Colors.GREEN)}")
+    print(f"{colorize('=' * 60, Colors.GREEN)}")
+    print()
+    print(f"{colorize('Services:', Colors.BOLD)}")
+    print(f"  Dashboard:    http://localhost:{args.dashboard_port}")
+    if not args.no_chat:
+        print(f"  Chat UI:      http://localhost:{args.chat_port}")
+    if args.mlflow_uri:
+        print(f"  MLFlow:       {args.mlflow_uri}")
+    print()
+    print(f"{colorize('Press Ctrl+C to stop all services', Colors.YELLOW)}")
+    print()
+
+    # Wait for shutdown
+    try:
+        manager.wait()
+    except KeyboardInterrupt:
+        if console:
+            console.print(f"\n[yellow]Shutting down...[/yellow]")
+        else:
+            print_info("\nShutting down...")
+        manager.shutdown()
+        if console:
+            console.print(f"[green]OK[/green] All services stopped")
+        else:
+            print_success("All services stopped")
+        return 0
+
+    return 0
+
+
 def cmd_webhooks(args: argparse.Namespace) -> int:
     """
     Launch the webhook server for platform integrations.
@@ -2297,6 +2441,51 @@ For more information, visit: https://github.com/yourusername/configurable-agents
         "-v", "--verbose", action="store_true", help="Enable verbose output"
     )
     chat_parser.set_defaults(func=cmd_chat)
+
+    # UI command (launches all services)
+    ui_parser = subparsers.add_parser(
+        "ui",
+        help="Launch the complete Configurable Agents UI (Dashboard + Chat)",
+        description="Launch the complete Configurable Agents UI with dashboard and chat interface",
+    )
+    ui_parser.add_argument(
+        "--host",
+        default="0.0.0.0",
+        help="Host to bind to (default: 0.0.0.0)",
+    )
+    ui_parser.add_argument(
+        "--dashboard-port",
+        type=int,
+        default=7861,
+        help="Dashboard port (default: 7861)",
+    )
+    ui_parser.add_argument(
+        "--chat-port",
+        type=int,
+        default=7860,
+        help="Chat UI port (default: 7860)",
+    )
+    ui_parser.add_argument(
+        "--db-url",
+        default="sqlite:///configurable_agents.db",
+        help="Database URL (default: sqlite:///configurable_agents.db)",
+    )
+    ui_parser.add_argument(
+        "--mlflow-uri",
+        default=None,
+        help="MLFlow tracking URI (default: None)",
+    )
+    ui_parser.add_argument(
+        "--no-chat",
+        action="store_true",
+        help="Skip Chat UI, start Dashboard only",
+    )
+    ui_parser.add_argument(
+        "-v", "--verbose",
+        action="store_true",
+        help="Enable verbose output",
+    )
+    ui_parser.set_defaults(func=cmd_ui)
 
     # Optimization command group
     optimization_parser = subparsers.add_parser(
