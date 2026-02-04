@@ -323,6 +323,9 @@ def cmd_validate(args: argparse.Namespace) -> int:
     # Validate file exists
     if not Path(config_path).exists():
         print_error(f"Config file not found: {config_path}")
+        # Provide helpful guidance for missing files
+        print_info("Check that the file path is correct and the file exists")
+        print_info("Example: configurable-agents validate workflow.yaml")
         return 1
 
     # Print validation info
@@ -338,7 +341,15 @@ def cmd_validate(args: argparse.Namespace) -> int:
 
     except ConfigLoadError as e:
         print_error(f"Failed to load config: {e}")
-        print_info("Check YAML syntax and file format (run 'configurable-agents validate' to check)")
+        # Provide specific guidance based on error type
+        error_msg = str(e).lower()
+        if "yaml" in error_msg or "parse" in error_msg or "syntax" in error_msg:
+            print_info("Fix: Check YAML syntax (indentation, colons, quotes)")
+            print_info("     Use a YAML validator: https://www.yamllint.com/")
+        elif "schema" in error_msg or "validation" in error_msg:
+            print_info("Fix: Check required fields and data types match the schema")
+        else:
+            print_info("Check file format and try again")
         if args.verbose:
             import traceback
 
@@ -347,7 +358,9 @@ def cmd_validate(args: argparse.Namespace) -> int:
 
     except ConfigValidationError as e:
         print_error(f"Config validation failed: {e}")
-        print_info("Review the validation error and fix your workflow configuration")
+        # The ValidationError from validator.py already includes suggestions
+        # Just provide a general review message
+        print_info("Fix the validation error above and run validate again")
         if args.verbose:
             import traceback
 
