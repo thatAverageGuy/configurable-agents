@@ -79,6 +79,18 @@ class ToolRegistry:
         )
         register_file_tools(self)
 
+        # Register data tools
+        from configurable_agents.tools.data_tools import (
+            register_tools as register_data_tools,
+        )
+        register_data_tools(self)
+
+        # Register system tools
+        from configurable_agents.tools.system_tools import (
+            register_tools as register_system_tools,
+        )
+        register_system_tools(self)
+
     def register_tool(self, name: str, factory: ToolFactory):
         """Register a tool factory function.
 
