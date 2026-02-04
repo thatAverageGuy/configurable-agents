@@ -68,16 +68,23 @@ A **config-first agent runtime** that:
 
 ## Success Metrics
 
-**12 months from now:**
-- A developer can describe a workflow idea in natural language, get a config, and have a running agent system in < 5 minutes
-- Users can optimize prompts using DSPy without writing code
-- Enterprise teams use this for PoCs and production deployments
-- Community contributes tool integrations and example workflows
+**v1.0 Achievement (2026-02-04):**
+- ✅ A developer can describe a workflow idea in natural language, get a valid config, and have a running agent system in < 5 minutes (UI-01, UI-02)
+- ✅ Users can optimize prompts using MLFlow A/B testing without writing code (OBS-01)
+- ✅ Enterprise teams can deploy agents as minimal Docker containers with full observability (ARCH-01, OBS-02, OBS-03)
+- ✅ System supports 4 LLM providers, 15+ tools, and advanced control flow (RT-01 through RT-08)
 
-**3 years from now:**
+**12 months from now (v1.1+):**
+- Active community contributing tool integrations and example workflows
+- Multi-agent orchestration patterns in production use
+- Vector database integration for semantic memory
+- Kubernetes deployment patterns for enterprise scale
+
+**3 years from now (v2.0+):**
 - Standard tool for agent development, like Docker is for containers
 - Supports multi-modal workflows (text, image, video, code execution)
 - Cloud deployment abstraction (one config → AWS/GCP/Azure deployment)
+- Self-optimizing agents with automatic performance tuning
 - Active ecosystem of shared configs and optimized workflows
 
 ## Non-Goals
@@ -97,42 +104,53 @@ A **config-first agent runtime** that:
 - **Declarative configs** — No Turing-complete logic in YAML
 - **Local execution first** — Cloud deployment is an extension, not the core
 
-## Phases
+## Roadmap Progress
 
-### v0.1 - Production Ready (Current, March 2026)
+### v1.0 - Foundation (SHIPPED 2026-02-04)
+- **Status**: Complete ✅
+- **Requirements**: 27/27 (100%)
+- **Phases**: 4 phases, 19 plans
+
+**Core Capabilities**:
 - Config-driven architecture (YAML/JSON)
-- Linear workflows (sequential execution)
+- Advanced control flow (conditional routing, loops, parallel execution)
 - Structured outputs (Pydantic validation)
-- Single LLM provider (Google Gemini)
-- Tool integration (web search, extensible registry)
+- Multi-LLM support (Google, OpenAI, Anthropic, Ollama)
+- Tool integration (15+ pre-built tools, extensible registry)
 - Parse-time validation (fail fast, save costs)
-- MLFlow observability (cost tracking, tracing, prompt inspection)
-- Docker deployment (one-command containerization)
-- CLI interface (run, validate, verbose mode)
-- Comprehensive testing (468 tests: 449 unit + 19 integration)
+- MLFlow observability (cost tracking, tracing, prompt inspection, optimization)
+- Agent registry (heartbeat/TTL, minimal containers)
+- Orchestration dashboard (FastAPI + HTMX + SSE)
+- Chat UI for config generation (Gradio with session persistence)
+- Webhook integrations (generic, WhatsApp, Telegram)
+- Sandbox code execution (RestrictedPython + Docker opt-in)
+- Long-term memory backend (namespaced key-value storage)
+- Comprehensive testing (645 tests: 626 unit + 19 integration)
 
-### v0.2 - Intelligence (Q2 2026, +8-12 weeks)
-- Conditional routing (if/else based on state)
-- Loops and retry logic
-- Multi-LLM support (OpenAI, Anthropic, Ollama)
-- State persistence and workflow resume
-- Config composition (import/extend)
-- Enhanced error messages
+**Documentation**: See [TASKS.md](TASKS.md) for complete requirements mapping.
 
-### v0.3 - Optimization (Q3 2026, +12-16 weeks)
-- DSPy prompt optimization (automatic)
-- Quality metrics and evaluation
-- Parallel node execution
-- OpenTelemetry integration (distributed tracing)
-- AI config generator
+### v1.1 - Enhancement (PLANNING)
+- **Status**: Not started
+- **Estimated**: Q2 2026, +8-12 weeks
 
-### v0.4 - Ecosystem (Q4 2026, +16-24 weeks)
-- Visual workflow editor
-- One-click cloud deployments (AWS, GCP, Azure)
-- Prometheus + Grafana monitoring
-- Plugin system
-- Config marketplace
-- Optional SaaS offering (for users preferring managed service)
+**Potential Features** (under consideration):
+- Orchestrator-initiated agent registration (complete ARCH-02)
+- Enhanced tool ecosystem (expand beyond 15 tools)
+- Vector database integration for semantic memory
+- DSPy module integration and optimization
+- OpenTelemetry integration
+- Kubernetes deployment manifests
+- Enhanced dashboard features
+
+**Planning Process**: TBD based on user feedback and v1.0 usage patterns.
+
+### v2.0 - Scale (DEFERRED)
+- Self-optimizing agents (auto-scaling runtime)
+- Enterprise features (multi-tenancy, RBAC)
+- Full LangChain tool registry (500+ tools)
+- Visual workflow builder (drag-and-drop)
+- Advanced memory (contextual/agentic, Agent Protocol)
+- Cloud-managed service (optional SaaS offering)
 
 ## Guiding Questions
 
