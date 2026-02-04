@@ -61,11 +61,23 @@ class ToolRegistry:
         self._register_builtin_tools()
 
     def _register_builtin_tools(self):
-        """Register all built-in tools available in v0.1."""
+        """Register all built-in tools available in v0.2."""
         # Import here to avoid circular dependencies
         from configurable_agents.tools.serper import create_serper_search
 
         self._factories["serper_search"] = create_serper_search
+
+        # Register web tools
+        from configurable_agents.tools.web_tools import (
+            register_tools as register_web_tools,
+        )
+        register_web_tools(self)
+
+        # Register file tools
+        from configurable_agents.tools.file_tools import (
+            register_tools as register_file_tools,
+        )
+        register_file_tools(self)
 
     def register_tool(self, name: str, factory: ToolFactory):
         """Register a tool factory function.
