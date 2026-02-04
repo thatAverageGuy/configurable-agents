@@ -108,6 +108,46 @@ class AgentRegistryRepository(ABC):
         """
         raise NotImplementedError
 
+    @abstractmethod
+    def query_by_metadata(self, metadata_filter: Dict[str, Any]) -> List[Any]:
+        """Query agents by metadata/capabilities.
+
+        Allows filtering agents by their metadata JSON blob using
+        key-value matching.
+
+        Args:
+            metadata_filter: Dictionary of metadata filters
+                - String values support "*" wildcard (e.g., {"model": "gpt-*"})
+                - Nested keys use dot notation (e.g., {"capabilities.llm": true})
+
+        Returns:
+            List of AgentRecord instances matching the criteria
+
+        Example:
+            >>> # Find all LLM agents
+            >>> llm_agents = repo.query_by_metadata({"type": "llm"})
+        """
+        raise NotImplementedError
+
+    @abstractmethod
+    def get_active_agents(self, cutoff_seconds: int = 60) -> List[Any]:
+        """Get only active (recently heartbeating) agents.
+
+        An agent is considered active if its last heartbeat was within
+        the specified cutoff period.
+
+        Args:
+            cutoff_seconds: Seconds since last heartbeat (default: 60)
+
+        Returns:
+            List of active AgentRecord instances
+
+        Example:
+            >>> # Get agents that heartbeat within last 30 seconds
+            >>> active = repo.get_active_agents(cutoff_seconds=30)
+        """
+        raise NotImplementedError
+
 
 class AbstractWorkflowRunRepository(ABC):
     """Abstract repository for workflow run persistence.
@@ -529,5 +569,182 @@ class MemoryRepository(ABC):
 
         Returns:
             Number of records deleted
+        """
+        raise NotImplementedError
+
+
+class WorkflowRegistrationRepository(ABC):
+    """Abstract repository for webhook workflow registration.
+
+    Manages workflow configurations registered for webhook triggering across
+    different platforms (generic, WhatsApp, Telegram).
+
+    Methods:
+        register: Register a workflow for webhook triggering
+        get: Get registration by workflow name
+        list_all: List all registrations
+        delete: Unregister a workflow
+        get_by_method: Get workflows by platform/method
+    """
+
+    @abstractmethod
+    def register(
+        self,
+        workflow_name: str,
+        webhook_secret: Optional[str] = None,
+        description: Optional[str] = None,
+        allowed_methods: Optional[List[str]] = None,
+        default_inputs: Optional[Dict[str, Any]] = None,
+        rate_limit: Optional[int] = None,
+    ) -> None:
+        """Register a workflow for webhook triggering.
+
+        Args:
+            workflow_name: Unique workflow identifier
+            webhook_secret: Optional secret for HMAC validation
+            description: Optional human-readable description
+            allowed_methods: Optional list of allowed methods (generic, whatsapp, telegram)
+            default_inputs: Optional dict of default input values
+            rate_limit: Optional rate limit (requests per minute)
+
+        Raises:
+            ValueError: If workflow already registered
+        """
+        raise NotImplementedError
+
+    @abstractmethod
+    def get(self, workflow_name: str) -> Optional[Dict[str, Any]]:
+        """Get workflow registration by name.
+
+        Args:
+            workflow_name: Unique workflow identifier
+
+        Returns:
+            Dictionary with registration data if found, None otherwise
+        """
+        raise NotImplementedError
+
+    @abstractmethod
+    def list_all(self) -> List[Dict[str, Any]]:
+        """List all workflow registrations.
+
+        Returns:
+            List of registration dictionaries
+        """
+        raise NotImplementedError
+
+    @abstractmethod
+    def delete(self, workflow_name: str) -> bool:
+        """Unregister a workflow.
+
+        Args:
+            workflow_name: Unique workflow identifier
+
+        Returns:
+            True if registration was deleted, False if not found
+        """
+        raise NotImplementedError
+
+    @abstractmethod
+    def get_by_method(self, method: str) -> List[Dict[str, Any]]:
+        """Get workflows by platform/method.
+
+        Args:
+            method: Platform/method name (generic, whatsapp, telegram)
+
+        Returns:
+            List of registration dictionaries that allow this method
+        """
+        raise NotImplementedError
+
+
+class OrchestratorRepository(ABC):
+    """Abstract repository for orchestrator registry persistence.
+
+    Provides CRUD operations for orchestrator registration records with support
+    for TTL-based expiration tracking via heartbeat updates.
+
+    Methods:
+        add: Register a new orchestrator
+        get: Retrieve a single orchestrator by ID
+        list_all: List all orchestrators (optionally including expired ones)
+        update_heartbeat: Refresh an orchestrator's last_heartbeat timestamp
+        delete: Remove an orchestrator from the registry
+        delete_expired: Remove all expired orchestrators from the registry
+    """
+
+    @abstractmethod
+    def add(self, orchestrator: Any) -> None:
+        """Register a new orchestrator.
+
+        Args:
+            orchestrator: OrchestratorRecord instance to persist
+
+        Raises:
+            IntegrityError: If orchestrator_id already exists
+        """
+        raise NotImplementedError
+
+    @abstractmethod
+    def get(self, orchestrator_id: str) -> Optional[Any]:
+        """Get an orchestrator by ID.
+
+        Args:
+            orchestrator_id: Unique identifier for the orchestrator
+
+        Returns:
+            OrchestratorRecord if found, None otherwise
+        """
+        raise NotImplementedError
+
+    @abstractmethod
+    def list_all(self, include_dead: bool = False) -> List[Any]:
+        """List all registered orchestrators.
+
+        Args:
+            include_dead: If False, only return orchestrators where is_alive() is True.
+                         If True, return all orchestrators regardless of TTL status.
+
+        Returns:
+            List of OrchestratorRecord instances
+        """
+        raise NotImplementedError
+
+    @abstractmethod
+    def update_heartbeat(self, orchestrator_id: str) -> None:
+        """Update an orchestrator's heartbeat timestamp.
+
+        Sets last_heartbeat to the current time, effectively refreshing
+        the orchestrator's TTL.
+
+        Args:
+            orchestrator_id: Unique identifier for the orchestrator
+
+        Raises:
+            ValueError: If orchestrator_id not found
+        """
+        raise NotImplementedError
+
+    @abstractmethod
+    def delete(self, orchestrator_id: str) -> None:
+        """Delete an orchestrator from the registry.
+
+        Args:
+            orchestrator_id: Unique identifier for the orchestrator
+
+        Raises:
+            ValueError: If orchestrator_id not found
+        """
+        raise NotImplementedError
+
+    @abstractmethod
+    def delete_expired(self) -> int:
+        """Delete all expired orchestrators from the registry.
+
+        An orchestrator is considered expired if the current time is after
+        its expiration time (last_heartbeat + ttl_seconds).
+
+        Returns:
+            Number of orchestrators deleted
         """
         raise NotImplementedError

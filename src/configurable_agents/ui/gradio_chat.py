@@ -134,6 +134,7 @@ class GradioChatUI:
         llm_client: Any,
         session_repo: ChatSessionRepository,
         config_schema: Optional[type] = None,
+        dashboard_url: Optional[str] = None,
     ):
         """Initialize the Gradio Chat UI.
 
@@ -141,10 +142,12 @@ class GradioChatUI:
             llm_client: LLM instance (from create_llm)
             session_repo: ChatSessionRepository for persistence
             config_schema: WorkflowConfig class (defaults to WorkflowConfig)
+            dashboard_url: URL for dashboard link (default: http://localhost:7861)
         """
         self.llm_client = llm_client
         self.session_repo = session_repo
         self.config_schema = config_schema or WorkflowConfig
+        self.dashboard_url = dashboard_url or "http://localhost:7861"
 
     def _build_conversation_context(
         self, history: List[Tuple[str, str]]
@@ -515,7 +518,8 @@ class GradioChatUI:
             gr.Markdown(
                 "---\n\n"
                 "**Note:** Your conversation is saved automatically. "
-                "Close and reopen this page to continue where you left off."
+                "Close and reopen this page to continue where you left off.\n\n"
+                f"**[Open Dashboard]({self.dashboard_url})** - Monitor workflows and agents"
             )
 
         return interface
@@ -566,6 +570,7 @@ def create_gradio_chat_ui(
     llm_config: Optional[Any] = None,
     global_config: Optional[Any] = None,
     session_repo: Optional[ChatSessionRepository] = None,
+    dashboard_url: Optional[str] = None,
 ) -> GradioChatUI:
     """Factory function to create GradioChatUI.
 
@@ -573,6 +578,7 @@ def create_gradio_chat_ui(
         llm_config: LLMConfig for the chat LLM
         global_config: Global config with LLM settings
         session_repo: ChatSessionRepository (creates new if None)
+        dashboard_url: URL for dashboard link (default: http://localhost:7861)
 
     Returns:
         Configured GradioChatUI instance
@@ -582,15 +588,21 @@ def create_gradio_chat_ui(
         >>> ui = create_gradio_chat_ui()
         >>> ui.launch()
     """
+    import os
+
     # Create LLM client
     llm_client = create_llm(llm_config, global_config)
 
     # Create session repository if not provided
     if session_repo is None:
         from configurable_agents.storage import create_storage_backend
-        _, _, _, session_repo, _ = create_storage_backend()
+        _, _, _, session_repo, _, _, _, _ = create_storage_backend()
 
-    return GradioChatUI(llm_client, session_repo)
+    # Get dashboard URL from parameter, env var, or default
+    if dashboard_url is None:
+        dashboard_url = os.getenv("DASHBOARD_URL", "http://localhost:7861")
+
+    return GradioChatUI(llm_client, session_repo, dashboard_url=dashboard_url)
 
 
 if __name__ == "__main__":

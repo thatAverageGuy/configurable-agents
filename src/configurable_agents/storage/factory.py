@@ -25,6 +25,8 @@ from configurable_agents.storage.base import (
     ChatSessionRepository,
     WebhookEventRepository,
     MemoryRepository,
+    WorkflowRegistrationRepository,
+    OrchestratorRepository,
 )
 from configurable_agents.storage.models import Base
 from configurable_agents.storage.sqlite import (
@@ -34,6 +36,8 @@ from configurable_agents.storage.sqlite import (
     SQLiteChatSessionRepository,
     SqliteWebhookEventRepository,
     SQLiteMemoryRepository,
+    SqliteWorkflowRegistrationRepository,
+    SqliteOrchestratorRepository,
 )
 
 
@@ -46,6 +50,8 @@ def create_storage_backend(
     ChatSessionRepository,
     WebhookEventRepository,
     MemoryRepository,
+    WorkflowRegistrationRepository,
+    OrchestratorRepository,
 ]:
     """Create storage backend repositories from configuration.
 
@@ -55,14 +61,15 @@ def create_storage_backend(
     Returns:
         Tuple of (workflow_run_repository, execution_state_repository,
                   agent_registry_repository, chat_session_repository,
-                  webhook_event_repository, memory_repository)
+                  webhook_event_repository, memory_repository,
+                  workflow_registration_repository, orchestrator_repository)
 
     Raises:
         ValueError: If backend type is not supported
 
     Example:
         >>> from configurable_agents.storage import create_storage_backend
-        >>> runs_repo, states_repo, agents_repo, chat_repo, webhook_repo, memory_repo = create_storage_backend()
+        >>> runs_repo, states_repo, agents_repo, chat_repo, webhook_repo, memory_repo, workflow_reg_repo, orchestrator_repo = create_storage_backend()
         >>> run = WorkflowRunRecord(id="123", workflow_name="test", status="running")
         >>> runs_repo.add(run)
     """
@@ -89,8 +96,10 @@ def create_storage_backend(
         chat_repo = SQLiteChatSessionRepository(engine)
         webhook_repo = SqliteWebhookEventRepository(engine)
         memory_repo = SQLiteMemoryRepository(engine)
+        workflow_reg_repo = SqliteWorkflowRegistrationRepository(engine)
+        orchestrator_repo = SqliteOrchestratorRepository(engine)
 
-        return runs_repo, states_repo, agents_repo, chat_repo, webhook_repo, memory_repo
+        return runs_repo, states_repo, agents_repo, chat_repo, webhook_repo, memory_repo, workflow_reg_repo, orchestrator_repo
 
     # Unsupported backend
     raise ValueError(

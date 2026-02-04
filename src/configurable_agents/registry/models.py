@@ -96,3 +96,55 @@ class HealthResponse(BaseModel):
     status: str
     registered_agents: int
     active_agents: int
+
+
+class OrchestratorRegistrationRequest(BaseModel):
+    """Request model for orchestrator registration.
+
+    Orchestrators submit this data when registering with the registry.
+    Registration is idempotent - re-registering with the same orchestrator_id
+    updates the existing record.
+
+    Attributes:
+        orchestrator_id: Unique identifier for this orchestrator
+        orchestrator_name: Human-readable name for the orchestrator
+        orchestrator_type: Type of orchestrator (e.g., "central", "distributed")
+        api_endpoint: URL where the orchestrator exposes its API
+        ttl_seconds: Time-to-live in seconds for heartbeat (default: 300)
+    """
+
+    orchestrator_id: str = Field(..., description="Unique orchestrator identifier")
+    orchestrator_name: str = Field(..., description="Human-readable orchestrator name")
+    orchestrator_type: str = Field(
+        ..., description="Type of orchestrator (e.g., 'central', 'distributed')"
+    )
+    api_endpoint: str = Field(..., description="Orchestrator API endpoint URL")
+    ttl_seconds: int = Field(
+        default=300, ge=1, le=3600, description="TTL in seconds for heartbeat"
+    )
+
+
+class OrchestratorInfo(BaseModel):
+    """Response model for orchestrator information.
+
+    Returned by list and get operations to show orchestrator status.
+
+    Attributes:
+        orchestrator_id: Unique identifier for the orchestrator
+        orchestrator_name: Human-readable name for the orchestrator
+        orchestrator_type: Type of orchestrator
+        api_endpoint: URL where the orchestrator exposes its API
+        is_alive: Whether the orchestrator's TTL has not expired
+        last_heartbeat: Timestamp of the last heartbeat from this orchestrator
+        registered_at: When the orchestrator first registered with the registry
+        ttl_seconds: Configured TTL for this orchestrator
+    """
+
+    orchestrator_id: str
+    orchestrator_name: str
+    orchestrator_type: str
+    api_endpoint: str
+    is_alive: bool
+    last_heartbeat: datetime
+    registered_at: datetime
+    ttl_seconds: int

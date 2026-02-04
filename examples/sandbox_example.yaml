@@ -18,6 +18,11 @@ flow:
   name: "sandbox_example"
   description: "Demonstrates sandbox code execution with resource limits"
   version: "0.4.0"
+  tags:
+    - sandbox
+    - code-execution
+    - security
+  author: "Configurable Agents Team"
 
 # State definition
 state:
@@ -255,3 +260,19 @@ config:
 #   filtered = [n for n in numbers if n > threshold]
 #   result = sum(filtered) / len(filtered) if filtered else 0
 #   print(f"Filtered {len(filtered)} numbers")
+
+# Webhook registration metadata (optional)
+# Register this workflow for webhook triggering:
+# POST /webhooks/register
+# {
+#   "workflow_name": "sandbox_example",
+#   "description": "Demonstrates sandbox code execution",
+#   "allowed_methods": ["generic"],
+#   "default_inputs": {"input_numbers": [1, 2, 3, 4, 5]}
+# }
+webhook:
+  enabled: true
+  allowed_methods:
+    - generic
+  default_inputs:
+    input_numbers: [1, 2, 3, 4, 5]

@@ -7,11 +7,12 @@ handlers for WhatsApp and Telegram.
 
 import logging
 import os
+from pathlib import Path
 from typing import Any, Dict, Optional
 
 from fastapi import APIRouter, BackgroundTasks, HTTPException, Request
 
-from configurable_agents.storage import create_storage_backend, WebhookEventRepository
+from configurable_agents.storage import create_storage_backend, WebhookEventRepository, WorkflowRegistrationRepository
 from configurable_agents.webhooks.base import InvalidSignatureError, ReplayAttackError, WebhookHandler
 
 logger = logging.getLogger(__name__)
@@ -21,6 +22,9 @@ router = APIRouter(prefix="/webhooks", tags=["webhooks"])
 
 # Global webhook repository (initialized on startup)
 _webhook_repo: Optional[WebhookEventRepository] = None
+
+# Global workflow registration repository (initialized on startup)
+_workflow_reg_repo: Optional[WorkflowRegistrationRepository] = None
 
 # Global platform handlers (initialized lazily)
 _whatsapp_handler: Optional["WhatsAppWebhookHandler"] = None
@@ -37,8 +41,21 @@ def get_webhook_repository() -> WebhookEventRepository:
     global _webhook_repo
     if _webhook_repo is None:
         # Get repository from storage backend
-        _, _, _, _, _webhook_repo = create_storage_backend()
+        _, _, _, _, _webhook_repo, _, _, _ = create_storage_backend()
     return _webhook_repo
+
+
+def get_workflow_registration_repository() -> WorkflowRegistrationRepository:
+    """Get or create workflow registration repository.
+
+    Returns:
+        WorkflowRegistrationRepository instance
+    """
+    global _workflow_reg_repo
+    if _workflow_reg_repo is None:
+        # Get repository from storage backend
+        _, _, _, _, _, _, _workflow_reg_repo, _ = create_storage_backend()
+    return _workflow_reg_repo
 
 
 def _get_webhook_secret(provider: str = "default") -> str:
@@ -493,4 +510,166 @@ async def webhook_health() -> Dict[str, Any]:
         "signature_configured": bool(_get_webhook_secret("generic")),
         "whatsapp_configured": _get_whatsapp_handler() is not None,
         "telegram_configured": _get_telegram_bot() is not None,
+    }
+
+
+@router.post("/register")
+async def register_workflow_webhook(registration_data: Dict[str, Any]) -> Dict[str, Any]:
+    """
+    Register a workflow for webhook triggering.
+
+    Allows workflows to be registered for webhook-based triggering across
+    different platforms (generic, WhatsApp, Telegram). Returns registration
+    details including webhook URLs and generated secret.
+
+    Args:
+        registration_data: Registration payload with:
+            - workflow_name: str (required) - Workflow name/ID
+            - description: Optional[str] - Human-readable description
+            - allowed_methods: List[str] - Platforms allowed (generic, whatsapp, telegram)
+            - default_inputs: Dict - Default input values
+            - webhook_secret: Optional[str] - Secret for HMAC validation (auto-generated if not provided)
+            - rate_limit: Optional[int] - Rate limit (requests per minute)
+
+    Returns:
+        Registration response with:
+            - workflow_name: Registered workflow name
+            - webhook_secret: Generated or provided secret
+            - description: Workflow description
+            - allowed_methods: List of allowed platforms
+            - default_inputs: Default input values
+            - webhook_urls: Dict of webhook URLs by platform
+            - created_at: Registration timestamp
+
+    Raises:
+        HTTPException 400: Invalid workflow_name or missing required fields
+        HTTPException 409: Workflow already registered
+        HTTPException 500: Registration failed
+    """
+    import secrets
+    from datetime import datetime
+
+    workflow_reg_repo = get_workflow_registration_repository()
+
+    # Extract required fields
+    workflow_name = registration_data.get("workflow_name")
+    if not workflow_name:
+        raise HTTPException(status_code=400, detail="Missing required field: workflow_name")
+
+    # Optional fields
+    description = registration_data.get("description")
+    allowed_methods = registration_data.get("allowed_methods", ["generic"])
+    default_inputs = registration_data.get("default_inputs", {})
+    webhook_secret = registration_data.get("webhook_secret") or secrets.token_urlsafe(32)
+    rate_limit = registration_data.get("rate_limit")
+
+    # Validate workflow_name corresponds to a valid workflow file
+    # Check for .yaml or .yml extension
+    workflow_file = None
+    for ext in [".yaml", ".yml"]:
+        potential_path = Path(f"examples/{workflow_name}{ext}")
+        if potential_path.exists():
+            workflow_file = potential_path
+            break
+
+    if workflow_file is None:
+        # Also check current directory
+        for ext in [".yaml", ".yml"]:
+            potential_path = Path(f"{workflow_name}{ext}")
+            if potential_path.exists():
+                workflow_file = potential_path
+                break
+
+    # Log warning if workflow file not found (but don't fail - user might have custom path)
+    if workflow_file is None:
+        logger.warning(f"Workflow file not found for '{workflow_name}'")
+
+    try:
+        # Register workflow
+        workflow_reg_repo.register(
+            workflow_name=workflow_name,
+            webhook_secret=webhook_secret,
+            description=description,
+            allowed_methods=allowed_methods,
+            default_inputs=default_inputs,
+            rate_limit=rate_limit,
+        )
+
+        # Get base URL from environment or use default
+        base_url = os.getenv("WEBHOOK_BASE_URL", "http://localhost:7862")
+
+        # Generate webhook URLs for each allowed method
+        webhook_urls = {}
+        if "generic" in allowed_methods:
+            webhook_urls["generic"] = f"{base_url}/webhooks/generic"
+        if "whatsapp" in allowed_methods:
+            webhook_urls["whatsapp"] = f"{base_url}/webhooks/whatsapp"
+        if "telegram" in allowed_methods:
+            webhook_urls["telegram"] = f"{base_url}/webhooks/telegram"
+
+        return {
+            "workflow_name": workflow_name,
+            "webhook_secret": webhook_secret,
+            "description": description,
+            "allowed_methods": allowed_methods,
+            "default_inputs": default_inputs,
+            "webhook_urls": webhook_urls,
+            "rate_limit": rate_limit,
+            "created_at": datetime.utcnow().isoformat(),
+        }
+
+    except ValueError as e:
+        if "already registered" in str(e):
+            raise HTTPException(status_code=409, detail=str(e))
+        raise HTTPException(status_code=400, detail=str(e))
+    except Exception as e:
+        logger.error(f"Registration failed: {e}")
+        raise HTTPException(status_code=500, detail=f"Registration failed: {e}")
+
+
+@router.get("/registrations")
+async def list_workflow_registrations() -> Dict[str, Any]:
+    """
+    List all workflow registrations.
+
+    Returns:
+        Dictionary with:
+            - registrations: List of all workflow registrations
+            - count: Total number of registrations
+    """
+    workflow_reg_repo = get_workflow_registration_repository()
+    registrations = workflow_reg_repo.list_all()
+
+    return {
+        "registrations": registrations,
+        "count": len(registrations),
+    }
+
+
+@router.delete("/registrations/{workflow_name}")
+async def delete_workflow_registration(workflow_name: str) -> Dict[str, Any]:
+    """
+    Unregister a workflow from webhook triggering.
+
+    Args:
+        workflow_name: Workflow name to unregister
+
+    Returns:
+        Deletion confirmation
+
+    Raises:
+        HTTPException 404: Workflow not registered
+        HTTPException 500: Deletion failed
+    """
+    workflow_reg_repo = get_workflow_registration_repository()
+
+    deleted = workflow_reg_repo.delete(workflow_name)
+
+    if not deleted:
+        raise HTTPException(status_code=404, detail=f"Workflow '{workflow_name}' not registered")
+
+    return {
+        "workflow_name": workflow_name,
+        "deleted": True,
+        "message": f"Workflow '{workflow_name}' unregistered successfully",
     }

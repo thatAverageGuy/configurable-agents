@@ -1402,6 +1402,48 @@ def cmd_dashboard(args: argparse.Namespace) -> int:
     return 0
 
 
+def cmd_chat(args: argparse.Namespace) -> int:
+    """
+    Launch the Gradio Chat UI for config generation.
+
+    Args:
+        args: Parsed command-line arguments
+
+    Returns:
+        Exit code (0 for success, 1 for error)
+    """
+    import os
+
+    # Get dashboard URL from env or default
+    dashboard_url = args.dashboard_url or os.getenv("DASHBOARD_URL", "http://localhost:7861")
+
+    print_info(f"Starting Gradio Chat UI on {colorize(f'{args.host}:{args.port}', Colors.CYAN)}")
+    print_info(f"Dashboard: {colorize(dashboard_url, Colors.GRAY)}")
+
+    try:
+        from configurable_agents.ui import create_gradio_chat_ui
+
+        ui = create_gradio_chat_ui(dashboard_url=dashboard_url)
+        ui.launch(
+            server_name=args.host,
+            server_port=args.port,
+            share=args.share,
+        )
+        return 0
+
+    except ImportError:
+        print_error("Gradio is required to run the chat UI")
+        print_info("Install with: pip install gradio>=4.0.0")
+        return 1
+
+    except Exception as e:
+        print_error(f"Failed to launch chat UI: {e}")
+        if args.verbose:
+            import traceback
+            print(traceback.format_exc(), file=sys.stderr)
+        return 1
+
+
 def cmd_webhooks(args: argparse.Namespace) -> int:
     """
     Launch the webhook server for platform integrations.
@@ -2201,6 +2243,38 @@ For more information, visit: https://github.com/yourusername/configurable-agents
         "-v", "--verbose", action="store_true", help="Enable verbose output"
     )
     webhooks_parser.set_defaults(func=cmd_webhooks)
+
+    # Chat command
+    chat_parser = subparsers.add_parser(
+        "chat",
+        help="Launch the Gradio Chat UI",
+        description="Launch the Gradio-based chat interface for generating workflow configs",
+    )
+    chat_parser.add_argument(
+        "--host",
+        default="0.0.0.0",
+        help="Host to bind to (default: 0.0.0.0)",
+    )
+    chat_parser.add_argument(
+        "--port",
+        type=int,
+        default=7860,
+        help="Port to listen on (default: 7860)",
+    )
+    chat_parser.add_argument(
+        "--dashboard-url",
+        default=None,
+        help="URL for dashboard link (default: from DASHBOARD_URL or http://localhost:7861)",
+    )
+    chat_parser.add_argument(
+        "--share",
+        action="store_true",
+        help="Create a public Gradio link",
+    )
+    chat_parser.add_argument(
+        "-v", "--verbose", action="store_true", help="Enable verbose output"
+    )
+    chat_parser.set_defaults(func=cmd_chat)
 
     # Optimization command group
     optimization_parser = subparsers.add_parser(
