@@ -67,3 +67,6 @@ deploy/*
 mlflow.db
 mlruns/*
 *.db
+# Claude Code settings
+.claude/
+.claude/**
