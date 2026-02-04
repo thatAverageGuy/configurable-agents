@@ -30,7 +30,7 @@ See [milestones/v1.0-ROADMAP.md](milestones/v1.0-ROADMAP.md) for full details.
 
 **Milestone Goal:** Streamline developer experience with single-command startup, unified workspace, auto-initialization, and intuitive navigation.
 
-#### Phase 5: Foundation & Reliability
+#### Phase 5: Foundation & Reliability ✅
 **Goal**: Users can start the platform with one command and it just works, with clear feedback and graceful error handling.
 **Depends on**: Phase 4
 **Requirements**: STARTUP-01, STARTUP-02, STARTUP-03, STARTUP-04, STARTUP-05, STARTUP-06, OBS-01, ERR-01
@@ -41,12 +41,13 @@ See [milestones/v1.0-ROADMAP.md](milestones/v1.0-ROADMAP.md) for full details.
   4. Dashboard shows status at a glance (active workflows, agent health, recent errors)
   5. All error messages include error code, description, and resolution steps
   6. Platform shuts down gracefully and restores sessions after crashes
-**Plans**: TBD
+
+**Plans**: 3 plans in 2 waves
 
 Plans:
-- [ ] 05-01: Single-command startup with ProcessManager
-- [ ] 05-02: Auto-initialization with graceful degradation
-- [ ] 05-03: Status dashboard and error handling
+- [x] 05-01: Single-command startup with ProcessManager — Wave 1
+- [x] 05-02: Auto-initialization with graceful degradation — Wave 1
+- [x] 05-03: Status dashboard and error handling — Wave 2 (depends on 05-01)
 
 #### Phase 6: Navigation & Onboarding
 **Goal**: Users can discover features quickly and navigate intuitively, with clear guidance on what to do next.
@@ -74,5 +75,5 @@ Phases execute in numeric order: 5 → 6
 | 2. Agent Infrastructure | v1.0      | 6/6            | Complete    | 2026-02-03 |
 | 3. Interfaces & Triggers | v1.0      | 6/6            | Complete    | 2026-02-03 |
 | 4. Advanced Capabilities | v1.0      | 3/3            | Complete    | 2026-02-04 |
-| 5. Foundation & Reliability | v1.1      | 0/3            | Not started | - |
+| 5. Foundation & Reliability | v1.1      | 3/3            | Complete    | 2026-02-04 |
 | 6. Navigation & Onboarding | v1.1      | 0/3            | Not started | - |

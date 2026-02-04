@@ -9,12 +9,12 @@ Requirements for Core UX Polish milestone. Each maps to roadmap phases.
 
 ### Startup & Initialization
 
-- [ ] **STARTUP-01**: User can start entire UI with single command (`configurable-agents ui`)
-- [ ] **STARTUP-02**: Platform auto-initializes databases and tables on first run (from ANY entry point)
-- [ ] **STARTUP-03**: CLI commands work on first run without initialization errors
-- [ ] **STARTUP-04**: Python API works on first run without initialization errors
-- [ ] **STARTUP-05**: Startup shows progress feedback (spinners or X/Y progress for known steps)
-- [ ] **STARTUP-06**: Platform gracefully shuts down with auto-save and session restoration on crash
+- [x] **STARTUP-01**: User can start entire UI with single command (`configurable-agents ui`)
+- [x] **STARTUP-02**: Platform auto-initializes databases and tables on first run (from ANY entry point)
+- [x] **STARTUP-03**: CLI commands work on first run without initialization errors
+- [x] **STARTUP-04**: Python API works on first run without initialization errors
+- [x] **STARTUP-05**: Startup shows progress feedback (spinners or X/Y progress for known steps)
+- [x] **STARTUP-06**: Platform gracefully shuts down with auto-save and session restoration on crash
 
 ### Onboarding
 
@@ -27,11 +27,11 @@ Requirements for Core UX Polish milestone. Each maps to roadmap phases.
 
 ### Observability
 
-- [ ] **OBS-01**: Dashboard shows status at a glance (active workflows, agent health, recent errors)
+- [x] **OBS-01**: Dashboard shows status at a glance (active workflows, agent health, recent errors)
 
 ### Error Handling
 
-- [ ] **ERR-01**: Error messages include error code, description, and resolution steps
+- [x] **ERR-01**: Error messages include error code, description, and resolution steps
 
 ## v1.2+ Requirements
 
@@ -63,17 +63,17 @@ Which phases cover which requirements. Updated during roadmap creation.
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| STARTUP-01 | Phase 5 | Pending |
-| STARTUP-02 | Phase 5 | Pending |
-| STARTUP-03 | Phase 5 | Pending |
-| STARTUP-04 | Phase 5 | Pending |
-| STARTUP-05 | Phase 5 | Pending |
-| STARTUP-06 | Phase 5 | Pending |
+| STARTUP-01 | Phase 5 | Complete |
+| STARTUP-02 | Phase 5 | Complete |
+| STARTUP-03 | Phase 5 | Complete |
+| STARTUP-04 | Phase 5 | Complete |
+| STARTUP-05 | Phase 5 | Complete |
+| STARTUP-06 | Phase 5 | Complete |
 | ONBOARD-01 | Phase 6 | Pending |
 | NAV-01 | Phase 6 | Pending |
 | NAV-02 | Phase 6 | Pending |
-| OBS-01 | Phase 5 | Pending |
-| ERR-01 | Phase 5 | Pending |
+| OBS-01 | Phase 5 | Complete |
+| ERR-01 | Phase 5 | Complete |
 
 **Coverage:**
 - v1.1 requirements: 11 total
