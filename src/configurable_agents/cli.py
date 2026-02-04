@@ -14,6 +14,7 @@ import subprocess
 import sys
 import time
 from datetime import datetime
+from functools import partial
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 
@@ -1562,9 +1563,6 @@ def cmd_ui(args: argparse.Namespace) -> int:
     manager.mark_session_dirty()
 
     # Add dashboard service
-    # Use lambda to wrap module-level function for pickle compatibility on Windows
-    # The lambda is defined at module-level scope (indirectly) and only closes
-    # over simple values from args, making it pickleable via spawn method
     if console:
         console.print(f"[bold blue]Starting Dashboard...[/bold blue]")
     else:
@@ -1572,13 +1570,7 @@ def cmd_ui(args: argparse.Namespace) -> int:
 
     manager.add_service(ServiceSpec(
         name="dashboard",
-        target=lambda: _run_dashboard_service(
-            args.host,
-            args.dashboard_port,
-            args.db_url,
-            args.mlflow_uri,
-            args.verbose,
-        ),
+        target=partial(_run_dashboard_service, args.host, args.dashboard_port, args.db_url, args.mlflow_uri, args.verbose),
     ))
 
     if console:
@@ -1595,13 +1587,7 @@ def cmd_ui(args: argparse.Namespace) -> int:
 
         manager.add_service(ServiceSpec(
             name="chat",
-            target=lambda: _run_chat_service(
-                args.host,
-                args.chat_port,
-                args.host,
-                args.dashboard_port,
-                args.verbose,
-            ),
+            target=partial(_run_chat_service, args.host, args.chat_port, args.host, args.dashboard_port, args.verbose),
         ))
 
         if console:
