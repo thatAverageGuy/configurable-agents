@@ -39,6 +39,8 @@ from configurable_agents.runtime import (
 )
 from configurable_agents.ui.dashboard import create_dashboard_app
 
+import uvicorn
+
 # Rich library for formatted tables
 try:
     from rich.console import Console
