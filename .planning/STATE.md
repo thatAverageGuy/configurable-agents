@@ -72,6 +72,7 @@ Recent decisions affecting current work:
 - [05-03 Error Formatter]: ErrorContext dataclass with title, description, resolution_steps structure
 - [Quick-002 functools.partial]: Use functools.partial instead of lambda for multiprocessing targets on Windows (pickle compatibility) - SUPERSEDED by Quick-003
 - [Quick-003 ServiceSpec args]: Use ServiceSpec args field with config dict wrappers instead of functools.partial (fully pickleable)
+- [Quick-004 Module-level wrapper]: Use module-level _run_service_wrapper function instead of bound method for ProcessManager Process target (Windows pickle compatibility)
 
 ### Pending Todos
 
@@ -81,6 +82,7 @@ None yet.
 
 **Windows multiprocessing quirks addressed:**
 - ProcessManager uses spawn method (default on Windows) with pickleable targets
+- ProcessManager.start_all() uses module-level _run_service_wrapper function (Quick-004)
 - ServiceSpec targets use config dict args with module-level wrapper functions (Quick-003)
 - No functools.partial or lambda - both contain unpickleable weakrefs
 - Signal handlers registered after process spawning to avoid child process issues
@@ -97,9 +99,10 @@ None yet.
 | 001 | Fix Windows multiprocessing UI bug | 2026-02-05 | 3a068cc | [001-fix-windows-multiprocessing-ui](./quick/001-fix-windows-multiprocessing-ui/) |
 | 002 | Fix lambda pickle issue for service targets | 2026-02-05 | e68d4d8 | [002-fix-lambda-pickle-issue](./quick/002-fix-lambda-pickle-issue/) |
 | 003 | Use ServiceSpec args instead of functools.partial | 2026-02-05 | 30d8d84 | [003-use-service-spec-args](./quick/003-use-service-spec-args/) |
+| 004 | Fix bound method pickle in ProcessManager | 2026-02-05 | 7597c32 | [004-fix-bound-method-pickle](./quick/004-fix-bound-method-pickle/) |
 
 ## Session Continuity
 
-Last session: 2026-02-05 - Completed quick task 003: Use ServiceSpec args
+Last session: 2026-02-05 - Completed quick task 004: Fix bound method pickle in ProcessManager
 Stopped at: Quick task complete
 Resume file: None
