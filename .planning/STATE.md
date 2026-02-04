@@ -103,9 +103,10 @@ None yet.
 | 005 | Add process debug logging | 2026-02-05 | 481c06b | [005-add-process-debug-logging](./quick/005-add-process-debug-logging/) |
 | 006 | Add uvicorn import to cli.py | 2026-02-05 | e0c8bd9 | [006-add-uvicorn-import](./quick/006-add-uvicorn-import/) |
 | 007 | Add uvicorn dependency to pyproject.toml | 2026-02-05 | 675b444 | [007-add-uvicorn-dependency](./quick/007-add-uvicorn-dependency/) |
+| 008 | Add dotenv loading to CLI | 2026-02-05 | 28f0b01 | [008-add-dotenv-loading](./quick/008-add-dotenv-loading/) |
 
 ## Session Continuity
 
-Last session: 2026-02-05 - Completed quick task 007: Add uvicorn dependency
+Last session: 2026-02-05 - Completed quick task 008: Add dotenv loading to CLI
 Stopped at: Quick task complete
 Resume file: None
