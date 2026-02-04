@@ -41,7 +41,7 @@ from configurable_agents.storage.base import (
     WorkflowRegistrationRepository,
     OrchestratorRepository,
 )
-from configurable_agents.storage.factory import create_storage_backend
+from configurable_agents.storage.factory import create_storage_backend, ensure_initialized
 from configurable_agents.storage.models import (
     AgentRecord,
     Base,
@@ -78,4 +78,5 @@ __all__ = [
     "OrchestratorRecord",
     # Factory
     "create_storage_backend",
+    "ensure_initialized",
 ]
