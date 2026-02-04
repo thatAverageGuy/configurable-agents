@@ -16,6 +16,7 @@ This guide covers frequently encountered issues, error messages, and debugging t
 6. [Type Validation Issues](#type-validation-issues)
 7. [Performance Issues](#performance-issues)
 8. [Debugging Tips](#debugging-tips)
+9. [v1.0 Specific Issues](#v10-specific-issues)
 
 ---
 
@@ -695,6 +696,465 @@ ls .env
 # Or set manually
 export GOOGLE_API_KEY="your_key"
 configurable-agents run workflow.yaml --input topic="AI"
+```
+
+---
+
+## v1.0 Specific Issues
+
+### Multi-LLM Provider Errors
+
+#### "Provider 'X' not configured"
+
+**Error:**
+```
+LLMConfigError: Provider 'openai' not configured. Set OPENAI_API_KEY environment variable.
+```
+
+**Solution:**
+```bash
+# Add missing API key to .env
+echo "OPENAI_API_KEY=your_key_here" >> .env
+
+# Or set environment variable
+export OPENAI_API_KEY="your_key_here"
+```
+
+**Supported providers in v1.0:**
+- `google` - Requires `GOOGLE_API_KEY`
+- `openai` - Requires `OPENAI_API_KEY`
+- `anthropic` - Requires `ANTHROPIC_API_KEY`
+- `ollama` - No API key required (local)
+
+#### "Ollama connection failed"
+
+**Error:**
+```
+LLMAPIError: Failed to connect to Ollama: Connection refused
+```
+
+**Solutions:**
+1. **Start Ollama server:**
+   ```bash
+   ollama serve
+   ```
+
+2. **Verify Ollama is running:**
+   ```bash
+   curl http://localhost:11434/api/tags
+   ```
+
+3. **Pull required model:**
+   ```bash
+   ollama pull llama2
+   ```
+
+4. **Check model name format:**
+   ```yaml
+   # Correct
+   llm:
+     provider: ollama
+     model: "ollama_chat/llama2"  # ollama_chat prefix required
+
+   # Wrong
+   llm:
+     provider: ollama
+     model: "llama2"  # Missing prefix
+   ```
+
+#### "Model 'X' not found for provider 'Y'"
+
+**Error:**
+```
+LLMConfigError: Model 'gpt-5' not found for provider 'openai'
+```
+
+**Solution:** Check available models per provider:
+
+**Google Gemini:**
+- gemini-1.5-flash
+- gemini-1.5-pro
+- gemini-1.0-pro
+
+**OpenAI:**
+- gpt-4
+- gpt-4-turbo
+- gpt-3.5-turbo
+
+**Anthropic:**
+- claude-3-opus-20240229
+- claude-3-sonnet-20240229
+- claude-3-haiku-20240307
+
+**Ollama:**
+- ollama_chat/llama2
+- ollama_chat/mistral
+- ollama_chat/neo
+
+### Control Flow Issues
+
+#### "Condition evaluation failed"
+
+**Error:**
+```
+GraphBuildError: Invalid condition syntax: Missing closing brace
+```
+
+**Solution:** Check condition syntax:
+```yaml
+# Correct
+condition: "{state.score} >= 90"
+
+# Wrong (missing braces)
+condition: "state.score >= 90"
+
+# Wrong (unclosed brace)
+condition: "{state.score >= 90"
+```
+
+**Supported operators:**
+- Comparison: `==`, `!=`, `>`, `<`, `>=`, `<=`
+- Logical: `and`, `or`, `not`
+- Membership: `in`, `not in`
+
+#### "Infinite loop detected"
+
+**Error:**
+```
+WorkflowExecutionError: Maximum loop iterations exceeded for node 'refine'
+```
+
+**Solution:** Add loop iteration tracking:
+```yaml
+edges:
+  - from: evaluate
+    to: refine
+    # Always include iteration limit
+    condition: "{state.quality} < 8 and {state._loop_iteration_refine} < 5"
+
+  - from: refine
+    to: evaluate
+
+  # Exit condition
+  - from: evaluate
+    to: END
+    condition: "{state.quality} >= 8 or {state._loop_iteration_refine} >= 5"
+```
+
+**Loop iteration tracking:**
+- System creates `_loop_iteration_{node_id}` automatically
+- Starts at 0, increments each iteration
+- Always include maximum iteration limit
+
+#### "Parallel execution deadlock"
+
+**Error:**
+```
+WorkflowExecutionError: Parallel execution timeout: nodes did not converge
+```
+
+**Solution:** Check parallel edge configuration:
+```yaml
+edges:
+  # All parallel nodes must converge to same target
+  - from: START
+    to: [task1, task2, task3]
+
+  # Correct: All converge to summarize
+  - from: task1
+    to: summarize
+  - from: task2
+    to: summarize
+  - from: task3
+    to: summarize
+```
+
+**Common mistakes:**
+- Not all parallel nodes point to the same next node
+- Conditional edges break parallel convergence
+- Circular dependencies in parallel branches
+
+### Sandbox Execution Failures
+
+#### "Sandbox timeout exceeded"
+
+**Error:**
+```
+SandboxTimeoutError: Code execution exceeded timeout of 10 seconds
+```
+
+**Solution:** Increase timeout or optimize code:
+```yaml
+nodes:
+  - id: execute_code
+    sandbox:
+      enabled: true
+      timeout_seconds: 30  # Increase from 10
+      resource_preset: "high"
+```
+
+**Resource presets:**
+- `low` - 5s timeout, 256MB memory
+- `medium` - 10s timeout, 512MB memory
+- `high` - 30s timeout, 1GB memory
+- `max` - 60s timeout, 2GB memory
+
+#### "Sandbox security violation"
+
+**Error:**
+```
+SandboxSecurityError: Attempted to access blocked module: 'os'
+```
+
+**Solution:** RestrictedPython blocks dangerous modules. Use allowed operations:
+```python
+# Blocked
+import os
+os.system('rm -rf /')  # Security error
+
+# Allowed
+print("Safe output")
+result = [1, 2, 3].sum()
+```
+
+**Allowed modules:**
+- `math`, `datetime`, `json`, `re`
+- Built-in functions: `print`, `len`, `range`, `sum`
+- List/dict/set operations
+
+**Blocked modules:**
+- `os`, `sys`, `subprocess`, `eval`, `exec`
+- File I/O (use `write_file` tool instead)
+- Network operations (unless `network_enabled: true`)
+
+#### "Sandbox memory limit exceeded"
+
+**Error:**
+```
+SandboxMemoryError: Memory limit exceeded: 512MB
+```
+
+**Solution:** Increase resource preset:
+```yaml
+sandbox:
+  enabled: true
+  resource_preset: "max"  # 2GB memory
+```
+
+### Memory Backend Issues
+
+#### "Memory backend connection failed"
+
+**Error:**
+```
+MemoryBackendError: Failed to connect to memory backend: sqlite:///memory.db
+```
+
+**Solution:** Check memory configuration:
+```yaml
+config:
+  memory:
+    backend: sqlite
+    connection_string: "sqlite:///memory.db"  # Check path is valid
+```
+
+**Verify database directory exists:**
+```bash
+# SQLite: Parent directory must exist
+mkdir -p ./data
+
+# Update config
+config:
+  memory:
+    connection_string: "sqlite:///data/memory.db"
+```
+
+#### "Memory key not found"
+
+**Error:**
+```
+MemoryKeyError: Memory key 'user:123' not found in namespace 'chat_history'
+```
+
+**Solution:** Handle missing memory gracefully:
+```yaml
+nodes:
+  - id: load_memory
+    memory:
+      action: load
+      namespace: "chat_history"
+      key: "{state.user_id}"
+      # Add default value if key not found
+      default: ""  # Optional
+    prompt: "Load conversation history"
+    outputs: [history]
+    output_schema:
+      type: object
+      fields:
+        - name: history
+          type: str
+```
+
+### Webhook Integration Problems
+
+#### "WhatsApp webhook verification failed"
+
+**Error:**
+```
+WebhookValidationError: HMAC verification failed for WhatsApp webhook
+```
+
+**Solution:** Check webhook secret configuration:
+```bash
+# .env
+WEBHOOK_SECRET=your_secure_secret_here
+WHATSAPP_VERIFY_TOKEN=your_verify_token
+```
+
+**Verify webhook URL:**
+```bash
+# Test webhook endpoint
+curl "https://your-domain.com/webhooks/whatsapp?hub.verify_token=your_token"
+```
+
+#### "Telegram bot not responding"
+
+**Error:**
+```
+TelegramAPIError: Bot was blocked by the user
+```
+
+**Solutions:**
+1. **User must start bot first:**
+   - Send `/start` to your bot in Telegram
+   - Bot cannot message users who haven't initiated contact
+
+2. **Check bot token:**
+   ```bash
+   # Verify token
+   curl "https://api.telegram.org/bot{BOT_TOKEN}/getMe"
+   ```
+
+3. **Check webhook registration:**
+   ```bash
+   configurable-agents webhooks status --platform telegram
+   ```
+
+#### "Generic webhook timeout"
+
+**Error:**
+```
+WebhookTimeoutError: Workflow execution timed out after 30 seconds
+```
+
+**Solution:** Webhooks run workflows asynchronously by default. Check job status:
+```bash
+# Webhook returns job_id
+{
+  "status": "async",
+  "job_id": "abc-123-def-456",
+  "message": "Poll /status/abc-123-def-456 for results"
+}
+
+# Poll for completion
+curl http://localhost:8000/status/abc-123-def-456
+```
+
+### Registry Connection Issues
+
+#### "Agent registry unreachable"
+
+**Error:**
+```
+AgentRegistryError: Failed to connect to agent registry: http://localhost:8001
+```
+
+**Solutions:**
+1. **Start registry server:**
+   ```bash
+   configurable-agents registry start
+   ```
+
+2. **Check registry URL:**
+   ```bash
+   # Verify registry is running
+   curl http://localhost:8001/health
+   ```
+
+3. **Configure agent registry URL:**
+   ```bash
+   # .env
+   AGENT_REGISTRY_URL=http://localhost:8001
+   ```
+
+#### "Agent heartbeat failed"
+
+**Error:**
+```
+AgentHeartbeatError: Heartbeat failed: HTTP 5xx
+```
+
+**Solution:** Registry server may be overloaded. Agent will retry automatically. Check registry logs:
+```bash
+# View registry logs
+configurable-agents registry logs
+```
+
+**Adjust heartbeat interval:**
+```yaml
+# Agent configuration
+config:
+  agent:
+    registry_url: "http://localhost:8001"
+    heartbeat_interval: 30  # Increase from 20s
+    ttl: 90  # Increase from 60s
+```
+
+### MLFlow Optimization Issues
+
+#### "A/B test insufficient data"
+
+**Error:**
+```
+InsufficientDataError: Need at least 5 runs per variant for statistical significance
+```
+
+**Solution:** Increase number of runs:
+```bash
+configurable-agents optimization ab-test \
+  --workflow workflow.yaml \
+  --node my_node \
+  --prompt-variants variant_a.yaml variant_b.yaml \
+  --runs 20  # Increase from default 10
+```
+
+#### "Quality gate failed"
+
+**Error:**
+```
+QualityGateError: Cost per run ($0.50) exceeds threshold ($0.30)
+```
+
+**Solution:** Adjust quality gate or optimize workflow:
+```yaml
+# config/quality_gates.yaml
+gates:
+  - name: cost_threshold
+    metric: cost_per_run
+    condition: "<= 0.50"  # Adjust threshold
+    action: WARN  # or FAIL, BLOCK_DEPLOY
+
+  - name: latency_threshold
+    metric: p95_duration_seconds
+    condition: "<= 10.0"
+    action: FAIL
+```
+
+**Apply quality gates:**
+```bash
+configurable-agents optimization evaluate \
+  --workflow workflow.yaml \
+  --quality-gates config/quality_gates.yaml
 ```
 
 ---
