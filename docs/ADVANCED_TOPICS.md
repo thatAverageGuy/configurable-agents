@@ -68,7 +68,7 @@ Patterns and best practices for deploying in production environments. Covers dep
 
 - **Documentation**: Check relevant guides for detailed information
 - **Architecture**: Review [ADR](adr/) for design decisions
-- **Issues**: [Open an issue](https://github.com/yourusername/configurable-agents/issues) for bugs or questions
+- **Issues**: [Open an issue](https://github.com/thatAverageGuy/configurable-agents/issues) for bugs or questions
 - **Discord**: Join our [community Discord](https://discord.gg/) for discussion
 
 ---

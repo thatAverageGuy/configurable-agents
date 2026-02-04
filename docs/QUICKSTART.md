@@ -266,7 +266,7 @@ See [CONFIG_REFERENCE.md](CONFIG_REFERENCE.md) for the Python API reference.
 - **Troubleshooting**: See [TROUBLESHOOTING.md](TROUBLESHOOTING.md)
 - **Config errors**: Check [CONFIG_REFERENCE.md](CONFIG_REFERENCE.md)
 - **Examples**: Browse [examples/](../examples/)
-- **Issues**: [GitHub Issues](https://github.com/yourusername/configurable-agents/issues)
+- **Issues**: [GitHub Issues](https://github.com/thatAverageGuy/configurable-agents/issues)
 
 ---
 

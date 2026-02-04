@@ -703,7 +703,7 @@ configurable-agents run workflow.yaml --input topic="AI"
 
 If you're still stuck:
 
-1. **Check existing issues:** [GitHub Issues](https://github.com/yourusername/configurable-agents/issues)
+1. **Check existing issues:** [GitHub Issues](https://github.com/thatAverageGuy/configurable-agents/issues)
 2. **Search documentation:**
    - [QUICKSTART.md](QUICKSTART.md)
    - [CONFIG_REFERENCE.md](CONFIG_REFERENCE.md)
@@ -711,7 +711,7 @@ If you're still stuck:
 3. **Open an issue:**
    - Include: config file, error message, verbose output
    - Minimal reproducible example helps!
-4. **Ask in discussions:** [GitHub Discussions](https://github.com/yourusername/configurable-agents/discussions)
+4. **Ask in discussions:** [GitHub Discussions](https://github.com/thatAverageGuy/configurable-agents/discussions)
 
 ---
 

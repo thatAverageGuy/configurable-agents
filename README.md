@@ -670,9 +670,9 @@ Built with inspiration from:
 
 Questions? Ideas? Feedback?
 
-- 📧 Email: [your.email@example.com]
-- 🐛 Issues: [GitHub Issues](https://github.com/yourusername/configurable-agents/issues)
-- 💬 Discussions: [GitHub Discussions](https://github.com/yourusername/configurable-agents/discussions)
+- 📧 Email: [yogesh.singh893@gmail.com](mailto:yogesh.singh893@gmail.com)
+- 🐛 Issues: [GitHub Issues](https://github.com/thatAverageGuy/configurable-agents/issues)
+- 💬 Discussions: [GitHub Discussions](https://github.com/thatAverageGuy/configurable-agents/discussions)
 
 ---
 

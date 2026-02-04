@@ -10,7 +10,7 @@ readme = "README.md"
 requires-python = ">=3.10"
 license = {text = "MIT"}
 authors = [
-    {name = "Your Name", email = "your.email@example.com"}
+    {name = "Yogesh Kumar Singh", email = "yogesh.singh893@gmail.com"}
 ]
 keywords = ["llm", "agents", "workflow", "langchain", "langgraph", "config-driven"]
 classifiers = [
@@ -76,10 +76,10 @@ configurable-agents = "configurable_agents.cli:main"
 "docs:clean" = "python -c \"import shutil, pathlib; shutil.rmtree(pathlib.Path('docs/api/_build'), ignore_errors=True) if pathlib.Path('docs/api/_build').exists() else None\""
 
 [project.urls]
-Homepage = "https://github.com/yourusername/configurable-agents"
-Documentation = "https://github.com/yourusername/configurable-agents/docs"
-Repository = "https://github.com/yourusername/configurable-agents"
-Issues = "https://github.com/yourusername/configurable-agents/issues"
+Homepage = "https://github.com/thatAverageGuy/configurable-agents"
+Documentation = "https://github.com/thatAverageGuy/configurable-agents/docs"
+Repository = "https://github.com/thatAverageGuy/configurable-agents"
+Issues = "https://github.com/thatAverageGuy/configurable-agents/issues"
 
 [tool.setuptools.packages.find]
 where = ["src"]
