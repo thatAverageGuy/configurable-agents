@@ -174,6 +174,7 @@ def ensure_initialized(
 
 def create_storage_backend(
     config: Optional[StorageConfig] = None,
+    auto_init: bool = True,
 ) -> Tuple[
     AbstractWorkflowRunRepository,
     AbstractExecutionStateRepository,
@@ -188,6 +189,7 @@ def create_storage_backend(
 
     Args:
         config: StorageConfig instance. If None, uses defaults (sqlite, ./workflows.db)
+        auto_init: Automatically initialize database if tables missing (default: True)
 
     Returns:
         Tuple of (workflow_run_repository, execution_state_repository,
@@ -209,16 +211,17 @@ def create_storage_backend(
         config = StorageConfig()
 
     backend = config.backend
+    db_path = config.path
+    db_url = f"sqlite:///{db_path}"
 
     # Handle sqlite backend
     if backend == "sqlite" or backend.startswith("sqlite:///"):
-        db_path = config.path
+        # Ensure tables exist if auto_init is True
+        if auto_init:
+            ensure_initialized(db_url, show_progress=False)
 
         # Create SQLAlchemy engine
-        engine = create_engine(f"sqlite:///{db_path}")
-
-        # Ensure tables exist
-        Base.metadata.create_all(engine)
+        engine = create_engine(db_url)
 
         # Create repositories
         runs_repo = SQLiteWorkflowRunRepository(engine)

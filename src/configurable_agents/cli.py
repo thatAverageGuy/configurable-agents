@@ -190,6 +190,27 @@ def cmd_run(args: argparse.Namespace) -> int:
         print_error(f"Config file not found: {config_path}")
         return 1
 
+    # Auto-initialize database
+    from configurable_agents.storage import ensure_initialized
+
+    from configurable_agents.config.schema import StorageConfig
+    db_url = f"sqlite:///{StorageConfig().path}"
+
+    try:
+        if RICH_AVAILABLE and Console:
+            from rich.console import Console
+            console = Console()
+            with console.status("[bold blue]Ensuring database is ready...", spinner="dots"):
+                ensure_initialized(db_url, verbose=args.verbose)
+        else:
+            ensure_initialized(db_url, verbose=args.verbose, show_progress=False)
+    except PermissionError as e:
+        print_error(f"Database permission error: {e}")
+        return 1
+    except OSError as e:
+        print_error(f"Database error: {e}")
+        return 1
+
     # Parse inputs
     try:
         inputs = parse_input_args(args.input) if args.input else {}

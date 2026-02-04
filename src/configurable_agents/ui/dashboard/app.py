@@ -272,10 +272,17 @@ def create_dashboard_app(
         >>> import uvicorn
         >>> uvicorn.run(app.get_app(), host="0.0.0.0", port=7861)
     """
+    from configurable_agents.storage import ensure_initialized
     from configurable_agents.storage.sqlite import (
         SQLiteWorkflowRunRepository,
         SqliteAgentRegistryRepository,
     )
+
+    # Auto-initialize database
+    try:
+        ensure_initialized(db_url, show_progress=False)
+    except Exception as e:
+        logging.getLogger(__name__).warning(f"Database auto-init failed: {e}")
 
     # Create database engine
     engine = create_engine(db_url, connect_args={"check_same_thread": False})
