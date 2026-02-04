@@ -17,6 +17,8 @@ from datetime import datetime
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 
+from dotenv import load_dotenv
+
 from configurable_agents.deploy import generate_deployment_artifacts
 from configurable_agents.process import ProcessManager, ServiceSpec
 from configurable_agents.observability import (
@@ -2695,6 +2697,11 @@ def main() -> int:
     Returns:
         Exit code (0 for success, non-zero for error)
     """
+    # Load environment variables from .env file for local development
+    # This allows API keys to be stored in .env while maintaining Docker compatibility
+    # Runtime environment variables override .env values
+    load_dotenv()
+
     parser = create_parser()
     args = parser.parse_args()
 
