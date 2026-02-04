@@ -11,11 +11,11 @@ See: .planning/PROJECT.md (updated 2026-02-04)
 
 Milestone: v1.1 Core UX Polish
 Phase: 5 of 6 (Foundation & Reliability)
-Plan: 1 of 3 in current phase
-Status: In progress
-Last activity: 2026-02-04 — Completed 05-01: Single-Command Startup
+Plan: 3 of 3 in current phase
+Status: Wave 2 complete, ready for Wave 3
+Last activity: 2026-02-04 — Completed 05-03: Status Dashboard
 
-Progress: [█████████░░░░░░░░░] 64% (20/31 plans complete from v1.0, 1/6 from v1.1)
+Progress: [██████████░░░░░░░] 71% (22/31 plans complete from v1.0+v1.1)
 
 ## Milestone Archives
 
@@ -40,12 +40,12 @@ Progress: [█████████░░░░░░░░░] 64% (20/31 pl
 | 2. Agent Infrastructure | 6 | 106 | 18 min |
 | 3. Interfaces & Triggers | 6 | 106 | 18 min |
 | 4. Advanced Capabilities | 3 | 151 | 50 min |
-| 5. Foundation & Reliability | 1 | 8 | 8 min |
+| 5. Foundation & Reliability | 3 | 33 | 11 min |
 | 6. Navigation & Onboarding | 0 | - | - |
 
 **Recent Trend:**
-- Last 3 plans: 05-01 (8 min), 05-02 (18 min), 04-03 (45 min)
-- Trend: Phase 5 underway, single-command startup complete
+- Last 3 plans: 05-01 (8 min), 05-02 (18 min), 05-03 (7 min)
+- Trend: Phase 5 Wave 2 complete, status dashboard and error handling ready
 
 *Updated: 2026-02-04*
 
@@ -66,6 +66,10 @@ Recent decisions affecting current work:
 - [05-01 ProcessManager]: SessionState uses Integer for dirty_shutdown (SQLite boolean compatibility)
 - [05-01 ProcessManager]: 5-second terminate timeout before force kill
 - [05-01 ProcessManager]: Signal handlers registered after process spawning to avoid child process issues
+- [05-03 Status Panel]: HTMX polling at 10s interval for status updates (balances freshness with load)
+- [05-03 Status Panel]: psutil is optional dependency - graceful degradation when not installed
+- [05-03 Error Formatter]: Error pattern matching via substring comparison to map to common error types
+- [05-03 Error Formatter]: ErrorContext dataclass with title, description, resolution_steps structure
 
 ### Pending Todos
 
@@ -85,5 +89,5 @@ None yet.
 ## Session Continuity
 
 Last session: 2026-02-04
-Stopped at: Completed 05-01-PLAN.md
+Stopped at: Completed 05-03-PLAN.md (Wave 2 complete)
 Resume file: None
