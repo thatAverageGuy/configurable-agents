@@ -10,18 +10,18 @@ See: .planning/PROJECT.md (updated 2026-02-02)
 ## Current Position
 
 Phase: 4 of 4 (Advanced Capabilities)
-Plan: 3 of 4 in current phase
+Plan: 2 of 4 in current phase
 Status: In progress
-Last activity: 2026-02-04 -- Completed Phase 4 Plan 03 (MLFlow Optimization)
+Last activity: 2026-02-04 -- Completed Phase 4 Plan 02 (Persistent Memory and Tool Ecosystem)
 
-Progress: [##########]  17/19 plans complete (89% of all plans)
+Progress: [##########]  18/19 plans complete (95% of all plans)
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 17
-- Average duration: 19 min
-- Total execution time: 5.3 hours
+- Total plans completed: 18
+- Average duration: 20 min
+- Total execution time: 5.7 hours
 
 **By Phase:**
 
@@ -33,8 +33,8 @@ Progress: [##########]  17/19 plans complete (89% of all plans)
 | 4     | 2     | 106   | 53 min   |
 
 **Recent Trend:**
-- Last 5 plans: 04-03 (45 min), 04-01 (61 min), 03-05 (21 min), 03-04 (15 min), 03-03B (12 min)
-- Trend: Phase 4 progressing, optimization complete
+- Last 5 plans: 04-02 (45 min), 04-03 (45 min), 04-01 (61 min), 03-05 (21 min), 03-04 (15 min)
+- Trend: Phase 4 progressing, one plan remaining
 
 *Updated after each plan completion*
 
@@ -129,6 +129,12 @@ Recent decisions affecting current work:
 - [04-03]: Automatic YAML backup created when applying optimized prompts
 - [04-03]: CLI optimization group follows existing pattern (evaluate, apply-optimized, ab-test)
 - [04-03]: MLFlow experiment aggregation with p50/p95/p99 percentiles for metrics
+- [04-02]: Memory namespace pattern: "{agent_id}:{workflow_id or \"*\"}:{node_id or \"*\"}:{key}"
+- [04-02]: Dict-like read with explicit write: agent.memory['key'] vs agent.memory.write('key', value)
+- [04-02]: Tool factory pattern: def create_tool() -> Tool for lazy loading and validation
+- [04-02]: Security whitelisting: ALLOWED_PATHS for file ops, ALLOWED_COMMANDS for shell
+- [04-02]: Error handling continuation: on_error: 'continue' catches errors and returns error dict
+- [04-02]: SQL queries limited to SELECT only for safety (rejects DROP, DELETE, UPDATE, INSERT, ALTER, CREATE)
 
 ### Pending Todos
 
@@ -141,5 +147,5 @@ None yet.
 ## Session Continuity
 
 Last session: 2026-02-04
-Stopped at: Completed Phase 4 Plan 03 (MLFlow Optimization)
+Stopped at: Completed Phase 4 Plan 02 (Persistent Memory and Tool Ecosystem)
 Resume file: None
