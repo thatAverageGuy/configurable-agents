@@ -33,6 +33,7 @@ dependencies = [
     "python-dotenv>=1.0.0",
     "mlflow>=3.9.0",
     "sqlalchemy>=2.0.46",
+    "uvicorn>=0.30.0",
     "rich>=13.0.0",
     "restrictedpython>=6.0",
     "func-timeout>=4.3.5",
