@@ -43,12 +43,14 @@ try:
     from .docker_executor import (
         DockerSandboxExecutor,
         RESOURCE_PRESETS,
+        execute_in_container,
         get_preset,
     )
 
     __all__.extend([
         "DockerSandboxExecutor",
         "RESOURCE_PRESETS",
+        "execute_in_container",
         "get_preset",
     ])
 except ImportError:
