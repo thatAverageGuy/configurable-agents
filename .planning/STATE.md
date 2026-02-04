@@ -11,11 +11,11 @@ See: .planning/PROJECT.md (updated 2026-02-04)
 
 Milestone: v1.1 Core UX Polish
 Phase: 5 of 6 (Foundation & Reliability)
-Plan: 0 of 3 in current phase
-Status: Ready to plan
-Last activity: 2026-02-04 — Roadmap created for v1.1 Core UX Polish milestone
+Plan: 2 of 3 in current phase
+Status: In progress
+Last activity: 2026-02-04 — Completed 05-02: Database Auto-Initialization
 
-Progress: [████████░░░░░░░░░░] 61% (19/31 plans complete from v1.0, 0/6 from v1.1)
+Progress: [█████████░░░░░░░░░] 64% (20/31 plans complete from v1.0, 1/6 from v1.1)
 
 ## Milestone Archives
 
@@ -40,12 +40,12 @@ Progress: [████████░░░░░░░░░░] 61% (19/31 pl
 | 2. Agent Infrastructure | 6 | 106 | 18 min |
 | 3. Interfaces & Triggers | 6 | 106 | 18 min |
 | 4. Advanced Capabilities | 3 | 151 | 50 min |
-| 5. Foundation & Reliability | 0 | - | - |
+| 5. Foundation & Reliability | 1 | 18 | 18 min |
 | 6. Navigation & Onboarding | 0 | - | - |
 
 **Recent Trend:**
-- Last 3 plans (v1.0): 04-03 (45 min), 04-02 (45 min), 04-01 (61 min)
-- Trend: v1.0 complete and verified, v1.1 ready to plan
+- Last 3 plans: 05-02 (18 min), 04-03 (45 min), 04-02 (45 min)
+- Trend: Phase 5 underway, database auto-init complete
 
 *Updated: 2026-02-04*
 
@@ -62,6 +62,9 @@ Recent decisions affecting current work:
 - [v1.0 Roadmap]: Code execution sandbox deferred to Phase 4 (needs UI from Phase 3 for management)
 - [v1.1 Roadmap]: 2-phase structure for polish milestone (Foundation + Navigation)
 - [v1.1 Roadmap]: Auto-init and single-command startup as Phase 5 prerequisites for all UX improvements
+- [05-02 Auto-init]: Use Rich spinner only when tables need creation (silent on subsequent runs)
+- [05-02 Auto-init]: No Alembic migrations needed for single-user SQLite (create_all is sufficient)
+- [05-02 Auto-init]: All entry points (CLI, dashboard, Python API) call ensure_initialized() before using storage
 
 ### Pending Todos
 
@@ -79,5 +82,5 @@ None yet.
 ## Session Continuity
 
 Last session: 2026-02-04
-Stopped at: Roadmap created for v1.1 Core UX Polish
+Stopped at: Completed 05-02: Database Auto-Initialization
 Resume file: None
