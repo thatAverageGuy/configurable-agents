@@ -15,7 +15,7 @@ Decimal phases appear between their surrounding integers in numeric order.
 - [x] **Phase 1: Core Engine** - Multi-LLM support, advanced control flow, storage abstraction, and execution traces
 - [x] **Phase 2: Agent Infrastructure** - Minimal containers, agent lifecycle, and production observability
 - [x] **Phase 3: Interfaces and Triggers** - Chat UI, orchestration dashboard, and external webhook integrations
-- [ ] **Phase 4: Advanced Capabilities** - Code sandboxes, long-term memory, tool ecosystem, and MLFlow optimization
+- [x] **Phase 4: Advanced Capabilities** - Code sandboxes, long-term memory, tool ecosystem, and MLFlow optimization
 
 ## Phase Details
 
@@ -104,9 +104,9 @@ Plans:
 **Plans**: 3 plans (1 wave)
 
 **Wave 1 (parallel execution):**
-- [ ] 04-01-PLAN.md -- Code execution sandbox (RestrictedPython default, Docker opt-in, resource presets, network controls) [Wave 1]
-- [ ] 04-02-PLAN.md -- Long-term memory and tool ecosystem (AgentMemory with namespaced keys, 12+ pre-built tools) [Wave 1]
-- [ ] 04-03-PLAN.md -- MLFlow optimization (A/B testing, experiment evaluator, quality gates, CLI/dashboard UI) [Wave 1]
+- [x] 04-01-PLAN.md -- Code execution sandbox (RestrictedPython default, Docker opt-in, resource presets, network controls) [Wave 1]
+- [x] 04-02-PLAN.md -- Long-term memory and tool ecosystem (AgentMemory with namespaced keys, 12+ pre-built tools) [Wave 1]
+- [x] 04-03-PLAN.md -- MLFlow optimization (A/B testing, experiment evaluator, quality gates, CLI/dashboard UI) [Wave 1]
 
 ## Progress
 
@@ -118,4 +118,4 @@ Phases execute in numeric order: 1 -> 2 -> 3 -> 4
 | 1. Core Engine | 4/4 | Complete | 2026-02-03 |
 | 2. Agent Infrastructure | 6/6 | Complete | 2026-02-03 |
 | 3. Interfaces and Triggers | 6/6 | Complete | 2026-02-03 |
-| 4. Advanced Capabilities | 0/3 | Not started | - |
+| 4. Advanced Capabilities | 3/3 | Complete | 2026-02-04 |

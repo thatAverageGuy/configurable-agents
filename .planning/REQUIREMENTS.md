@@ -12,15 +12,15 @@ Requirements for v1.0 release. Each maps to roadmap phases.
 - [ ] **RT-01**: User can define conditional branching in workflow configs (if/else routing based on agent outputs)
 - [ ] **RT-02**: User can define loops in workflow configs (retry logic, iteration over data with termination conditions)
 - [ ] **RT-03**: User can execute workflow nodes in parallel (concurrent agent operations via fan-out/fan-in)
-- [ ] **RT-04**: User can run agent-generated code in sandboxed environment (Docker-based isolation with resource limits)
+- [x] **RT-04**: User can run agent-generated code in sandboxed environment (Docker-based isolation with resource limits)
 - [ ] **RT-05**: User can configure any supported LLM provider per node (OpenAI, Anthropic, Gemini, Ollama via LiteLLM)
 - [ ] **RT-06**: User can run workflows entirely on local models via Ollama (zero cloud cost, full privacy)
-- [ ] **RT-07**: User can configure persistent memory per node, agent, or workflow (context survives across executions)
-- [ ] **RT-08**: User can use pre-built LangChain tools in workflow nodes (search, APIs, data processing -- 10-20 common tools)
+- [x] **RT-07**: User can configure persistent memory per node, agent, or workflow (context survives across executions)
+- [x] **RT-08**: User can use pre-built LangChain tools in workflow nodes (search, APIs, data processing -- 10-20 common tools)
 
 ### Observability
 
-- [ ] **OBS-01**: System provides full MLFlow production features (prompt optimization, evaluations, A/B testing)
+- [x] **OBS-01**: System provides full MLFlow production features (prompt optimization, evaluations, A/B testing)
 - [x] **OBS-02**: System tracks token costs across all configured LLM providers with unified reporting
 - [x] **OBS-03**: System provides performance profiling and bottleneck detection for workflow executions
 - [x] **OBS-04**: System generates detailed workflow execution traces with per-node metrics (latency, tokens, cost)
@@ -41,7 +41,7 @@ Requirements for v1.0 release. Each maps to roadmap phases.
 - [x] **ARCH-03**: Agent registry tracks active agents with heartbeat and TTL-based expiration
 - [x] **ARCH-04**: Storage backend is pluggable (SQLite default, swappable to PostgreSQL/Redis without code changes)
 - [x] **ARCH-05**: Chat UI sessions persist conversation history in storage backend
-- [ ] **ARCH-06**: Long-term memory has dedicated storage backend (per-agent context storage)
+- [x] **ARCH-06**: Long-term memory has dedicated storage backend (per-agent context storage)
 
 ### Integration
 
@@ -111,11 +111,11 @@ Deferred to future release. Tracked but not in current roadmap.
 | INT-01 | Phase 3 | Complete |
 | INT-02 | Phase 3 | Complete |
 | INT-03 | Phase 3 | Complete |
-| RT-04 | Phase 4 | Pending |
-| RT-07 | Phase 4 | Pending |
-| RT-08 | Phase 4 | Pending |
-| OBS-01 | Phase 4 | Pending |
-| ARCH-06 | Phase 4 | Pending |
+| RT-04 | Phase 4 | Complete |
+| RT-07 | Phase 4 | Complete |
+| RT-08 | Phase 4 | Complete |
+| OBS-01 | Phase 4 | Complete |
+| ARCH-06 | Phase 4 | Complete |
 
 **Coverage:**
 - v1 requirements: 27 total
@@ -124,4 +124,4 @@ Deferred to future release. Tracked but not in current roadmap.
 
 ---
 *Requirements defined: 2026-02-03*
-*Last updated: 2026-02-03 after Phase 3 completion*
+*Last updated: 2026-02-04 after Phase 4 completion*
