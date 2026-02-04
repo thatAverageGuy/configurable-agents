@@ -86,8 +86,14 @@ None yet.
 - Gradio root_path behind reverse proxy (known bug in 4.21.0+)
 - MLFlow auto-start from Python vs subprocess
 
+### Quick Tasks Completed
+
+| # | Description | Date | Commit | Directory |
+|---|-------------|------|--------|-----------|
+| 001 | Fix Windows multiprocessing UI bug | 2026-02-05 | 3a068cc | [001-fix-windows-multiprocessing-ui](./quick/001-fix-windows-multiprocessing-ui/) |
+
 ## Session Continuity
 
-Last session: 2026-02-04
-Stopped at: Completed 05-03-PLAN.md (Wave 2 complete)
+Last session: 2026-02-05 - Completed quick task 001: Fix Windows multiprocessing UI bug
+Stopped at: Quick task complete
 Resume file: None
