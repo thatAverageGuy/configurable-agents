@@ -38,6 +38,24 @@ from configurable_agents.llm import (
 from configurable_agents.observability.cost_estimator import CostEstimator
 from configurable_agents.tools import ToolConfigError, ToolNotFoundError, get_tool
 
+# Optional sandbox import for code execution
+try:
+    from configurable_agents.sandbox import (
+        DockerSandboxExecutor,
+        PythonSandboxExecutor,
+        SafetyError,
+        get_preset,
+        SandboxResult,
+    )
+    SANDBOX_AVAILABLE = True
+except ImportError:
+    SANDBOX_AVAILABLE = False
+    DockerSandboxExecutor = None
+    PythonSandboxExecutor = None
+    SafetyError = None
+    get_preset = None
+    SandboxResult = None
+
 # Optional MLFlow import for direct metric logging
 try:
     import mlflow
@@ -216,6 +234,110 @@ def execute_node(
                     f"Node '{node_id}': Tool loading failed: {e}",
                     node_id=node_id,
                 )
+
+        # ========================================
+        # 3.5. CODE EXECUTION (if code field is present)
+        # ========================================
+        if node_config.code and SANDBOX_AVAILABLE:
+            logger.info(f"Node '{node_id}': Executing code in sandbox")
+
+            sandbox_config = node_config.sandbox
+            if sandbox_config and sandbox_config.enabled:
+                # Determine which executor to use
+                use_docker = sandbox_config.mode == "docker"
+
+                # Get resource preset
+                preset = get_preset(sandbox_config.preset) if get_preset else {}
+                resources = preset.copy()
+                if sandbox_config.resources:
+                    resources.update(sandbox_config.resources)
+
+                # Determine timeout
+                timeout = resources.get("timeout", 60)
+                if sandbox_config.timeout:
+                    timeout = sandbox_config.timeout
+
+                # Add network config
+                if not sandbox_config.network:
+                    resources["network"] = False
+
+                # For code execution, we need actual values from state, not strings
+                # Create code_inputs dict with actual values
+                code_inputs = {}
+                if node_config.inputs:
+                    for local_name, template_str in node_config.inputs.items():
+                        # Extract the actual field name from template (e.g., "{numbers}" -> "numbers")
+                        field_name = template_str.strip("{}")
+                        if hasattr(state, field_name):
+                            code_inputs[local_name] = getattr(state, field_name)
+                        else:
+                            # Fallback to resolved input string value
+                            code_inputs[local_name] = resolved_inputs.get(local_name)
+
+                # Create executor and run code
+                try:
+                    if use_docker:
+                        executor = DockerSandboxExecutor()
+                        sandbox_result: SandboxResult = executor.execute(
+                            code=node_config.code,
+                            inputs=code_inputs,
+                            timeout=timeout,
+                            resources=resources,
+                        )
+                    else:
+                        executor = PythonSandboxExecutor()
+                        # PythonSandboxExecutor doesn't use resources dict
+                        sandbox_result: SandboxResult = executor.execute(
+                            code=node_config.code,
+                            inputs=code_inputs,
+                            timeout=timeout,
+                        )
+
+                    if not sandbox_result.success:
+                        raise NodeExecutionError(
+                            f"Node '{node_id}': Sandbox execution failed: {sandbox_result.error}",
+                            node_id=node_id,
+                        )
+
+                    # Update state with result
+                    new_state = state.model_copy()
+                    output_name = node_config.outputs[0]
+                    setattr(new_state, output_name, sandbox_result.output)
+                    logger.info(
+                        f"Node '{node_id}': Sandbox execution complete, "
+                        f"output={output_name}={sandbox_result.output}"
+                    )
+                    return new_state
+
+                except SafetyError as e:
+                    raise NodeExecutionError(
+                        f"Node '{node_id}': Code safety violation: {e}",
+                        node_id=node_id,
+                    )
+            else:
+                # Sandbox disabled - this is unsafe but allowed
+                logger.warning(
+                    f"Node '{node_id}': Sandbox disabled, executing code directly "
+                    f"(this is unsafe and not recommended)"
+                )
+                # Execute code directly without sandbox (unsafe!)
+                try:
+                    exec_globals = {"inputs": resolved_inputs, "result": None}
+                    exec(node_config.code, exec_globals)
+                    new_state = state.model_copy()
+                    output_name = node_config.outputs[0]
+                    setattr(new_state, output_name, exec_globals["result"])
+                    return new_state
+                except Exception as e:
+                    raise NodeExecutionError(
+                        f"Node '{node_id}': Direct code execution failed: {e}",
+                        node_id=node_id,
+                    )
+        elif node_config.code and not SANDBOX_AVAILABLE:
+            raise NodeExecutionError(
+                f"Node '{node_id}': Code execution requested but sandbox module not available",
+                node_id=node_id,
+            )
 
         # ========================================
         # 4. CONFIGURE LLM

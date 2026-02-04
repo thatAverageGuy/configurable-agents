@@ -1,0 +1,257 @@
+# Sandbox Execution Example
+#
+# This example demonstrates how to use the sandbox execution feature
+# to safely run Python code within a workflow.
+#
+# Safety Model:
+# - RestrictedPython mode (default): Uses AST transformation to block unsafe operations
+# - Docker mode (opt-in): Full container isolation with resource limits
+# - Network isolation: Can disable network access for security-sensitive operations
+# - Resource limits: CPU, memory, and timeout controls prevent runaway code
+#
+# Usage:
+#   configurable-agents run examples/sandbox_example.yaml
+
+schema_version: "1.0"
+
+flow:
+  name: "sandbox_example"
+  description: "Demonstrates sandbox code execution with resource limits"
+  version: "0.4.0"
+
+# State definition
+state:
+  fields:
+    input_numbers:
+      type: "list[int]"
+      required: true
+      description: "List of numbers to process"
+    sum_result:
+      type: "int"
+      description: "Sum of input numbers"
+    doubled_result:
+      type: "int"
+      description: "Double of the sum"
+    filtered_result:
+      type: "str"
+      description: "Filtered and formatted result"
+    analysis:
+      type: "str"
+      description: "LLM analysis of the result"
+
+# Workflow nodes
+nodes:
+  # Node 1: Sum numbers using Python sandbox (low resource preset)
+  - id: "sum_numbers"
+    description: "Calculate sum of input numbers in sandbox"
+    prompt: "Sum the input numbers"
+    output_schema:
+      type: "int"
+    outputs: ["sum_result"]
+    inputs:
+      numbers: "{input_numbers}"
+    code: "result = sum(inputs.get('numbers', []))"
+    sandbox:
+      mode: "python"  # Use RestrictedPython (default)
+      enabled: true
+      network: false  # No network access needed
+      preset: "low"   # Low resource preset (0.5 CPU, 256MB, 30s)
+      timeout: 10     # Custom timeout override
+
+  # Node 2: Double the sum using medium resources
+  - id: "double_sum"
+    description: "Double the calculated sum"
+    prompt: "Double the sum result"
+    output_schema:
+      type: "int"
+    outputs: ["doubled_result"]
+    inputs:
+      value: "{sum_result}"
+    code: "result = inputs.get('value', 0) * 2"
+    sandbox:
+      mode: "python"
+      enabled: true
+      preset: "medium"  # Medium resources (1 CPU, 512MB, 60s)
+
+  # Node 3: Filter and format numbers
+  - id: "filter_format"
+    description: "Filter numbers greater than threshold and format"
+    prompt: "Filter and format the numbers"
+    output_schema:
+      type: "str"
+    outputs: ["filtered_result"]
+    inputs:
+      numbers: "{input_numbers}"
+    code: |
+      items = inputs.get('numbers', [])
+      threshold = 3
+      filtered = [x for x in items if x > threshold]
+      result = f"Filtered {len(filtered)} items > {threshold}: {filtered}"
+    sandbox:
+      mode: "python"
+      enabled: true
+      network: true  # Network enabled (default)
+
+  # Node 4: LLM analysis (regular LLM node, not sandbox)
+  - id: "analyze_result"
+    description: "Analyze the computation results"
+    prompt: |
+      Analyze the following computation results:
+      - Sum: {sum_result}
+      - Doubled: {doubled_result}
+      - Filtered: {filtered_result}
+
+      Provide a brief analysis of what was computed.
+    output_schema:
+      type: "str"
+    outputs: ["analysis"]
+    llm:
+      provider: "google"  # Or openai, anthropic, ollama
+      model: "gemini-1.5-flash"
+      temperature: 0.7
+      max_tokens: 200
+
+# Control flow edges
+edges:
+  - from: "START"
+    to: "sum_numbers"
+  - from: "sum_numbers"
+    to: "double_sum"
+  - from: "double_sum"
+    to: "filter_format"
+  - from: "filter_format"
+    to: "analyze_result"
+  - from: "analyze_result"
+    to: "END"
+
+# Infrastructure configuration
+config:
+  execution:
+    timeout: 300  # Overall workflow timeout
+    max_retries: 3
+  observability:
+    logging:
+      level: "INFO"
+    mlflow:
+      enabled: false  # Set to true to track with MLFlow
+
+# ============================================
+# Docker Sandbox Example (Optional)
+# ============================================
+# To use Docker-based sandbox isolation:
+#
+# 1. Install Docker dependencies:
+#    pip install -e ".[sandbox]"
+#
+# 2. Ensure Docker daemon is running:
+#    docker ps
+#
+# 3. Change node sandbox config to:
+#    sandbox:
+#      mode: "docker"
+#      enabled: true
+#      preset: "high"  # High resources (2 CPU, 1GB, 120s)
+#      network: false  # Disable network for isolation
+#
+# 4. Run the workflow:
+#    configurable-agents run examples/sandbox_example.yaml
+#
+# Docker advantages:
+# - Full OS-level isolation
+# - Network isolation via "none" mode
+# - Resource enforcement (CPU, memory)
+# - Separate filesystem (read-only root)
+#
+# ============================================
+# Resource Presets Reference
+# ============================================
+#
+# Preset: low
+#   cpu: 0.5 (50% of one core)
+#   memory: 256m (256 MB RAM)
+#   timeout: 30s
+#   Use case: Simple computations, data filtering
+#
+# Preset: medium (default)
+#   cpu: 1.0 (1 CPU core)
+#   memory: 512m (512 MB RAM)
+#   timeout: 60s
+#   Use case: General purpose processing
+#
+# Preset: high
+#   cpu: 2.0 (2 CPU cores)
+#   memory: 1g (1 GB RAM)
+#   timeout: 120s
+#   Use case: Complex calculations, data processing
+#
+# Preset: max
+#   cpu: 4.0 (4 CPU cores)
+#   memory: 2g (2 GB RAM)
+#   timeout: 300s (5 minutes)
+#   Use case: Heavy computations, ML inference
+#
+# ============================================
+# Sandbox Config Options
+# ============================================
+#
+# mode: "python" | "docker"
+#   python: Use RestrictedPython (no Docker required, works everywhere)
+#   docker: Use container isolation (requires Docker daemon)
+#
+# enabled: true | false
+#   true: Enable sandbox (recommended)
+#   false: Disable sandbox (unsafe, allows direct exec())
+#
+# network: true | false | object
+#   true: Allow network access (default)
+#   false: Disable network (blocks HTTP requests)
+#   object: Advanced network configuration (future)
+#
+# preset: "low" | "medium" | "high" | "max"
+#   Resource preset for execution limits
+#
+# resources: object (optional)
+#   Custom resource overrides:
+#   - cpu: float (CPU cores, e.g., 0.5, 1.0, 2.0)
+#   - memory: string (e.g., "256m", "512m", "1g", "2g")
+#   - timeout: int (seconds, overrides preset)
+#
+# timeout: int (optional)
+#   Execution timeout in seconds (1-3600)
+#   Overrides preset timeout
+#
+# ============================================
+# Code Convention
+# ============================================
+#
+# When writing code for sandbox execution:
+#
+# 1. Access inputs via the 'inputs' dict:
+#    inputs.get('key', default_value)
+#
+# 2. Assign result to the 'result' variable:
+#    result = calculation(inputs)
+#
+# 3. Use print() for debugging (output captured in logs):
+#    print("Debug info:", value)
+#
+# 4. Blocked operations (Python mode):
+#    - import statements (except safe list)
+#    - file I/O (open(), file operations)
+#    - subprocess execution
+#    - eval(), exec()
+#    - Attribute access on private/dunder names
+#
+# 5. Allowed operations:
+#    - Arithmetic, string operations
+#    - List/dict comprehensions
+#    - Built-in functions (len, sum, min, max, etc.)
+#    - print() for debugging
+#
+# Example code:
+#   # Calculate average of numbers > threshold
+#   numbers = inputs.get('numbers', [])
+#   threshold = inputs.get('threshold', 0)
+#   filtered = [n for n in numbers if n > threshold]
+#   result = sum(filtered) / len(filtered) if filtered else 0
+#   print(f"Filtered {len(filtered)} numbers")

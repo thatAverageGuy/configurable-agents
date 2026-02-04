@@ -5,7 +5,7 @@ Full Schema Day One (ADR-009): Complete schema supporting all features through v
 Runtime implements features incrementally across versions.
 """
 
-from typing import Any, Dict, List, Optional, Union
+from typing import Any, Dict, List, Literal, Optional, Union
 
 from pydantic import BaseModel, Field, field_validator, model_validator
 
@@ -161,6 +161,57 @@ class LLMConfig(BaseModel):
 
 
 # ============================================
+# 4.4. Sandbox Configuration (v0.4+)
+# ============================================
+
+
+class SandboxConfig(BaseModel):
+    """
+    Sandbox configuration for safe code execution (v0.4+).
+
+    Controls how code execution nodes are isolated and limited.
+    """
+
+    mode: Literal["python", "docker"] = Field(
+        "python",
+        description="Execution mode: 'python' (RestrictedPython) or 'docker' (container isolation)"
+    )
+    enabled: bool = Field(
+        True,
+        description="Enable sandbox for code execution nodes"
+    )
+    network: Union[bool, Dict[str, Any]] = Field(
+        True,
+        description="Network access: True (enabled), False (disabled), or detailed config"
+    )
+    preset: Literal["low", "medium", "high", "max"] = Field(
+        "medium",
+        description="Resource preset for execution limits"
+    )
+    resources: Optional[Dict[str, Any]] = Field(
+        None,
+        description="Custom resource overrides (cpu, memory, timeout)"
+    )
+    timeout: Optional[int] = Field(
+        None,
+        ge=1,
+        le=3600,
+        description="Execution timeout in seconds (overrides preset)"
+    )
+
+    @field_validator("preset")
+    @classmethod
+    def validate_preset(cls, v: str) -> str:
+        """Validate preset is one of the supported values."""
+        valid_presets = {"low", "medium", "high", "max"}
+        if v not in valid_presets:
+            raise ValueError(
+                f"preset must be one of {valid_presets}, got '{v}'"
+            )
+        return v
+
+
+# ============================================
 # 4.5. Optimization (v0.4+)
 # ============================================
 
@@ -232,6 +283,30 @@ class GatesModel(BaseModel):
         return v
 
 
+class MemoryConfig(BaseModel):
+    """Memory configuration for agent persistent storage (v0.4+)."""
+
+    enabled: bool = Field(False, description="Enable persistent memory for this scope")
+    default_scope: Literal["agent", "workflow", "node"] = Field(
+        "agent",
+        description="Default memory scope: 'agent', 'workflow', or 'node'",
+    )
+
+
+class ToolConfig(BaseModel):
+    """Tool configuration for binding tools to LLMs (v0.4+)."""
+
+    name: str = Field(..., description="Tool name from registry")
+    on_error: Literal["fail", "continue"] = Field(
+        "fail",
+        description="Error handling: 'fail' raises error, 'continue' returns error result",
+    )
+    config: Optional[Dict[str, Any]] = Field(
+        None,
+        description="Tool-specific configuration",
+    )
+
+
 class NodeConfig(BaseModel):
     """Node configuration."""
 
@@ -243,11 +318,23 @@ class NodeConfig(BaseModel):
     prompt: str = Field(..., description="Prompt template with {placeholders}")
     output_schema: OutputSchema = Field(..., description="Output type enforcement")
     outputs: List[str] = Field(..., description="State fields to update")
-    tools: Optional[List[str]] = Field(None, description="Tool names from registry")
+    tools: Optional[List[Union[str, ToolConfig]]] = Field(
+        None, description="Tool names from registry or tool configs"
+    )
+    memory: Optional[MemoryConfig] = Field(
+        None, description="Memory configuration for this node (v0.4+)"
+    )
     optimize: Optional[OptimizeConfig] = Field(
         None, description="Node-level optimization (v0.3+)"
     )
     llm: Optional[LLMConfig] = Field(None, description="Node-level LLM override")
+    sandbox: Optional[SandboxConfig] = Field(
+        None, description="Sandbox configuration for code execution (v0.4+)"
+    )
+    code: Optional[str] = Field(
+        None,
+        description="Python code to execute (for code_execution node type, v0.4+)"
+    )
 
     # Observability overrides (optional, overrides workflow-level defaults)
     log_prompts: Optional[bool] = Field(
@@ -544,6 +631,9 @@ class WorkflowConfig(BaseModel):
     edges: List[EdgeConfig] = Field(..., description="Control flow edges")
     optimization: Optional[OptimizationConfig] = Field(
         None, description="DSPy optimization settings (v0.3+)"
+    )
+    memory: Optional[MemoryConfig] = Field(
+        None, description="Workflow-level memory configuration (v0.4+)"
     )
     config: Optional[GlobalConfig] = Field(None, description="Infrastructure settings")
 
