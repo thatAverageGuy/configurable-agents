@@ -92,12 +92,20 @@ None yet.
 - Gradio root_path behind reverse proxy (known bug in 4.21.0+)
 - MLFlow auto-start from Python vs subprocess
 
+**Pre-existing UI bugs discovered:**
+During Windows multiprocessing testing, 7 pre-existing bugs were uncovered in the UI layer.
+See [UI_BUG_REPORT.md](./UI_BUG_REPORT.md) for full details. Summary:
+- Chat UI: History format handling broken (blocks multi-turn conversations)
+- Dashboard: Missing templates and Jinja2 import errors (block all pages)
+- CLI: Fixed `run` command Console reference bug
+- Impact: Core functionality untested, significant testing gaps identified
+
 ### Quick Tasks Completed
 
 | # | Description | Date | Commit | Directory |
 |---|-------------|------|--------|-----------|
-| 001 | Fix Windows multiprocessing UI bug | 2026-02-05 | 3a068cc | [001-fix-windows-multiprocessing-ui](./quick/001-fix-windows-multiprocessing-ui/) |
-| 002 | Fix lambda pickle issue for service targets | 2026-02-05 | e68d4d8 | [002-fix-lambda-pickle-issue](./quick/002-fix-lambda-pickle-issue/) |
+| 001-008 | Windows multiprocessing & env fixes | 2026-02-05 | 572790a | See UI_BUG_REPORT.md |
+| 009 | Fix CLI run command Console reference | 2026-02-05 | d0e53b5 | Direct commit (critical bug) |
 | 003 | Use ServiceSpec args instead of functools.partial | 2026-02-05 | 30d8d84 | [003-use-service-spec-args](./quick/003-use-service-spec-args/) |
 | 004 | Fix bound method pickle in ProcessManager | 2026-02-05 | 7597c32 | [004-fix-bound-method-pickle](./quick/004-fix-bound-method-pickle/) |
 | 005 | Add process debug logging | 2026-02-05 | 481c06b | [005-add-process-debug-logging](./quick/005-add-process-debug-logging/) |
