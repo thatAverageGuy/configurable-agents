@@ -97,12 +97,14 @@ class DashboardApp:
             agents_router,
             metrics_router,
             optimization_router,
+            orchestrator_router,
         )
 
         self.app.include_router(workflows_router)
         self.app.include_router(agents_router)
         self.app.include_router(metrics_router)
         self.app.include_router(optimization_router)
+        self.app.include_router(orchestrator_router)
 
     def _setup_templates(self, template_dir: Optional[Path] = None) -> None:
         """Configure Jinja2 templates.
