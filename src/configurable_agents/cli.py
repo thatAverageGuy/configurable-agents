@@ -14,7 +14,6 @@ import subprocess
 import sys
 import time
 from datetime import datetime
-from functools import partial
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 
@@ -1467,6 +1466,46 @@ def cmd_chat(args: argparse.Namespace) -> int:
         return 1
 
 
+def _run_dashboard_with_config(config: dict) -> None:
+    """Run dashboard with configuration dict - module level for pickle compatibility.
+
+    On Windows, multiprocessing uses the 'spawn' method which requires
+    functions passed to Process() to be pickleable. functools.partial
+    contains weakrefs that cannot be pickled, so we use a simple
+    module-level function that unpacks a config dict.
+
+    Args:
+        config: Dict with keys: host, port, db_url, mlflow_uri, verbose
+    """
+    _run_dashboard_service(
+        host=config['host'],
+        port=config['port'],
+        db_url=config['db_url'],
+        mlflow_uri=config['mlflow_uri'],
+        verbose=config['verbose'],
+    )
+
+
+def _run_chat_with_config(config: dict) -> None:
+    """Run chat UI with configuration dict - module level for pickle compatibility.
+
+    On Windows, multiprocessing uses the 'spawn' method which requires
+    functions passed to Process() to be pickleable. functools.partial
+    contains weakrefs that cannot be pickled, so we use a simple
+    module-level function that unpacks a config dict.
+
+    Args:
+        config: Dict with keys: host, port, dashboard_host, dashboard_port, verbose
+    """
+    _run_chat_service(
+        host=config['host'],
+        port=config['port'],
+        dashboard_host=config['dashboard_host'],
+        dashboard_port=config['dashboard_port'],
+        verbose=config['verbose'],
+    )
+
+
 def _run_dashboard_service(host: str, port: int, db_url: str, mlflow_uri: Optional[str], verbose: bool) -> None:
     """
     Run dashboard server - module level for pickle compatibility on Windows.
@@ -1474,6 +1513,8 @@ def _run_dashboard_service(host: str, port: int, db_url: str, mlflow_uri: Option
     On Windows, multiprocessing uses the 'spawn' method which requires
     functions passed to Process() to be pickleable. Nested functions cannot
     be pickled, so this must be a module-level function.
+
+    Called by _run_dashboard_with_config wrapper which handles config unpacking.
 
     Args:
         host: Host to bind to
@@ -1501,6 +1542,8 @@ def _run_chat_service(host: str, port: int, dashboard_host: str, dashboard_port:
     On Windows, multiprocessing uses the 'spawn' method which requires
     functions passed to Process() to be pickleable. Nested functions cannot
     be pickled, so this must be a module-level function.
+
+    Called by _run_chat_with_config wrapper which handles config unpacking.
 
     Args:
         host: Host to bind to
@@ -1568,9 +1611,17 @@ def cmd_ui(args: argparse.Namespace) -> int:
     else:
         print_info("Starting Dashboard...")
 
+    dashboard_config = {
+        'host': args.host,
+        'port': args.dashboard_port,
+        'db_url': args.db_url,
+        'mlflow_uri': args.mlflow_uri,
+        'verbose': args.verbose,
+    }
     manager.add_service(ServiceSpec(
         name="dashboard",
-        target=partial(_run_dashboard_service, args.host, args.dashboard_port, args.db_url, args.mlflow_uri, args.verbose),
+        target=_run_dashboard_with_config,
+        args=(dashboard_config,),
     ))
 
     if console:
@@ -1585,9 +1636,17 @@ def cmd_ui(args: argparse.Namespace) -> int:
         else:
             print_info("Starting Chat UI...")
 
+        chat_config = {
+            'host': args.host,
+            'port': args.chat_port,
+            'dashboard_host': args.host,
+            'dashboard_port': args.dashboard_port,
+            'verbose': args.verbose,
+        }
         manager.add_service(ServiceSpec(
             name="chat",
-            target=partial(_run_chat_service, args.host, args.chat_port, args.host, args.dashboard_port, args.verbose),
+            target=_run_chat_with_config,
+            args=(chat_config,),
         ))
 
         if console:
