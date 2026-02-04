@@ -1477,13 +1477,21 @@ def _run_dashboard_with_config(config: dict) -> None:
     Args:
         config: Dict with keys: host, port, db_url, mlflow_uri, verbose
     """
-    _run_dashboard_service(
-        host=config['host'],
-        port=config['port'],
-        db_url=config['db_url'],
-        mlflow_uri=config['mlflow_uri'],
-        verbose=config['verbose'],
-    )
+    print(f"[Dashboard] Starting with config: host={config['host']}, port={config['port']}", flush=True)
+
+    try:
+        _run_dashboard_service(
+            host=config['host'],
+            port=config['port'],
+            db_url=config['db_url'],
+            mlflow_uri=config['mlflow_uri'],
+            verbose=config['verbose'],
+        )
+    except Exception as e:
+        import traceback
+        print(f"[Dashboard] CRASH: {e}", file=sys.stderr, flush=True)
+        traceback.print_exc(file=sys.stderr)
+        raise
 
 
 def _run_chat_with_config(config: dict) -> None:
@@ -1497,13 +1505,21 @@ def _run_chat_with_config(config: dict) -> None:
     Args:
         config: Dict with keys: host, port, dashboard_host, dashboard_port, verbose
     """
-    _run_chat_service(
-        host=config['host'],
-        port=config['port'],
-        dashboard_host=config['dashboard_host'],
-        dashboard_port=config['dashboard_port'],
-        verbose=config['verbose'],
-    )
+    print(f"[ChatUI] Starting with config: host={config['host']}, port={config['port']}", flush=True)
+
+    try:
+        _run_chat_service(
+            host=config['host'],
+            port=config['port'],
+            dashboard_host=config['dashboard_host'],
+            dashboard_port=config['dashboard_port'],
+            verbose=config['verbose'],
+        )
+    except Exception as e:
+        import traceback
+        print(f"[ChatUI] CRASH: {e}", file=sys.stderr, flush=True)
+        traceback.print_exc(file=sys.stderr)
+        raise
 
 
 def _run_dashboard_service(host: str, port: int, db_url: str, mlflow_uri: Optional[str], verbose: bool) -> None:
