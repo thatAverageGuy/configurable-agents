@@ -77,8 +77,9 @@ None yet.
 
 ### Blockers/Concerns
 
-**Critical bugs discovered (7 total, 1 fixed):**
-- ✅ CLI run command: UnboundLocalError (FIXED)
+**Critical bugs discovered (7 total, 2 fixed):**
+- ✅ CLI run command: UnboundLocalError (FIXED in Quick-009)
+- ✅ CLI deploy command: Generate mode required Docker (FIXED in 07-03)
 - ❌ Chat UI: Multi-turn conversations crash (history format wrong)
 - ❌ Chat UI: Download/Validate buttons crash (same history issue)
 - ❌ Dashboard: Workflows page crashes (missing macros.html)

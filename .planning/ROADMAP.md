@@ -85,14 +85,16 @@ Plans:
   3. User can run `configurable-agents deploy` and deployment artifacts are generated
   4. User can run `configurable-agents ui` and all services start successfully
   5. All CLI errors show clear messages with actionable resolution steps
-**Plans**: TBD
+**Plans**: 5 plans in 3 waves
 
 Plans:
-- [ ] 07-01: Test and fix CLI run command
-- [ ] 07-02: Test and fix CLI validate command
-- [ ] 07-03: Test and fix CLI deploy command
-- [ ] 07-04: Test and fix CLI ui command
-- [ ] 07-05: Add CLI integration tests
+- [x] 07-01-PLAN.md — Test and fix CLI run command (subprocess tests, UnboundLocalError regression)
+- [x] 07-02-PLAN.md — Test and fix CLI validate command (subprocess tests, error message quality)
+- [x] 07-03-PLAN.md — Test and fix CLI deploy command (subprocess tests, Docker checks, generate-only mode)
+- [x] 07-04-PLAN.md — Test and fix CLI ui command (subprocess tests, Windows multiprocessing compatibility)
+- [x] 07-05-PLAN.md — Add CLI integration tests (comprehensive cross-platform tests, error message verification)
+
+**Status:** Complete (2026-02-05) - 83 CLI integration tests created, all subprocess-based, verified on Windows
 
 #### Phase 8: Dashboard UI Testing & Fixes
 **Goal**: All Dashboard pages load and function correctly
@@ -186,7 +188,7 @@ Phases execute in numeric order: 7 → 8 → 9 → 10 → 11
 | 4. Advanced Capabilities | v1.0      | 3/3            | Complete    | 2026-02-04 |
 | 5. Foundation & Reliability | v1.1      | 3/3            | Complete    | 2026-02-04 |
 | 6. Navigation & Onboarding | v1.1      | 0/3            | Deferred    | - |
-| 7. CLI Testing & Fixes | v1.2      | 0/5            | Not started | - |
+| 7. CLI Testing & Fixes | v1.2      | 5/5            | Complete    | 2026-02-05 |
 | 8. Dashboard UI Testing & Fixes | v1.2      | 0/6            | Not started | - |
 | 9. Chat UI Testing & Fixes | v1.2      | 0/5            | Not started | - |
 | 10. Workflow Execution Testing & Fixes | v1.2      | 0/5            | Not started | - |

@@ -9,12 +9,12 @@ Requirements for Integration Testing & Critical Bug Fixes milestone. Each maps t
 
 ### CLI Testing
 
-- [ ] **CLI-01**: All CLI commands execute without errors
-- [ ] **CLI-02**: `configurable-agents run` executes workflows successfully
-- [ ] **CLI-03**: `configurable-agents validate` validates configs without errors
-- [ ] **CLI-04**: `configurable-agents deploy` generates deployment artifacts
-- [ ] **CLI-05**: `configurable-agents ui` starts all services (dashboard, chat)
-- [ ] **CLI-06**: Error messages are clear, actionable, and include resolution steps
+- [x] **CLI-01**: All CLI commands execute without errors
+- [x] **CLI-02**: `configurable-agents run` executes workflows successfully
+- [x] **CLI-03**: `configurable-agents validate` validates configs without errors
+- [x] **CLI-04**: `configurable-agents deploy` generates deployment artifacts
+- [x] **CLI-05**: `configurable-agents ui` starts all services (dashboard, chat)
+- [x] **CLI-06**: Error messages are clear, actionable, and include resolution steps
 
 ### Dashboard UI Testing
 
@@ -75,9 +75,12 @@ Which phases cover which requirements. Updated during roadmap creation.
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| CLI-01 | Phase 7 | Pending |
-| CLI-02 | Phase 7 | Pending |
-| CLI-03 | Phase 7 | Pending |
+| CLI-01 | Phase 7 | Complete |
+| CLI-02 | Phase 7 | Complete |
+| CLI-03 | Phase 7 | Complete |
+| CLI-04 | Phase 7 | Complete |
+| CLI-05 | Phase 7 | Complete |
+| CLI-06 | Phase 7 | Complete |
 | CLI-04 | Phase 7 | Pending |
 | CLI-05 | Phase 7 | Pending |
 | CLI-06 | Phase 7 | Pending |
