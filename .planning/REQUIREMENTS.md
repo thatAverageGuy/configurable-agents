@@ -1,61 +1,73 @@
-# Requirements: Configurable Agents v1.1 Core UX Polish
+# Requirements: Configurable Agents v1.2 Integration Testing & Critical Bug Fixes
 
-**Defined:** 2026-02-04
+**Defined:** 2026-02-05
 **Core Value:** Local-first, config-driven agent orchestration with full observability and zero cloud lock-in
 
-## v1.1 Requirements
+## v1.2 Requirements
 
-Requirements for Core UX Polish milestone. Each maps to roadmap phases.
+Requirements for Integration Testing & Critical Bug Fixes milestone. Each maps to roadmap phases.
 
-### Startup & Initialization
+### CLI Testing
 
-- [x] **STARTUP-01**: User can start entire UI with single command (`configurable-agents ui`)
-- [x] **STARTUP-02**: Platform auto-initializes databases and tables on first run (from ANY entry point)
-- [x] **STARTUP-03**: CLI commands work on first run without initialization errors
-- [x] **STARTUP-04**: Python API works on first run without initialization errors
-- [x] **STARTUP-05**: Startup shows progress feedback (spinners or X/Y progress for known steps)
-- [x] **STARTUP-06**: Platform gracefully shuts down with auto-save and session restoration on crash
+- [ ] **CLI-01**: All CLI commands execute without errors
+- [ ] **CLI-02**: `configurable-agents run` executes workflows successfully
+- [ ] **CLI-03**: `configurable-agents validate` validates configs without errors
+- [ ] **CLI-04**: `configurable-agents deploy` generates deployment artifacts
+- [ ] **CLI-05**: `configurable-agents ui` starts all services (dashboard, chat)
+- [ ] **CLI-06**: Error messages are clear, actionable, and include resolution steps
 
-### Onboarding
+### Dashboard UI Testing
 
-- [ ] **ONBOARD-01**: Empty states guide users to clear next actions ("Create workflow" or "Browse templates")
+- [ ] **DASH-01**: Workflows page loads and displays workflows
+- [ ] **DASH-02**: Agents page loads and displays agents
+- [ ] **DASH-03**: Experiments page loads and displays experiments
+- [ ] **DASH-04**: Optimization page loads and functions
+- [ ] **DASH-05**: MLFlow page loads or shows clear "not running" state
+- [ ] **DASH-06**: All Dashboard pages have no template errors
+- [ ] **DASH-07**: All Dashboard pages have no Jinja2 errors
+- [ ] **DASH-08**: Dashboard interactive elements work correctly
 
-### Navigation
+### Chat UI Testing
 
-- [ ] **NAV-01**: User can open command palette via Cmd/Ctrl+K for fuzzy search over workflows, agents, templates
-- [ ] **NAV-02**: User can filter navigation lists by typing (quick search in sidebars)
+- [ ] **CHAT-01**: Config generation works through conversation
+- [ ] **CHAT-02**: Multi-turn conversations work without errors
+- [ ] **CHAT-03**: Download button downloads generated config
+- [ ] **CHAT-04**: Validate button validates config successfully
+- [ ] **CHAT-05**: Chat history persists correctly across sessions
+- [ ] **CHAT-06**: No history format errors in any Chat UI feature
 
-### Observability
+### Workflow Execution Testing
 
-- [x] **OBS-01**: Dashboard shows status at a glance (active workflows, agent health, recent errors)
+- [ ] **EXEC-01**: Workflows execute from CLI without crashes
+- [ ] **EXEC-02**: Workflows execute from UI without crashes
+- [ ] **EXEC-03**: Workflow errors are caught and displayed clearly
+- [ ] **EXEC-04**: MLFlow tracking records workflow runs
+- [ ] **EXEC-05**: Workflow state persists across executions
 
-### Error Handling
+### Integration Testing
 
-- [x] **ERR-01**: Error messages include error code, description, and resolution steps
+- [ ] **INT-01**: End-to-end user workflow tested (config generation -> execution -> monitoring)
+- [ ] **INT-02**: Integration tests use real functionality (not mocked)
+- [ ] **INT-03**: Integration tests cover critical user paths
+- [ ] **INT-04**: Tests prevent regression of fixed bugs
+- [ ] **INT-05**: All tests pass and system actually works
 
-## v1.2+ Requirements
+## v1.3+ Requirements
 
-Deferred to future release. Tracked but not in current roadmap.
+Deferred to future release.
 
-### Workspace & Editor
-
-- **WORK-01**: Unified config-to-runtime workspace (editor + execution + monitoring on one page)
-- **WORK-02**: Template gallery with one-click apply
-- **WORK-03**: Live config validation (inline errors as user types)
-- **WORK-04**: Quick-run from any view (run button from dashboard, editor, templates)
-- **WORK-05**: Integrated cost estimates (show projected token/cost before running)
+### Navigation & Onboarding (from v1.1)
+- **NAV-01**: Command palette (Cmd/Ctrl+K) with fuzzy search
+- **NAV-02**: Quick search in navigation sideboards
+- **ONBOARD-01**: Empty state guidance and onboarding
 
 ## Out of Scope
 
-Explicitly excluded. Documented to prevent scope creep.
-
 | Feature | Reason |
 |---------|--------|
-| Interactive tutorials | High value but complex; requires content creation effort |
-| AI-assisted navigation | Nice-to-have feature; depends on search infrastructure |
-| Workflow comparison/diff | Useful but not essential for MVP polish |
-| Visual workflow builder | Violates config-first philosophy; code-based editing preferred |
-| React/Vue-based UI | JavaScript frameworks violate Python-only constraint |
+| New features | This is a test & fix milestone only |
+| Performance optimization | Unless broken functionality requires it |
+| Architectural refactoring | Unless needed for bug fixes |
 
 ## Traceability
 
@@ -63,23 +75,42 @@ Which phases cover which requirements. Updated during roadmap creation.
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| STARTUP-01 | Phase 5 | Complete |
-| STARTUP-02 | Phase 5 | Complete |
-| STARTUP-03 | Phase 5 | Complete |
-| STARTUP-04 | Phase 5 | Complete |
-| STARTUP-05 | Phase 5 | Complete |
-| STARTUP-06 | Phase 5 | Complete |
-| ONBOARD-01 | Phase 6 | Pending |
-| NAV-01 | Phase 6 | Pending |
-| NAV-02 | Phase 6 | Pending |
-| OBS-01 | Phase 5 | Complete |
-| ERR-01 | Phase 5 | Complete |
+| CLI-01 | Phase 7 | Pending |
+| CLI-02 | Phase 7 | Pending |
+| CLI-03 | Phase 7 | Pending |
+| CLI-04 | Phase 7 | Pending |
+| CLI-05 | Phase 7 | Pending |
+| CLI-06 | Phase 7 | Pending |
+| DASH-01 | Phase 8 | Pending |
+| DASH-02 | Phase 8 | Pending |
+| DASH-03 | Phase 8 | Pending |
+| DASH-04 | Phase 8 | Pending |
+| DASH-05 | Phase 8 | Pending |
+| DASH-06 | Phase 8 | Pending |
+| DASH-07 | Phase 8 | Pending |
+| DASH-08 | Phase 8 | Pending |
+| CHAT-01 | Phase 9 | Pending |
+| CHAT-02 | Phase 9 | Pending |
+| CHAT-03 | Phase 9 | Pending |
+| CHAT-04 | Phase 9 | Pending |
+| CHAT-05 | Phase 9 | Pending |
+| CHAT-06 | Phase 9 | Pending |
+| EXEC-01 | Phase 10 | Pending |
+| EXEC-02 | Phase 10 | Pending |
+| EXEC-03 | Phase 10 | Pending |
+| EXEC-04 | Phase 10 | Pending |
+| EXEC-05 | Phase 10 | Pending |
+| INT-01 | Phase 11 | Pending |
+| INT-02 | Phase 11 | Pending |
+| INT-03 | Phase 11 | Pending |
+| INT-04 | Phase 11 | Pending |
+| INT-05 | Phase 11 | Pending |
 
 **Coverage:**
-- v1.1 requirements: 11 total
-- Mapped to phases: 11
-- Unmapped: 0 ✓
+- v1.2 requirements: 27 total
+- Mapped to phases: 27 (100%)
+- Unmapped: 0
 
 ---
-*Requirements defined: 2026-02-04*
-*Last updated: 2026-02-04 after roadmap creation*
+*Requirements defined: 2026-02-05*
+*Last updated: 2026-02-05 after roadmap creation*
