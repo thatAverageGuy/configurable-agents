@@ -2,7 +2,7 @@
 
 **Purpose**: High-level system design, patterns, and architecture
 **Audience**: Developers wanting to understand how the system works
-**Last Updated**: 2026-02-02
+**Last Updated**: 2026-02-04 (v1.0)
 
 **For detailed decisions**: See [Architecture Decision Records](adr/)
 **For implementation tasks**: See [TASKS.md](TASKS.md)
@@ -12,7 +12,7 @@
 
 ## System Overview
 
-The system transforms YAML configuration into executable agent workflows through a config-driven pipeline.
+The system transforms YAML configuration into executable agent workflows through a config-driven pipeline with advanced control flow, multi-LLM support, and comprehensive observability.
 
 ```
 ┌──────────────┐
@@ -26,24 +26,235 @@ The system transforms YAML configuration into executable agent workflows through
        │
        ▼
 ┌──────────────────┐
-│ Config Validator │ ← Validate dependencies, types
+│ Config Validator │ ← Validate dependencies, types, features
 └──────┬───────────┘
        │
        ▼
 ┌──────────────────┐
-│ Graph Builder    │ ← Construct LangGraph
+│ Storage Backend  │ ← Abstract storage (SQLite/PostgreSQL)
 └──────┬───────────┘
        │
        ▼
 ┌──────────────────┐
-│ Runtime Executor │ ← Execute workflow
+│ Graph Builder    │ ← Construct LangGraph with control flow
 └──────┬───────────┘
        │
        ▼
 ┌──────────────────┐
-│ Outputs (dict)   │
+│ Runtime Executor │ ← Execute workflow with tracking
+└──────┬───────────┘
+       │
+       ▼
+┌──────────────────┐
+│ Outputs + Trace  │ ← Return results + MLFlow tracking
 └──────────────────┘
 ```
+
+---
+
+## v1.0 Subsystems
+
+### 1. LiteLLM Integration Layer
+
+**Location**: `src/configurable_agents/llm/`
+
+**Purpose**: Unified multi-provider LLM support with transparent cost tracking
+
+**Components**:
+- `provider.py` - LLM factory and provider interface
+- `google.py` - Direct Google Gemini implementation (optimal LangChain compatibility)
+- `litellm.py` - LiteLLM wrapper for OpenAI, Anthropic, Ollama
+- `cost_estimator.py` - Multi-provider cost calculation
+
+**Key Features**:
+- **Google Provider**: Direct LangChain implementation (not LiteLLM) for best compatibility
+- **OpenAI/Anthropic**: LiteLLM abstraction with unified API
+- **Ollama**: Local model support with `ollama_chat/` prefix, zero-cost tracking
+- **Structured Output**: Pydantic schema binding for all providers
+- **Automatic Retries**: Validation error recovery with clarified prompts
+- **Tool Binding**: Tool integration before structured output (correct order)
+
+**Providers Supported**:
+- Google: gemini-2.0-flash-exp, gemini-2.5-pro, gemini-2.5-flash, gemini-1.5-pro, gemini-1.5-flash
+- OpenAI: gpt-4, gpt-4-turbo, gpt-3.5-turbo
+- Anthropic: claude-3-opus, claude-3-sonnet, claude-3-haiku
+- Ollama: llama2, mistral, codellama (local models, zero cost)
+
+**Related ADRs**: [ADR-005](adr/ADR-005-multi-llm-provider-v10.md), [ADR-019](adr/ADR-019-litellm-integration.md)
+
+---
+
+### 2. Agent Registry Architecture
+
+**Location**: `src/configurable_agents/registry/`
+
+**Purpose**: Dynamic agent discovery, registration, and health monitoring
+
+**Components**:
+- `models.py` - AgentRecord ORM model (SQLAlchemy 2.0)
+- `repository.py` - AgentRegistryRepository for storage operations
+- `server.py` - AgentRegistryServer (FastAPI, heartbeat endpoint)
+- `client.py` - AgentRegistryClient (auto-registration, heartbeat loop)
+
+**Key Features**:
+- **Agent-Initiated Registration**: Agents self-register on startup
+- **Heartbeat/TTL Pattern**: 60s TTL, 20s heartbeat interval (~1/3 for reliability)
+- **Graceful Expiration**: Background cleanup removes stale agents
+- **Idempotent Registration**: Re-registering updates existing records
+- **FastAPI Integration**: Session management, async endpoints
+- **Docker Integration**: Auto-detect host/port from env vars
+
+**Storage Backend**:
+- Pluggable via Repository Pattern
+- SQLite default (development), PostgreSQL (production)
+- Context manager pattern prevents transaction leaks
+
+**Related ADRs**: [ADR-020](adr/ADR-020-agent-registry.md)
+
+---
+
+### 3. Dashboard (FastAPI + HTMX + SSE)
+
+**Location**: `src/configurable_agents/dashboard/`
+
+**Purpose**: Orchestration dashboard for workflow management, agent discovery, and real-time monitoring
+
+**Components**:
+- `server.py` - FastAPI application with HTMX endpoints
+- `templates/` - Jinja2 templates with HTMX attributes
+- `routes/` - Dashboard routes, agent discovery, workflow execution
+
+**Key Features**:
+- **HTMX for Dynamic Updates**: No JavaScript framework needed
+- **Server-Sent Events (SSE)**: Real-time streaming to clients
+- **Agent Discovery UI**: View registered agents, capabilities, health status
+- **Workflow Management**: Start, stop, restart workflows with progress tracking
+- **MLFlow Integration**: iframe embed for observability UI
+- **Repository Injection**: Dependency injection via app.state
+
+**Technology Stack**:
+- FastAPI: Async web framework
+- HTMX: Dynamic HTML without JS
+- SSE: One-way real-time data pushing
+- Jinja2: Server-side templating
+
+**Related ADRs**: [ADR-021](adr/ADR-021-htmx-dashboard.md)
+
+---
+
+### 4. Sandbox Execution (RestrictedPython + Docker)
+
+**Location**: `src/configurable_agents/sandbox/`
+
+**Purpose**: Safe execution of agent-generated code with resource limits
+
+**Components**:
+- `restricted_python.py` - RestrictedPython executor with safe globals
+- `docker_executor.py` - Docker sandbox with network isolation (optional)
+- `presets.py` - Resource limit presets (low/medium/high/max)
+
+**Key Features**:
+- **RestrictedPython Default**: Fast, works everywhere, no Docker required
+- **Docker Opt-In**: Network isolation, strict resource limits
+- **Safe Globals**: Custom `_print_`, `_getattr_`, `_import_` guards
+- **Resource Presets**: Configurable CPU, memory, timeout limits
+- **Security Whitelisting**: ALLOWED_PATHS, ALLOWED_COMMANDS for file/shell ops
+- **Error Handling Continuation**: `on_error: continue` catches errors and returns dict
+
+**Security Measures**:
+- AST-like parsing instead of eval() for condition evaluation
+- No access to private attributes (underscore-prefixed names blocked)
+- File operations restricted to whitelisted paths
+- Shell commands restricted to whitelist
+- SQL queries limited to SELECT only
+
+**Related ADRs**: [ADR-022](adr/ADR-022-restrictedpython-sandbox.md)
+
+---
+
+### 5. Memory Backend
+
+**Location**: `src/configurable_agents/memory/`
+
+**Purpose**: Persistent, namespaced key-value storage for agent context
+
+**Components**:
+- `memory.py` - AgentMemory with dict-like read and explicit write API
+- `models.py` - MemoryEntry ORM model
+- `repository.py` - MemoryRepository for storage operations
+
+**Key Features**:
+- **Namespace Pattern**: `{agent_id}:{workflow_id or "*"}:{node_id or "*"}:{key}`
+- **Dict-Like Read**: `memory['key']` for convenient access
+- **Explicit Write**: `memory.write('key', value)` for clarity
+- **Wildcard Support**: `*` for workflow/node in namespace for broader scope
+- **Storage Abstraction**: SQLite default, PostgreSQL swappable
+
+**Use Cases**:
+- Cross-execution context retention
+- Agent learning and state persistence
+- Workflow resume capabilities
+- Long-term memory for agents
+
+**Related ADRs**: [ADR-023](adr/ADR-023-memory-backend.md)
+
+---
+
+### 6. Webhook Router
+
+**Location**: `src/configurable_agents/webhooks/`
+
+**Purpose**: Generic webhook infrastructure with platform-specific integrations
+
+**Components**:
+- `server.py` - Generic webhook endpoints (FastAPI)
+- `platforms/whatsapp.py` - WhatsApp Business API handler
+- `platforms/telegram.py` - Telegram Bot API handler (aiogram 3.x)
+- `models.py` - WebhookExecution ORM model
+
+**Key Features**:
+- **Generic Webhook**: Universal `/webhooks/generic` endpoint
+- **HMAC Verification**: Optional signature validation for security
+- **Idempotency Tracking**: `INSERT OR IGNORE` for webhook_id deduplication
+- **Async Execution**: Background workflow execution via run_workflow_async
+- **Platform Handlers**: Lazy initialization only when env vars configured
+- **Message Chunking**: Automatic splitting for 4096 char limits (WhatsApp/Telegram)
+
+**Integrations**:
+- WhatsApp Business API (Meta webhook verification, HMAC signing)
+- Telegram Bot API (aiogram 3.x async patterns)
+- Generic webhook (workflow_name + inputs for universal triggering)
+
+**Related ADRs**: [ADR-024](adr/ADR-024-webhook-integration.md)
+
+---
+
+### 7. Optimization System
+
+**Location**: `src/configurable_agents/optimization/`
+
+**Purpose**: MLFlow-based prompt optimization and A/B testing
+
+**Components**:
+- `evaluator.py` - ExperimentEvaluator for MLFlow metric aggregation
+- `ab_testing.py` - ABTestRunner for variant comparison
+- `quality_gates.py` - QualityGateChecker for automated validation
+- `optimizer.py` - PromptOptimizer for applying optimized prompts
+
+**Key Features**:
+- **Percentile Calculation**: p50, p95, p99 using nearest-rank method
+- **Quality Gates**: WARN (logs), FAIL (raises), BLOCK_DEPLOY (sets flag)
+- **A/B Testing**: Config override workflow for variant comparison
+- **Automatic Backup**: YAML backup created before applying optimizations
+- **CLI Integration**: `optimization` command group (evaluate, apply-optimized, ab-test)
+
+**Quality Metrics**:
+- Cost per run
+- Duration
+- Token usage
+- Custom metrics
+
+**Related ADRs**: [ADR-025](adr/ADR-025-optimization-architecture.md)
 
 ---
 
@@ -51,7 +262,7 @@ The system transforms YAML configuration into executable agent workflows through
 
 ### 1. Config-Driven Pipeline Pattern
 
-**Pattern**: Config → Validate → Build → Execute
+**Pattern**: Config → Validate → Build → Execute → Track
 
 **Why**: Fail-fast validation prevents wasted LLM costs. Catch 95% of errors before execution.
 
@@ -59,12 +270,12 @@ The system transforms YAML configuration into executable agent workflows through
 
 **Flow**:
 ```python
-# Config → Pydantic model → Validate → Build → Execute
+# Config → Pydantic model → Validate → Build → Execute → Track
 config_dict = load_config("workflow.yaml")       # Parse YAML
 config = WorkflowConfig(**config_dict)           # Pydantic validation
 validate_config(config)                          # Business logic validation
 graph = build_graph(config, ...)                 # Construct execution graph
-result = graph.invoke(initial_state)             # Execute
+result = run_workflow(graph, initial_state)      # Execute with tracking
 ```
 
 **Code**: [`runtime/executor.py:25-45`](../src/configurable_agents/runtime/executor.py)
@@ -257,60 +468,63 @@ def build_output_model(output_schema: OutputSchema, node_id: str):
 
 ---
 
-### 8. Strategy Pattern (LLM Providers)
+### 8. Strategy Pattern (Multi-LLM Providers)
 
 **Pattern**: Provider interface with multiple implementations
 
-**Why**: Support multiple LLM providers (future) without changing core logic.
+**Why**: Support multiple LLM providers without changing core logic.
 
-**Implementation**: See [ADR-005](adr/ADR-005-single-llm-provider-v01.md)
+**Implementation**: See [ADR-005](adr/ADR-005-multi-llm-provider-v10.md), [ADR-019](adr/ADR-019-litellm-integration.md)
 
-**Interface** (v0.1 - Google Gemini only):
+**Interface** (v1.0 - Multi-provider):
 ```python
 def create_llm(config: LLMConfig) -> BaseChatModel:
     """Create LLM instance based on provider"""
-    if config.provider == "google":  # v0.1
-        return create_google_llm(config)
-    # v0.2+: elif config.provider == "openai": ...
-    # v0.2+: elif config.provider == "anthropic": ...
+    if config.provider == "google":
+        return create_google_llm(config)  # Direct implementation
+    elif config.provider in ["openai", "anthropic"]:
+        return create_litellm_llm(config)  # LiteLLM wrapper
+    elif config.provider == "ollama":
+        return create_ollama_llm(config)   # LiteLLM with local models
+    else:
+        raise LLMProviderError(f"Unsupported provider: {config.provider}")
 ```
 
-**Future expansion**: Add provider in `llm/openai.py`, register in `create_llm()`.
+**Future expansion**: Add provider in `llm/` directory, register in `create_llm()`.
 
 **Code**: [`llm/provider.py:20-50`](../src/configurable_agents/llm/provider.py)
 
 ---
 
-### 9. Decorator Pattern (Feature Gating)
+### 9. Repository Pattern (Storage Abstraction)
 
-**Pattern**: Wrap validation logic with version checks
+**Pattern**: Abstract repository with concrete implementations
 
-**Why**: Allow future features in config schema (v0.2, v0.3) while blocking execution in v0.1. Progressive disclosure of features.
+**Why**: Pluggable storage backends (SQLite default, PostgreSQL swappable)
 
-**Implementation**: See [ADR-009](adr/ADR-009-full-schema-day-one.md)
+**Implementation**: Phase 1 (01-01-PLAN.md)
 
 **Code**:
 ```python
-def gate_features(config: WorkflowConfig) -> None:
-    """Block unsupported features, warn on future features"""
+class WorkflowRunRepository(ABC):
+    @abstractmethod
+    def create_run(self, run_data: WorkflowRunRecord) -> int: ...
 
-    # Hard block (v0.2+ not implemented)
-    if _has_conditional_routing(config):
-        raise FeatureNotAvailableError(
-            "Conditional routing requires v0.2+. "
-            "Use simple edges in v0.1."
-        )
+    @abstractmethod
+    def get_run(self, run_id: int) -> Optional[WorkflowRunRecord]: ...
 
-    # Soft warning (v0.3+ planned)
-    if config.optimization and config.optimization.enabled:
-        warnings.warn(
-            "DSPy optimization planned for v0.3. "
-            "Config accepted but optimization ignored.",
-            FutureWarning
-        )
+class SQLWorkflowRunRepository(WorkflowRunRepository):
+    def __init__(self, session_factory):
+        self.session_factory = session_factory
+
+    def create_run(self, run_data: WorkflowRunRecord) -> int:
+        with Session(self.session_factory) as session:
+            session.add(run_data)
+            session.commit()
+            return run_data.id
 ```
 
-**Code**: [`runtime/feature_gate.py:15-120`](../src/configurable_agents/runtime/feature_gate.py)
+**Code**: [`storage/repository.py`](../src/configurable_agents/storage/repository.py)
 
 ---
 
@@ -326,9 +540,9 @@ def gate_features(config: WorkflowConfig) -> None:
 
 **Files**:
 - `config/parser.py` - YAML/JSON parsing
-- `config/schema.py` - 13 Pydantic models (complete schema v1.0)
+- `config/schema.py` - 13+ Pydantic models (complete schema v1.0 + v1.0 extensions)
 - `config/validator.py` - 8-stage validation pipeline
-- `runtime/feature_gate.py` - Version-based feature gating
+- `runtime/feature_gate.py` - Version-based feature gating (v0.2.0-dev for control flow)
 
 **Related ADRs**: [ADR-003](adr/ADR-003-config-driven-architecture.md), [ADR-004](adr/ADR-004-parse-time-validation.md), [ADR-009](adr/ADR-009-full-schema-day-one.md)
 
@@ -336,7 +550,7 @@ def gate_features(config: WorkflowConfig) -> None:
 
 ### Execution Layer
 
-**Components**: State Builder, Output Builder, Template Resolver, Node Executor
+**Components**: State Builder, Output Builder, Template Resolver, Node Executor, Graph Builder
 
 **Responsibility**: Execute nodes with type safety and prompt resolution
 
@@ -347,22 +561,23 @@ def gate_features(config: WorkflowConfig) -> None:
 - `core/output_builder.py` - Generate output models from config
 - `core/template.py` - Resolve {variable} placeholders in prompts
 - `core/node_executor.py` - Execute single node (LLM + tools + validation)
+- `core/graph_builder.py` - Build compiled LangGraph from config and state model
 
-**Related ADRs**: [ADR-002](adr/ADR-002-strict-typing-pydantic-schemas.md), [ADR-003](adr/ADR-003-config-driven-architecture.md)
+**Related ADRs**: [ADR-002](adr/ADR-002-strict-typing-pydantic-schemas.md), [ADR-003](adr/ADR-003-config-driven-architecture.md), [ADR-001](adr/ADR-001-langgraph-execution-engine.md)
 
 ---
 
-### Orchestration Layer
+### Runtime Layer
 
-**Components**: Graph Builder, Runtime Executor
+**Components**: Runtime Executor, Feature Gate
 
-**Responsibility**: Construct and execute LangGraph workflows
+**Responsibility**: Orchestrate the full workflow lifecycle: load → validate → build → execute → track
 
-**Key Pattern**: Closure-based nodes + Config-driven pipeline
+**Key Pattern**: Config-driven pipeline with comprehensive error handling
 
 **Files**:
-- `core/graph_builder.py` - Construct LangGraph from config
-- `runtime/executor.py` - End-to-end workflow execution
+- `runtime/executor.py` - Main entry point (run_workflow, validate_workflow)
+- `runtime/feature_gate.py` - Runtime feature support validation
 
 **Related ADRs**: [ADR-001](adr/ADR-001-langgraph-execution-engine.md)
 
@@ -370,19 +585,55 @@ def gate_features(config: WorkflowConfig) -> None:
 
 ### Integration Layer
 
-**Components**: LLM Provider, Tool Registry
+**Components**: LLM Provider, Tool Registry, Storage Backend
 
-**Responsibility**: External API integration (LLMs, tools)
+**Responsibility**: External API integration (LLMs, tools, databases)
 
-**Key Pattern**: Factory (tools) + Strategy (LLM providers)
+**Key Pattern**: Factory (tools, storage) + Strategy (LLM providers) + Repository (storage)
 
 **Files**:
-- `llm/provider.py` - LLM provider interface
-- `llm/google.py` - Google Gemini implementation
+- `llm/provider.py` - LLM factory interface
+- `llm/google.py` - Google Gemini direct implementation
+- `llm/litellm.py` - LiteLLM wrapper for OpenAI/Anthropic/Ollama
 - `tools/registry.py` - Tool registry with lazy loading
-- `tools/serper.py` - Serper web search tool
+- `storage/repository.py` - Storage repositories (workflow runs, agents, memory, webhooks)
 
-**Related ADRs**: [ADR-005](adr/ADR-005-single-llm-provider-v01.md), [ADR-007](adr/ADR-007-tools-as-named-registry.md)
+**Related ADRs**: [ADR-005](adr/ADR-005-multi-llm-provider-v10.md), [ADR-007](adr/ADR-007-tools-as-named-registry.md), [ADR-019](adr/ADR-019-litellm-integration.md)
+
+---
+
+### Observability Layer
+
+**Components**: MLFlow Tracker, Cost Reporter, Performance Profiler, Multi-Provider Cost Tracker
+
+**Responsibility**: Cost tracking, metrics, workflow profiling, optimization
+
+**Key Pattern**: MLFlow automatic tracing + manual metrics + cost aggregation
+
+**Files**:
+- `observability/mlflow_tracker.py` - MLFlow integration (workflow/node tracking)
+- `observability/cost_reporter.py` - Cost query and export (CSV/JSON)
+- `observability/performance_profiler.py` - Bottleneck detection and timing
+- `observability/multi_provider_cost_tracker.py` - Per-provider cost aggregation
+
+**Related ADRs**: [ADR-011](adr/ADR-011-mlflow-observability.md), [ADR-014](adr/ADR-014-three-tier-observability-strategy.md)
+
+---
+
+### Deployment Layer
+
+**Components**: Dashboard Server, Webhook Server, Deployment Generator
+
+**Responsibility**: Generate production deployments, serve dashboard, handle webhooks
+
+**Key Pattern**: FastAPI + HTMX + SSE for dashboard, async webhook handling
+
+**Files**:
+- `dashboard/server.py` - Orchestration dashboard (FastAPI + HTMX)
+- `webhooks/server.py` - Generic webhook infrastructure
+- `deploy/generator.py` - Artifact generation (Dockerfile, docker-compose, server.py)
+
+**Related ADRs**: [ADR-012](adr/ADR-012-docker-deployment-architecture.md), [ADR-021](adr/ADR-021-htmx-dashboard.md), [ADR-024](adr/ADR-024-webhook-integration.md)
 
 ---
 
@@ -390,15 +641,17 @@ def gate_features(config: WorkflowConfig) -> None:
 
 | Layer | Technology | Why | ADR |
 |-------|-----------|-----|-----|
-| **Execution** | LangGraph | No prompt wrapping, DSPy compatible | [ADR-001](adr/ADR-001-langgraph-execution-engine.md) |
-| **Validation** | Pydantic | Industry standard, excellent errors | [ADR-002](adr/ADR-002-strict-typing-pydantic-schemas.md) |
+| **Execution** | LangGraph | No prompt wrapping, DSPy compatible, control flow | [ADR-001](adr/ADR-001-langgraph-execution-engine.md) |
+| **Validation** | Pydantic | Industry standard, excellent errors, dynamic models | [ADR-002](adr/ADR-002-strict-typing-pydantic-schemas.md) |
 | **Config** | YAML + Pydantic | Human-readable + type-safe | [ADR-003](adr/ADR-003-config-driven-architecture.md) |
-| **LLM (v0.1)** | Google Gemini | Simple integration, good free tier | [ADR-005](adr/ADR-005-single-llm-provider-v01.md) |
-| **Tools** | LangChain Tools | Standard interface, large ecosystem | [ADR-007](adr/ADR-007-tools-as-named-registry.md) |
+| **LLM (v1.0)** | Multi-Provider | Google (direct) + LiteLLM (OpenAI/Anthropic/Ollama) | [ADR-005](adr/ADR-005-multi-llm-provider-v10.md), [ADR-019](adr/ADR-019-litellm-integration.md) |
+| **Tools** | LangChain Tools | Standard interface, 15+ pre-built tools, extensible | [ADR-007](adr/ADR-007-tools-as-named-registry.md) |
+| **Storage** | SQLAlchemy 2.0 | Type-safe ORM, Repository Pattern, pluggable backends | Phase 1 (01-01-PLAN.md) |
+| **Dashboard** | FastAPI + HTMX | Async, lightweight, no JS frameworks needed | [ADR-021](adr/ADR-021-htmx-dashboard.md) |
+| **Observability** | MLFlow 3.9+ | Automatic tracing, GenAI features, cost tracking | [ADR-011](adr/ADR-011-mlflow-observability.md) |
 | **Testing** | pytest | Standard Python testing | [ADR-017](adr/ADR-017-testing-strategy-cost-management.md) |
-| **CLI** | Click | Industry standard | [ADR-015](adr/ADR-015-cli-interface-design.md) |
-| **Observability** | MLFlow (v0.1) | LLM-specific tracking | [ADR-011](adr/ADR-011-mlflow-observability.md) |
-| **Deployment** | Docker + FastAPI | Containerized microservices | [ADR-012](adr/ADR-012-docker-deployment-architecture.md) |
+| **CLI** | Click + Rich | Industry standard, formatted tables | [ADR-015](adr/ADR-015-cli-interface-design.md) |
+| **Deployment** | Docker + FastAPI | Containerized microservices, one-command deploy | [ADR-012](adr/ADR-012-docker-deployment-architecture.md) |
 
 ---
 
@@ -410,9 +663,10 @@ def gate_features(config: WorkflowConfig) -> None:
 
 **Implementation**:
 - Explicit state fields (ADR-002) - No auto-generated fields
-- Explicit edges (ADR-006) - No automatic routing
+- Explicit edges (ADR-006) - Linear flows in v0.1, conditional in v1.0
 - Explicit output schemas (ADR-002) - No unstructured outputs
 - Explicit tool references (ADR-007) - No auto-discovery
+- Explicit routing (v1.0) - Conditional logic visible in config
 
 **Example**: Node must declare outputs
 ```yaml
@@ -457,9 +711,10 @@ Total: $0.00 (caught at parse time)
 **Philosophy**: Works out-of-the-box locally. Optional enterprise features.
 
 **Implementation**:
-- **MLFlow** (ADR-011): File-based backend (v0.1) → PostgreSQL/S3 (v0.2+)
-- **State**: In-memory (v0.1) → Redis/PostgreSQL (v0.2+)
-- **Deployment**: Local Docker (v0.1) → Cloud (v0.2+)
+- **Storage** (v1.0): SQLite (default) → PostgreSQL/Redis (swappable)
+- **Deployment** (v1.0): Local Docker → Cloud (manual export)
+- **Observability** (v1.0): File-based MLFlow → PostgreSQL/S3 (configurable)
+- **Multi-LLM** (v1.0): Local Ollama (zero cost) → Cloud providers (optional)
 
 **Design Strategy**: Implement simple version first, leave hooks for enterprise upgrades.
 
@@ -470,33 +725,110 @@ Total: $0.00 (caught at parse time)
 **Philosophy**: Pure functions, no global state, easy mocking.
 
 **Implementation** (ADR-017):
-- **Unit tests** (449): Mock LLM/API calls, fast, free
-- **Integration tests** (19): Real APIs, cost-tracked (<$0.50 per PR)
+- **Unit tests** (645+): Mock LLM/API calls, fast, free
+- **Integration tests** (19+): Real APIs, cost-tracked (<$0.50 per PR)
 - **CI strategy**: Unit tests always, integration tests on PR
 
 **Code**: [`tests/`](../tests/)
 
 ---
 
-## Observability Architecture (v0.1)
+## Advanced v1.0 Features
 
-**Status**: In progress (T-018 to T-021)
+### Conditional Routing
 
-**Pattern**: MLFlow for LLM-specific tracking
+**Schema**:
+```yaml
+edges:
+  - from: validate_node
+    routes:
+      - condition:
+          logic: "{state.score} >= 8"
+        to: END
+      - condition:
+          logic: "default"
+        to: rewrite_node
+```
+
+**Implementation**:
+- Safe condition evaluator (AST-like parsing, not eval())
+- Route resolution at graph execution time
+- Support for complex boolean expressions
+- Fallback to "default" route for unmatched conditions
+
+**Code**: [`core/graph_builder.py:conditional_edges`](../src/configurable_agents/core/graph_builder.py)
+
+---
+
+### Loop Execution
+
+**Schema**:
+```yaml
+nodes:
+  - id: retry_node
+    loop:
+      max_iterations: 3
+      until: "{state.success} == true"
+      break_on_error: false
+```
+
+**Implementation**:
+- Hidden state fields for iteration tracking (`_loop_iteration_{node}`)
+- Auto-increment on each iteration
+- `until` condition evaluation per iteration
+- Graceful handling of max_iterations exceeded
+
+**Code**: [`core/graph_builder.py:loop_execution`](../src/configurable_agents/core/graph_builder.py)
+
+---
+
+### Parallel Execution
+
+**Schema**:
+```yaml
+edges:
+  - from: START
+    parallel:
+      - node_1
+      - node_2
+      - node_3
+    join: merge_node
+```
+
+**Implementation**:
+- LangGraph Send objects for fan-out
+- State dict augmentation for parallel branches
+- Automatic fan-in at join node
+- No shared state between branches
+
+**Code**: [`core/graph_builder.py:parallel_execution`](../src/configurable_agents/core/graph_builder.py)
+
+---
+
+## Observability Architecture (v1.0)
+
+**Status**: Complete (Phase 1, 2, 3, 4)
+
+**Pattern**: MLFlow 3.9+ automatic tracing + manual cost/performance tracking
 
 **Architecture**:
 ```
 Runtime Executor
       ↓
-Workflow Run (MLFlow)
-  - Params: workflow name, model, temp
-  - Metrics: duration, total_tokens, total_cost
-  - Artifacts: inputs.json, outputs.json
+MLFlow Automatic Tracing
+  - Spans for workflow and nodes
+  - Automatic token usage tracking
+  - LLM call instrumentation
       ↓
-Node Runs (nested)
-  - Params: node_id, tools
-  - Metrics: duration, input_tokens, output_tokens, cost
-  - Artifacts: prompt.txt, response.txt
+Manual Metrics
+  - Multi-provider cost tracking
+  - Performance profiling (bottleneck detection)
+  - Custom metrics (duration, retries)
+      ↓
+MLFlow Backend (SQLite/PostgreSQL)
+  - Experiment aggregation
+  - Cost reporting (CSV/JSON export)
+  - A/B testing support
 ```
 
 **Implementation**: See [ADR-011](adr/ADR-011-mlflow-observability.md), [ADR-014](adr/ADR-014-three-tier-observability-strategy.md)
@@ -505,30 +837,39 @@ Node Runs (nested)
 
 ---
 
-## Deployment Architecture (v0.1)
+## Deployment Architecture (v1.0)
 
-**Status**: Planned (T-022 to T-024)
+**Status**: Complete (Phase 3, 4)
 
-**Pattern**: FastAPI + MLFlow UI in Docker container
+**Pattern**: FastAPI + HTMX Dashboard + Webhook Server + Docker
 
 **Architecture**:
 ```
-configurable-agents deploy workflow.yaml
+configurable-agents dashboard
       ↓
-Generate artifacts (Dockerfile, server.py, docker-compose.yml)
+FastAPI Server (port 8000)
+  - Dashboard UI (HTMX + SSE)
+  - Agent registry endpoints
+  - Workflow management (start/stop/restart)
+  - MLFlow iframe embed (port 5000)
       ↓
-Build multi-stage Docker image
+Webhook Server (port 8000/webhooks)
+  - Generic webhook endpoint
+  - Platform handlers (WhatsApp, Telegram)
+  - HMAC signature verification
       ↓
-Run container (detached)
-  - Port 8000: FastAPI server (POST /run, GET /status, GET /health)
-  - Port 5000: MLFlow UI
+Storage Backend (SQLite/PostgreSQL)
+  - Workflow runs
+  - Agent registry
+  - Memory entries
+  - Webhook executions
 ```
 
 **Sync/Async Hybrid**:
 - Fast workflows (<30s): Return result immediately
 - Slow workflows (>30s): Background job, return job_id
 
-**Implementation**: See [ADR-012](adr/ADR-012-docker-deployment-architecture.md), [ADR-013](adr/ADR-013-environment-variable-handling.md)
+**Implementation**: See [ADR-012](adr/ADR-012-docker-deployment-architecture.md), [ADR-013](adr/ADR-013-environment-variable-handling.md), [ADR-021](adr/ADR-021-htmx-dashboard.md)
 
 **Detailed Guide**: See [DEPLOYMENT.md](DEPLOYMENT.md)
 
@@ -579,18 +920,21 @@ Run container (detached)
 
 ---
 
-### Adding a New LLM Provider (v0.2+)
+### Adding a New LLM Provider
 
-1. **Create provider file**: `src/configurable_agents/llm/openai.py`
+1. **Create provider file**: `src/configurable_agents/llm/openai.py` (if using LiteLLM)
    ```python
+   from litellm import completion as litellm_completion
    from langchain_openai import ChatOpenAI
 
    def create_openai_llm(config: LLMConfig) -> BaseChatModel:
-       return ChatOpenAI(
-           model=config.model,
-           temperature=config.temperature,
-           # ...
-       )
+       # LiteLLM wrapper
+       if config.model.startswith("gpt-"):
+           return ChatOpenAI(
+               model=config.model,
+               temperature=config.temperature,
+               # ...
+           )
    ```
 
 2. **Register in provider**: `src/configurable_agents/llm/provider.py`
@@ -599,13 +943,13 @@ Run container (detached)
        if config.provider == "google":
            return create_google_llm(config)
        elif config.provider == "openai":  # Add here
-           return create_openai_llm(config)
+           return create_litellm_llm(config)
    ```
 
 3. **Update schema**: `src/configurable_agents/config/schema.py`
    ```python
    class LLMConfig(BaseModel):
-       provider: Literal["google", "openai", "anthropic"] = "google"
+       provider: Literal["google", "openai", "anthropic", "ollama"] = "google"
    ```
 
 4. **Add tests**: `tests/llm/test_openai.py`
@@ -642,31 +986,34 @@ Run container (detached)
 
 ## Security Considerations
 
-### v0.1 Scope
+### v1.0 Scope
 
-- ✅ No arbitrary code execution (custom code nodes deferred to v0.2+)
+- ✅ Safe code execution (RestrictedPython sandbox)
 - ✅ Environment variable isolation (API keys from .env only)
 - ✅ Input validation (Pydantic prevents injection)
-- ✅ Tool sandboxing (LangChain BaseTool constraints)
+- ✅ Tool sandboxing (LangChain BaseTool constraints, whitelisted paths/commands)
+- ✅ Webhook security (HMAC signature verification, idempotency tracking)
+- ✅ SQL injection protection (SELECT-only queries for sandbox)
 
-### Future (v0.2+)
+### Future (v1.1+)
 
 - Secrets management (vault integration)
-- Resource limits (token budgets, timeouts)
-- Network sandboxing (for container mode)
-- Audit logging (who ran what, when)
+- Resource limits (token budgets, timeouts) - partially implemented via presets
+- Network sandboxing (Docker isolation - opt-in)
+- Audit logging (who ran what, when) - partially implemented via MLFlow
+- Rate limiting (webhook endpoint protection)
 
 ---
 
 ## Deep Dive References
 
-**Detailed Decisions**: [Architecture Decision Records](adr/) (16 ADRs)
+**Detailed Decisions**: [Architecture Decision Records](adr/) (25+ ADRs)
 
-**Implementation Tasks**: [TASKS.md](TASKS.md) (27 tasks, 18 complete)
+**Implementation Tasks**: [TASKS.md](TASKS.md) (27 requirements, 100% complete)
 
-**Version Features**: [README.md](../README.md#roadmap--status) (v0.1-v0.4 overview)
+**Version Features**: [README.md](../README.md#roadmap--status) (v0.1-v0.4 overview, v1.0 complete)
 
-**Technical Specs**: [SPEC.md](SPEC.md) (Complete config schema reference)
+**Technical Specs**: [SPEC.md](SPEC.md) (Complete config schema reference + v1.0 extensions)
 
 **User Guides**:
 - [QUICKSTART.md](QUICKSTART.md) - Get started in 5 minutes
@@ -674,3 +1021,8 @@ Run container (detached)
 - [OBSERVABILITY.md](OBSERVABILITY.md) - MLFlow tracking guide
 - [DEPLOYMENT.md](DEPLOYMENT.md) - Docker deployment guide
 - [TROUBLESHOOTING.md](TROUBLESHOOTING.md) - Common issues
+
+**Milestone Archives**:
+- [.planning/milestones/v1.0-ROADMAP.md](../.planning/milestones/v1.0-ROADMAP.md) - v1.0 roadmap
+- [.planning/milestones/v1.0-REQUIREMENTS.md](../.planning/milestones/v1.0-REQUIREMENTS.md) - v1.0 requirements
+- [.planning/milestones/v1.0-MILESTONE-AUDIT.md](../.planning/milestones/v1.0-MILESTONE-AUDIT.md) - v1.0 audit
