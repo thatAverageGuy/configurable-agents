@@ -1,0 +1,126 @@
+# Memory Example - Demonstrating Persistent Agent Memory
+#
+# This workflow shows how to use the memory feature to maintain context
+# across workflow executions. Memory is namespaced by agent, workflow, and node.
+#
+# Scopes:
+# - "agent": Shared across all workflows for this agent
+# - "workflow": Shared across all nodes in this workflow
+# - "node": Isolated to this specific node
+#
+# Usage:
+#   python -m configurable_agents run examples/memory_example.yaml
+#
+# Memory persistence requires storage backend (default: ./workflows.db)
+
+schema_version: "1.0"
+
+flow:
+  name: memory_example
+  version: "1.0"
+  description: Demonstrates persistent memory across workflow runs
+
+state:
+  fields:
+    user_message:
+      type: str
+      required: true
+      description: Input message from the user
+    conversation_history:
+      type: str
+      default: ""
+      description: Previous conversation context from memory
+    greeting:
+      type: str
+      default: ""
+      description: Generated greeting
+    response:
+      type: str
+      default: ""
+      description: Response to the user
+    updated_context:
+      type: str
+      default: ""
+      description: Updated conversation context for memory
+
+config:
+  # Enable memory for this workflow
+  memory:
+    enabled: true
+    default_scope: workflow  # Share memory across nodes in this workflow
+
+nodes:
+  # Node 1: Generate greeting using previous context from memory
+  - id: greet
+    name: Generate Greeting
+    prompt: |
+      You are a friendly assistant. The user says: "{user_message}"
+
+      Previous context from memory: {conversation_history}
+
+      Generate a warm, personalized greeting.
+    outputs: [greeting]
+    output_schema:
+      type: str
+    # Enable memory at node level (inherits workflow default_scope)
+    memory:
+      enabled: true
+      default_scope: workflow
+
+  # Node 2: Generate response and update memory
+  - id: respond
+    name: Generate Response
+    prompt: |
+      User message: "{user_message}"
+      Greeting: "{greeting}"
+
+      Write a helpful response to the user.
+    outputs: [response]
+    output_schema:
+      type: str
+    memory:
+      enabled: true
+      default_scope: workflow
+
+  # Node 3: Update conversation context in memory
+  - id: update_memory
+    name: Update Memory
+    prompt: |
+      Current message: "{user_message}"
+      Our response: "{response}"
+
+      Create a summary of this interaction to store in memory for future conversations.
+      Keep it concise (2-3 sentences).
+    outputs: [updated_context]
+    output_schema:
+      type: str
+    memory:
+      enabled: true
+      default_scope: workflow
+
+edges:
+  - {from: START, to: greet}
+  - {from: greet, to: respond}
+  - {from: respond, to: update_memory}
+  - {from: update_memory, to: END}
+
+# Example memory usage patterns:
+#
+# 1. Agent-scoped memory (shared across all workflows):
+#    memory:
+#      enabled: true
+#      default_scope: agent
+#
+# 2. Workflow-scoped memory (shared across nodes, this workflow only):
+#    memory:
+#      enabled: true
+#      default_scope: workflow
+#
+# 3. Node-scoped memory (isolated to this node):
+#    memory:
+#      enabled: true
+#      default_scope: node
+#
+# Memory is accessed via AgentMemory class in code nodes:
+#   - agent.memory['key'] for reading
+#   - agent.memory.write('key', value) for writing

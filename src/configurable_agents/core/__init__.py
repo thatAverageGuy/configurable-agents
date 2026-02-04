@@ -1,26 +1,65 @@
-"""
-Configurable Agents Core Module
+"""Core execution components"""
 
-Dynamic, runtime-configurable CrewAI agent system.
-"""
-
-from .flow_builder import build_flow_class
-from .crew_builder import build_crew
-from .model_builder import build_pydantic_model
-from .tool_registry import get_tool, list_available_tools
-from .utils import resolve_template, get_nested_value, set_nested_value
-from .flow_visualizer import generate_mermaid_diagram, generate_crew_diagram, get_flow_summary
+from configurable_agents.core.control_flow import (
+    ControlFlowError,
+    create_loop_router,
+    create_routing_function,
+    get_loop_iteration_key,
+    increment_loop_iteration,
+)
+from configurable_agents.core.output_builder import (
+    OutputBuilderError,
+    build_output_model,
+)
+from configurable_agents.core.parallel import (
+    create_fan_out_function,
+    get_parallel_index,
+    get_parallel_item,
+    is_parallel_execution,
+)
+from configurable_agents.core.state_builder import (
+    StateBuilderError,
+    build_state_model,
+)
+from configurable_agents.core.template import (
+    TemplateResolutionError,
+    resolve_prompt,
+    extract_variables,
+)
+from configurable_agents.core.node_executor import (
+    NodeExecutionError,
+    execute_node,
+)
+from configurable_agents.core.graph_builder import (
+    GraphBuilderError,
+    build_graph,
+)
 
 __all__ = [
-    'build_flow_class',
-    'build_crew',
-    'build_pydantic_model',
-    'get_tool',
-    'list_available_tools',
-    'resolve_template',
-    'get_nested_value',
-    'set_nested_value',
-    'generate_mermaid_diagram',
-    'generate_crew_diagram',
-    'get_flow_summary',
+    # Control flow
+    "create_routing_function",
+    "create_loop_router",
+    "get_loop_iteration_key",
+    "increment_loop_iteration",
+    "ControlFlowError",
+    # Parallel execution
+    "create_fan_out_function",
+    "get_parallel_index",
+    "get_parallel_item",
+    "is_parallel_execution",
+    # State and output
+    "build_state_model",
+    "StateBuilderError",
+    "build_output_model",
+    "OutputBuilderError",
+    # Template
+    "resolve_prompt",
+    "extract_variables",
+    "TemplateResolutionError",
+    # Node execution
+    "execute_node",
+    "NodeExecutionError",
+    # Graph builder
+    "build_graph",
+    "GraphBuilderError",
 ]

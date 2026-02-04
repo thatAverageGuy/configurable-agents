@@ -1,17 +1,88 @@
-"""
-Configuration Module
+"""Config parsing and validation"""
 
-Application configuration, logging setup, and settings management.
-"""
-
-from .logging_config import setup_logging, get_logger, LoggerMixin
-from .settings import Settings, get_settings, reload_settings
+from configurable_agents.config.parser import (
+    ConfigLoader,
+    ConfigParseError,
+    parse_config_file,
+)
+from configurable_agents.config.schema import (
+    ABTestConfig,
+    EdgeConfig,
+    ExecutionConfig,
+    FlowMetadata,
+    GatesModel,
+    GlobalConfig,
+    LLMConfig,
+    LoopConfig,
+    MLFlowConfig,
+    NodeConfig,
+    ObservabilityConfig,
+    ObservabilityLoggingConfig,
+    ObservabilityMLFlowConfig,
+    OptimizationConfig,
+    OptimizeConfig,
+    OutputSchema,
+    OutputSchemaField,
+    ParallelConfig,
+    QualityGateModel,
+    Route,
+    RouteCondition,
+    StateFieldConfig,
+    StateSchema,
+    StorageConfig,
+    VariantConfig,
+    WorkflowConfig,
+)
+from configurable_agents.config.types import (
+    TypeParseError,
+    get_python_type,
+    parse_type_string,
+    validate_type_string,
+)
+from configurable_agents.config.validator import (
+    ValidationError,
+    validate_config,
+)
 
 __all__ = [
-    "setup_logging",
-    "get_logger",
-    "LoggerMixin",
-    "Settings",
-    "get_settings",
-    "reload_settings",
+    # Parser
+    "ConfigLoader",
+    "ConfigParseError",
+    "parse_config_file",
+    # Schema models
+    "WorkflowConfig",
+    "FlowMetadata",
+    "StateSchema",
+    "StateFieldConfig",
+    "NodeConfig",
+    "OutputSchema",
+    "OutputSchemaField",
+    "EdgeConfig",
+    "Route",
+    "RouteCondition",
+    "LoopConfig",
+    "ParallelConfig",
+    "OptimizationConfig",
+    "OptimizeConfig",
+    "LLMConfig",
+    "ExecutionConfig",
+    "GlobalConfig",
+    "ObservabilityConfig",
+    "ObservabilityMLFlowConfig",
+    "ObservabilityLoggingConfig",
+    "StorageConfig",
+    # Optimization (v0.4+)
+    "MLFlowConfig",
+    "VariantConfig",
+    "ABTestConfig",
+    "QualityGateModel",
+    "GatesModel",
+    # Types
+    "TypeParseError",
+    "parse_type_string",
+    "validate_type_string",
+    "get_python_type",
+    # Validator
+    "ValidationError",
+    "validate_config",
 ]

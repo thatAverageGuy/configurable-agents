@@ -1,4 +1,8 @@
-# src/configurable-agents/__init__.py
-"""Configurable Agents - Dynamic runtime-configurable CrewAI agent system"""
+"""
+Configurable Agents - Config-driven LLM agent workflows
 
-__version__ = "0.1.0"
+A production-grade agent runtime that transforms YAML configurations
+into executable agent workflows.
+"""
+
+__version__ = "0.1.0-dev"

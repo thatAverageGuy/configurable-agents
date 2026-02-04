@@ -1,0 +1,207 @@
+{% extends "base.html" %}
+
+{% block title %}Orchestrator - Configurable Agents Dashboard{% endblock %}
+
+{% block nav_orchestrator %}class="active"{% endblock %}
+
+{% block content %}
+<div class="container-fluid px-4 py-4">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h1>Orchestrator Management</h1>
+        <div>
+            <button class="btn btn-primary" hx-post="/orchestrator/discover" hx-target="#agents-container"
+                hx-swap="outerHTML">
+                Discover Agents
+            </button>
+            <button class="btn btn-secondary ms-2" hx-get="/orchestrator/status" hx-target="#status-container"
+                hx-swap="outerHTML">
+                Refresh Status
+            </button>
+        </div>
+    </div>
+
+    <!-- Status Overview -->
+    <div class="row mb-4" id="status-container">
+        <div class="col-md-12">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="card-title mb-0">Orchestrator Status</h5>
+                </div>
+                <div class="card-body">
+                    <div class="row text-center">
+                        <div class="col-md-3">
+                            <h3 id="stat-connections" class="display-4">-</h3>
+                            <p class="text-muted">Connected Agents</p>
+                        </div>
+                        <div class="col-md-3">
+                            <h3 id="stat-discovered" class="display-4">-</h3>
+                            <p class="text-muted">Discovered Agents</p>
+                        </div>
+                        <div class="col-md-3">
+                            <h3 id="stat-unhealthy" class="display-4">-</h3>
+                            <p class="text-muted">Unhealthy</p>
+                        </div>
+                        <div class="col-md-3">
+                            <h3 id="stat-orchestrators" class="display-4">-</h3>
+                            <p class="text-muted">Active Orchestrators</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Discovered Agents -->
+    <div class="row mb-4" id="agents-container">
+        <div class="col-md-12">
+            <div class="card">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <h5 class="card-title mb-0">Discovered Agents</h5>
+                    <button class="btn btn-sm btn-outline-secondary" hx-get="/orchestrator/agents"
+                        hx-target="#agents-container" hx-swap="outerHTML">
+                        Refresh
+                    </button>
+                </div>
+                <div class="card-body">
+                    <div id="agents-list">
+                        <p class="text-muted">Click "Discover Agents" to find available agents</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Active Connections -->
+    <div class="row" id="connections-container">
+        <div class="col-md-12">
+            <div class="card">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <h5 class="card-title mb-0">Active Connections</h5>
+                    <button class="btn btn-sm btn-outline-secondary" hx-get="/orchestrator/connections"
+                        hx-target="#connections-container" hx-swap="outerHTML">
+                        Refresh
+                    </button>
+                </div>
+                <div class="card-body">
+                    <div id="connections-list">
+                        <p class="text-muted">No active agent connections</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    // Update status display
+    function updateStatus(data) {
+        if (data.orchestrator_id) {
+            document.getElementById('stat-connections').textContent = data.connected_agents || 0;
+            document.getElementById('stat-discovered').textContent = data.discovered_agents || 0;
+            document.getElementById('stat-unhealthy').textContent = data.unhealthy_agents ? data.unhealthy_agents.length : 0;
+        }
+    }
+
+    // Update discovered agents list
+    function updateAgentsList(data) {
+        const container = document.getElementById('agents-list');
+
+        if (!data.agents || data.agents.length === 0) {
+            container.innerHTML = '<p class="text-muted">No agents discovered</p>';
+            return;
+        }
+
+        let html = '<div class="list-group">';
+        data.agents.forEach(agent => {
+            const isAlive = agent.is_alive ? '<span class="badge bg-success">Alive</span>' : '<span class="badge bg-secondary">Dead</span>';
+            const canConnect = agent.is_alive ?
+                `<button class="btn btn-sm btn-primary" hx-post="/orchestrator/connect/${agent.agent_id}" hx-target="#connections-container" hx-swap="outerHTML">Connect</button>` :
+                '<span class="text-muted">Unavailable</span>';
+
+            html += `
+                <div class="list-group-item">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <strong>${agent.agent_name}</strong> (${agent.agent_id})
+                            <br>
+                            <small class="text-muted">${agent.host}:${agent.port}</small>
+                        </div>
+                        <div>
+                            ${isAlive}
+                            ${canConnect}
+                        </div>
+                    </div>
+                </div>
+            `;
+        });
+        html += '</div>';
+        container.innerHTML = html;
+    }
+
+    // Update connections list
+    function updateConnectionsList(data) {
+        const container = document.getElementById('connections-list');
+
+        if (!data.connections || data.connections.length === 0) {
+            container.innerHTML = '<p class="text-muted">No active agent connections</p>';
+            return;
+        }
+
+        let html = '<div class="list-group">';
+        data.connections.forEach(conn => {
+            const statusBadge = conn.is_healthy ?
+                '<span class="badge bg-success">Healthy</span>' :
+                '<span class="badge bg-warning">Unhealthy</span>';
+
+            html += `
+                <div class="list-group-item">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <strong>${conn.agent_name}</strong> (${conn.agent_id})
+                            <br>
+                            <small class="text-muted">${conn.host}:${conn.port}</small>
+                            <br>
+                            ${statusBadge}
+                        </div>
+                        <div>
+                            <button class="btn btn-sm btn-outline-danger"
+                                hx-delete="/orchestrator/disconnect/${conn.agent_id}"
+                                hx-target="#connections-container"
+                                hx-swap="outerHTML">
+                                Disconnect
+                            </button>
+                        </div>
+                    </div>
+                    ${conn.error_message ? `<div class="text-danger mt-2"><small>${conn.error_message}</small></div>` : ''}
+                </div>
+            `;
+        });
+        html += '</div>';
+        container.innerHTML = html;
+    }
+
+    // Listen for HTMX events
+    document.body.addEventListener('htmx:afterSwap', function(event) {
+        // Check if response contains status data
+        if (event.detail.xhr.status === 200) {
+            try {
+                const contentType = event.detail.xhr.getResponseHeader('Content-Type');
+                if (contentType && contentType.includes('application/json')) {
+                    const data = JSON.parse(event.detail.xhr.responseText);
+                    if (data.orchestrator_id !== undefined) {
+                        updateStatus(data);
+                    } else if (data.agents !== undefined) {
+                        updateAgentsList(data);
+                    } else if (data.connections !== undefined) {
+                        updateConnectionsList(data);
+                    }
+                }
+            } catch (e) {
+                console.error('Failed to parse response:', e);
+            }
+        }
+    });
+</script>
+{% endblock %}

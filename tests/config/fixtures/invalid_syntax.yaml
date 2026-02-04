@@ -1,0 +1,6 @@
+flow:
+  name: "test
+  # Missing closing quote - invalid YAML
+nodes:
+  - id: test
+    missing_colon value

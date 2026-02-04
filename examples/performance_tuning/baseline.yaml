@@ -1,0 +1,36 @@
+# Baseline Performance Example
+# Unoptimized version for performance comparison
+
+name: Baseline Research Workflow
+description: Unoptimized research for performance comparison
+
+version: "1.0"
+
+state:
+  type: object
+  properties:
+    query:
+      type: string
+
+nodes:
+  - name: search
+    llm:
+      provider: google
+      model: gemini-1.5-pro  # More expensive model
+    tools:
+      - web_search
+    prompt: |
+      Search for information about: {query}
+
+      Use web_search tool to find relevant information.
+
+  - name: analyze
+    llm:
+      provider: google
+      model: gemini-1.5-pro
+    prompt: |
+      Analyze the search results: {search_results}
+
+edges:
+  - from: search
+    to: analyze

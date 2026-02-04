@@ -1,0 +1,103 @@
+schema_version: "1.0"
+
+flow:
+  name: type_enforcement_demo
+  description: Demonstrates type enforcement with various output types
+  version: "1.0.0"
+
+state:
+  fields:
+    topic:
+      type: str
+      required: true
+      description: A topic to analyze
+
+    # Simple types
+    score:
+      type: int
+      default: 0
+      description: Numeric score (1-100)
+
+    is_trending:
+      type: bool
+      default: false
+      description: Whether the topic is trending
+
+    # Collection types
+    keywords:
+      type: list[str]
+      default: []
+      description: List of relevant keywords
+
+    categories:
+      type: dict[str, int]
+      default: {}
+      description: Category names mapped to relevance scores
+
+    # Complex object
+    analysis:
+      type: object
+      default: null
+      description: Detailed analysis results
+      schema:
+        summary: str
+        sentiment: str
+        confidence: float
+        tags: list[str]
+
+nodes:
+  - id: analyze_topic
+    description: Analyze the topic and produce typed outputs
+    prompt: |
+      Analyze this topic: {state.topic}
+
+      Provide:
+      1. A popularity score from 1-100 (integer)
+      2. Whether it's currently trending (true/false)
+      3. A list of 5-7 relevant keywords
+      4. A dict mapping 3-5 category names to relevance scores (0-100)
+      5. A detailed analysis object with:
+         - A 2-3 sentence summary
+         - Overall sentiment (positive/neutral/negative)
+         - Confidence level (0.0-1.0)
+         - 3-5 tags
+
+      Be precise with types - integers must be whole numbers,
+      booleans must be true/false, floats must have decimals.
+    outputs: [score, is_trending, keywords, categories, analysis]
+    output_schema:
+      type: object
+      fields:
+        - name: score
+          type: int
+          description: Popularity score 1-100
+
+        - name: is_trending
+          type: bool
+          description: True if currently trending
+
+        - name: keywords
+          type: list[str]
+          description: List of relevant keywords
+
+        - name: categories
+          type: dict[str, int]
+          description: Category to relevance score mapping
+
+        - name: analysis
+          type: object
+          description: Detailed analysis
+          schema:
+            summary: str
+            sentiment: str
+            confidence: float
+            tags: list[str]
+
+edges:
+  - {from: START, to: analyze_topic}
+  - {from: analyze_topic, to: END}
+
+config:
+  llm:
+    model: "gemini-2.5-flash-lite"
+    temperature: 0.3  # Lower temperature for more consistent typing

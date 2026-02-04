@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}Configurable Agents Dashboard{% endblock %}</title>
+
+    <!-- HTMX CDN -->
+    <script src="https://unpkg.com/htmx.org@1.9.10"></script>
+
+    <!-- HTMX SSE Extension -->
+    <script src="https://unpkg.com/htmx.org/dist/ext/sse.js"></script>
+
+    <!-- Dashboard CSS -->
+    <link rel="stylesheet" href="/static/dashboard.css">
+
+    {% block head %}{% endblock %}
+</head>
+<body>
+    <!-- Navigation Bar -->
+    <nav class="navbar">
+        <div class="nav-container">
+            <div class="nav-brand">
+                <a href="/">Configurable Agents</a>
+            </div>
+            <ul class="nav-links">
+                <li><a href="/" {% block nav_dashboard %}{% endblock %}>Dashboard</a></li>
+                <li><a href="/workflows" {% block nav_workflows %}{% endblock %}>Workflows</a></li>
+                <li><a href="/agents" {% block nav_agents %}{% endblock %}>Agents</a></li>
+                <li><a href="/orchestrator" {% block nav_orchestrator %}{% endblock %}>Orchestrator</a></li>
+                <li><a href="/mlflow" {% block nav_mlflow %}{% endblock %}>MLFlow</a></li>
+                <li><a href="/optimization/experiments" {% block nav_optimization %}{% endblock %}>Optimization</a></li>
+            </ul>
+        </div>
+    </nav>
+
+    <!-- Main Content -->
+    <main class="main-content">
+        {% block content %}{% endblock %}
+    </main>
+
+    <!-- SSE Reconnection Script -->
+    <script>
+        // Auto-reconnect SSE connections on error
+        document.body.addEventListener('htmx:sseError', function(evt) {
+            console.log('SSE connection error, will attempt reconnect...');
+            // HTMX SSE extension handles auto-reconnect
+        });
+
+        document.body.addEventListener('htmx:sseOpen', function(evt) {
+            console.log('SSE connection established');
+        });
+    </script>
+
+    {% block scripts %}{% endblock %}
+</body>
+</html>

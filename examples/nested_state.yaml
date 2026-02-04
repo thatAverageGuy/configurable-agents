@@ -1,0 +1,61 @@
+schema_version: "1.0"
+
+flow:
+  name: user_profile_generator
+  description: Demonstrates nested state with object types
+  version: "1.0.0"
+
+state:
+  fields:
+    name:
+      type: str
+      required: true
+      description: The user's name
+
+    interests:
+      type: list[str]
+      required: true
+      description: List of user interests
+
+    profile:
+      type: object
+      description: Generated user profile with nested structure
+      schema:
+        bio: str
+        personality_traits: list[str]
+        recommended_topics: list[str]
+        engagement_score: int
+      default: null
+
+nodes:
+  - id: generate_profile
+    description: Generate a comprehensive user profile based on name and interests
+    prompt: |
+      Create a user profile for {state.name} who is interested in: {state.interests}
+
+      Generate:
+      1. A 2-3 sentence bio
+      2. 3-5 personality traits (as a list)
+      3. 5 recommended topics they might enjoy (as a list)
+      4. An engagement score from 1-100 based on diversity of interests
+    outputs: [profile]
+    output_schema:
+      type: object
+      fields:
+        - name: profile
+          type: object
+          description: Complete user profile
+          schema:
+            bio: str
+            personality_traits: list[str]
+            recommended_topics: list[str]
+            engagement_score: int
+
+edges:
+  - {from: START, to: generate_profile}
+  - {from: generate_profile, to: END}
+
+config:
+  llm:
+    model: "gemini-2.5-flash-lite"
+    temperature: 0.8
