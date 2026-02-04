@@ -260,22 +260,153 @@ print(f"Analysis: {result['analysis']}")
 
 ## Example Summary Table
 
-| Example | Complexity | Nodes | Tools | Key Learning |
-|---------|------------|-------|-------|--------------|
-| echo.yaml | ⭐ Minimal | 1 | None | Basic structure |
-| simple_workflow.yaml | ⭐⭐ Basic | 1 | None | State & prompts |
-| article_writer.yaml | ⭐⭐⭐ Intermediate | 2 | serper_search | Multi-step + tools |
-| nested_state.yaml | ⭐⭐ Intermediate | 1 | None | Nested objects |
-| type_enforcement.yaml | ⭐⭐⭐ Advanced | 1 | None | Type system |
+| Example | Complexity | Nodes | Tools | Code | MLFlow | Key Learning |
+|---------|------------|-------|-------|------|--------|--------------|
+| echo.yaml | ⭐ Minimal | 1 | ❌ | ❌ | ❌ | Basic structure |
+| simple_workflow.yaml | ⭐⭐ Basic | 1 | ❌ | ❌ | ❌ | State & prompts |
+| article_writer.yaml | ⭐⭐⭐ Intermediate | 2 | ✅ | ❌ | Optional | Multi-step + tools |
+| nested_state.yaml | ⭐⭐ Intermediate | 1 | ❌ | ❌ | ❌ | Nested objects |
+| type_enforcement.yaml | ⭐⭐⭐ Advanced | 1 | ❌ | ❌ | ❌ | Type system |
+| mlflow_optimization.yaml | ⭐⭐⭐ Advanced | 1 | ✅ | ❌ | ✅ | A/B testing & optimization |
+| sandbox_example.yaml | ⭐⭐⭐ Advanced | 1 | ❌ | ✅ | Optional | Code execution sandbox |
+| webhook_integration/ | ⭐⭐⭐⭐ Production | 2 | ✅ | ❌ | Optional | Event-driven automation |
+| multi_agent_collaboration/ | ⭐⭐⭐⭐⭐ Advanced | 3+ | ✅ | ❌ | ✅ | Orchestrated multi-agent |
+| performance_tuning/ | ⭐⭐⭐⭐ Production | 2 | ✅ | ❌ | ✅ | Performance optimization |
 
 ## Recommended Learning Path
 
-1. **Start here**: `echo.yaml` - Verify installation works
-2. **Basic features**: `simple_workflow.yaml` - Understand state and prompts
-3. **Choose your path**:
-   - **Want multi-step workflows?** → `article_writer.yaml`
-   - **Want complex data structures?** → `nested_state.yaml`
-   - **Want type mastery?** → `type_enforcement.yaml`
+### Level 1: Getting Started (⭐)
+1. **[echo.yaml](echo.yaml)** - Verify installation works (5 min)
+2. **[simple_workflow.yaml](simple_workflow.yaml)** - Understand state and prompts (10 min)
+
+### Level 2: Intermediate (⭐⭐)
+3. **[article_writer.yaml](article_writer/)** - Multi-step with tools (20 min)
+4. **[nested_state.yaml](nested_state/)** - Complex data structures (15 min)
+
+### Level 3: Advanced (⭐⭐⭐)
+5. **[type_enforcement.yaml](type_enforcement/)** - Type system mastery (20 min)
+6. **[tools_example.yaml](tools_example/)** - Tool integrations (15 min)
+7. **[mlflow_optimization.yaml](mlflow_optimization/)** - A/B testing and optimization (30 min)
+
+### Level 4: Production-Ready (⭐⭐⭐⭐)
+8. **[sandbox_example.yaml](sandbox_example/)** - Code execution sandboxing (20 min)
+9. **[webhook_integration/](webhook_integration/)** - Event-driven automation (30 min)
+10. **[performance_tuning/](performance_tuning/)** - Production optimization (45 min)
+
+### Level 5: Real-World Integrations (⭐⭐⭐⭐⭐)
+11. **[multi_agent_collaboration/](multi_agent_collaboration/)** - Orchestrated multi-agent systems (60 min)
+
+## Advanced Examples
+
+### 6. webhook_integration/ ⭐⭐⭐⭐ (Production)
+
+**Complexity**: Production
+**What it demonstrates**: Event-driven automation with external webhooks
+
+Trigger workflows from external services (GitHub, Stripe, custom systems) via webhooks.
+
+**Features:**
+- Webhook triggering with generic endpoint
+- Event processing and logging
+- Notification formatting
+- MLFlow tracking for webhook events
+- Production deployment with HMAC signature verification
+
+**Prerequisites:**
+- Dashboard server running
+- Ngrok or public IP for testing
+
+**Usage:**
+```bash
+# Start dashboard
+configurable-agents dashboard --port 8000
+
+# Send webhook
+curl -X POST http://localhost:8000/webhooks/generic \
+  -H "Content-Type: application/json" \
+  -d '{"workflow_name": "slack_notification", "inputs": {...}}'
+```
+
+**Learn more**: [webhook_integration/README.md](webhook_integration/README.md)
+
+---
+
+### 7. multi_agent_collaboration/ ⭐⭐⭐⭐⭐ (Advanced)
+
+**Complexity**: Advanced
+**What it demonstrates**: Orchestrated multi-agent systems
+
+Orchestrate multiple specialist agents working in parallel to accomplish complex tasks.
+
+**Features:**
+- Agent registration and discovery
+- Metadata-based agent filtering
+- Parallel agent execution
+- Orchestrator pattern
+- Multi-agent coordination
+
+**Prerequisites:**
+- Agent registry running
+- Multiple agent instances registered
+
+**Usage:**
+```bash
+# Start registry
+configurable-agents registry --port 8000
+
+# Register specialist agents
+configurable-agents agent start --name researcher --port 8001
+configurable-agents agent start --name analyst --port 8002
+
+# Run orchestrated workflow
+configurable-agents run multi_agent_collaboration.yaml \
+  --orchestrator-url http://localhost:8000
+```
+
+**Learn more**: [multi_agent_collaboration/README.md](multi_agent_collaboration/README.md)
+
+---
+
+### 8. performance_tuning/ ⭐⭐⭐⭐ (Production)
+
+**Complexity**: Production
+**What it demonstrates**: Performance optimization techniques
+
+Demonstrates various performance optimization techniques to reduce cost and latency.
+
+**Features:**
+- Model selection (cheaper vs expensive models)
+- Response caching (cache configuration)
+- A/B testing (prompt optimization)
+- Quality gates (cost/latency thresholds)
+- Performance benchmarking
+
+**Prerequisites:**
+- MLFlow setup
+- Basic performance concepts
+
+**Usage:**
+```bash
+# Run benchmark
+python benchmark.py
+
+# Run optimized workflow
+configurable-agents run performance_tuning.yaml \
+  --query "performance optimization"
+
+# View A/B test results
+configurable-agents optimization evaluate \
+  --workflow performance_tuning.yaml \
+  --experiment-name "performance_optimization"
+```
+
+**Expected Results:**
+- 60-80% cost reduction vs baseline
+- 50-60% latency reduction vs baseline
+
+**Learn more**: [performance_tuning/README.md](performance_tuning/README.md)
+
+---
 
 ## Error Handling
 

@@ -1,0 +1,94 @@
+# Multi-Agent Collaboration Example
+# This example demonstrates orchestrating multiple specialist agents
+
+name: Multi-Agent Research Team
+description: Orchestrated research with specialist agents working in parallel
+
+version: "1.0"
+
+state:
+  type: object
+  properties:
+    research_topic:
+      type: string
+      description: Topic to research
+    specialist_agents:
+      type: array
+      items:
+        type: string
+      description: List of specialist agent types
+    findings:
+      type: object
+      description: Collected findings from all agents
+
+nodes:
+  - name: coordinator
+    llm:
+      provider: google
+      model: gemini-1.5-flash
+    prompt: |
+      You are coordinating a research project on: {research_topic}
+
+      Available specialists: {specialist_agents}
+
+      Create a research plan assigning tasks to each specialist agent.
+      Consider their expertise areas and divide the work appropriately.
+
+      Provide:
+      1. Research objectives
+      2. Task assignments
+      3. Timeline
+      4. Expected outcomes
+
+  - name: researcher
+    llm:
+      provider: google
+      model: gemini-1.5-pro
+    tools:
+      - web_search
+    prompt: |
+      You are a research specialist. Your task is related to: {research_topic}
+
+      Research your assigned task using web search to gather current information.
+
+      Provide:
+      1. Key findings
+      2. Data sources
+      3. Methodology
+      4. Limitations
+
+  - name: analyst
+    llm:
+      provider: google
+      model: gemini-1.5-flash
+    prompt: |
+      You are a data analyst. Analyze the findings from all specialists.
+
+      Findings collected:
+      {findings}
+
+      Synthesize into a comprehensive report including:
+      1. Executive summary
+      2. Key insights
+      3. Data-driven recommendations
+      4. Areas for further research
+
+edges:
+  - from: coordinator
+    to: researcher
+  - from: researcher
+    to: analyst
+
+orchestration:
+  enable_registry: true
+  agent_discovery:
+    metadata_filter:
+      capability: research
+  parallel_execution: true
+  max_parallel_agents: 5
+  timeout: 300
+
+observability:
+  mlflow:
+    enabled: true
+    experiment_name: "multi_agent_collaboration"

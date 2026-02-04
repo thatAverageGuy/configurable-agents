@@ -1,0 +1,76 @@
+# Performance Tuning Example
+# This example demonstrates various performance optimization techniques
+
+name: Optimized Research Workflow
+description: Performance-optimized research with A/B testing and caching
+
+version: "1.0"
+
+state:
+  type: object
+  properties:
+    query:
+      type: string
+      description: Search query
+    search_results:
+      type: array
+      items:
+        type: object
+      description: Cached search results
+
+nodes:
+  - name: search
+    llm:
+      provider: google
+      model: gemini-1.5-flash  # Cheaper model for simple tasks
+    tools:
+      - web_search
+    cache:
+      enabled: true
+      ttl: 3600  # Cache for 1 hour
+    prompt: |
+      Search for information about: {query}
+
+      Use the web_search tool to find relevant information.
+      Provide comprehensive results.
+
+  - name: analyze
+    llm:
+      provider: google
+      model: gemini-1.5-flash
+    optimization:
+      ab_test:
+        variants:
+          - name: prompt_v1
+            prompt: |
+              Analyze these search results: {search_results}
+
+              Provide key insights.
+          - name: prompt_v2
+            prompt: |
+              Please provide a comprehensive analysis of the following search results:
+              {search_results}
+
+              Focus on key insights and actionable information.
+              Organize your response clearly with bullet points.
+        metric: cost_usd
+        direction: minimize
+        sample_size: 50
+    gates:
+      - metric: cost_usd
+        max: 0.10
+        action: WARN
+      - metric: latency_ms
+        max: 3000
+        action: FAIL
+    prompt: |
+      Analyze the search results and provide key insights.
+
+edges:
+  - from: search
+    to: analyze
+
+observability:
+  mlflow:
+    enabled: true
+    experiment_name: "performance_optimization"

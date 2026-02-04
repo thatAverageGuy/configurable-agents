@@ -541,6 +541,59 @@ Full task breakdown: [docs/TASKS.md](docs/TASKS.md)
   - Dependencies installation
   - Running tests
 
+- **[CONTRIBUTING.md](CONTRIBUTING.md)** - Contribution guide ⭐ NEW
+  - *How to contribute to the project*
+  - Development workflow
+  - Code standards and testing
+  - Pull request process
+
+### API Documentation
+
+- **[API Reference](docs/api/)** - Complete API documentation ⭐ NEW
+  - *Auto-generated from source code*
+  - Runtime, config, core, LLM, tools modules
+  - Function signatures and parameters
+  - Usage examples
+
+**Build API docs locally:**
+```bash
+# Build documentation
+poe docs:build
+
+# Serve locally (http://localhost:8000)
+poe docs:serve
+```
+
+### Advanced Topics
+
+- **[ADVANCED_TOPICS.md](docs/ADVANCED_TOPICS.md)** - Advanced features guide ⭐ NEW
+  - *Overview of advanced capabilities*
+  - Links to detailed guides
+
+- **[TOOL_DEVELOPMENT.md](docs/TOOL_DEVELOPMENT.md)** - Custom tool creation
+  - *Create and integrate custom tools*
+  - Tool interface and patterns
+  - Security considerations
+  - Best practices
+
+- **[SECURITY_GUIDE.md](docs/SECURITY_GUIDE.md)** - Security best practices
+  - *Sandbox execution and code safety*
+  - Webhook security
+  - Command restrictions
+  - Production security checklist
+
+- **[PERFORMANCE_OPTIMIZATION.md](docs/PERFORMANCE_OPTIMIZATION.md)** - Performance tuning
+  - *A/B testing and quality gates*
+  - Profiling and bottleneck detection
+  - Cost optimization
+  - Resource management
+
+- **[PRODUCTION_DEPLOYMENT.md](docs/PRODUCTION_DEPLOYMENT.md)** - Production patterns
+  - *Deployment architectures*
+  - Storage backends (SQLite, PostgreSQL)
+  - Scaling strategies
+  - High availability setup
+
 ---
 
 ## 🤝 Contributing
