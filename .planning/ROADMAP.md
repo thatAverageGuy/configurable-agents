@@ -101,12 +101,12 @@ Plans:
   2. User can run a workflow twice and observe that the second execution uses context from the first (persistent memory across runs)
   3. User can add pre-built tools (web search, API calls, data processing) to workflow nodes via YAML config without writing code
   4. User can run A/B prompt experiments through MLFlow and see which prompt variant produces better results at lower cost
-**Plans**: 3 plans
+**Plans**: 3 plans (1 wave)
 
-Plans:
-- [ ] 04-01: Code execution sandbox (Docker-based isolation with resource limits, network controls, and disposable environments)
-- [ ] 04-02: Long-term memory and tool ecosystem (persistent per-agent memory storage, LangChain tools subset integration)
-- [ ] 04-03: MLFlow optimization (prompt experimentation, evaluations, A/B testing, quality gates)
+**Wave 1 (parallel execution):**
+- [ ] 04-01-PLAN.md -- Code execution sandbox (RestrictedPython default, Docker opt-in, resource presets, network controls) [Wave 1]
+- [ ] 04-02-PLAN.md -- Long-term memory and tool ecosystem (AgentMemory with namespaced keys, 12+ pre-built tools) [Wave 1]
+- [ ] 04-03-PLAN.md -- MLFlow optimization (A/B testing, experiment evaluator, quality gates, CLI/dashboard UI) [Wave 1]
 
 ## Progress
 
