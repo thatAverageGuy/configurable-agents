@@ -11,9 +11,9 @@ See: .planning/PROJECT.md (updated 2026-02-04)
 
 Milestone: v1.1 Core UX Polish
 Phase: 5 of 6 (Foundation & Reliability)
-Plan: 2 of 3 in current phase
+Plan: 1 of 3 in current phase
 Status: In progress
-Last activity: 2026-02-04 — Completed 05-02: Database Auto-Initialization
+Last activity: 2026-02-04 — Completed 05-01: Single-Command Startup
 
 Progress: [█████████░░░░░░░░░] 64% (20/31 plans complete from v1.0, 1/6 from v1.1)
 
@@ -28,9 +28,9 @@ Progress: [█████████░░░░░░░░░] 64% (20/31 pl
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 19 (v1.0)
+- Total plans completed: 20 (v1.0)
 - Average duration: ~19 min
-- Total execution time: ~6.0 hours
+- Total execution time: ~6.3 hours
 
 **By Phase:**
 
@@ -40,12 +40,12 @@ Progress: [█████████░░░░░░░░░] 64% (20/31 pl
 | 2. Agent Infrastructure | 6 | 106 | 18 min |
 | 3. Interfaces & Triggers | 6 | 106 | 18 min |
 | 4. Advanced Capabilities | 3 | 151 | 50 min |
-| 5. Foundation & Reliability | 1 | 18 | 18 min |
+| 5. Foundation & Reliability | 1 | 8 | 8 min |
 | 6. Navigation & Onboarding | 0 | - | - |
 
 **Recent Trend:**
-- Last 3 plans: 05-02 (18 min), 04-03 (45 min), 04-02 (45 min)
-- Trend: Phase 5 underway, database auto-init complete
+- Last 3 plans: 05-01 (8 min), 05-02 (18 min), 04-03 (45 min)
+- Trend: Phase 5 underway, single-command startup complete
 
 *Updated: 2026-02-04*
 
@@ -62,9 +62,10 @@ Recent decisions affecting current work:
 - [v1.0 Roadmap]: Code execution sandbox deferred to Phase 4 (needs UI from Phase 3 for management)
 - [v1.1 Roadmap]: 2-phase structure for polish milestone (Foundation + Navigation)
 - [v1.1 Roadmap]: Auto-init and single-command startup as Phase 5 prerequisites for all UX improvements
-- [05-02 Auto-init]: Use Rich spinner only when tables need creation (silent on subsequent runs)
-- [05-02 Auto-init]: No Alembic migrations needed for single-user SQLite (create_all is sufficient)
-- [05-02 Auto-init]: All entry points (CLI, dashboard, Python API) call ensure_initialized() before using storage
+- [05-01 ProcessManager]: Use multiprocessing.Process with daemon=False for clean shutdown on Windows
+- [05-01 ProcessManager]: SessionState uses Integer for dirty_shutdown (SQLite boolean compatibility)
+- [05-01 ProcessManager]: 5-second terminate timeout before force kill
+- [05-01 ProcessManager]: Signal handlers registered after process spawning to avoid child process issues
 
 ### Pending Todos
 
@@ -72,15 +73,17 @@ None yet.
 
 ### Blockers/Concerns
 
-**Research gaps identified in SUMMARY_V11.md:**
+**Windows multiprocessing quirks addressed:**
+- ProcessManager uses spawn method (default on Windows) with pickleable targets
+- Signal handlers registered after process spawning to avoid child process issues
+- SIGINT only on Windows (full SIGINT/SIGTERM support on Unix)
+
+**Remaining research gaps:**
 - Gradio root_path behind reverse proxy (known bug in 4.21.0+)
 - MLFlow auto-start from Python vs subprocess
-- Windows multiprocessing quirks (spawn vs fork)
-
-**Mitigation:** These will be addressed during Phase 5 planning.
 
 ## Session Continuity
 
 Last session: 2026-02-04
-Stopped at: Completed 05-02: Database Auto-Initialization
+Stopped at: Completed 05-01-PLAN.md
 Resume file: None
