@@ -1,0 +1,29 @@
+{% macro error_card(error) -%}
+<div class="error-container">
+  <div class="error-header">
+    <span class="error-icon">⚠</span>
+    <h2 class="error-title">{{ error.title }}</h2>
+  </div>
+
+  <p class="error-description">{{ error.description }}</p>
+
+  <div class="error-resolution">
+    <h3>How to fix this:</h3>
+    <ol class="resolution-steps">
+      {% for step in error.resolution_steps %}
+      <li>{{ step }}</li>
+      {% endfor %}
+    </ol>
+  </div>
+
+  {% if error.technical_details %}
+  <details class="error-details">
+    <summary>Show technical details</summary>
+    <pre class="error-stacktrace">{{ error.technical_details }}</pre>
+  </details>
+  {% endif %}
+</div>
+{%- endmacro %}
+
+{# Usage example: #}
+{# {{ error_card(error) }} #}
