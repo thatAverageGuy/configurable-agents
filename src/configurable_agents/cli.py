@@ -1466,6 +1466,59 @@ def cmd_chat(args: argparse.Namespace) -> int:
         return 1
 
 
+def _run_dashboard_service(host: str, port: int, db_url: str, mlflow_uri: Optional[str], verbose: bool) -> None:
+    """
+    Run dashboard server - module level for pickle compatibility on Windows.
+
+    On Windows, multiprocessing uses the 'spawn' method which requires
+    functions passed to Process() to be pickleable. Nested functions cannot
+    be pickled, so this must be a module-level function.
+
+    Args:
+        host: Host to bind to
+        port: Port to bind to
+        db_url: Database URL
+        mlflow_uri: MLFlow tracking URI (optional)
+        verbose: Whether to enable verbose logging
+    """
+    dashboard = create_dashboard_app(
+        db_url=db_url,
+        mlflow_tracking_uri=mlflow_uri,
+    )
+    uvicorn.run(
+        dashboard.get_app(),
+        host=host,
+        port=port,
+        log_level="info" if verbose else "warning",
+    )
+
+
+def _run_chat_service(host: str, port: int, dashboard_host: str, dashboard_port: int, verbose: bool) -> None:
+    """
+    Run chat UI - module level for pickle compatibility on Windows.
+
+    On Windows, multiprocessing uses the 'spawn' method which requires
+    functions passed to Process() to be pickleable. Nested functions cannot
+    be pickled, so this must be a module-level function.
+
+    Args:
+        host: Host to bind to
+        port: Port to bind to
+        dashboard_host: Dashboard host for constructing dashboard URL
+        dashboard_port: Dashboard port for constructing dashboard URL
+        verbose: Whether to enable verbose output
+    """
+    dashboard_url = f"http://{dashboard_host}:{dashboard_port}"
+    from configurable_agents.ui import create_gradio_chat_ui
+    ui = create_gradio_chat_ui(dashboard_url=dashboard_url)
+    ui.launch(
+        server_name=host,
+        server_port=port,
+        share=False,
+        quiet=not verbose,
+    )
+
+
 def cmd_ui(args: argparse.Namespace) -> int:
     """
     Launch the complete Configurable Agents UI (Dashboard + Chat).
@@ -1508,33 +1561,10 @@ def cmd_ui(args: argparse.Namespace) -> int:
     # Mark session as dirty (crash detection for next run) - no-op until Task 4
     manager.mark_session_dirty()
 
-    # Define run functions that can be pickled (top-level, not closures)
-    def run_dashboard():
-        """Run dashboard server."""
-        dashboard = create_dashboard_app(
-            db_url=args.db_url,
-            mlflow_tracking_uri=args.mlflow_uri,
-        )
-        uvicorn.run(
-            dashboard.get_app(),
-            host=args.host,
-            port=args.dashboard_port,
-            log_level="info" if args.verbose else "warning",
-        )
-
-    def run_chat():
-        """Run chat UI."""
-        dashboard_url = f"http://{args.host}:{args.dashboard_port}"
-        from configurable_agents.ui import create_gradio_chat_ui
-        ui = create_gradio_chat_ui(dashboard_url=dashboard_url)
-        ui.launch(
-            server_name=args.host,
-            server_port=args.chat_port,
-            share=False,
-            quiet=not args.verbose,
-        )
-
     # Add dashboard service
+    # Use lambda to wrap module-level function for pickle compatibility on Windows
+    # The lambda is defined at module-level scope (indirectly) and only closes
+    # over simple values from args, making it pickleable via spawn method
     if console:
         console.print(f"[bold blue]Starting Dashboard...[/bold blue]")
     else:
@@ -1542,7 +1572,13 @@ def cmd_ui(args: argparse.Namespace) -> int:
 
     manager.add_service(ServiceSpec(
         name="dashboard",
-        target=run_dashboard,
+        target=lambda: _run_dashboard_service(
+            args.host,
+            args.dashboard_port,
+            args.db_url,
+            args.mlflow_uri,
+            args.verbose,
+        ),
     ))
 
     if console:
@@ -1559,7 +1595,13 @@ def cmd_ui(args: argparse.Namespace) -> int:
 
         manager.add_service(ServiceSpec(
             name="chat",
-            target=run_chat,
+            target=lambda: _run_chat_service(
+                args.host,
+                args.chat_port,
+                args.host,
+                args.dashboard_port,
+                args.verbose,
+            ),
         ))
 
         if console:
