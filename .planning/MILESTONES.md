@@ -24,6 +24,28 @@
 
 **Git range:** Project inception → present
 
-**What's next:** TBD (user to define next milestone goals)
+---
+
+## v1.1 Core UX Polish (In Progress: 2026-02-04)
+
+**Goal:** Streamline developer experience with single-command startup, auto-initialization, intuitive navigation, and clear guidance.
+
+**Phases planned:** 5-6 (6 plans)
+
+**Target improvements:**
+
+- Single command startup (one command spins up entire UI)
+- Auto-initialization (MLFlow/SQLite databases created on first launch)
+- Progress feedback (spinners or X/Y progress during startup)
+- Status dashboard (active workflows, agent health, recent errors at a glance)
+- Command palette (Cmd/Ctrl+K for fuzzy search)
+- Quick search in navigation (filterable lists)
+- Empty state guidance (clear next actions for new users)
+- Structured error messages (error code, description, resolution steps)
+- Graceful shutdown and crash recovery
+
+**Requirements:** 11 total (Startup: 6, Onboarding: 1, Navigation: 2, Observability: 1, Error Handling: 1)
+
+**Status:** Roadmap created, ready to plan Phase 5
 
 ---
