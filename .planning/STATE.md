@@ -70,6 +70,7 @@ Recent decisions affecting current work:
 - [05-03 Status Panel]: psutil is optional dependency - graceful degradation when not installed
 - [05-03 Error Formatter]: Error pattern matching via substring comparison to map to common error types
 - [05-03 Error Formatter]: ErrorContext dataclass with title, description, resolution_steps structure
+- [Quick-002 functools.partial]: Use functools.partial instead of lambda for multiprocessing targets on Windows (pickle compatibility)
 
 ### Pending Todos
 
@@ -79,6 +80,7 @@ None yet.
 
 **Windows multiprocessing quirks addressed:**
 - ProcessManager uses spawn method (default on Windows) with pickleable targets
+- ServiceSpec targets use functools.partial for pickle compatibility (Quick-002)
 - Signal handlers registered after process spawning to avoid child process issues
 - SIGINT only on Windows (full SIGINT/SIGTERM support on Unix)
 
@@ -91,9 +93,10 @@ None yet.
 | # | Description | Date | Commit | Directory |
 |---|-------------|------|--------|-----------|
 | 001 | Fix Windows multiprocessing UI bug | 2026-02-05 | 3a068cc | [001-fix-windows-multiprocessing-ui](./quick/001-fix-windows-multiprocessing-ui/) |
+| 002 | Fix lambda pickle issue for service targets | 2026-02-05 | e68d4d8 | [002-fix-lambda-pickle-issue](./quick/002-fix-lambda-pickle-issue/) |
 
 ## Session Continuity
 
-Last session: 2026-02-05 - Completed quick task 001: Fix Windows multiprocessing UI bug
+Last session: 2026-02-05 - Completed quick task 002: Fix lambda pickle issue
 Stopped at: Quick task complete
 Resume file: None
