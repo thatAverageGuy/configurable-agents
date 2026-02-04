@@ -42,15 +42,19 @@ def _run_service_wrapper(
         target_kwargs: Keyword arguments to pass to target
         verbose: Enable verbose logging
     """
+    import traceback
+
+    print(f"[{service_name}] Starting service target...", flush=True)
+
     try:
         target_func(*target_args, **target_kwargs)
     except KeyboardInterrupt:
-        if verbose:
-            print(f"[ProcessManager] {service_name} received KeyboardInterrupt")
+        print(f"[{service_name}] Received KeyboardInterrupt, shutting down", flush=True)
         sys.exit(0)
     except Exception as e:
-        if verbose:
-            print(f"[ProcessManager] {service_name} error: {e}", file=sys.stderr)
+        print(f"[{service_name}] ERROR: {type(e).__name__}: {e}", file=sys.stderr, flush=True)
+        print(f"[{service_name}] TRACEBACK:", file=sys.stderr, flush=True)
+        traceback.print_exc(file=sys.stderr)
         sys.exit(1)
 
 
@@ -205,6 +209,7 @@ class ProcessManager:
                     # Check if process exited
                     if not process.is_alive():
                         exit_code = process.exitcode
+                        print(f"[ProcessManager] {name} exited (code: {exit_code})", flush=True)
                         if exit_code != 0:
                             if self._verbose:
                                 print(
