@@ -2,28 +2,30 @@
 
 ## Project Reference
 
-See: .planning/PROJECT.md (updated 2026-02-04)
+See: .planning/PROJECT.md (updated 2026-02-05)
 
 **Core value:** Local-first, config-driven agent orchestration with full observability and zero cloud lock-in
-**Current focus:** Phase 5: Foundation & Reliability
+**Current focus:** Phase 7: CLI Testing & Fixes
 
 ## Current Position
 
 Milestone: v1.2 Integration Testing & Critical Bug Fixes
-Phase: Not started (defining requirements)
-Plan: —
-Status: Defining requirements for comprehensive testing
-Last activity: 2026-02-05 — Discovered critical bugs making system unusable, starting test & fix milestone
+Phase: 7 of 11 (CLI Testing & Fixes)
+Plan: 01 of 1
+Status: In progress - CLI run command testing complete
+Last activity: 2026-02-05 — Completed 07-01 CLI run command testing
 
-Progress: [░░░░░░░░░░░░░░░░░░░░] 0% (0/0 plans - new milestone)
+Progress: [█████████░░░░░░░░░░░░░] 43% (23/37 plans complete - v1.0: 19, v1.1: 3, v1.2: 1/26 planned)
 
 ## Milestone Archives
 
 - v1.0 Foundation (shipped 2026-02-04):
-  - ROADMAP: milestones/v1.0-ROADMAP.md
-  - REQUIREMENTS: milestones/v1.0-REQUIREMENTS.md
-  - AUDIT: milestones/v1.0-MILESTONE-AUDIT.md
-  - Summary: MILESTONES.md
+  - ROADMAP: See ROADMAP.md Phase 1-4
+  - Summary: 19 plans delivered, multi-LLM support, advanced control flow, observability stack
+
+- v1.1 Core UX Polish (shipped 2026-02-05):
+  - ROADMAP: See ROADMAP.md Phase 5-6
+  - Summary: 3 plans delivered, process management, status dashboard, error formatting
 
 ## Performance Metrics
 
@@ -42,12 +44,17 @@ Progress: [░░░░░░░░░░░░░░░░░░░░] 0% (0/0
 | 4. Advanced Capabilities | 3 | 151 | 50 min |
 | 5. Foundation & Reliability | 3 | 33 | 11 min |
 | 6. Navigation & Onboarding | 0 | - | - |
+| 7. CLI Testing & Fixes | 1 | 7 | 7 min |
+| 8. Dashboard UI Testing & Fixes | 0 | - | - |
+| 9. Chat UI Testing & Fixes | 0 | - | - |
+| 10. Workflow Execution Testing & Fixes | 0 | - | - |
+| 11. Integration Tests & Verification | 0 | - | - |
 
 **Recent Trend:**
-- Last 3 plans: 05-01 (8 min), 05-02 (18 min), 05-03 (7 min)
-- Trend: Phase 5 complete, verified 12/12 truths, ready for Phase 6
+- Last 3 plans: 05-01 (8 min), 05-02 (18 min), 07-01 (7 min)
+- Trend: v1.1 complete, v1.2 testing started
 
-*Updated: 2026-02-04*
+*Updated: 2026-02-05*
 
 ## Accumulated Context
 
@@ -56,23 +63,10 @@ Progress: [░░░░░░░░░░░░░░░░░░░░] 0% (0/0
 Decisions are logged in PROJECT.md Key Decisions table.
 Recent decisions affecting current work:
 
-- [v1.0 Roadmap]: 4-phase structure compressing research 8-phase suggestion per quick depth setting
-- [v1.0 Roadmap]: LiteLLM chosen as multi-LLM abstraction layer (research validated)
-- [v1.0 Roadmap]: Storage abstraction in Phase 1 as foundational dependency for all later phases
-- [v1.0 Roadmap]: Code execution sandbox deferred to Phase 4 (needs UI from Phase 3 for management)
-- [v1.1 Roadmap]: 2-phase structure for polish milestone (Foundation + Navigation)
-- [v1.1 Roadmap]: Auto-init and single-command startup as Phase 5 prerequisites for all UX improvements
-- [05-01 ProcessManager]: Use multiprocessing.Process with daemon=False for clean shutdown on Windows
-- [05-01 ProcessManager]: SessionState uses Integer for dirty_shutdown (SQLite boolean compatibility)
-- [05-01 ProcessManager]: 5-second terminate timeout before force kill
-- [05-01 ProcessManager]: Signal handlers registered after process spawning to avoid child process issues
-- [05-03 Status Panel]: HTMX polling at 10s interval for status updates (balances freshness with load)
-- [05-03 Status Panel]: psutil is optional dependency - graceful degradation when not installed
-- [05-03 Error Formatter]: Error pattern matching via substring comparison to map to common error types
-- [05-03 Error Formatter]: ErrorContext dataclass with title, description, resolution_steps structure
-- [Quick-002 functools.partial]: Use functools.partial instead of lambda for multiprocessing targets on Windows (pickle compatibility) - SUPERSEDED by Quick-003
-- [Quick-003 ServiceSpec args]: Use ServiceSpec args field with config dict wrappers instead of functools.partial (fully pickleable)
-- [Quick-004 Module-level wrapper]: Use module-level _run_service_wrapper function instead of bound method for ProcessManager Process target (Windows pickle compatibility)
+- [v1.2 Roadmap]: Test & fix approach by component (CLI, Dashboard, Chat, Execution, Integration)
+- [v1.2 Roadmap]: Each phase tests thoroughly, documents failures, fixes all, adds integration tests
+- [Quick-002 to Quick-008]: Windows multiprocessing fixes (pickle compatibility, service specs, module-level wrappers)
+- [Quick-009]: CLI run command Console reference fix
 
 ### Pending Todos
 
@@ -80,41 +74,23 @@ None yet.
 
 ### Blockers/Concerns
 
-**Windows multiprocessing quirks addressed:**
-- ProcessManager uses spawn method (default on Windows) with pickleable targets
-- ProcessManager.start_all() uses module-level _run_service_wrapper function (Quick-004)
-- ServiceSpec targets use config dict args with module-level wrapper functions (Quick-003)
-- No functools.partial or lambda - both contain unpickleable weakrefs
-- Signal handlers registered after process spawning to avoid child process issues
-- SIGINT only on Windows (full SIGINT/SIGTERM support on Unix)
+**Critical bugs discovered (7 total, 1 fixed):**
+- ✅ CLI run command: UnboundLocalError (FIXED)
+- ❌ Chat UI: Multi-turn conversations crash (history format wrong)
+- ❌ Chat UI: Download/Validate buttons crash (same history issue)
+- ❌ Dashboard: Workflows page crashes (missing macros.html)
+- ❌ Dashboard: Agents page crashes (Jinja2 underscore import)
+- ❌ Dashboard: MLFlow page returns 404
+- ❌ Dashboard: Optimization page shows MLFlow filesystem errors
 
-**Remaining research gaps:**
-- Gradio root_path behind reverse proxy (known bug in 4.21.0+)
-- MLFlow auto-start from Python vs subprocess
+**Root cause:**
+Tests are heavily mocked and don't verify actual functionality. No integration tests exist for real user workflows.
 
-**Pre-existing UI bugs discovered:**
-During Windows multiprocessing testing, 7 pre-existing bugs were uncovered in the UI layer.
-See [UI_BUG_REPORT.md](./UI_BUG_REPORT.md) for full details. Summary:
-- Chat UI: History format handling broken (blocks multi-turn conversations)
-- Dashboard: Missing templates and Jinja2 import errors (block all pages)
-- CLI: Fixed `run` command Console reference bug
-- Impact: Core functionality untested, significant testing gaps identified
-
-### Quick Tasks Completed
-
-| # | Description | Date | Commit | Directory |
-|---|-------------|------|--------|-----------|
-| 001-008 | Windows multiprocessing & env fixes | 2026-02-05 | 572790a | See UI_BUG_REPORT.md |
-| 009 | Fix CLI run command Console reference | 2026-02-05 | d0e53b5 | Direct commit (critical bug) |
-| 003 | Use ServiceSpec args instead of functools.partial | 2026-02-05 | 30d8d84 | [003-use-service-spec-args](./quick/003-use-service-spec-args/) |
-| 004 | Fix bound method pickle in ProcessManager | 2026-02-05 | 7597c32 | [004-fix-bound-method-pickle](./quick/004-fix-bound-method-pickle/) |
-| 005 | Add process debug logging | 2026-02-05 | 481c06b | [005-add-process-debug-logging](./quick/005-add-process-debug-logging/) |
-| 006 | Add uvicorn import to cli.py | 2026-02-05 | e0c8bd9 | [006-add-uvicorn-import](./quick/006-add-uvicorn-import/) |
-| 007 | Add uvicorn dependency to pyproject.toml | 2026-02-05 | 675b444 | [007-add-uvicorn-dependency](./quick/007-add-uvicorn-dependency/) |
-| 008 | Add dotenv loading to CLI | 2026-02-05 | 28f0b01 | [008-add-dotenv-loading](./quick/008-add-dotenv-loading/) |
+**Resolution approach:**
+Phase 7-11 systematically test each component, fix all failures, add real integration tests (not mocks).
 
 ## Session Continuity
 
-Last session: 2026-02-05 - Completed quick task 008: Add dotenv loading to CLI
-Stopped at: Quick task complete
+Last session: 2026-02-05 — Completed 07-01 CLI run command testing
+Stopped at: Phase 7 plan 01 complete, subprocess integration tests created
 Resume file: None
