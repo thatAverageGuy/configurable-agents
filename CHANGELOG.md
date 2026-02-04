@@ -5,353 +5,304 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-For detailed task-by-task implementation notes, see [implementation logs](docs/implementation_logs/).
+For detailed task-by-task implementation notes, see [implementation logs](docs/implementation_logs/) and [planning archives](.planning/milestones/).
 
 ---
 
-## [Unreleased]
+## [1.0.0] - 2026-02-04
 
-### Added
+### 🎉 Major Release: Production-Ready Multi-Agent Orchestration Platform
 
-**MLFlow 3.9 Comprehensive Migration** (T-028):
-- Automatic tracing via mlflow.langchain.autolog() - no manual instrumentation
-- Span/trace model replacing nested runs (cleaner hierarchy)
-- Automatic token usage tracking from LLM responses
-- SQLite backend as default (replacing deprecated file://)
-- Async trace logging for zero-latency production mode
-- GenAI dashboard with span waterfall visualization
-- 60% code reduction (484→396 lines in MLFlowTracker)
-- Backward compatible - existing configs work without changes
-- Updated documentation (4 files) + new migration guide
-- All 80 observability tests passing (21 unit + 7 integration + 52 others)
+**v1.0 Foundation** - 4 phases, 19 plans, 27 requirements, 1,000+ tests (98%+ pass rate)
 
-**Streamlit Docker Deployment UI** (T-024 Part 2):
-- Interactive web UI for Docker deployment with tabbed interface
-- "Run Workflow" tab: Direct workflow execution with input parsing
-- "Deploy to Docker" tab: Complete deployment workflow with progress tracking
-- Workflow configuration reuse between tabs via session state
-- Deployment settings: container name, ports, output directory, sync timeout
-- Environment variable handling: upload .env file, paste key=value pairs, or skip
-- Real-time deployment progress with 7-step status display
-- Results display: endpoints table, curl examples, container management
-- Container management panel: view logs, stop, remove containers
-- Port availability validation before deployment
-- Docker availability checks with helpful error messages
-- Container persistence explained (survives Streamlit shutdown)
-- 87 lines → 674 lines (comprehensive deployment UX)
-
-**CLI Deploy Command** (T-024 Part 1):
-- One-command Docker deployment: `configurable-agents deploy workflow.yaml`
-- Validates config → checks Docker → generates artifacts → builds image → runs container
-- Rich terminal output with color-coded messages and Unicode symbols
-- Port availability checking (API and MLFlow ports)
-- Environment file handling (auto-detect .env, custom paths, skip option)
-- Container name sanitization (lowercase, alphanumeric + dash/underscore)
-- Generate-only mode (--generate flag) for artifact generation without Docker
-- Comprehensive error handling with actionable suggestions
-- 22 unit tests + 1 integration test - all passing
-- Total: 66 CLI tests passing (44 existing + 22 new deploy tests)
-
-**FastAPI Server with Input Validation & MLFlow** (T-023):
-- Enhanced server.py.template with dynamic input validation using Pydantic
-- Automatic Pydantic model generation from workflow state schema (`_build_input_model()`)
-- Type-safe API with 422 validation errors for invalid inputs
-- Conditional MLFlow integration (enabled via `MLFLOW_TRACKING_URI` environment variable)
-- MLFlow tracking for both sync and async executions (params, metrics, execution time, errors)
-- Graceful MLFlow error handling (failures don't crash server)
-- WorkflowConfig object creation for schema access (while using dict for run_workflow)
-- 35 new tests (30 unit + 5 integration) - all passing
-- Total: 616 unit tests (100% pass rate)
-- Template validation tests (no live server execution needed)
-
-**Docker Artifact Generator** (T-022):
-- Deployment artifact generation for Docker containers in `src/configurable_agents/deploy/`
-- 7 template files for complete Docker deployment (Dockerfile, FastAPI server, docker-compose, etc.)
-- Multi-stage Dockerfile with health check and MLFlow UI integration
-- FastAPI server template with sync/async hybrid execution (timeout-based)
-- Automatic example input generation from workflow state schema
-- Template engine using Python's `string.Template` (zero dependencies)
-- Configurable ports (API: 8000, MLFlow: 5000), sync timeout (30s default), container names
-- Generated artifacts: Dockerfile (1.4KB), server.py (6.4KB), requirements.txt, docker-compose.yml, .env.example, README.md (5.9KB), .dockerignore, workflow.yaml
-- Comprehensive README template with API reference, management commands, troubleshooting
-- 24 new tests (21 unit + 3 integration) - all passing
-- Total: 568 unit tests (100% pass rate)
-- Implementation: `DeploymentArtifactGenerator` class with `generate_deployment_artifacts()` function
-
-**Observability Documentation** (T-021):
-- Comprehensive MLFlow documentation in `docs/OBSERVABILITY.md`
-- Configuration reference added to `docs/CONFIG_REFERENCE.md` (~60 lines)
-- Observability section added to `docs/QUICKSTART.md`
-- Working example: `examples/article_writer_mlflow.yaml` demonstrating MLFlow tracking
-- CLI cost reporting guide with practical examples
-- Updated Gemini pricing table (9 models, January 2025 pricing)
-- Fixed incorrect feature gate warning (MLFlow fully supported in v0.1)
-- 6 files modified (4 docs, 1 source, 1 test)
-
-**Cost Tracking & Reporting** (T-020):
-- CLI cost reporting: `configurable-agents report costs` with multiple filters
-- MLFlow cost query and aggregation utilities in `observability/cost_reporter.py`
-- Date range filters: `--range today|last_7_days|last_30_days|custom`
-- Custom date filtering with `--start-date` and `--end-date`
-- Output formats: table (default), JSON, CSV with `--format` flag
-- Export to file with `--output report.json` or `report.csv`
-- Summary statistics: total cost, run count, average cost, model breakdown
-- Detailed per-run breakdowns with node-level metrics and token counts
-- Workflow and experiment filtering
-- Fail-fast validation for missing MLFlow or corrupted data
-- 39 new tests (29 unit + 5 CLI + 5 integration) - all passing
-
-**MLFlow Node Instrumentation** (T-019):
-- Automatic node-level tracking with token extraction from LangChain responses
-- LLM provider now returns tuple `(result, usage_metadata)` with token counts
-- Node executor wraps execution in `tracker.track_node()` for MLFlow logging
-- Logs resolved prompts and LLM responses as artifacts per node
-- Token usage tracked across retries for accurate cost calculation
-- Zero overhead when MLFlow disabled (graceful degradation maintained)
-- All 492 unit tests passing (fixed 15 observability test mocking errors)
-- Updated to 544 tests after T-020 (+39 new tests, +13 integration tests)
-
-**MLFlow Observability Foundation** (T-018):
-- MLFlow integration for workflow execution tracking and cost monitoring
-- CostEstimator with pricing for 9 Gemini models (latest January 2025 pricing)
-- MLFlowTracker for workflow-level and node-level metrics
-- Automatic token counting and cost calculation ($USD with 6-decimal precision)
-- Graceful degradation when MLFlow unavailable (zero performance overhead)
-- 46 new tests (37 unit + 9 integration) - all passing
-- Support for local file storage and remote backends (PostgreSQL, S3, Databricks)
-- Artifact logging for inputs, outputs, prompts, and responses
-- Windows-compatible file:// URI handling
-
-**Other Improvements**:
-- Documentation structure optimization with implementation logs
-- CONTEXT.md for quick LLM session resumption
-- Organized implementation logs by phase (19 comprehensive task records)
-
-### Fixed
-
-**Critical Deployment Bugs** (BUG-001 through BUG-004):
-
-**BUG-001: Docker Build PyPI Dependency** (Critical, 2026-02-02):
-- **Issue**: Docker build failed trying to install `configurable-agents==0.1.0-dev` from PyPI
-- **Root Cause**: Package not published, requirements.txt tried PyPI install
-- **Fix**: Modified Dockerfile to copy source code and install locally via `pip install .`
-- **Impact**: Docker deployment completely blocked → Now works
-- **Files**: Dockerfile.template, requirements.txt.template, generator.py (+58 lines)
-
-**BUG-002: Server Template Wrong Function** (Critical, 2026-02-02):
-- **Issue**: Deployed API returned 500 error: "expected str, bytes or os.PathLike object, not dict"
-- **Root Cause**: server.py called `run_workflow(config_dict)` instead of `run_workflow_from_config(workflow_config)`
-- **Fix**: Changed import and calls to use correct runtime function
-- **Impact**: Workflow execution completely blocked → Now works
-- **Files**: server.py.template (3 lines)
-
-**BUG-003: MLFlow Port Mapping Mismatch** (High, 2026-02-02):
-- **Issue**: MLFlow UI not accessible in deployed containers
-- **Root Cause**: Generator used `mlflow_port` for both host and container ports, breaking mapping
-- **Fix**: Hardcoded container ports (8000, 5000), use user ports only for host-side mapping
-- **Impact**: MLFlow observability broken → Now accessible
-- **Files**: Dockerfile.template, generator.py (8 lines)
-
-**BUG-004: MLFlow Blocking Without Server** (High, 2026-02-02):
-- **Issue**: Workflows hung 30-60 seconds when MLFlow server not running (http:// URI)
-- **Root Cause**: No connection pre-check, long default timeouts
-- **Fix**: Added 3-second pre-check, fast fail-fast with helpful warnings, configured 10s HTTP timeout
-- **Impact**: Workflows appeared frozen → Now fail fast (< 3 seconds)
-- **Files**: mlflow_tracker.py (+45 lines)
-
-**Bug Documentation**:
-- Created `docs/bugs/` directory with comprehensive bug reports
-- 4 detailed bug reports (48 KB total, ~5,000 words)
-- Bug tracking README with templates and guidelines
-- Average resolution time: < 1 hour per bug
-
-### Changed
-- MLFlow tracker now pre-checks server accessibility before blocking
-- Docker deployment artifacts now include source code for local installation
-- Container ports hardcoded (8000, 5000), host ports configurable
-- test_config.yaml updated to use `file://./mlruns` (file-based tracking)
-- Updated ObservabilityMLFlowConfig schema to match SPEC.md (added tracking_uri, experiment_name, run_name, log_artifacts)
-- Simplified CHANGELOG.md to standard format (detailed notes moved to implementation logs)
-- Archived project status tracking (now in CONTEXT.md and TASKS.md)
-
-### Removed
-- DISCUSSION.md (superseded by CONTEXT.md and implementation logs)
+Transformed from a simple linear workflow runner (v0.1) into a full-featured local-first agent orchestration platform with multi-LLM support, advanced control flow, complete observability, and zero cloud lock-in.
 
 ---
 
-## [0.1.0-dev] - 2026-01-28
+### Phase 1: Core Engine (4 plans)
 
-### Added
+#### Multi-LLM Support via LiteLLM
+- **4 LLM providers**: OpenAI, Anthropic, Google Gemini, Ollama
+- **Unified cost tracking**: Track costs across all providers in one place
+- **Zero-cloud option**: Run entirely on Ollama local models (no API keys needed)
+- **Per-node configuration**: Mix providers in a single workflow
+- **Provider switching**: Change one line in config to switch providers
+- **Local model support**: Ollama integration with zero API costs
 
-**Integration Testing & Quality** (T-017):
-- 19 integration tests with real API calls (6 workflow + 13 error scenarios)
-- Cost tracking for LLM API usage ($0.47 for full suite)
-- Fixed 2 critical bugs: tool binding order and default Gemini model
-- Total: 468 tests passing (449 unit + 19 integration)
+#### Advanced Control Flow
+- **Conditional routing**: Branch based on agent outputs (if/else logic)
+- **Loops and retry**: Iterate until termination conditions met
+- **Parallel execution**: Fan-out/fan-in patterns for concurrent operations
+- **Safe condition evaluation**: AST-based parsing (no eval() security risks)
+- **Loop iteration tracking**: Hidden state fields with auto-increment
+- **LangGraph Send API**: Parallel state augmentation
 
-**Complete User Documentation** (T-016):
-- QUICKSTART.md - 5-minute beginner tutorial
-- CONFIG_REFERENCE.md - User-friendly config reference
-- TROUBLESHOOTING.md - Common issues and solutions
-- 16 Architecture Decision Records with complete rationale
+#### Storage Abstraction
+- **Pluggable backends**: SQLite, PostgreSQL, Redis (swap without code changes)
+- **SQLite default**: Zero-config experience for local development
+- **Factory pattern**: Backend selection via configuration
+- **Session management**: Context managers for transaction safety
+- **WAL mode**: Concurrent reads during writes
+- **Graceful degradation**: Storage failures don't crash workflows
 
-**Working Example Workflows** (T-015):
-- 4 comprehensive examples: echo, article_writer, nested_state, type_enforcement
-- Progressive complexity learning path (beginner → advanced)
-- Individual README files for each example
-- All examples validated and working
+#### Execution Traces
+- **Workflow run persistence**: All executions stored to database
+- **Per-node metrics**: Latency, tokens, cost per node
+- **Detailed traces**: Complete execution history
+- **State snapshots**: Truncated output values for storage efficiency
+- **Query interface**: Retrieve historical runs
 
-**Command-Line Interface** (T-014):
-- `run` command for executing workflows from terminal
-- `validate` command for config validation
-- Smart input parsing with type detection (str, int, bool, JSON)
-- Pretty color-coded output with Unicode fallback for Windows
-- Comprehensive error handling with helpful messages
-- Two entry points: `configurable-agents` script and `python -m configurable_agents`
+---
 
-**End-to-End Workflow Execution** (T-013):
-- Complete workflow execution pipeline (load → parse → validate → gate → build → execute)
-- Execute workflows from YAML/JSON files
-- 6 exception types for granular error handling
-- Verbose logging option for debugging
-- Validation-only mode for pre-flight checks
+### Phase 2: Agent Infrastructure (6 plans)
 
-**LangGraph Execution Engine** (T-012):
-- Build compiled LangGraph StateGraph from validated configs
-- Closure-based node function wrapping
-- Direct Pydantic BaseModel integration (no TypedDict conversion)
-- START/END entry/exit point handling
+#### Agent Registry with Heartbeat/TTL
+- **Service discovery**: Agents register on startup
+- **Health monitoring**: Heartbeat mechanism (20s interval, 60s TTL)
+- **Automatic expiration**: Dead agents removed after TTL expires
+- **Bidirectional registration**: Agent-initiated (complete), orchestrator-initiated (deferred)
+- **FastAPI endpoints**: `/register`, `/heartbeat`, `/agents`, `/health`
+- **Registry repository**: AgentRecord ORM with SQLAlchemy
+- **Background cleanup**: Automatic stale agent removal every 60s
 
-**Node Execution** (T-011):
-- Integrates LLM, tools, prompts, and output schemas
-- Copy-on-write state updates (immutable pattern)
-- Input mapping resolution from state
-- Comprehensive error handling with node_id context
+#### Minimal Agent Containers
+- **Container size**: ~50-100MB (no UI dependencies)
+- **MLFlow decoupling**: UI runs as separate sidecar
+- **python:3.10-slim base**: Minimal footprint
+- **Multi-stage builds**: Optimized layer structure
+- **Health checks**: `/health` endpoint for liveness probes
 
-**Prompt Template Resolution** (T-010):
-- Variable resolution from inputs and state
-- Nested state access ({metadata.author}, 3+ levels deep)
-- Type conversion (int, bool → string)
-- "Did you mean?" suggestions for typos (edit distance ≤ 2)
+#### Multi-Provider Cost Tracking
+- **MultiProviderCostTracker**: Aggregates costs by provider/model
+- **Provider detection**: Automatic detection from model names
+- **Zero-cost Ollama**: Local models tracked as $0.00
+- **MLFlow metrics**: `provider_{name}_cost_usd` for UI filtering
+- **Cost reporting CLI**: Query and export costs with filters
 
-**Google Gemini LLM Integration** (T-009):
-- LLM provider factory pattern
-- Structured output calling with Pydantic schema binding
-- Automatic retry on validation failures and rate limits
-- Configuration merging (node overrides global)
-- Multiple Gemini models supported
+#### Performance Profiling
+- **Bottleneck detection**: Nodes >50% execution time flagged
+- **Per-node timing**: `time.perf_counter()` decorator with try/finally
+- **MLFlow metrics**: `node_{node_id}_duration_ms` and `node_{node_id}_cost_usd`
+- **Bottleneck info**: JSON field in WorkflowRunRecord for historical analysis
+- **Thread-local storage**: Parallel execution safety
 
-**Tool Registry & Web Search** (T-008):
-- Factory-based lazy loading tool registry
-- Serper web search tool integration
-- LangChain BaseTool integration
-- API key validation from environment
+#### CLI Integration
+- **`cost-report`**: Query costs by date range, workflow, experiment
+- **`profile-report`**: Performance analysis with bottleneck highlighting
+- **`observability`**: Unified observability command group
+- **Rich output**: Formatted tables with bold highlights
+- **Export formats**: Table, JSON, CSV
 
-**Dynamic Schema Builders** (T-006, T-007):
-- State models: Dynamic Pydantic BaseModel from StateSchema configs
-- Output models: Type-enforced LLM responses with Pydantic validation
-- Support for all type system types (basic, collections, nested objects)
-- Required/optional fields with default values
+---
 
-**Runtime Feature Gating** (T-004.5):
-- Hard blocks for v0.2+ features (conditional routing)
-- Soft blocks for v0.3+ features (optimization, MLFlow)
-- Helpful error messages with version timelines and workarounds
-- Feature support query API
+### Phase 3: Interfaces & Triggers (6 plans)
 
-**Comprehensive Config Validation** (T-004):
-- Cross-reference validation (node IDs, state fields, output types)
-- Graph structure validation (connectivity, reachability)
-- Linear flow enforcement (no cycles, no conditional routing)
-- "Did you mean?" suggestions for typos
-- 8 validation stages with fail-fast error handling
+#### Gradio Chat UI for Config Generation
+- **Conversational interface**: Generate configs through natural language
+- **Session persistence**: Conversation history stored in SQLite
+- **Session IDs**: Derived from client IP:port for continuity
+- **Streaming responses**: Async generator pattern for non-blocking LLM calls
+- **Gradio 6.x**: Latest version with theme/css parameters in launch()
+- **Config validation**: Invalid configs caught before saving
 
-**Type System & Schema** (T-003, T-005):
-- Complete type system: str, int, float, bool, list, dict, nested objects
-- 13 Pydantic models for Schema v1.0
-- Full Schema Day One (supports features through v0.3)
-- Type validation, field validation, cross-field validation
+#### FastAPI + HTMX Orchestration Dashboard
+- **Server-Side Rendering**: Jinja2 templates with HTMX for dynamic updates
+- **Partial template swaps**: `hx-swap="outerHTML"` for efficient updates
+- **SSE streaming**: Async generators for real-time data pushing
+- **Repository injection**: `app.state` for route dependency access
+- **No JavaScript**: Python-only stack (14KB HTMX vs 200KB+ React)
+- **Production pattern**: Used by Netflix, Uber, Microsoft
 
-**Config Parser** (T-002):
-- YAML parsing (.yaml, .yml)
-- JSON parsing (.json)
-- Auto-format detection from extension
-- Comprehensive error handling
+#### Agent Discovery Interface
+- **View registered agents**: List all active agents
+- **Health status**: Real-time health monitoring
+- **Capabilities display**: Agent capabilities and metadata
+- **Dynamic updates**: SSE streaming for live updates
 
-**Project Foundation** (T-001):
-- Complete package structure (`src/configurable_agents/`)
-- Development environment setup
-- pytest configuration and test infrastructure
-- Logging configuration
+#### MLFlow UI Integration
+- **iframe embed**: MLFlow UI within dashboard
+- **Single sign-on**: Shared authentication context
+- **Context switching**: Workflow execution ↔ MLFlow analysis
 
-### Fixed
+#### Generic Webhook Infrastructure
+- **HMAC signature verification**: Timing-attack safe comparison
+- **Idempotency tracking**: `INSERT OR IGNORE` for webhook_id
+- **Async execution**: `asyncio.run_in_executor()` for non-blocking
+- **Optional validation**: Only when WEBHOOK_SECRET configured
+- **Generic endpoint**: Accepts workflow_name and inputs
 
-- Tool binding order bug in LLM provider (tools now bound before structured output)
-- Incorrect default Gemini model (updated to `gemini-2.0-flash-lite`)
+#### Platform Webhook Integrations
+- **WhatsApp Business API**: Message chunking (4096 char limit)
+- **Telegram Bot API**: aiogram 3.x with modern async/await
+- **Factory functions**: Testability without singletons
+- **Lazy initialization**: Handlers only load when env vars configured
+- **CLI webhooks command**: Follows existing dashboard pattern
+- **Challenge response**: GET /webhooks/whatsapp for Meta verification
+
+#### Workflow Restart
+- **Temp file pattern**: Config snapshot for async compatibility
+- **BackgroundTasks**: Non-blocking restart with finally cleanup
+- **JSONResponse**: Consistent error handling
+
+---
+
+### Phase 4: Advanced Capabilities (3 plans)
+
+#### Code Execution Sandboxes
+- **RestrictedPython**: Fast (<10ms) safe code execution
+- **Docker extensible**: Full isolation for untrusted code
+- **Resource presets**: low/medium/high/max CPU, memory, timeout limits
+- **Security whitelisting**: ALLOWED_PATHS for files, ALLOWED_COMMANDS for shell
+- **SQL restrictions**: SELECT only (rejects DROP, DELETE, UPDATE, INSERT, ALTER, CREATE)
+- **Error continuation**: `on_error: 'continue'` catches and returns errors
+- **Custom _print_**: Safe print class (not instance) for RestrictedPython
+- **Safe getattr**: `_call_print` allowed, private attributes blocked
+- **Actual values**: Real state values for sandbox inputs (not stringified templates)
+
+#### Persistent Memory Backend
+- **Namespaced storage**: `{agent_id}:{workflow_id or "*"}:{node_id or "*"}:{key}`
+- **Dict-like read**: `agent.memory['key']` for convenience
+- **Explicit write**: `agent.memory.write('key', value)` for clarity
+- **Pluggable backends**: SQLite (default), PostgreSQL, Redis
+- **Per-agent context**: Long-term memory survives container restarts
+
+#### Pre-Built Tool Registry (15 Tools)
+- **Web tools (3)**: Serper search, Tavily search, Brave search
+- **File tools (4)**: Read, write, list, delete
+- **Data tools (4)**: CSV read/write, JSON read/write
+- **System tools (3)**: Shell, Python exec, datetime
+- **Tool factory pattern**: Lazy loading and validation
+- **LangChain BaseTool**: Integration with existing ecosystem
+
+#### MLFlow Optimization
+- **A/B testing**: Prompt variant comparison
+- **Quality gates**: WARN (logs), FAIL (raises), BLOCK_DEPLOY (sets flag)
+- **Percentile calculation**: Nearest-rank method (p50, p95, p99)
+- **Automatic backup**: YAML backup before applying optimized prompts
+- **CLI optimization group**: `evaluate`, `apply-optimized`, `ab-test`
+- **MLFlow experiment aggregation**: Metrics across runs
+
+---
 
 ### Technical Details
 
-- **Tests**: 468 total (449 unit + 19 integration)
-- **Test Cost**: ~$0.50 per integration run
-- **Architecture Decision Records**: 16 ADRs
-- **Schema Version**: 1.0 (stable, future-proof)
-- **Python Version**: 3.10+
-- **LLM Provider**: Google Gemini
-- **Execution Engine**: LangGraph
-- **Tools**: Serper web search
-
-For detailed implementation notes, see:
-- [Phase 1 Implementation Logs](docs/implementation_logs/phase_1_foundation/) - Foundation (8 tasks)
-- [Phase 2 Implementation Logs](docs/implementation_logs/phase_2_core_execution/) - Core Execution (6 tasks)
-- [Phase 3 Implementation Logs](docs/implementation_logs/phase_3_polish_ux/) - Polish & UX (4 tasks)
+- **Total lines of code**: ~30,888 Python
+- **Test coverage**: 1,018+ tests (98%+ pass rate)
+- **Development time**: 20 days (2026-01-15 → 2026-02-04)
+- **Average plan duration**: 20 minutes (6.0 hours total)
+- **Phase breakdown**:
+  - Phase 1: 4 plans, 65 minutes (16 min/plan)
+  - Phase 2: 6 plans, 106 minutes (18 min/plan)
+  - Phase 3: 6 plans, 106 minutes (18 min/plan)
+  - Phase 4: 3 plans, 151 minutes (50 min/plan)
 
 ---
 
-## [0.1.0-initial] - 2026-01-24
+### Dependencies Updated
 
-### Added
+**New major dependencies:**
+- `litellm` (latest) - Multi-LLM abstraction
+- `ollama` (latest) - Local model runtime
+- `gradio>=6.5.1` - Chat UI framework
+- `fastapi>=0.100.0` - API servers
+- `htmx>=1.9.0` - Dashboard interactivity
+- `aiogram>=3.0.0` - Telegram bot framework
+- `RestrictedPython` - Code sandboxing
 
-- Project setup with complete package structure (T-001)
-- YAML/JSON config parser with error handling (T-002)
-- Complete Pydantic schema for Schema v1.0 (T-003)
+**Updated:**
+- `mlflow>=3.9.0` - Enhanced observability (from 2.9)
+- `sqlalchemy>=2.0.0` - Storage backend (from 1.x)
 
-### Technical Details
+---
 
-- **Tests**: 124 passing
-- Full Schema Day One design (ADR-009)
+### Architecture Decision Records (ADRs)
+
+**New ADRs created during v1.0:**
+- ADR-019: LiteLLM Multi-Provider Integration
+- ADR-020: Agent Registry Architecture
+- ADR-021: HTMX Dashboard Framework
+- ADR-022: RestrictedPython Sandbox
+- ADR-023: Memory Backend Design
+- ADR-024: Webhook Integration Pattern
+- ADR-025: Optimization Architecture
+
+**Previous ADRs (v0.1):** ADR-001 through ADR-018 (18 records)
+
+---
+
+### Known Limitations (Deferred to v1.1+)
+
+- **ARCH-02**: Orchestrator-initiated agent registration (agent-initiated complete)
+- **Self-optimizing agents**: Runtime auto-spawn and optimization
+- **Full LangChain tool registry**: Currently 15 tools, full registry (500+) deferred
+- **Visual workflow builder**: Config-first philosophy maintained
+- **Kubernetes deployment**: Enterprise-scale patterns
+
+---
+
+### Documentation
+
+**Updated:**
+- README.md - Complete v1.0 feature overview
+- All ADRs - 25 total architectural decisions
+- Implementation logs - 19 plan completions documented
+
+**New:**
+- `.planning/milestones/v1.0-ROADMAP.md` - 4-phase roadmap
+- `.planning/milestones/v1.0-REQUIREMENTS.md` - 27 requirements
+- `.planning/milestones/v1.0-MILESTONE-AUDIT.md` - Comprehensive audit
+
+---
+
+### Breaking Changes from v0.1
+
+**Configuration:**
+- `config.llm.provider` now accepts `openai`, `anthropic`, `google`, `ollama` (was only `google`)
+- `edges[].routes[]` added for conditional routing
+- `edges[].parallel` added for parallel execution
+- `config.memory` added for persistent memory
+- `config.webhooks` added for external triggers
+
+**CLI:**
+- New commands: `chat`, `dashboard`, `agents`, `webhooks`, `report`
+- Observability commands: `cost-report`, `profile-report`
+
+**Python API:**
+- Storage backends now require factory pattern: `create_storage_backend()`
+- LLM provider returns tuple `(result, usage_metadata)`
+
+**Migration:** See `.planning/milestones/v1.0-ROADMAP.md` for detailed migration guide
+
+---
+
+## [0.1.0-dev] - Archived (See .planning/milestones/v0.1-archive)
+
+### Overview
+Initial working alpha with linear workflows, Google Gemini integration, MLFlow 2.9 observability, and Docker deployment.
+
+**Key Features (v0.1):**
+- Linear workflow execution (no control flow)
+- Single LLM provider (Google Gemini)
+- 645 tests passing
+- MLFlow 2.9 manual tracking
+- Basic Docker deployment
+
+**Archived:** 2026-02-04 (superseded by v1.0)
 
 ---
 
 ## Version Planning
 
-### [0.2.0] - Q2 2026 (Planned)
+### [1.1.0] - TBD (Planning)
 
-**Theme**: Intelligence
+**Focus:** Next milestone goals TBD
 
-- Conditional routing (if/else based on state)
-- Loops and retry logic
-- Multi-LLM support (OpenAI, Anthropic, Ollama)
-- State persistence and workflow resume
-- Config composition (import/extend)
-
-### [0.3.0] - Q3 2026 (Planned)
-
-**Theme**: Optimization
-
-- DSPy prompt optimization (automatic)
-- Quality metrics and evaluation
-- Parallel node execution
-- OpenTelemetry integration
-
-### [0.4.0] - Q4 2026 (Planned)
-
-**Theme**: Ecosystem
-
-- Visual workflow editor
-- One-click cloud deployments
-- Prometheus + Grafana monitoring
-- Plugin system
-- Config marketplace
+**Potential areas:**
+- Complete orchestrator-initiated agent registration (ARCH-02)
+- Kubernetes deployment patterns
+- Enhanced collaborative features
+- Self-optimizing agents
+- Full LangChain tool registry
 
 ---
 
@@ -369,11 +320,13 @@ This changelog follows the [Keep a Changelog](https://keepachangelog.com/en/1.0.
 
 ### Implementation Details
 
-For comprehensive task-by-task implementation details, see:
-- **[Implementation Logs](docs/implementation_logs/)** - Detailed task records (150-500 lines each)
-- **[TASKS.md](docs/TASKS.md)** - Work breakdown and current status
-- **[CONTEXT.md](docs/CONTEXT.md)** - Current state and next action
-- **[Architecture Decision Records](docs/adr/)** - Design rationale
+For comprehensive v1.0 implementation details, see:
+- **[.planning/phases/](.planning/phases/)** - Phase-by-phase summaries
+- **[.planning/milestones/v1.0-ROADMAP.md](.planning/milestones/v1.0-ROADMAP.md)** - Complete roadmap
+- **[.planning/milestones/v1.0-MILESTONE-AUDIT.md](.planning/milestones/v1.0-MILESTONE-AUDIT.md)** - Delivery verification
+
+For legacy v0.1 details:
+- **[docs/implementation_logs/](docs/implementation_logs/)** - Task-by-task records (v0.1)
 
 ### Versioning
 
@@ -382,9 +335,9 @@ This project uses [Semantic Versioning](https://semver.org/):
 - **MINOR** version for added functionality (backwards-compatible)
 - **PATCH** version for backwards-compatible bug fixes
 
-Current version: **0.1.0-dev** (development, pre-release)
+Current version: **1.0.0** (production release)
 
 ---
 
-*For the latest updates, see [docs/CONTEXT.md](docs/CONTEXT.md)*
-*For development progress, see [docs/TASKS.md](docs/TASKS.md)*
+*For the latest updates, see [.planning/STATE.md](.planning/STATE.md)*
+*For development progress, see [.planning/ROADMAP.md](.planning/ROADMAP.md)*

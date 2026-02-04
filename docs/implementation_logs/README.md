@@ -1,171 +1,75 @@
 # Implementation Logs
 
-> **Purpose**: Detailed task-by-task implementation records for the configurable-agents project.
->
-> **Audience**: Developers wanting to understand how each task was implemented, including design decisions, code examples, verification steps, and technical details.
->
-> **Format**: Each task has its own dedicated file organized by development phase.
+This directory contains detailed implementation logs for project milestones.
 
----
+## Structure
 
-## 📁 Directory Structure
+### v0.1 Archive (Legacy)
 
-```
-implementation_logs/
-├── README.md (this file)
-├── phase_1_foundation/
-│   ├── T-001_project_setup.md
-│   ├── T-002_config_parser.md
-│   ├── T-003_config_schema.md
-│   ├── T-004_config_validator.md
-│   ├── T-004.5_runtime_feature_gating.md
-│   ├── T-005_type_system.md
-│   ├── T-006_state_schema_builder.md
-│   └── T-007_output_schema_builder.md
-├── phase_2_core_execution/
-│   ├── T-008_tool_registry.md
-│   ├── T-009_llm_provider.md
-│   ├── T-010_prompt_template_resolver.md
-│   ├── T-011_node_executor.md
-│   ├── T-012_graph_builder.md
-│   └── T-013_runtime_executor.md
-├── phase_3_polish_ux/
-│   ├── T-014_cli_interface.md
-│   ├── T-015_example_configs.md
-│   ├── T-016_documentation.md
-│   └── T-017_integration_tests.md
-└── phase_4_observability_docker/
-    ├── T-018_mlflow_integration_foundation.md (future)
-    ├── T-019_mlflow_instrumentation.md (future)
-    ├── T-020_cost_tracking_reporting.md (future)
-    ├── T-021_observability_documentation.md (future)
-    ├── T-022_docker_artifact_generator.md (future)
-    ├── T-023_fastapi_server.md (future)
-    └── T-024_cli_deploy_command.md (future)
-```
+**Location:** `v0.1/`
 
----
+Contains implementation logs from the original v0.1 milestone (linear workflows, single LLM provider, basic observability).
 
-## 📖 How to Use This Directory
+**Organization:**
+- `phase_1_foundation/` - Project setup, config parsing, validation (8 tasks)
+- `phase_2_core_execution/` - LLM integration, tools, graph building (6 tasks)
+- `phase_3_polish_ux/` - CLI, examples, documentation (4 tasks)
+- `phase_4_observability_docker/` - MLFlow, cost tracking, Docker deployment (5 tasks)
 
-### For Understanding What Was Done
+**Note:** v0.1 was superseded by v1.0 in February 2026. See `.planning/milestones/v1.0-ROADMAP.md` for the complete v1.0 roadmap.
 
-**Read a specific task**:
-```bash
-cat docs/implementation_logs/phase_2_core_execution/T-009_llm_provider.md
-```
+### v1.0 Implementation Logs
 
-**Find all files created in a task**:
-```bash
-grep "Files Created" docs/implementation_logs/phase_1_foundation/T-003_config_schema.md
-```
+**Location:** `.planning/phases/*/`
 
-**Search for specific implementation details**:
-```bash
-grep -r "Pydantic" docs/implementation_logs/
-```
+v1.0 implementation logs are organized by phase and plan within the `.planning/` directory:
 
-### For Debugging or Extending
+**Phase 1: Core Engine** (4 plans)
+- `.planning/phases/01-core-engine/01-01-SUMMARY.md` - Storage abstraction
+- `.planning/phases/01-core-engine/01-02-SUMMARY.md` - Multi-LLM integration
+- `.planning/phases/01-core-engine/01-03-SUMMARY.md` - Advanced control flow
+- `.planning/phases/01-core-engine/01-04-SUMMARY.md` - Storage-executor integration
 
-Each implementation log includes:
-- **What Was Done**: Summary of deliverables
-- **Files Created/Modified**: Complete file list
-- **Public API**: Exported functions and classes
-- **How to Verify**: Step-by-step verification commands
-- **What to Expect**: Feature list and limitations
-- **Design Decisions**: Why things were done a certain way
-- **Example Code**: Usage examples
-- **Example Errors**: Error messages and handling
-- **Documentation Updated**: Related docs modified
-- **Git Commit**: Original commit message template
+**Phase 2: Agent Infrastructure** (6 plans)
+- `.planning/phases/02-agent-infrastructure/02-01A-SUMMARY.md` - Storage layer and registry
+- `.planning/phases/02-agent-infrastructure/02-01B-SUMMARY.md` - Registry client
+- `.planning/phases/02-agent-infrastructure/02-01C-SUMMARY.md` - CLI integration
+- `.planning/phases/02-agent-infrastructure/02-02A-SUMMARY.md` - Multi-provider cost tracking
+- `.planning/phases/02-agent-infrastructure/02-02B-SUMMARY.md` - Performance profiling
+- `.planning/phases/02-agent-infrastructure/02-02C-SUMMARY.md` - CLI integration
 
-### Related Documentation
+**Phase 3: Interfaces & Triggers** (6 plans)
+- `.planning/phases/03-interfaces-and-triggers/03-01-SUMMARY.md` - Gradio Chat UI
+- `.planning/phases/03-interfaces-and-triggers/03-02-SUMMARY.md` - HTMX dashboard
+- `.planning/phases/03-interfaces-and-triggers/03-03-SUMMARY.md` - Generic webhooks
+- `.planning/phases/03-interfaces-and-triggers/03-03B-SUMMARY.md` - Platform webhooks
+- `.planning/phases/03-interfaces-and-triggers/03-04-SUMMARY.md` - Workflow restart
+- `.planning/phases/03-interfaces-and-triggers/03-05-SUMMARY.md` - Test fixture fix
 
-- **[../TASKS.md](../TASKS.md)**: Work breakdown and current status (living document)
-- **[../../CHANGELOG.md](../../CHANGELOG.md)**: User-facing release notes (standard format)
-- **[../CONTEXT.md](../CONTEXT.md)**: Current project state and next action (living document)
-- **[../adr/](../adr/)**: Architecture Decision Records (design rationale)
+**Phase 4: Advanced Capabilities** (3 plans)
+- `.planning/phases/04-advanced-capabilities/04-01-SUMMARY.md` - Code execution sandboxes
+- `.planning/phases/04-advanced-capabilities/04-02-SUMMARY.md` - Memory and tools
+- `.planning/phases/04-advanced-capabilities/04-03-SUMMARY.md` - MLFlow optimization
 
----
+## Log Format
 
-## 📊 Progress Overview
+Each summary includes:
+- **Objective**: What the plan accomplished
+- **Requirements**: Which requirements this plan satisfied
+- **Implementation**: Detailed technical changes
+- **Testing**: Verification steps and test results
+- **Decisions**: Key architectural decisions made
+- **Files Changed**: Complete list of modified files
 
-| Phase | Tasks | Status |
-|-------|-------|--------|
-| **Phase 1: Foundation** | 8/8 | ✅ Complete |
-| **Phase 2: Core Execution** | 6/6 | ✅ Complete |
-| **Phase 3: Polish & UX** | 4/4 | ✅ Complete |
-| **Phase 4: Observability & Docker** | 0/6 | 🔄 In Progress |
-| **Phase 5: Future (v0.2+)** | 3 tasks | 📋 Deferred |
+## Milestone Archives
 
-**Total**: 18/27 tasks complete (67%)
+For complete milestone documentation:
+- **v1.0**: `.planning/milestones/v1.0-ROADMAP.md`
+- **v1.0 Audit**: `.planning/milestones/v1.0-MILESTONE-AUDIT.md`
+- **v1.0 Requirements**: `.planning/milestones/v1.0-REQUIREMENTS.md`
 
----
+## See Also
 
-## 🔍 Quick Reference
-
-### Phase 1: Foundation (Complete)
-
-All configuration parsing, validation, and schema building infrastructure.
-
-**Key Files**:
-- `src/configurable_agents/config/` - Parser, schema, validator
-- `src/configurable_agents/core/` - State/output builders
-- `src/configurable_agents/runtime/` - Feature gating
-
-**Tests**: 231 tests
-
-### Phase 2: Core Execution (Complete)
-
-LLM integration, tools, prompt resolution, and execution engine.
-
-**Key Files**:
-- `src/configurable_agents/llm/` - LLM providers
-- `src/configurable_agents/tools/` - Tool registry
-- `src/configurable_agents/core/` - Template, executor, graph
-
-**Tests**: 406 tests (up from 231)
-
-### Phase 3: Polish & UX (Complete)
-
-User-facing CLI, examples, documentation, and integration tests.
-
-**Key Files**:
-- `src/configurable_agents/cli.py` - Command-line interface
-- `examples/` - Working workflow configs
-- `docs/` - User guides
-- `tests/integration/` - Real API tests
-
-**Tests**: 468 tests (19 integration + 449 unit)
-
-### Phase 4: Observability & Docker (In Progress)
-
-MLFlow tracking, cost monitoring, and Docker deployment.
-
-**Next**: T-018 (MLFlow Integration Foundation)
-
----
-
-## 💡 Tips
-
-**For LLMs resuming work**:
-1. Read **[../CONTEXT.md](../CONTEXT.md)** first (current state, next action)
-2. Then read the relevant implementation log for context
-3. Check **[../TASKS.md](../TASKS.md)** for acceptance criteria
-4. Review related **[../adr/](../adr/)** for design decisions
-
-**For developers**:
-- Implementation logs preserve all implementation details from development
-- Each log is ~100-200 lines with complete context
-- Use these for understanding "how" and "why" behind code
-- For "what changed for users", see **[../../CHANGELOG.md](../../CHANGELOG.md)**
-
-**For auditing**:
-- All logs include commit message templates
-- Verification commands provided for reproducibility
-- Test counts and file paths included for traceability
-
----
-
-*Last Updated: 2026-02-02*
-*Total Implementation Logs: 18 complete, 9 future*
+- **[.planning/STATE.md](../.planning/STATE.md)** - Current project state
+- **[.planning/ROADMAP.md](../.planning/ROADMAP.md)** - Overall roadmap
+- **[docs/CONTEXT.md](../docs/CONTEXT.md)** - Development context

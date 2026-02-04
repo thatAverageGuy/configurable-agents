@@ -579,6 +579,396 @@ config:
 
 ---
 
+## Config Schema v1.0 Extensions
+
+The following schema extensions were added in v1.0 to support advanced control flow, multi-LLM providers, sandboxing, memory, webhooks, and optimization.
+
+### Conditional Routing Syntax
+
+**Schema Extension**:
+```yaml
+edges:
+  - from: validate_node
+    routes:
+      - condition:
+          logic: "{state.score} >= 8"
+        to: END
+      - condition:
+          logic: "default"
+        to: rewrite_node
+```
+
+**Fields**:
+- `routes`: List of conditional routes (replaces `to` for conditional edges)
+- `condition.logic`: Expression string evaluating to boolean (supports state field references)
+- `condition.default`: Fallback route (literal string "default", catches all unmatched conditions)
+- `to`: Target node ID or END
+
+**Expression Syntax**:
+- State field references: `{state.field_name}`
+- Comparison operators: `==`, `!=`, `>`, `<`, `>=`, `<=`
+- Logical operators: `and`, `or`, `not`
+- Parentheses: `( )` for grouping
+- String literals: `"text"` or `'text'`
+- Number literals: `42`, `3.14`
+- Boolean literals: `true`, `false`
+
+**Examples**:
+```yaml
+# Simple condition
+condition:
+  logic: "{state.approved} == true"
+
+# Complex expression
+condition:
+  logic: "({state.score} >= 8 or {state.manual_override} == true) and {state.errors} == 0"
+
+# Default fallback
+condition:
+  logic: "default"
+```
+
+**Validation**:
+- All field references must exist in state schema
+- Expression must be syntactically valid
+- Type coercion applies (string → number for comparisons)
+- Safe evaluation (no `eval()`, uses AST-like parsing)
+
+---
+
+### Loop Configuration Syntax
+
+**Schema Extension**:
+```yaml
+nodes:
+  - id: retry_node
+    loop:
+      max_iterations: 3
+      until: "{state.success} == true"
+      break_on_error: false
+```
+
+**Fields**:
+- `loop.max_iterations` (int, required): Maximum loop iterations
+- `loop.until` (string, optional): Termination condition expression
+- `loop.break_on_error` (bool, default: false): Stop loop on node error
+
+**Behavior**:
+- Hidden state field `_loop_iteration_{node_id}` tracks iteration count
+- `until` condition evaluated after each node execution
+- Loop terminates when: `until` is true, `max_iterations` reached, or error (if `break_on_error`)
+- Final state includes iteration count
+
+**Example**:
+```yaml
+nodes:
+  - id: fetch_with_retry
+    loop:
+      max_iterations: 5
+      until: "{state.data_fetched} == true"
+      break_on_error: true
+```
+
+---
+
+### Parallel Execution Syntax
+
+**Schema Extension**:
+```yaml
+edges:
+  - from: START
+    parallel:
+      - node_1
+      - node_2
+      - node_3
+    join: merge_node
+```
+
+**Fields**:
+- `parallel` (list, required): List of node IDs to execute concurrently
+- `join` (string, required): Node ID that collects all parallel results
+
+**Behavior**:
+- All nodes in `parallel` list execute simultaneously
+- Each node receives identical state copy
+- Join node receives list of results: `{state.node_1_result}`, `{state.node_2_result}`, etc.
+- No shared state between parallel branches
+- Execution waits for all branches to complete before joining
+
+**Example**:
+```yaml
+edges:
+  - from: research
+    parallel:
+      - analyze_sentiment
+      - extract_topics
+      - summarize
+    join: combine_results
+```
+
+---
+
+### Sandbox Code Execution
+
+**Schema Extension**:
+```yaml
+nodes:
+  - id: data_processor
+    code: |
+      result = process_data(data)
+      transformed = apply_transformation(result)
+      return {"output": transformed, "count": len(transformed)}
+```
+
+**Fields**:
+- `code` (string, optional): Python code to execute in sandbox
+
+**Available Globals**:
+- `state`: Current state dict (read-only snapshot at node start)
+- `inputs`: Node input mappings
+- `print`: Safe print function (logs to node output)
+- `math`, `json`, `re`: Standard library modules (whitelisted)
+
+**Security**:
+- RestrictedPython by default (safe subset of Python)
+- No access to: `os`, `sys`, `subprocess`, `eval`, `exec`, `import`
+- Docker opt-in for network/isolated execution
+- Resource limits via presets (low/medium/high/max)
+
+**Return Value**:
+- Must return `dict` with keys matching node `output_schema`
+- Non-dict returns wrapped in `{"result": return_value}`
+
+**Example**:
+```yaml
+nodes:
+  - id: calculate_stats
+    code: |
+      numbers = state.get("numbers", [])
+      return {
+        "mean": sum(numbers) / len(numbers) if numbers else 0,
+        "max": max(numbers) if numbers else 0,
+        "count": len(numbers)
+      }
+    output_schema:
+      type: object
+      fields:
+        - {name: mean, type: float}
+        - {name: max, type: int}
+        - {name: count, type: int}
+    outputs: [mean, max, count]
+```
+
+---
+
+### Memory Configuration Syntax
+
+**Schema Extension**:
+```yaml
+nodes:
+  - id: learning_node
+    memory:
+      write:
+        - key: "user_preference"
+          value: "{state.preference}"
+          namespace: "agent:*:*:user_data"
+      read:
+        - key: "user_preference"
+          as: "saved_preference"
+          namespace: "agent:*:*:user_data"
+```
+
+**Fields**:
+- `memory.write`: List of memory write operations
+  - `key` (string): Memory key
+  - `value` (string): Value expression (state reference or literal)
+  - `namespace` (string): Namespace pattern (`{agent_id}:{workflow_id}:{node_id}:{key}`)
+- `memory.read`: List of memory read operations
+  - `key` (string): Memory key
+  - `as` (string): Local variable name for prompt
+  - `namespace` (string): Namespace pattern
+
+**Namespace Patterns**:
+- `agent:workflow:node:key` - Exact match
+- `agent:*:node:key` - Wildcard workflow (any workflow)
+- `agent:*:*:key` - Wildcard workflow and node
+- `*:*:*:key` - Wildcard everything
+
+**Usage**:
+```yaml
+nodes:
+  - id: personalize_response
+    memory:
+      read:
+        - key: "user_style"
+          as: "style"
+          namespace: "*:*:*:preferences"
+    prompt: |
+      User prefers: {style}
+      Generate response in that style.
+```
+
+---
+
+### Multi-LLM Provider Configuration
+
+**Schema Extension**:
+```yaml
+config:
+  llm:
+    provider: "openai"  # google, openai, anthropic, ollama
+    model: "gpt-4-turbo"
+    temperature: 0.7
+    max_tokens: 4096
+    api_key: null  # Read from env var (OPENAI_API_KEY)
+
+nodes:
+  - id: creative_node
+    llm:
+      provider: "anthropic"
+      model: "claude-3-opus"
+      temperature: 0.9
+```
+
+**Supported Providers**:
+
+| Provider | Models | API Key Env Var | Notes |
+|----------|--------|-----------------|-------|
+| `google` | gemini-2.0-flash-exp, gemini-2.5-pro, gemini-2.5-flash, gemini-1.5-pro, gemini-1.5-flash | `GOOGLE_API_KEY` | Direct LangChain implementation |
+| `openai` | gpt-4, gpt-4-turbo, gpt-3.5-turbo | `OPENAI_API_KEY` | LiteLLM wrapper |
+| `anthropic` | claude-3-opus, claude-3-sonnet, claude-3-haiku | `ANTHROPIC_API_KEY` | LiteLLM wrapper |
+| `ollama` | llama2, mistral, codellama, etc. | None (local) | Zero cost, local only |
+
+**Node-Level Override**:
+Nodes can override global LLM config:
+```yaml
+nodes:
+  - id: research
+    llm:
+      provider: "google"
+      model: "gemini-2.5-flash"
+      temperature: 0.3
+
+  - id: write
+    llm:
+      provider: "anthropic"
+      model: "claude-3-opus"
+      temperature: 0.9
+```
+
+---
+
+### Agent Registration API
+
+**Schema Extension**:
+```yaml
+config:
+  agent:
+    id: "research_agent"
+    name: "Research Agent"
+    version: "1.0.0"
+    capabilities:
+      - "web_search"
+      - "summarization"
+    registry_url: "http://localhost:8001"
+    heartbeat_interval: 20
+    ttl: 60
+```
+
+**Fields**:
+- `agent.id` (string): Unique agent identifier
+- `agent.name` (string): Human-readable name
+- `agent.version` (string): Semantic version
+- `agent.capabilities` (list[str]): List of capabilities
+- `agent.registry_url` (string): Agent registry endpoint
+- `agent.heartbeat_interval` (int, default: 20): Seconds between heartbeats
+- `agent.ttl` (int, default: 60): Time-to-live for heartbeat expiration
+
+**Environment Variables**:
+- `AGENT_HOST`: Agent host address (default: auto-detect)
+- `AGENT_PORT`: Agent port (default: auto-detect)
+- `REGISTRY_URL`: Override registry URL
+
+---
+
+### Webhook Configuration
+
+**Schema Extension**:
+```yaml
+config:
+  webhooks:
+    enabled: true
+    secret: "webhook_secret_key"  # HMAC signing
+    platforms:
+      whatsapp:
+        phone_id: "123456789"
+        access_token: "whatsapp_token"
+        verify_token: "verify_token"
+      telegram:
+        bot_token: "telegram_bot_token"
+```
+
+**Fields**:
+- `webhooks.enabled` (bool): Enable webhook endpoints
+- `webhooks.secret` (string): HMAC secret for signature verification
+- `webhooks.platforms.whatsapp`: WhatsApp Business API config
+- `webhooks.platforms.telegram`: Telegram Bot API config
+
+**Webhook Endpoints**:
+- `POST /webhooks/generic`: Universal webhook (workflow_name + inputs)
+- `POST /webhooks/whatsapp`: WhatsApp Business API
+- `POST /webhooks/telegram`: Telegram Bot API
+- `GET /webhooks/whatsapp`: Meta webhook verification
+
+**Security**:
+- HMAC signature verification (`X-Webhook-Signature` header)
+- Idempotency tracking (`webhook_id` deduplication)
+- Optional signature validation (only if `secret` configured)
+
+---
+
+### Optimization System Schema
+
+**Schema Extension**:
+```yaml
+optimization:
+  enabled: true
+  strategy: "BootstrapFewShot"
+  metric: "semantic_match"
+  max_demos: 8
+  quality_gates:
+    - metric: "cost_usd"
+      threshold: 0.10
+      action: "WARN"
+    - metric: "duration_seconds"
+      threshold: 30
+      action: "FAIL"
+```
+
+**Fields**:
+- `optimization.enabled` (bool): Enable DSPy optimization
+- `optimization.strategy` (string): DSPy optimizer strategy (BootstrapFewShot, KNN, etc.)
+- `optimization.metric` (string): Metric name for optimization
+- `optimization.max_demos` (int): Max few-shot examples
+- `optimization.quality_gates` (list): Quality gate rules
+  - `metric` (string): Metric to evaluate
+  - `threshold` (number): Threshold value
+  - `action` (string): WARN, FAIL, or BLOCK_DEPLOY
+
+**Optimization CLI Commands**:
+```bash
+# Evaluate optimization experiments
+configurable-agents optimization evaluate article_writer.yaml
+
+# Apply optimized prompts
+configurable-agents optimization apply-optimized article_writer.yaml --experiment-id 123
+
+# Run A/B test
+configurable-agents optimization ab-test article_writer.yaml --variant-a exp1 --variant-b exp2
+```
+
+---
+
 ## Complete Example Config
 
 ```yaml
@@ -1159,6 +1549,15 @@ config:
 ---
 
 ## Change Log
+
+**v1.1 (2026-02-04)**:
+- Added v1.0 schema extensions (conditional routing, loops, parallel execution)
+- Added multi-LLM provider configuration (OpenAI, Anthropic, Ollama via LiteLLM)
+- Added sandbox code execution (`code:` field)
+- Added memory configuration syntax
+- Added agent registration API
+- Added webhook configuration
+- Added optimization system schema
 
 **v1.0.1 (2026-01-30)**:
 - Added observability configuration (MLFlow)
