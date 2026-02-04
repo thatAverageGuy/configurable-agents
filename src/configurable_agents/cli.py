@@ -1514,6 +1514,239 @@ def cmd_webhooks(args: argparse.Namespace) -> int:
     return 0
 
 
+def cmd_optimization_evaluate(args: argparse.Namespace) -> int:
+    """
+    Evaluate MLFlow experiment and compare variants.
+
+    Args:
+        args: Parsed command-line arguments
+
+    Returns:
+        Exit code (0 for success, 1 for error)
+    """
+    if not RICH_AVAILABLE:
+        print_error("Rich library is required for evaluate command")
+        print_info("Install with: pip install rich>=13.0.0")
+        return 1
+
+    try:
+        from configurable_agents.optimization import ExperimentEvaluator, format_comparison_table
+
+        evaluator = ExperimentEvaluator(mlflow_tracking_uri=args.mlflow_uri)
+
+        console = Console()
+
+        # Display title
+        console.print()
+        title = Text(f"Experiment Evaluation: {args.experiment}", style="bold cyan")
+        console.print(Panel(title, expand=False))
+        console.print()
+
+        # Get comparison
+        comparison = evaluator.compare_variants(args.experiment, args.metric)
+
+        # Display comparison table
+        table_str = format_comparison_table(comparison)
+        console.print(table_str)
+        console.print()
+
+        # Highlight best variant
+        if comparison.best_variant:
+            print_success(f"Best variant: {comparison.best_variant}")
+
+        return 0
+
+    except RuntimeError as e:
+        print_error(f"MLFlow not available: {e}")
+        print_info("Install MLFlow with: pip install mlflow>=3.9.0")
+        return 1
+
+    except Exception as e:
+        print_error(f"Unexpected error: {e}")
+        if args.verbose:
+            import traceback
+
+            print(traceback.format_exc(), file=sys.stderr)
+        return 1
+
+
+def cmd_optimization_apply(args: argparse.Namespace) -> int:
+    """
+    Apply optimized prompt from experiment to workflow.
+
+    Args:
+        args: Parsed command-line arguments
+
+    Returns:
+        Exit code (0 for success, 1 for error)
+    """
+    try:
+        from configurable_agents.optimization import find_best_variant, apply_prompt_to_workflow
+
+        # Find best variant
+        print_info(f"Finding best variant in experiment: {args.experiment}")
+
+        best = find_best_variant(
+            args.experiment,
+            primary_metric="cost_usd_avg",
+            mlflow_tracking_uri=args.mlflow_uri,
+        )
+
+        if not best:
+            print_error(f"No variants found in experiment: {args.experiment}")
+            return 1
+
+        variant_name = args.variant or best["variant_name"]
+        prompt = best.get("prompt")
+
+        if not prompt:
+            print_error(f"Could not retrieve prompt for variant: {variant_name}")
+            return 1
+
+        print_info(f"Best variant: {variant_name}")
+        print_info(f"Experiment: {args.experiment}")
+        print_info(f"Metric: cost_usd_avg")
+        print_info(f"Prompt length: {len(prompt)} characters")
+
+        # Show preview of changes
+        print()
+        print(f"{colorize('New prompt:', Colors.BOLD)}")
+        print(prompt[:200] + "..." if len(prompt) > 200 else prompt)
+        print()
+
+        if args.dry_run:
+            print_info("Dry run - no changes made (omit --dry-run to apply)")
+            return 0
+
+        # Apply the prompt
+        backup_path = apply_prompt_to_workflow(
+            args.workflow,
+            prompt,
+            backup=True,
+        )
+
+        print_success(f"Prompt applied successfully!")
+        print_info(f"Backup saved to: {backup_path}")
+
+        return 0
+
+    except FileNotFoundError as e:
+        print_error(f"Workflow file not found: {e}")
+        return 1
+
+    except Exception as e:
+        print_error(f"Failed to apply prompt: {e}")
+        if args.verbose:
+            import traceback
+
+            print(traceback.format_exc(), file=sys.stderr)
+        return 1
+
+
+def cmd_optimization_ab_test(args: argparse.Namespace) -> int:
+    """
+    Run A/B test for prompt variants.
+
+    Args:
+        args: Parsed command-line arguments
+
+    Returns:
+        Exit code (0 for success, 1 for error)
+    """
+    config_path = args.config_file
+
+    # Validate file exists
+    if not Path(config_path).exists():
+        print_error(f"Config file not found: {config_path}")
+        return 1
+
+    # Parse inputs
+    try:
+        inputs = parse_input_args(args.input) if args.input else {}
+    except ValueError as e:
+        print_error(f"Invalid input format: {e}")
+        return 1
+
+    print_info(f"Running A/B test from: {colorize(config_path, Colors.CYAN)}")
+
+    try:
+        from configurable_agents.config import WorkflowConfig, parse_config_file
+        from configurable_agents.optimization import ABTestConfig, VariantConfig, ABTestRunner
+
+        # Load config
+        config_dict = parse_config_file(config_path)
+        config = WorkflowConfig(**config_dict)
+
+        # Check if A/B test is configured
+        if not config.config or not config.config.ab_test:
+            print_error("A/B testing not configured in this workflow")
+            print_info("Add 'ab_test' section to workflow config:")
+            print_info("""
+ab_test:
+  enabled: true
+  experiment: "my_test"
+  variants:
+    - name: "variant_a"
+      prompt: "Prompt A"
+    -  run_count: 3
+""")
+            return 1
+
+        ab_config = config.config.ab_test
+
+        if not ab_config.enabled:
+            print_error("A/B testing is disabled in config (set enabled: true)")
+            return 1
+
+        # Convert schema to internal format
+        variants = [
+            VariantConfig(
+                name=v.name,
+                prompt=v.prompt,
+                config_overrides=v.config_overrides,
+                node_id=v.node_id,
+            )
+            for v in ab_config.variants
+        ]
+
+        test_config = ABTestConfig(
+            experiment_name=ab_config.experiment,
+            variants=variants,
+            run_count=ab_config.run_count,
+            inputs=inputs,
+        )
+
+        runner = ABTestRunner()
+
+        print_info(
+            f"Running {len(variants)} variants x {ab_config.run_count} runs = "
+            f"{len(variants) * ab_config.run_count} total runs"
+        )
+
+        result = runner.run(test_config, config_path, inputs=inputs)
+
+        # Display summary
+        print()
+        print(result.summary)
+
+        if result.best_variant:
+            print_success(f"Best variant: {result.best_variant}")
+
+        return 0
+
+    except ConfigLoadError as e:
+        print_error(f"Failed to load config: {e}")
+        return 1
+
+    except Exception as e:
+        print_error(f"A/B test failed: {e}")
+        if args.verbose:
+            import traceback
+
+            print(traceback.format_exc(), file=sys.stderr)
+        return 1
+
+
 def create_parser() -> argparse.ArgumentParser:
     """
     Create CLI argument parser.
@@ -1968,6 +2201,99 @@ For more information, visit: https://github.com/yourusername/configurable-agents
         "-v", "--verbose", action="store_true", help="Enable verbose output"
     )
     webhooks_parser.set_defaults(func=cmd_webhooks)
+
+    # Optimization command group
+    optimization_parser = subparsers.add_parser(
+        "optimization",
+        help="Prompt optimization and A/B testing commands",
+        description="Manage prompt optimization experiments",
+    )
+    optimization_subparsers = optimization_parser.add_subparsers(
+        dest="optimization_command", help="Optimization subcommands"
+    )
+
+    # Evaluate subcommand
+    eval_parser = optimization_subparsers.add_parser(
+        "evaluate",
+        help="Evaluate experiment and compare variants",
+        description="Compare prompt variants in an MLFlow experiment",
+    )
+    eval_parser.add_argument(
+        "--experiment",
+        required=True,
+        help="MLFlow experiment name (required)",
+    )
+    eval_parser.add_argument(
+        "--metric",
+        default="cost_usd_avg",
+        help="Metric for comparison (default: cost_usd_avg)",
+    )
+    eval_parser.add_argument(
+        "--mlflow-uri",
+        default=None,
+        help="MLFlow tracking URI (default: from config or file://./mlruns)",
+    )
+    eval_parser.add_argument(
+        "-v", "--verbose", action="store_true", help="Enable verbose output"
+    )
+    eval_parser.set_defaults(func=cmd_optimization_evaluate)
+
+    # Apply-optimized subcommand
+    apply_parser = optimization_subparsers.add_parser(
+        "apply-optimized",
+        help="Apply optimized prompt to workflow",
+        description="Apply best performing prompt from experiment to workflow YAML",
+    )
+    apply_parser.add_argument(
+        "--experiment",
+        required=True,
+        help="MLFlow experiment name (required)",
+    )
+    apply_parser.add_argument(
+        "--variant",
+        default=None,
+        help="Specific variant to apply (default: best variant)",
+    )
+    apply_parser.add_argument(
+        "--workflow",
+        required=True,
+        help="Path to workflow YAML file to update",
+    )
+    apply_parser.add_argument(
+        "--dry-run",
+        action="store_true",
+        help="Show diff without applying changes",
+    )
+    apply_parser.add_argument(
+        "--mlflow-uri",
+        default=None,
+        help="MLFlow tracking URI",
+    )
+    apply_parser.add_argument(
+        "-v", "--verbose", action="store_true", help="Enable verbose output"
+    )
+    apply_parser.set_defaults(func=cmd_optimization_apply)
+
+    # A/B-test subcommand
+    ab_test_parser = optimization_subparsers.add_parser(
+        "ab-test",
+        help="Run A/B test for prompt variants",
+        description="Execute A/B test using variants from workflow config",
+    )
+    ab_test_parser.add_argument(
+        "config_file",
+        help="Path to workflow YAML config with A/B test configuration",
+    )
+    ab_test_parser.add_argument(
+        "-i",
+        "--input",
+        action="append",
+        help="Workflow inputs in key=value format",
+    )
+    ab_test_parser.add_argument(
+        "-v", "--verbose", action="store_true", help="Enable verbose output"
+    )
+    ab_test_parser.set_defaults(func=cmd_optimization_ab_test)
 
     return parser
 
