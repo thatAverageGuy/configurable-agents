@@ -1,7 +1,11 @@
 """Fixtures for CLI tests."""
 
+import os
+import subprocess
+import sys
 import tempfile
 from pathlib import Path
+from typing import List
 from unittest.mock import MagicMock
 
 import pytest
@@ -172,3 +176,140 @@ def mock_experiment_evaluator():
     }
 
     return evaluator
+
+
+@pytest.fixture
+def cli_runner():
+    """
+    Fixture that provides a function to run CLI commands via subprocess.
+
+    Returns a function that runs commands and returns the result.
+    """
+    def run_command(args: List[str], timeout: int = 30) -> subprocess.CompletedProcess:
+        """Run a CLI command via subprocess."""
+        full_args = [sys.executable, "-m", "configurable_agents"] + args
+        return subprocess.run(
+            full_args,
+            capture_output=True,
+            text=True,
+            timeout=timeout,
+        )
+    return run_command
+
+
+@pytest.fixture
+def minimal_config(tmp_path):
+    """
+    Fixture that provides a minimal valid config file.
+
+    Returns a Path object pointing to the config file.
+    """
+    config_file = tmp_path / "minimal.yaml"
+    config_file.write_text("""
+schema_version: "1.0"
+flow:
+  name: minimal_test
+state:
+  fields:
+    input:
+      type: str
+      required: false
+    result:
+      type: str
+      default: ""
+nodes:
+  - id: process
+    prompt: "Process: {state.input}"
+    outputs: [result]
+    output_schema:
+      type: object
+      fields:
+        - name: result
+          type: str
+edges:
+  - {from: START, to: process}
+  - {from: process, to: END}
+""")
+    return config_file
+
+
+@pytest.fixture
+def complete_config(tmp_path):
+    """
+    Fixture that provides a complete valid config file.
+
+    Returns a Path object pointing to the config file.
+    """
+    config_file = tmp_path / "complete.yaml"
+    config_file.write_text("""
+schema_version: "1.0"
+flow:
+  name: complete_test
+  description: A complete test workflow
+state:
+  fields:
+    - name: message
+      type: str
+      required: true
+      description: Input message
+    - name: count
+      type: int
+      default: 1
+      description: Counter
+    - name: result
+      type: str
+      default: ""
+      description: Output result
+nodes:
+  - id: process
+    prompt: "Process: {state.message}"
+    outputs: [result]
+    output_schema:
+      type: object
+      fields:
+        - name: result
+          type: str
+          description: The processed result
+edges:
+  - {from: START, to: process}
+  - {from: process, to: END}
+""")
+    return config_file
+
+
+@pytest.fixture
+def invalid_yaml_config(tmp_path):
+    """
+    Fixture that provides an invalid YAML config file.
+
+    Returns a Path object pointing to the config file.
+    """
+    config_file = tmp_path / "invalid.yaml"
+    config_file.write_text("invalid: yaml: content: [unclosed")
+    return config_file
+
+
+@pytest.fixture
+def deploy_output_dir(tmp_path):
+    """
+    Fixture that provides a directory for deploy output.
+
+    Creates and returns a Path object for deployment artifacts.
+    """
+    output_dir = tmp_path / "deploy_output"
+    output_dir.mkdir()
+    return output_dir
+
+
+@pytest.fixture
+def requires_api_key():
+    """
+    Fixture that skips tests if API key is not configured.
+
+    Use this marker for tests that require actual LLM API calls.
+    """
+    if not any(
+        os.environ.get(key)
+        for key in ["OPENAI_API_KEY", "ANTHROPIC_API_KEY", "GOOGLE_API_KEY"]
+    ):
+        pytest.skip("No API key configured - set OPENAI_API_KEY, ANTHROPIC_API_KEY, or GOOGLE_API_KEY")
