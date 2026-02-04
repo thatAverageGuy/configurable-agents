@@ -193,6 +193,7 @@ def cmd_run(args: argparse.Namespace) -> int:
     # Validate file exists
     if not Path(config_path).exists():
         print_error(f"Config file not found: {config_path}")
+        print_info("Check the file path or create a workflow config file")
         return 1
 
     # Auto-initialize database
@@ -211,9 +212,11 @@ def cmd_run(args: argparse.Namespace) -> int:
             ensure_initialized(db_url, verbose=args.verbose, show_progress=False)
     except PermissionError as e:
         print_error(f"Database permission error: {e}")
+        print_info("Check file permissions for the database directory")
         return 1
     except OSError as e:
         print_error(f"Database error: {e}")
+        print_info("Ensure the database directory exists and is accessible")
         return 1
 
     # Parse inputs
@@ -248,6 +251,7 @@ def cmd_run(args: argparse.Namespace) -> int:
 
     except ConfigLoadError as e:
         print_error(f"Failed to load config: {e}")
+        print_info("Check YAML syntax and file format (run 'configurable-agents validate' to check)")
         if args.verbose:
             import traceback
 
@@ -256,6 +260,7 @@ def cmd_run(args: argparse.Namespace) -> int:
 
     except ConfigValidationError as e:
         print_error(f"Config validation failed: {e}")
+        print_info("Review the validation error and fix your workflow configuration")
         if args.verbose:
             import traceback
 
@@ -333,6 +338,7 @@ def cmd_validate(args: argparse.Namespace) -> int:
 
     except ConfigLoadError as e:
         print_error(f"Failed to load config: {e}")
+        print_info("Check YAML syntax and file format (run 'configurable-agents validate' to check)")
         if args.verbose:
             import traceback
 
@@ -341,6 +347,7 @@ def cmd_validate(args: argparse.Namespace) -> int:
 
     except ConfigValidationError as e:
         print_error(f"Config validation failed: {e}")
+        print_info("Review the validation error and fix your workflow configuration")
         if args.verbose:
             import traceback
 
