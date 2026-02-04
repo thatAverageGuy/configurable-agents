@@ -428,3 +428,106 @@ class WebhookEventRepository(ABC):
             Number of records deleted
         """
         raise NotImplementedError
+
+
+class MemoryRepository(ABC):
+    """Abstract repository for agent memory persistence.
+
+    Provides key-value storage for agent memory with namespaced keys to prevent
+    conflicts between agents, workflows, and nodes. Memory persists across
+    workflow executions, enabling agents to maintain context over time.
+
+    Methods:
+        get: Retrieve a value by namespace key
+        set: Store a value with namespace key (upsert semantics)
+        delete: Remove a value by namespace key
+        list: List all keys for an agent with optional prefix filtering
+        clear: Clear all memory for an agent
+        clear_by_workflow: Clear all memory for a specific workflow
+    """
+
+    @abstractmethod
+    def get(self, namespace_key: str) -> Optional[str]:
+        """Get a value by namespace key.
+
+        Args:
+            namespace_key: Combined namespace key (agent:workflow:node:key)
+
+        Returns:
+            JSON-serialized value if found, None otherwise
+        """
+        raise NotImplementedError
+
+    @abstractmethod
+    def set(
+        self,
+        namespace_key: str,
+        value: str,
+        agent_id: str,
+        workflow_id: Optional[str],
+        node_id: Optional[str],
+        key: str,
+    ) -> None:
+        """Store a value with namespace key.
+
+        Uses upsert semantics - creates new record or updates existing.
+
+        Args:
+            namespace_key: Combined namespace key (agent:workflow:node:key)
+            value: JSON-serialized value to store
+            agent_id: Agent identifier
+            workflow_id: Workflow identifier (optional)
+            node_id: Node identifier (optional)
+            key: User-facing key name
+        """
+        raise NotImplementedError
+
+    @abstractmethod
+    def delete(self, namespace_key: str) -> bool:
+        """Delete a value by namespace key.
+
+        Args:
+            namespace_key: Combined namespace key (agent:workflow:node:key)
+
+        Returns:
+            True if record was deleted, False if not found
+        """
+        raise NotImplementedError
+
+    @abstractmethod
+    def list(self, agent_id: str, prefix: str = "") -> List[tuple[str, str]]:
+        """List all keys for an agent with optional prefix filtering.
+
+        Args:
+            agent_id: Agent identifier to filter by
+            prefix: Optional key prefix to filter results (e.g., "user:")
+
+        Returns:
+            List of (key, value) tuples matching the criteria
+        """
+        raise NotImplementedError
+
+    @abstractmethod
+    def clear(self, agent_id: str) -> int:
+        """Clear all memory for an agent.
+
+        Args:
+            agent_id: Agent identifier
+
+        Returns:
+            Number of records deleted
+        """
+        raise NotImplementedError
+
+    @abstractmethod
+    def clear_by_workflow(self, agent_id: str, workflow_id: str) -> int:
+        """Clear all memory for a specific workflow.
+
+        Args:
+            agent_id: Agent identifier
+            workflow_id: Workflow identifier
+
+        Returns:
+            Number of records deleted
+        """
+        raise NotImplementedError

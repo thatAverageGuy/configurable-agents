@@ -245,3 +245,37 @@ class WebhookEventRecord(Base):
     webhook_id: Mapped[str] = mapped_column(String(255), unique=True, index=True, nullable=False)
     provider: Mapped[str] = mapped_column(String(64), nullable=False)
     processed_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, nullable=False)
+
+
+class MemoryRecord(Base):
+    """ORM model for persistent agent memory storage.
+
+    Stores key-value pairs for agent memory with namespaced keys to prevent
+    conflicts between agents, workflows, and nodes. Memory persists across
+    workflow executions, enabling agents to maintain context over time.
+
+    Attributes:
+        id: Auto-increment primary key
+        agent_id: Agent identifier (indexed for filtering)
+        workflow_id: Workflow identifier (optional, indexed for filtering)
+        node_id: Node identifier (optional, indexed for filtering)
+        key: User-facing key name (indexed)
+        namespace_key: Combined namespace key "agent:workflow:node:key" (unique, indexed)
+        value: JSON-serialized value
+        created_at: When the memory entry was created
+        updated_at: When the memory entry was last updated
+    """
+
+    __tablename__ = "memory_records"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    agent_id: Mapped[str] = mapped_column(String(255), index=True, nullable=False)
+    workflow_id: Mapped[Optional[str]] = mapped_column(String(255), index=True, nullable=True)
+    node_id: Mapped[Optional[str]] = mapped_column(String(255), index=True, nullable=True)
+    key: Mapped[str] = mapped_column(String(255), index=True, nullable=False)
+    namespace_key: Mapped[str] = mapped_column(String(1000), unique=True, index=True, nullable=False)
+    value: Mapped[str] = mapped_column(Text, nullable=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, nullable=False)
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False
+    )

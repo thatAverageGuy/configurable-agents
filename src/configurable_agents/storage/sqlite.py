@@ -22,6 +22,7 @@ from configurable_agents.storage.base import (
     AgentRegistryRepository,
     ChatSessionRepository,
     WebhookEventRepository,
+    MemoryRepository,
 )
 from configurable_agents.storage.models import (
     ExecutionStateRecord,
@@ -30,6 +31,7 @@ from configurable_agents.storage.models import (
     ChatSession,
     ChatMessage,
     WebhookEventRecord,
+    MemoryRecord,
 )
 
 
@@ -665,6 +667,186 @@ class SqliteWebhookEventRepository(WebhookEventRepository):
             stmt: Select[WebhookEventRecord] = (
                 select(WebhookEventRecord)
                 .where(WebhookEventRecord.processed_at < cutoff)
+            )
+            records = list(session.scalars(stmt).all())
+
+            count = 0
+            for record in records:
+                session.delete(record)
+                count += 1
+
+            session.commit()
+            return count
+
+
+class SQLiteMemoryRepository(MemoryRepository):
+    """SQLite implementation of memory repository.
+
+    Provides key-value storage for agent memory with namespaced keys.
+    Uses INSERT OR REPLACE for upsert semantics when storing values.
+
+    Attributes:
+        engine: SQLAlchemy Engine instance for database connections
+    """
+
+    def __init__(self, engine: Engine) -> None:
+        """Initialize repository with database engine.
+
+        Args:
+            engine: SQLAlchemy Engine instance (created by factory)
+        """
+        self.engine = engine
+
+    def get(self, namespace_key: str) -> Optional[str]:
+        """Get a value by namespace key.
+
+        Args:
+            namespace_key: Combined namespace key (agent:workflow:node:key)
+
+        Returns:
+            JSON-serialized value if found, None otherwise
+        """
+        with Session(self.engine) as session:
+            stmt: Select[MemoryRecord] = (
+                select(MemoryRecord)
+                .where(MemoryRecord.namespace_key == namespace_key)
+                .limit(1)
+            )
+            record = session.scalar(stmt)
+            return record.value if record else None
+
+    def set(
+        self,
+        namespace_key: str,
+        value: str,
+        agent_id: str,
+        workflow_id: Optional[str],
+        node_id: Optional[str],
+        key: str,
+    ) -> None:
+        """Store a value with namespace key (upsert).
+
+        Uses raw SQL with INSERT OR REPLACE for upsert semantics.
+
+        Args:
+            namespace_key: Combined namespace key (agent:workflow:node:key)
+            value: JSON-serialized value to store
+            agent_id: Agent identifier
+            workflow_id: Workflow identifier (optional)
+            node_id: Node identifier (optional)
+            key: User-facing key name
+        """
+        with Session(self.engine) as session:
+            # Use INSERT OR REPLACE for upsert semantics
+            session.execute(
+                text(
+                    "INSERT OR REPLACE INTO memory_records "
+                    "(namespace_key, value, agent_id, workflow_id, node_id, key, created_at, updated_at) "
+                    "VALUES (:namespace_key, :value, :agent_id, :workflow_id, :node_id, :key, "
+                    "COALESCE((SELECT created_at FROM memory_records WHERE namespace_key = :namespace_key), datetime('now')), "
+                    "datetime('now'))"
+                ),
+                {
+                    "namespace_key": namespace_key,
+                    "value": value,
+                    "agent_id": agent_id,
+                    "workflow_id": workflow_id,
+                    "node_id": node_id,
+                    "key": key,
+                },
+            )
+            session.commit()
+
+    def delete(self, namespace_key: str) -> bool:
+        """Delete a value by namespace key.
+
+        Args:
+            namespace_key: Combined namespace key (agent:workflow:node:key)
+
+        Returns:
+            True if record was deleted, False if not found
+        """
+        with Session(self.engine) as session:
+            stmt: Select[MemoryRecord] = (
+                select(MemoryRecord)
+                .where(MemoryRecord.namespace_key == namespace_key)
+                .limit(1)
+            )
+            record = session.scalar(stmt)
+
+            if record is None:
+                return False
+
+            session.delete(record)
+            session.commit()
+            return True
+
+    def list(self, agent_id: str, prefix: str = "") -> List[tuple[str, str]]:
+        """List all keys for an agent with optional prefix filtering.
+
+        Args:
+            agent_id: Agent identifier to filter by
+            prefix: Optional key prefix to filter results (e.g., "user:")
+
+        Returns:
+            List of (key, value) tuples matching the criteria
+        """
+        with Session(self.engine) as session:
+            stmt: Select[MemoryRecord] = (
+                select(MemoryRecord)
+                .where(MemoryRecord.agent_id == agent_id)
+                .order_by(MemoryRecord.key.asc())
+            )
+
+            records = list(session.scalars(stmt).all())
+
+            # Filter by prefix if provided (case-sensitive)
+            if prefix:
+                records = [r for r in records if r.key.startswith(prefix)]
+
+            return [(r.key, r.value) for r in records]
+
+    def clear(self, agent_id: str) -> int:
+        """Clear all memory for an agent.
+
+        Args:
+            agent_id: Agent identifier
+
+        Returns:
+            Number of records deleted
+        """
+        with Session(self.engine) as session:
+            stmt: Select[MemoryRecord] = (
+                select(MemoryRecord)
+                .where(MemoryRecord.agent_id == agent_id)
+            )
+            records = list(session.scalars(stmt).all())
+
+            count = 0
+            for record in records:
+                session.delete(record)
+                count += 1
+
+            session.commit()
+            return count
+
+    def clear_by_workflow(self, agent_id: str, workflow_id: str) -> int:
+        """Clear all memory for a specific workflow.
+
+        Args:
+            agent_id: Agent identifier
+            workflow_id: Workflow identifier
+
+        Returns:
+            Number of records deleted
+        """
+        with Session(self.engine) as session:
+            stmt: Select[MemoryRecord] = (
+                select(MemoryRecord)
+                .where(
+                    MemoryRecord.agent_id == agent_id,
+                    MemoryRecord.workflow_id == workflow_id,
+                )
             )
             records = list(session.scalars(stmt).all())
 
