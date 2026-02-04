@@ -99,12 +99,14 @@ class DashboardApp:
             optimization_router,
             orchestrator_router,
         )
+        from configurable_agents.ui.dashboard.routes import status as status_routes
 
         self.app.include_router(workflows_router)
         self.app.include_router(agents_router)
         self.app.include_router(metrics_router)
         self.app.include_router(optimization_router)
         self.app.include_router(orchestrator_router)
+        self.app.include_router(status_routes.router)
 
     def _setup_templates(self, template_dir: Optional[Path] = None) -> None:
         """Configure Jinja2 templates.
@@ -173,31 +175,36 @@ class DashboardApp:
         @self.app.get("/", response_class=HTMLResponse)
         async def dashboard_home(request: Request):
             """Render main dashboard page."""
-            # Get summary statistics
+            # Get summary statistics for status panel
             try:
                 all_runs = self._get_all_runs()
                 total_workflows = len(all_runs)
-                running_workflows = sum(1 for r in all_runs if r.status == "running")
-                total_cost = sum(r.total_cost_usd or 0 for r in all_runs)
+                active_workflows = sum(1 for r in all_runs if r.status == "running")
             except Exception:
                 total_workflows = 0
-                running_workflows = 0
-                total_cost = 0.0
+                active_workflows = 0
 
             try:
                 all_agents = self.agent_registry_repo.list_all(include_dead=False)
-                registered_agents = len(all_agents)
+                agent_total = len(all_agents)
+                agent_healthy = sum(1 for a in all_agents if a.is_alive())
             except Exception:
-                registered_agents = 0
+                agent_total = 0
+                agent_healthy = 0
 
             return self.templates.TemplateResponse(
                 "dashboard.html",
                 {
                     "request": request,
+                    # For initial status panel render
+                    "active_workflows": active_workflows,
                     "total_workflows": total_workflows,
-                    "running_workflows": running_workflows,
-                    "registered_agents": registered_agents,
-                    "total_cost": total_cost,
+                    "agent_healthy": agent_healthy,
+                    "agent_total": agent_total,
+                    "recent_errors": [],
+                    "cpu_percent": 0,
+                    "memory_percent": 0,
+                    "now": datetime.utcnow(),
                 },
             )
 

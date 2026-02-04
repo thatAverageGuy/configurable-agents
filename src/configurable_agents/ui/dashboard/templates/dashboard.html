@@ -11,40 +11,8 @@
         <p class="subtitle">Real-time workflow and agent monitoring</p>
     </header>
 
-    <!-- Summary Cards -->
-    <div class="summary-cards" hx-get="/dashboard/summary" hx-trigger="load, every 10s" hx-swap="outerHTML">
-        <div class="card">
-            <div class="card-icon workflows-icon"></div>
-            <div class="card-content">
-                <div class="card-label">Total Workflows</div>
-                <div class="card-value">{{ total_workflows }}</div>
-            </div>
-        </div>
-
-        <div class="card">
-            <div class="card-icon running-icon"></div>
-            <div class="card-content">
-                <div class="card-label">Running</div>
-                <div class="card-value">{{ running_workflows }}</div>
-            </div>
-        </div>
-
-        <div class="card">
-            <div class="card-icon agents-icon"></div>
-            <div class="card-content">
-                <div class="card-label">Registered Agents</div>
-                <div class="card-value">{{ registered_agents }}</div>
-            </div>
-        </div>
-
-        <div class="card">
-            <div class="card-icon cost-icon"></div>
-            <div class="card-content">
-                <div class="card-label">Total Cost</div>
-                <div class="card-value">${{ "%.6f"|format(total_cost) }}</div>
-            </div>
-        </div>
-    </div>
+    <!-- Status Panel with auto-refresh -->
+    {% include "partials/status_panel.html" %}
 
     <!-- Quick Links -->
     <div class="quick-links">

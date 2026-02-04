@@ -66,6 +66,6 @@
   {% endif %}
 
   <div class="status-footer">
-    <span class="last-updated">Updated: <time datetime="{{ datetime.utcnow().isoformat() }}">{{ datetime.utcnow().strftime("%H:%M:%S") }}</time></span>
+    <span class="last-updated">Updated: <span class="update-time">{{ now.strftime("%H:%M:%S") if now else "--:--:--" }}</span></span>
   </div>
 </div>

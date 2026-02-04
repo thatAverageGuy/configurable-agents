@@ -204,6 +204,7 @@ async def status_dashboard(request: Request):
             "recent_errors": recent_errors,
             "cpu_percent": cpu_percent,
             "memory_percent": memory_percent,
+            "now": datetime.utcnow(),
         },
     )
 
