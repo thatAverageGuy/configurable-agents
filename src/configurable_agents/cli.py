@@ -18,6 +18,7 @@ from pathlib import Path
 from typing import Any, Dict, List, Optional
 
 from configurable_agents.deploy import generate_deployment_artifacts
+from configurable_agents.process import ProcessManager, ServiceSpec
 from configurable_agents.observability import (
     CostReporter,
     get_date_range_filter,
