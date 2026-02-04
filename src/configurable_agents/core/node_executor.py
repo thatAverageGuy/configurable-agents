@@ -7,6 +7,8 @@ Integrates:
 - Tool registry (T-008): Load and bind tools
 - Output builder (T-007): Enforce output schema
 - State builder (T-006): Manage workflow state
+- Memory (T-12): Persistent agent memory with namespaced keys
+- Tools (T-13): Pre-built tools for web, file, data, system operations
 
 Design decisions:
 - Copy-on-write state updates (immutable pattern)
@@ -16,13 +18,15 @@ Design decisions:
   (TODO T-011.1: Update template resolver to handle state. prefix natively)
 """
 
+import json
 import logging
 import re
-from typing import TYPE_CHECKING, Optional
+import time
+from typing import TYPE_CHECKING, Any, Optional, Union
 
 from pydantic import BaseModel, ValidationError
 
-from configurable_agents.config.schema import GlobalConfig, NodeConfig
+from configurable_agents.config.schema import GlobalConfig, MemoryConfig, NodeConfig, ToolConfig
 from configurable_agents.core.output_builder import OutputBuilderError, build_output_model
 from configurable_agents.core.template import TemplateResolutionError, resolve_prompt
 from configurable_agents.llm import (
@@ -33,7 +37,36 @@ from configurable_agents.llm import (
     create_llm,
     merge_llm_config,
 )
+from configurable_agents.memory import AgentMemory
+from configurable_agents.observability.cost_estimator import CostEstimator
+from configurable_agents.storage.base import MemoryRepository
 from configurable_agents.tools import ToolConfigError, ToolNotFoundError, get_tool
+
+# Optional sandbox import for code execution
+try:
+    from configurable_agents.sandbox import (
+        DockerSandboxExecutor,
+        PythonSandboxExecutor,
+        SafetyError,
+        get_preset,
+        SandboxResult,
+    )
+    SANDBOX_AVAILABLE = True
+except ImportError:
+    SANDBOX_AVAILABLE = False
+    DockerSandboxExecutor = None
+    PythonSandboxExecutor = None
+    SafetyError = None
+    get_preset = None
+    SandboxResult = None
+
+# Optional MLFlow import for direct metric logging
+try:
+    import mlflow
+    MLFLOW_AVAILABLE = True
+except ImportError:
+    mlflow = None
+    MLFLOW_AVAILABLE = False
 
 if TYPE_CHECKING:
     from configurable_agents.observability import MLFlowTracker
@@ -141,6 +174,18 @@ def execute_node(
     """
     node_id = node_config.id
 
+    # Extract storage repos from tracker (attached by executor)
+    execution_state_repo = getattr(tracker, 'execution_state_repo', None) if tracker else None
+    run_id = getattr(tracker, 'run_id', None) if tracker else None
+    memory_repo = getattr(tracker, 'memory_repo', None) if tracker else None
+
+    # Extract workflow context from tracker (attached by runtime executor)
+    workflow_name = getattr(tracker, 'workflow_name', None) if tracker else None
+    workflow_id = getattr(tracker, 'workflow_id', None) if tracker else None
+
+    # Get agent_id from workflow name for memory namespacing
+    agent_id = workflow_name or "default_agent"
+
     try:
         # ========================================
         # 1. RESOLVE INPUT MAPPINGS
@@ -187,20 +232,172 @@ def execute_node(
         )
 
         # ========================================
-        # 3. LOAD TOOLS
+        # 3. CREATE MEMORY CONTEXT (if enabled)
+        # ========================================
+        agent_memory = None
+        if node_config.memory and node_config.memory.enabled and memory_repo:
+            memory_config = node_config.memory
+            # Get scope (node-level overrides workflow-level defaults)
+            scope = memory_config.default_scope or "agent"
+
+            agent_memory = AgentMemory(
+                agent_id=agent_id,
+                workflow_id=workflow_id,
+                node_id=node_id,
+                scope=scope,
+                repo=memory_repo,
+            )
+            logger.debug(
+                f"Node '{node_id}': Memory enabled with scope '{scope}'"
+            )
+
+        # ========================================
+        # 4. LOAD TOOLS (with ToolConfig support)
         # ========================================
         tools = []
+        tool_error_modes = {}  # Track error handling per tool
         if node_config.tools:
             try:
-                tools = [get_tool(name) for name in node_config.tools]
+                for tool_config in node_config.tools:
+                    if isinstance(tool_config, str):
+                        # Simple string tool name
+                        tool = get_tool(tool_config)
+                        tools.append(tool)
+                        tool_error_modes[tool_config] = "fail"
+                    elif isinstance(tool_config, dict):
+                        # ToolConfig dict
+                        tool_name = tool_config.get("name")
+                        if not tool_name:
+                            raise NodeExecutionError(
+                                f"Node '{node_id}': Tool config missing 'name' field",
+                                node_id=node_id,
+                            )
+                        tool = get_tool(tool_name)
+                        tools.append(tool)
+                        tool_error_modes[tool_name] = tool_config.get("on_error", "fail")
+                    else:
+                        raise NodeExecutionError(
+                            f"Node '{node_id}': Invalid tool config type: {type(tool_config)}",
+                            node_id=node_id,
+                        )
+
+                tool_names = [t.name for t in tools]
                 logger.debug(
-                    f"Node '{node_id}': Loaded {len(tools)} tools: {node_config.tools}"
+                    f"Node '{node_id}': Loaded {len(tools)} tools: {tool_names}"
                 )
             except (ToolNotFoundError, ToolConfigError) as e:
                 raise NodeExecutionError(
                     f"Node '{node_id}': Tool loading failed: {e}",
                     node_id=node_id,
                 )
+
+        # ========================================
+        # 4.5. CODE EXECUTION (if code field is present)
+        # ========================================
+        if node_config.code and SANDBOX_AVAILABLE:
+            logger.info(f"Node '{node_id}': Executing code in sandbox")
+
+            sandbox_config = node_config.sandbox
+            if sandbox_config and sandbox_config.enabled:
+                # Determine which executor to use
+                use_docker = sandbox_config.mode == "docker"
+
+                # Get resource preset
+                preset = get_preset(sandbox_config.preset) if get_preset else {}
+                resources = preset.copy()
+                if sandbox_config.resources:
+                    resources.update(sandbox_config.resources)
+
+                # Determine timeout
+                timeout = resources.get("timeout", 60)
+                if sandbox_config.timeout:
+                    timeout = sandbox_config.timeout
+
+                # Add network config
+                if not sandbox_config.network:
+                    resources["network"] = False
+
+                # For code execution, we need actual values from state, not strings
+                # Create code_inputs dict with actual values
+                code_inputs = {}
+                if node_config.inputs:
+                    for local_name, template_str in node_config.inputs.items():
+                        # Extract the actual field name from template (e.g., "{numbers}" -> "numbers")
+                        field_name = template_str.strip("{}")
+                        if hasattr(state, field_name):
+                            code_inputs[local_name] = getattr(state, field_name)
+                        else:
+                            # Fallback to resolved input string value
+                            code_inputs[local_name] = resolved_inputs.get(local_name)
+
+                # Create executor and run code
+                try:
+                    if use_docker:
+                        executor = DockerSandboxExecutor()
+                        sandbox_result: SandboxResult = executor.execute(
+                            code=node_config.code,
+                            inputs=code_inputs,
+                            timeout=timeout,
+                            resources=resources,
+                        )
+                    else:
+                        executor = PythonSandboxExecutor()
+                        # PythonSandboxExecutor doesn't use resources dict
+                        sandbox_result: SandboxResult = executor.execute(
+                            code=node_config.code,
+                            inputs=code_inputs,
+                            timeout=timeout,
+                        )
+
+                    if not sandbox_result.success:
+                        raise NodeExecutionError(
+                            f"Node '{node_id}': Sandbox execution failed: {sandbox_result.error}",
+                            node_id=node_id,
+                        )
+
+                    # Update state with result
+                    new_state = state.model_copy()
+                    output_name = node_config.outputs[0]
+                    setattr(new_state, output_name, sandbox_result.output)
+                    logger.info(
+                        f"Node '{node_id}': Sandbox execution complete, "
+                        f"output={output_name}={sandbox_result.output}"
+                    )
+                    return new_state
+
+                except SafetyError as e:
+                    raise NodeExecutionError(
+                        f"Node '{node_id}': Code safety violation: {e}",
+                        node_id=node_id,
+                    )
+            else:
+                # Sandbox disabled - this is unsafe but allowed
+                logger.warning(
+                    f"Node '{node_id}': Sandbox disabled, executing code directly "
+                    f"(this is unsafe and not recommended)"
+                )
+                # Execute code directly without sandbox (unsafe!)
+                try:
+                    exec_globals = {
+                        "inputs": resolved_inputs,
+                        "result": None,
+                        "memory": agent_memory,  # Inject memory for code access
+                    }
+                    exec(node_config.code, exec_globals)
+                    new_state = state.model_copy()
+                    output_name = node_config.outputs[0]
+                    setattr(new_state, output_name, exec_globals["result"])
+                    return new_state
+                except Exception as e:
+                    raise NodeExecutionError(
+                        f"Node '{node_id}': Direct code execution failed: {e}",
+                        node_id=node_id,
+                    )
+        elif node_config.code and not SANDBOX_AVAILABLE:
+            raise NodeExecutionError(
+                f"Node '{node_id}': Code execution requested but sandbox module not available",
+                node_id=node_id,
+            )
 
         # ========================================
         # 4. CONFIGURE LLM
@@ -247,6 +444,9 @@ def execute_node(
         # The tracker parameter is kept for backward compatibility and config access,
         # but actual tracing happens automatically - no manual track_node() needed!
 
+        # Start timing for node execution
+        node_start_time = time.time()
+
         try:
             # Call LLM with structured output enforcement
             # Tools are bound if present, retries handled automatically
@@ -267,16 +467,79 @@ def execute_node(
             )
 
         except (LLMAPIError, ValidationError) as e:
+            # Save failed execution state before raising
+            if execution_state_repo and run_id:
+                try:
+                    error_state = {
+                        "node_id": node_id,
+                        "duration_seconds": round(time.time() - node_start_time, 4),
+                        "status": "failed",
+                        "error": str(e)[:500],  # Truncate long error messages
+                    }
+                    execution_state_repo.save_state(
+                        run_id=run_id,
+                        state_data=error_state,
+                        node_id=node_id,
+                    )
+                except Exception:
+                    pass  # Double-fault: don't let storage errors mask the real error
             raise NodeExecutionError(
                 f"Node '{node_id}': LLM call failed: {e}",
                 node_id=node_id,
             )
+
+        node_duration = time.time() - node_start_time
+        node_duration_ms = node_duration * 1000
+
+        # ========================================
+        # 6.5: RECORD TO PROFILER AND LOG METRICS
+        # ========================================
+        # Record timing to BottleneckAnalyzer (if set by runtime executor)
+        # Lazy import to avoid circular dependency with runtime module
+        try:
+            from configurable_agents.runtime.profiler import get_profiler
+            analyzer = get_profiler()
+            if analyzer:
+                analyzer.record_node(node_id, node_duration_ms)
+        except ImportError:
+            pass  # Profiler not available
+
+        # Log per-node metrics to MLFlow
+        if MLFLOW_AVAILABLE and mlflow.active_run():
+            try:
+                mlflow.log_metric(f"node_{node_id}_duration_ms", node_duration_ms)
+                logger.debug(f"Logged MLFlow metric: node_{node_id}_duration_ms = {node_duration_ms:.2f}ms")
+            except Exception as e:
+                logger.warning(f"Failed to log node duration to MLFlow: {e}")
+
+        # Calculate cost using CostEstimator
+        cost_usd = 0.0
+        try:
+            cost_estimator = CostEstimator()
+            cost_usd = cost_estimator.estimate_cost(
+                model=model_name,
+                input_tokens=usage.input_tokens,
+                output_tokens=usage.output_tokens,
+            )
+            # Log per-node cost to MLFlow
+            if MLFLOW_AVAILABLE and mlflow.active_run():
+                try:
+                    mlflow.log_metric(f"node_{node_id}_cost_usd", cost_usd)
+                    logger.debug(f"Logged MLFlow metric: node_{node_id}_cost_usd = ${cost_usd:.6f}")
+                except Exception as e:
+                    logger.warning(f"Failed to log node cost to MLFlow: {e}")
+        except Exception as e:
+            logger.debug(f"Failed to estimate cost for node '{node_id}': {e}")
 
         # ========================================
         # 7. UPDATE STATE
         # ========================================
         # Copy-on-write: create new state instance (immutable pattern)
         new_state = state.model_copy()
+
+        # Add execution metadata to state (hidden fields for tracking)
+        setattr(new_state, f"_execution_time_ms_{node_id}", round(node_duration_ms, 2))
+        setattr(new_state, f"_cost_usd_{node_id}", round(cost_usd, 6))
 
         # Extract output values from LLM result and update state
         if node_config.output_schema.type == "object":
@@ -300,6 +563,57 @@ def execute_node(
 
         # Pydantic auto-validates on setattr
         # If validation fails, raises ValidationError (caught above)
+
+        # ========================================
+        # 6.5: PERSIST EXECUTION STATE (if storage available)
+        # ========================================
+        if execution_state_repo and run_id:
+            try:
+                state_snapshot = {
+                    "node_id": node_id,
+                    "duration_seconds": round(node_duration, 4),
+                    "input_tokens": usage.input_tokens,
+                    "output_tokens": usage.output_tokens,
+                    "total_tokens": usage.input_tokens + usage.output_tokens,
+                    "model": model_name,
+                    "status": "completed",
+                }
+
+                # Add cost if available from cost estimator
+                try:
+                    from configurable_agents.observability.cost_estimator import CostEstimator
+                    estimator = CostEstimator()
+                    cost = estimator.estimate_cost(
+                        model=model_name,
+                        input_tokens=usage.input_tokens,
+                        output_tokens=usage.output_tokens,
+                    )
+                    state_snapshot["cost_usd"] = cost
+                except Exception:
+                    state_snapshot["cost_usd"] = 0.0
+
+                # Include the output state values (for trace inspection)
+                output_values = {}
+                for output_name in node_config.outputs:
+                    val = getattr(new_state, output_name, None)
+                    if val is not None:
+                        # Truncate large string outputs for storage efficiency
+                        str_val = str(val)
+                        output_values[output_name] = str_val[:500] if len(str_val) > 500 else str_val
+                state_snapshot["outputs"] = output_values
+
+                execution_state_repo.save_state(
+                    run_id=run_id,
+                    state_data=state_snapshot,
+                    node_id=node_id,
+                )
+                logger.debug(
+                    f"Node '{node_id}': Saved execution state "
+                    f"(duration={node_duration:.3f}s, tokens={usage.input_tokens + usage.output_tokens})"
+                )
+            except Exception as e:
+                # Storage failure must not break execution
+                logger.warning(f"Node '{node_id}': Failed to save execution state: {e}")
 
         logger.info(
             f"Node '{node_id}': Execution complete, updated {len(node_config.outputs)} "

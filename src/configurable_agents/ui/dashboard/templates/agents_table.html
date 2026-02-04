@@ -1,0 +1,67 @@
+{% from 'configurable_agents.ui.dashboard.routes.agents' import _time_ago, _parse_capabilities %}
+<table>
+    <thead>
+        <tr>
+            <th>Agent ID</th>
+            <th>Name</th>
+            <th>Host:Port</th>
+            <th>Capabilities</th>
+            <th>Last Heartbeat</th>
+            <th>Status</th>
+            <th>Actions</th>
+        </tr>
+    </thead>
+    <tbody>
+        {% if agents %}
+            {% for agent in agents[:50] %}
+            <tr>
+                <td class="monospace">{{ agent.agent_id[:12] }}...</td>
+                <td>{{ agent.agent_name }}</td>
+                <td class="monospace">{{ agent.host }}:{{ agent.port }}</td>
+                <td>
+                    {% set capabilities = _parse_capabilities(agent.agent_metadata) %}
+                    {% if capabilities %}
+                        {% for cap in capabilities[:3] %}
+                        <span class="capability-badge">{{ cap }}</span>
+                        {% endfor %}
+                        {% if capabilities | length > 3 %}
+                        <span class="capability-badge">+{{ capabilities | length - 3 }}</span>
+                        {% endif %}
+                    {% else %}
+                        <span style="color: #9ca3af;">-</span>
+                    {% endif %}
+                </td>
+                <td>{{ _time_ago(agent.last_heartbeat) }}</td>
+                <td>
+                    {% if agent.is_alive() %}
+                    <span class="status-dot alive"></span> Alive
+                    {% else %}
+                    <span class="status-dot dead"></span> Expired
+                    {% endif %}
+                </td>
+                <td>
+                    <div class="action-buttons">
+                        <a href="http://{{ agent.host }}:{{ agent.port }}/docs"
+                           target="_blank"
+                           class="btn btn-sm btn-secondary">API Docs</a>
+                        <button class="btn btn-sm btn-danger"
+                                hx-delete="/agents/{{ agent.agent_id }}"
+                                hx-confirm="Deregister this agent?"
+                                hx-swap="outerHTML"
+                                hx-target="#agents-table">
+                            Deregister
+                        </button>
+                    </div>
+                </td>
+            </tr>
+            {% endfor %}
+        {% else %}
+            <tr>
+                <td colspan="7" class="empty-state">
+                    <div class="empty-state-icon">No agents found</div>
+                    <p>No agents are currently registered.</p>
+                </td>
+            </tr>
+        {% endif %}
+    </tbody>
+</table>

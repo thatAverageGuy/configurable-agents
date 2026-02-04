@@ -1,0 +1,175 @@
+# Tools Example - Demonstrating Pre-Built Tool Integration
+#
+# This workflow shows how to use pre-built tools for web search,
+# file I/O, data processing, and system operations.
+#
+# Tool configuration:
+# - Simple string: ["web_search", "file_read"]
+# - Dict with on_error: [{"name": "web_scrape", "on_error": "continue"}]
+#
+# Error handling:
+# - "fail" (default): Tool errors fail the node
+# - "continue": Tool errors are caught and returned as error results
+#
+# Usage:
+#   # Set required environment variables
+#   export SERPER_API_KEY=your-api-key
+#   export ALLOWED_PATHS=./examples,/tmp
+#
+#   python -m configurable_agents run examples/tools_example.yaml
+
+schema_version: "1.0"
+
+flow:
+  name: tools_example
+  version: "1.0"
+  description: Demonstrates tool integration (web, file, data, system)
+
+state:
+  fields:
+    topic:
+      type: str
+      required: true
+      description: Topic to research
+    output_file:
+      type: str
+      required: true
+      description: File path to save results
+    search_results:
+      type: str
+      default: ""
+      description: Web search results
+    scraped_content:
+      type: str
+      default: ""
+      description: Content scraped from URLs
+    file_status:
+      type: str
+      default: ""
+      description: File write status
+    data_summary:
+      type: str
+      default: ""
+      description: Data processing summary
+    final_report:
+      type: str
+      default: ""
+      description: Final report
+
+config:
+  llm:
+    model: gemini-1.5-flash
+    temperature: 0.7
+
+nodes:
+  # Task 1: Web search using Serper API
+  - id: search_web
+    name: Search the Web
+    prompt: |
+      Search for information about: "{topic}"
+
+      Use the web_search tool to find relevant results.
+      Summarize the top 3-5 findings.
+    outputs: [search_results]
+    output_schema:
+      type: str
+    tools:
+      - name: web_search
+        on_error: fail  # Default: search failure fails the node
+
+  # Task 2: Web scraping (with error handling)
+  - id: scrape_content
+    name: Scrape Web Content
+    prompt: |
+      Based on these search results: {search_results}
+
+      If any URLs are mentioned, use the web_scrape tool to get the full content.
+      If scraping fails, continue with the search results summary.
+    outputs: [scraped_content]
+    output_schema:
+      type: str
+    tools:
+      - name: web_scrape
+        on_error: continue  # Continue even if scraping fails
+
+  # Task 3: File I/O operations
+  - id: save_to_file
+    name: Save Results to File
+    prompt: |
+      Content to save: {scraped_content}
+
+      Use the file_write tool to save this content to: {output_file}
+      Report the file status (path, size, success).
+    outputs: [file_status]
+    output_schema:
+      type: str
+    tools:
+      - file_read
+      - file_write
+      - file_glob  # For finding files by pattern
+
+  # Task 4: Data processing
+  - id: process_data
+    name: Process and Analyze Data
+    prompt: |
+      Research data: {search_results}
+      File location: {file_status}
+
+      Use the json_parse tool if there's any JSON data to analyze.
+      Create a summary of the key findings.
+    outputs: [data_summary]
+    output_schema:
+      type: str
+    tools:
+      - json_parse
+      - yaml_parse
+      - sql_query
+
+  # Task 5: System operations (with security)
+  - id: system_info
+    name: Get System Information
+    prompt: |
+      Use the env_vars tool to read environment variables matching "PYTHON*".
+      DO NOT read sensitive variables (KEY, SECRET, PASSWORD, TOKEN).
+
+      Report the Python environment configuration.
+    outputs: [final_report]
+    output_schema:
+      type: str
+    tools:
+      - name: env_vars
+        on_error: continue
+      # Shell tool requires ALLOWED_COMMANDS env var for security
+      # - shell
+
+edges:
+  - {from: START, to: search_web}
+  - {from: search_web, to: scrape_content}
+  - {from: scrape_content, to: save_to_file}
+  - {from: save_to_file, to: process_data}
+  - {from: process_data, to: system_info}
+  - {from: system_info, to: END}
+
+# Additional tool examples:
+#
+# Web tools:
+#   - web_search: Search via Serper or Tavily API
+#   - web_scrape: Extract content from URLs with CSS selectors
+#   - http_client: Make HTTP requests (GET, POST, PUT, DELETE)
+#
+# File tools (require ALLOWED_PATHS env var):
+#   - file_read: Read file contents
+#   - file_write: Write/append to files
+#   - file_glob: Find files by pattern
+#   - file_move: Move/rename files
+#
+# Data tools:
+#   - sql_query: Execute SELECT queries on SQLite
+#   - dataframe_to_csv: Convert data to CSV
+#   - json_parse: Parse JSON strings
+#   - yaml_parse: Parse YAML strings
+#
+# System tools (require ALLOWED_COMMANDS env var):
+#   - shell: Execute shell commands with timeout
+#   - process: Spawn background processes
+#   - env_vars: Read environment variables (filters sensitive data)

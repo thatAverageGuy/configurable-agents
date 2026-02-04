@@ -1,0 +1,58 @@
+# Webhook Integration Example
+# This example demonstrates triggering workflows from external webhooks
+
+name: Slack Notification Workflow
+description: Process webhook triggers and send Slack notifications
+
+version: "1.0"
+
+state:
+  type: object
+  properties:
+    event_type:
+      type: string
+      description: Type of webhook event
+    message:
+      type: string
+      description: Event message
+    slack_channel:
+      type: string
+      description: Target Slack channel
+
+nodes:
+  - name: log_event
+    llm:
+      provider: google
+      model: gemini-1.5-flash
+    prompt: |
+      Log the following webhook event for tracking:
+
+      Event Type: {event_type}
+      Message: {message}
+
+      Provide a brief summary of what happened.
+
+  - name: format_notification
+    llm:
+      provider: google
+      model: gemini-1.5-flash
+    prompt: |
+      Create a friendly Slack notification for this event:
+      {message}
+
+      Format requirements:
+      - Use emojis to make it engaging
+      - Keep it under 200 characters
+      - Make it actionable if appropriate
+
+      Event type: {event_type}
+      Target channel: {slack_channel}
+
+edges:
+  - from: log_event
+    to: format_notification
+
+observability:
+  mlflow:
+    enabled: true
+    experiment_name: "webhook_integration"

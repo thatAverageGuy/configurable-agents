@@ -7,6 +7,7 @@ Key components:
 - CostEstimator: Token-to-cost conversion for LLM APIs
 - MLFlowTracker: MLFlow integration for workflow tracking
 - CostReporter: Query and aggregate cost data from MLFlow
+- MultiProviderCostTracker: Unified cost tracking across LLM providers
 """
 
 from configurable_agents.observability.cost_estimator import (
@@ -20,6 +21,13 @@ from configurable_agents.observability.cost_reporter import (
     get_date_range_filter,
 )
 from configurable_agents.observability.mlflow_tracker import MLFlowTracker
+from configurable_agents.observability.multi_provider_tracker import (
+    MultiProviderCostTracker,
+    generate_cost_report,
+    _extract_provider,
+    ProviderCostEntry,
+    ProviderCostSummary,
+)
 
 __all__ = [
     "CostEstimator",
@@ -29,4 +37,9 @@ __all__ = [
     "CostEntry",
     "CostSummary",
     "get_date_range_filter",
+    "MultiProviderCostTracker",
+    "generate_cost_report",
+    "_extract_provider",
+    "ProviderCostEntry",
+    "ProviderCostSummary",
 ]

@@ -241,8 +241,20 @@ class TestRegistryIntegration:
         """Test that all tools are properly registered and accessible."""
         tools = list_tools()
 
-        # v0.1 should have exactly these tools
-        expected_tools = ["serper_search"]
+        # v0.2 should have all these tools
+        # Web tools
+        web_tools = ["http_client", "web_scrape", "web_search"]
+        # File tools
+        file_tools = ["file_glob", "file_move", "file_read", "file_write"]
+        # Data tools
+        data_tools = ["dataframe_to_csv", "json_parse", "sql_query", "yaml_parse"]
+        # System tools
+        system_tools = ["env_vars", "process", "shell"]
+        # Search tools (legacy)
+        search_tools = ["serper_search"]
+
+        expected_tools = web_tools + file_tools + data_tools + system_tools + search_tools
+
         assert set(tools) == set(expected_tools)
 
         # All tools should be gettable (with proper config)

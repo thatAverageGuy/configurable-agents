@@ -45,11 +45,12 @@ class TestCreateLLM:
     @patch.dict(os.environ, {"GOOGLE_API_KEY": "test-key-123"}, clear=False)
     @patch("configurable_agents.llm.google.ChatGoogleGenerativeAI")
     def test_create_with_google_provider(self, mock_chat):
-        """Test creating LLM with Google provider."""
+        """Test creating LLM with Google provider uses direct implementation."""
         config = LLMConfig(provider="google", model="gemini-pro")
         llm = create_llm(config)
 
-        # Should call ChatGoogleGenerativeAI
+        # Should call ChatGoogleGenerativeAI directly (not through LiteLLM)
+        # This provides better compatibility with LangChain features
         mock_chat.assert_called_once()
         call_kwargs = mock_chat.call_args[1]
         assert call_kwargs["model"] == "gemini-pro"
@@ -62,8 +63,10 @@ class TestCreateLLM:
         config = LLMConfig(model="gemini-pro")
         llm = create_llm(config)
 
-        # Should default to Google
+        # Should default to Google via direct implementation
         mock_chat.assert_called_once()
+        call_kwargs = mock_chat.call_args[1]
+        assert call_kwargs["model"] == "gemini-pro"
 
     @patch.dict(os.environ, {"GOOGLE_API_KEY": "test-key"}, clear=False)
     @patch("configurable_agents.llm.google.ChatGoogleGenerativeAI")
@@ -76,18 +79,39 @@ class TestCreateLLM:
         call_kwargs = mock_chat.call_args[1]
         assert call_kwargs["model"] == "gemini-2.5-flash-lite"  # Default model
 
-    def test_create_with_unsupported_provider_raises_error(self):
-        """Test that unsupported provider raises LLMProviderError."""
-        config = LLMConfig(provider="openai")  # Not supported in v0.1
+    @patch("langchain_community.chat_models.ChatLiteLLM")
+    def test_create_with_openai_provider(self, mock_chat):
+        """Test creating LLM with OpenAI provider via LiteLLM."""
+        config = LLMConfig(provider="openai", model="gpt-4o")
+        llm = create_llm(config)
 
-        with pytest.raises(LLMProviderError) as exc_info:
-            create_llm(config)
+        # Should call ChatLiteLLM with OpenAI model string
+        mock_chat.assert_called_once()
+        call_kwargs = mock_chat.call_args[1]
+        assert call_kwargs["model"] == "openai/gpt-4o"
 
-        error = exc_info.value
-        assert error.provider == "openai"
-        assert "google" in error.supported_providers
-        assert "v0.1" in str(error)
-        assert "v0.2" in str(error)
+    @patch("langchain_community.chat_models.ChatLiteLLM")
+    def test_create_with_anthropic_provider(self, mock_chat):
+        """Test creating LLM with Anthropic provider via LiteLLM."""
+        config = LLMConfig(provider="anthropic", model="claude-sonnet-4-20250514")
+        llm = create_llm(config)
+
+        # Should call ChatLiteLLM with Anthropic model string
+        mock_chat.assert_called_once()
+        call_kwargs = mock_chat.call_args[1]
+        assert call_kwargs["model"] == "anthropic/claude-sonnet-4-20250514"
+
+    @patch("langchain_community.chat_models.ChatLiteLLM")
+    def test_create_with_ollama_provider(self, mock_chat):
+        """Test creating LLM with Ollama provider via LiteLLM."""
+        config = LLMConfig(provider="ollama", model="llama3")
+        llm = create_llm(config)
+
+        # Should call ChatLiteLLM with Ollama model string and api_base
+        mock_chat.assert_called_once()
+        call_kwargs = mock_chat.call_args[1]
+        assert call_kwargs["model"] == "ollama_chat/llama3"
+        assert call_kwargs["api_base"] == "http://localhost:11434"
 
     @patch.dict(os.environ, {"GOOGLE_API_KEY": "test-key"}, clear=False)
     @patch("configurable_agents.llm.google.ChatGoogleGenerativeAI")
@@ -121,6 +145,30 @@ class TestCreateLLM:
         call_kwargs = mock_chat.call_args[1]
         assert call_kwargs["model"] == "gemini-pro"  # From global
         assert call_kwargs["temperature"] == 0.9  # From node (override)
+
+    def test_create_openai_without_litellm_raises_error(self):
+        """Test that OpenAI raises error when LiteLLM is unavailable."""
+        with patch("configurable_agents.llm.litellm_provider.LITELLM_AVAILABLE", False):
+            config = LLMConfig(provider="openai", model="gpt-4o")
+
+            with pytest.raises(LLMProviderError) as exc_info:
+                create_llm(config)
+
+            error = exc_info.value
+            assert error.provider == "openai"
+            assert "google" in error.supported_providers
+
+    def test_create_with_unsupported_provider_raises_error(self):
+        """Test that unsupported provider raises error."""
+        # Pydantic validates provider before create_llm is called
+        # So we expect a ValidationError for invalid provider
+        from pydantic import ValidationError
+
+        with pytest.raises(ValidationError) as exc_info:
+            LLMConfig(provider="invalid")
+
+        # Verify validation error message mentions supported providers
+        assert "invalid" in str(exc_info.value).lower() or "not supported" in str(exc_info.value).lower()
 
 
 class TestMergeLLMConfig:

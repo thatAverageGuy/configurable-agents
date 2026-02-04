@@ -9,6 +9,7 @@ from configurable_agents.config.schema import (
     FlowMetadata,
     GlobalConfig,
     LLMConfig,
+    LoopConfig,
     NodeConfig,
     ObservabilityConfig,
     ObservabilityLoggingConfig,
@@ -17,6 +18,7 @@ from configurable_agents.config.schema import (
     OptimizeConfig,
     OutputSchema,
     OutputSchemaField,
+    ParallelConfig,
     Route,
     RouteCondition,
     StateFieldConfig,
@@ -381,6 +383,114 @@ class TestEdgeConfig:
         """Test that 'from' alias works."""
         edge = EdgeConfig(from_="node1", to="node2")
         assert edge.from_ == "node1"
+
+
+class TestLoopConfig:
+    """Test LoopConfig model."""
+
+    def test_valid_minimal(self):
+        config = LoopConfig(condition_field="is_done", exit_to="END")
+        assert config.max_iterations == 10
+        assert config.condition_field == "is_done"
+        assert config.exit_to == "END"
+
+    def test_valid_custom(self):
+        config = LoopConfig(max_iterations=5, condition_field="is_complete", exit_to="next_node")
+        assert config.max_iterations == 5
+        assert config.condition_field == "is_complete"
+        assert config.exit_to == "next_node"
+
+    def test_max_iterations_positive(self):
+        with pytest.raises(ValidationError):
+            LoopConfig(condition_field="is_done", max_iterations=0)
+
+    def test_max_iterations_upper_bound(self):
+        with pytest.raises(ValidationError):
+            LoopConfig(condition_field="is_done", max_iterations=101)
+
+    def test_max_iterations_boundary_valid(self):
+        config = LoopConfig(condition_field="is_done", max_iterations=1)
+        assert config.max_iterations == 1
+        config = LoopConfig(condition_field="is_done", max_iterations=100)
+        assert config.max_iterations == 100
+
+
+class TestParallelConfig:
+    """Test ParallelConfig model."""
+
+    def test_valid_minimal(self):
+        config = ParallelConfig(items_field="tasks", target_node="process_task", collect_field="results")
+        assert config.items_field == "tasks"
+        assert config.target_node == "process_task"
+        assert config.collect_field == "results"
+
+
+class TestEdgeConfigWithLoopAndParallel:
+    """Test EdgeConfig with loop and parallel options."""
+
+    def test_valid_loop_edge(self):
+        edge = EdgeConfig(**{"from": "process", "loop": {"condition_field": "is_done", "exit_to": "END"}})
+        assert edge.from_ == "process"
+        assert edge.loop is not None
+        assert edge.loop.condition_field == "is_done"
+        assert edge.loop.exit_to == "END"
+        assert edge.to is None
+        assert edge.routes is None
+        assert edge.parallel is None
+
+    def test_valid_parallel_edge(self):
+        edge = EdgeConfig(
+            **{
+                "from": "process",
+                "parallel": {"items_field": "items", "target_node": "worker", "collect_field": "results"},
+            }
+        )
+        assert edge.from_ == "process"
+        assert edge.parallel is not None
+        assert edge.parallel.items_field == "items"
+        assert edge.parallel.target_node == "worker"
+        assert edge.parallel.collect_field == "results"
+        assert edge.to is None
+        assert edge.routes is None
+        assert edge.loop is None
+
+    def test_multiple_edge_types_fails(self):
+        """Edge cannot have both loop and parallel config."""
+        with pytest.raises(ValidationError) as exc_info:
+            EdgeConfig(
+                **{
+                    "from": "process",
+                    "loop": {"condition_field": "is_done", "exit_to": "END"},
+                    "parallel": {"items_field": "items", "target_node": "worker", "collect_field": "results"},
+                }
+            )
+        assert "multiple edge types" in str(exc_info.value).lower()
+
+    def test_loop_and_to_fails(self):
+        """Edge cannot have both loop and to."""
+        with pytest.raises(ValidationError) as exc_info:
+            EdgeConfig(
+                **{
+                    "from": "process",
+                    "to": "next",
+                    "loop": {"condition_field": "is_done", "exit_to": "END"},
+                }
+            )
+        assert "multiple edge types" in str(exc_info.value).lower()
+
+    def test_routes_and_parallel_fails(self):
+        """Edge cannot have both routes and parallel."""
+        from configurable_agents.config.schema import Route, RouteCondition
+
+        with pytest.raises(ValidationError) as exc_info:
+            EdgeConfig(
+                **{
+                    "from": "process",
+                    "routes": [{"condition": {"logic": "default"}, "to": "next"}],
+                    "parallel": {"items_field": "items", "target_node": "worker", "collect_field": "results"},
+                }
+            )
+        assert "multiple edge types" in str(exc_info.value).lower()
 
 
 class TestOptimizationConfig:

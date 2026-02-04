@@ -18,6 +18,9 @@ from pydantic import BaseModel, Field, create_model, ValidationError
 from configurable_agents.config import WorkflowConfig, parse_config_file
 from configurable_agents.runtime import run_workflow_from_config
 
+# Agent registry integration (optional)
+${registry_import}
+
 # MLFlow integration (optional)
 MLFLOW_ENABLED = os.getenv("MLFLOW_TRACKING_URI") is not None
 if MLFLOW_ENABLED:
@@ -36,6 +39,8 @@ try:
 except Exception as e:
     print(f"FATAL: Failed to load workflow config: {e}")
     raise
+
+${registry_client_init}
 
 
 # ==================================
@@ -192,6 +197,12 @@ async def run_workflow_async(job_id: str, inputs: Dict[str, Any]):
 
 
 # ==================================
+# Lifecycle Events
+# ==================================
+${registry_startup_handler}
+${registry_shutdown_handler}
+
+# ==================================
 # Endpoints
 # ==================================
 @app.get("/")
@@ -338,7 +349,7 @@ async def schema():
         inputs=inputs,
         outputs=outputs
     )
-
+${health_check_endpoints}
 
 # ==================================
 # Server Startup

@@ -5,7 +5,7 @@ Full Schema Day One (ADR-009): Complete schema supporting all features through v
 Runtime implements features incrementally across versions.
 """
 
-from typing import Any, Dict, List, Optional, Union
+from typing import Any, Dict, List, Literal, Optional, Union
 
 from pydantic import BaseModel, Field, field_validator, model_validator
 
@@ -126,10 +126,30 @@ class OptimizeConfig(BaseModel):
 class LLMConfig(BaseModel):
     """LLM configuration (global or node-level)."""
 
-    provider: Optional[str] = Field(None, description="LLM provider (v0.1: only 'google')")
+    provider: Optional[str] = Field(
+        None, description="LLM provider: 'openai', 'anthropic', 'google', 'ollama'"
+    )
     model: Optional[str] = Field(None, description="Model name")
-    temperature: Optional[float] = Field(None, ge=0.0, le=1.0, description="Temperature (0.0-1.0)")
+    temperature: Optional[float] = Field(
+        None, ge=0.0, le=1.0, description="Temperature (0.0-1.0)"
+    )
     max_tokens: Optional[int] = Field(None, gt=0, description="Max tokens")
+    api_base: Optional[str] = Field(
+        None,
+        description="Custom API base URL (e.g., for Ollama: http://localhost:11434)",
+    )
+
+    @field_validator("provider")
+    @classmethod
+    def validate_provider(cls, v: Optional[str]) -> Optional[str]:
+        """Validate provider is supported."""
+        if v is not None:
+            supported = ["openai", "anthropic", "google", "ollama"]
+            if v not in supported:
+                raise ValueError(
+                    f"Provider '{v}' not supported. Supported providers: {supported}"
+                )
+        return v
 
     @field_validator("temperature")
     @classmethod
@@ -138,6 +158,153 @@ class LLMConfig(BaseModel):
         if v is not None and not (0.0 <= v <= 1.0):
             raise ValueError("Temperature must be between 0.0 and 1.0")
         return v
+
+
+# ============================================
+# 4.4. Sandbox Configuration (v0.4+)
+# ============================================
+
+
+class SandboxConfig(BaseModel):
+    """
+    Sandbox configuration for safe code execution (v0.4+).
+
+    Controls how code execution nodes are isolated and limited.
+    """
+
+    mode: Literal["python", "docker"] = Field(
+        "python",
+        description="Execution mode: 'python' (RestrictedPython) or 'docker' (container isolation)"
+    )
+    enabled: bool = Field(
+        True,
+        description="Enable sandbox for code execution nodes"
+    )
+    network: Union[bool, Dict[str, Any]] = Field(
+        True,
+        description="Network access: True (enabled), False (disabled), or detailed config"
+    )
+    preset: Literal["low", "medium", "high", "max"] = Field(
+        "medium",
+        description="Resource preset for execution limits"
+    )
+    resources: Optional[Dict[str, Any]] = Field(
+        None,
+        description="Custom resource overrides (cpu, memory, timeout)"
+    )
+    timeout: Optional[int] = Field(
+        None,
+        ge=1,
+        le=3600,
+        description="Execution timeout in seconds (overrides preset)"
+    )
+
+    @field_validator("preset")
+    @classmethod
+    def validate_preset(cls, v: str) -> str:
+        """Validate preset is one of the supported values."""
+        valid_presets = {"low", "medium", "high", "max"}
+        if v not in valid_presets:
+            raise ValueError(
+                f"preset must be one of {valid_presets}, got '{v}'"
+            )
+        return v
+
+
+# ============================================
+# 4.5. Optimization (v0.4+)
+# ============================================
+
+
+class MLFlowConfig(BaseModel):
+    """MLFlow experiment configuration for optimization (v0.4+)."""
+
+    experiment: Optional[str] = Field(
+        None, description="MLFlow experiment name for grouping runs"
+    )
+    run_name: Optional[str] = Field(
+        None, description="Optional run identifier template"
+    )
+
+
+class VariantConfig(BaseModel):
+    """Prompt variant configuration for A/B testing (v0.4+)."""
+
+    name: str = Field(..., description="Variant name for identification")
+    prompt: str = Field(..., description="Prompt template to test")
+    config_overrides: Optional[Dict[str, Any]] = Field(
+        None, description="Optional config overrides for this variant"
+    )
+    node_id: Optional[str] = Field(
+        None, description="Specific node ID to apply prompt (default: first node)"
+    )
+
+
+class ABTestConfig(BaseModel):
+    """A/B testing configuration (v0.4+)."""
+
+    enabled: bool = Field(False, description="Enable A/B testing for this workflow")
+    experiment: str = Field(..., description="MLFlow experiment name for results")
+    variants: List[VariantConfig] = Field(
+        ..., description="List of prompt variants to test"
+    )
+    run_count: int = Field(3, ge=1, le=10, description="Runs per variant (default: 3)")
+    parallel: bool = Field(True, description="Run variants concurrently")
+
+
+class QualityGateModel(BaseModel):
+    """Quality gate threshold definition (v0.4+)."""
+
+    metric: str = Field(..., description="Metric name to check (e.g., 'cost_usd', 'duration_ms')")
+    max: Optional[float] = Field(None, description="Maximum allowed value (exclusive)")
+    min: Optional[float] = Field(None, description="Minimum allowed value (exclusive)")
+
+
+class GatesModel(BaseModel):
+    """Quality gates configuration (v0.4+)."""
+
+    gates: List[QualityGateModel] = Field(
+        default_factory=list, description="List of quality gate thresholds"
+    )
+    on_fail: str = Field(
+        "warn",
+        description="Action when gates fail: 'warn', 'fail', or 'block_deploy'"
+    )
+
+    @field_validator("on_fail")
+    @classmethod
+    def validate_on_fail(cls, v: str) -> str:
+        """Validate on_fail value."""
+        valid_actions = {"warn", "fail", "block_deploy"}
+        if v not in valid_actions:
+            raise ValueError(
+                f"on_fail must be one of {valid_actions}, got '{v}'"
+            )
+        return v
+
+
+class MemoryConfig(BaseModel):
+    """Memory configuration for agent persistent storage (v0.4+)."""
+
+    enabled: bool = Field(False, description="Enable persistent memory for this scope")
+    default_scope: Literal["agent", "workflow", "node"] = Field(
+        "agent",
+        description="Default memory scope: 'agent', 'workflow', or 'node'",
+    )
+
+
+class ToolConfig(BaseModel):
+    """Tool configuration for binding tools to LLMs (v0.4+)."""
+
+    name: str = Field(..., description="Tool name from registry")
+    on_error: Literal["fail", "continue"] = Field(
+        "fail",
+        description="Error handling: 'fail' raises error, 'continue' returns error result",
+    )
+    config: Optional[Dict[str, Any]] = Field(
+        None,
+        description="Tool-specific configuration",
+    )
 
 
 class NodeConfig(BaseModel):
@@ -151,11 +318,23 @@ class NodeConfig(BaseModel):
     prompt: str = Field(..., description="Prompt template with {placeholders}")
     output_schema: OutputSchema = Field(..., description="Output type enforcement")
     outputs: List[str] = Field(..., description="State fields to update")
-    tools: Optional[List[str]] = Field(None, description="Tool names from registry")
+    tools: Optional[List[Union[str, ToolConfig]]] = Field(
+        None, description="Tool names from registry or tool configs"
+    )
+    memory: Optional[MemoryConfig] = Field(
+        None, description="Memory configuration for this node (v0.4+)"
+    )
     optimize: Optional[OptimizeConfig] = Field(
         None, description="Node-level optimization (v0.3+)"
     )
     llm: Optional[LLMConfig] = Field(None, description="Node-level LLM override")
+    sandbox: Optional[SandboxConfig] = Field(
+        None, description="Sandbox configuration for code execution (v0.4+)"
+    )
+    code: Optional[str] = Field(
+        None,
+        description="Python code to execute (for code_execution node type, v0.4+)"
+    )
 
     # Observability overrides (optional, overrides workflow-level defaults)
     log_prompts: Optional[bool] = Field(
@@ -163,6 +342,11 @@ class NodeConfig(BaseModel):
     )
     log_artifacts: Optional[bool] = Field(
         None, description="Override workflow-level log_artifacts for this node"
+    )
+
+    # MLFlow override (v0.4+)
+    mlflow: Optional[MLFlowConfig] = Field(
+        None, description="MLFlow experiment configuration (overrides workflow-level)"
     )
 
     @field_validator("id")
@@ -190,7 +374,10 @@ class NodeConfig(BaseModel):
 class RouteCondition(BaseModel):
     """Condition for conditional routing (v0.2+)."""
 
-    logic: str = Field(..., description="Condition logic or 'default'")
+    logic: str = Field(
+        ...,
+        description="Condition logic or 'default'. Use 'state.field' references with operators (>, <, ==, !=, >=, <=, and, or, not). Example: 'state.score > 0.8' or 'state.approved and state.amount < 1000'",
+    )
 
 
 class Route(BaseModel):
@@ -198,6 +385,36 @@ class Route(BaseModel):
 
     condition: RouteCondition = Field(..., description="Route condition")
     to: str = Field(..., description="Target node")
+
+
+class LoopConfig(BaseModel):
+    """Loop configuration for retry/iteration edges."""
+
+    max_iterations: int = Field(
+        10,
+        gt=0,
+        le=100,
+        description="Maximum loop iterations before forced exit",
+    )
+    condition_field: str = Field(
+        ...,
+        description="State field to evaluate for loop termination (must be bool type)",
+    )
+    exit_to: str = Field(
+        "END", description="Node to route to when loop condition is met or max iterations reached"
+    )
+
+
+class ParallelConfig(BaseModel):
+    """Parallel execution configuration for fan-out edges."""
+
+    items_field: str = Field(
+        ..., description="State field containing list of items to fan out over"
+    )
+    target_node: str = Field(..., description="Node to execute for each item")
+    collect_field: str = Field(
+        ..., description="State field to collect results into (must be list type)"
+    )
 
 
 class EdgeConfig(BaseModel):
@@ -208,21 +425,35 @@ class EdgeConfig(BaseModel):
     routes: Optional[List[Route]] = Field(
         None, description="Conditional routes (v0.2+)"
     )
+    loop: Optional[LoopConfig] = Field(
+        None, description="Loop configuration (retry/iteration)"
+    )
+    parallel: Optional[ParallelConfig] = Field(
+        None, description="Parallel fan-out configuration"
+    )
 
     class Config:
         populate_by_name = True  # Allow both 'from' and 'from_'
 
     @model_validator(mode="after")
     def validate_to_or_routes(self) -> "EdgeConfig":
-        """Validate that either 'to' or 'routes' is specified, but not both."""
+        """Validate that exactly one of 'to', 'routes', 'loop', or 'parallel' is specified."""
         has_to = self.to is not None
         has_routes = self.routes is not None and len(self.routes) > 0
+        has_loop = self.loop is not None
+        has_parallel = self.parallel is not None
 
-        if not has_to and not has_routes:
-            raise ValueError("Edge must have either 'to' or 'routes'")
+        edge_types = sum([has_to, has_routes, has_loop, has_parallel])
 
-        if has_to and has_routes:
-            raise ValueError("Edge cannot have both 'to' and 'routes'")
+        if edge_types == 0:
+            raise ValueError(
+                "Edge must have exactly one of: 'to' (linear), 'routes' (conditional), 'loop' (iteration), or 'parallel' (fan-out)"
+            )
+
+        if edge_types > 1:
+            raise ValueError(
+                "Edge cannot have multiple edge types. Choose exactly one of: 'to', 'routes', 'loop', or 'parallel'"
+            )
 
         return self
 
@@ -338,6 +569,13 @@ class ObservabilityConfig(BaseModel):
     )
 
 
+class StorageConfig(BaseModel):
+    """Storage backend configuration."""
+
+    backend: str = Field("sqlite", description="Storage backend type: 'sqlite' or connection URI")
+    path: str = Field("./workflows.db", description="SQLite database path (only for sqlite backend)")
+
+
 class GlobalConfig(BaseModel):
     """Global infrastructure configuration."""
 
@@ -345,6 +583,29 @@ class GlobalConfig(BaseModel):
     execution: Optional[ExecutionConfig] = Field(None, description="Execution config")
     observability: Optional[ObservabilityConfig] = Field(
         None, description="Observability config (v0.2+)"
+    )
+    storage: Optional[StorageConfig] = Field(None, description="Storage backend config")
+
+    # Optimization configuration (v0.4+)
+    mlflow: Optional[MLFlowConfig] = Field(
+        None, description="MLFlow experiment configuration"
+    )
+    ab_test: Optional[ABTestConfig] = Field(
+        None, description="A/B testing configuration"
+    )
+    gates: Optional[GatesModel] = Field(
+        None, description="Quality gates configuration"
+    )
+
+    # Optimization configuration (v0.4+)
+    mlflow: Optional[MLFlowConfig] = Field(
+        None, description="MLFlow experiment configuration"
+    )
+    ab_test: Optional[ABTestConfig] = Field(
+        None, description="A/B testing configuration"
+    )
+    gates: Optional[GatesModel] = Field(
+        None, description="Quality gates configuration"
     )
 
 
@@ -370,6 +631,9 @@ class WorkflowConfig(BaseModel):
     edges: List[EdgeConfig] = Field(..., description="Control flow edges")
     optimization: Optional[OptimizationConfig] = Field(
         None, description="DSPy optimization settings (v0.3+)"
+    )
+    memory: Optional[MemoryConfig] = Field(
+        None, description="Workflow-level memory configuration (v0.4+)"
     )
     config: Optional[GlobalConfig] = Field(None, description="Infrastructure settings")
 

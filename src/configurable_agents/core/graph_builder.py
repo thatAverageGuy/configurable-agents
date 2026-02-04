@@ -5,6 +5,8 @@ Integrates:
 - Node executor (T-011): Execute individual nodes
 - State builder (T-006): Dynamic Pydantic models
 - Config schema (T-003): WorkflowConfig structure
+- Control flow (T-013): Conditional routing and loop functions
+- Parallel execution (T-013): Fan-out/fan-in via Send objects
 
 Design decisions:
 - Direct Pydantic BaseModel integration with LangGraph
@@ -12,10 +14,11 @@ Design decisions:
 - START/END as entry/exit points (not identity nodes)
 - Compiled graph return (ready for execution)
 - Minimal defensive validation (T-004 already validates)
+- Support for conditional edges, loop edges, and parallel fan-out
 """
 
 import logging
-from typing import TYPE_CHECKING, Callable, Optional, Type
+from typing import TYPE_CHECKING, Any, Callable, Dict, Optional, Type
 
 from langgraph.graph import END, START, StateGraph
 from langgraph.graph.state import CompiledStateGraph
@@ -27,7 +30,14 @@ from configurable_agents.config.schema import (
     NodeConfig,
     WorkflowConfig,
 )
+from configurable_agents.core.control_flow import (
+    create_loop_router,
+    create_routing_function,
+    get_loop_iteration_key,
+    increment_loop_iteration,
+)
 from configurable_agents.core.node_executor import NodeExecutionError, execute_node
+from configurable_agents.core.parallel import create_fan_out_function
 
 if TYPE_CHECKING:
     from configurable_agents.observability import MLFlowTracker
@@ -56,6 +66,12 @@ def build_graph(
 ) -> CompiledStateGraph:
     """
     Build and compile LangGraph from config.
+
+    Supports:
+    - Linear edges (from -> to)
+    - Conditional edges (routes with state-based conditions)
+    - Loop edges (iteration with termination conditions)
+    - Parallel edges (fan-out/fan-in via Send objects)
 
     Args:
         config: Validated workflow configuration
@@ -87,7 +103,9 @@ def build_graph(
 
     # Defensive validation (should never fail on valid configs)
     _validate_config_for_graph(config)
-    _validate_linear_flow(config)
+
+    # Collect nodes that are targets of loops for iteration tracking
+    loop_targets = _collect_loop_targets(config)
 
     # Create StateGraph with Pydantic model
     graph = StateGraph(state_model)
@@ -96,13 +114,18 @@ def build_graph(
     # Add nodes (via closure-based functions)
     for node_config in config.nodes:
         node_fn = make_node_function(node_config, global_config, tracker)
+        # Wrap with loop counter if this node is a loop target
+        if node_config.id in loop_targets:
+            node_fn = _wrap_with_loop_counter(node_fn, node_config.id)
         graph.add_node(node_config.id, node_fn)
         logger.debug(f"Added node: {node_config.id}")
 
-    # Add edges (translate START/END)
+    # Add edges (all types: linear, conditional, loop, parallel)
+    state_fields = {name: field.type for name, field in config.state.fields.items()}
     for edge in config.edges:
-        _add_edge(graph, edge)
-        logger.debug(f"Added edge: {edge.from_} -> {edge.to}")
+        _add_edge(graph, edge, state_fields, config.nodes)
+        edge_desc = _describe_edge(edge)
+        logger.debug(f"Added edge: {edge_desc}")
 
     # Compile graph
     logger.info("Compiling graph...")
@@ -166,22 +189,143 @@ def make_node_function(
     return node_fn
 
 
-def _add_edge(graph: StateGraph, edge: EdgeConfig) -> None:
+def _add_edge(
+    graph: StateGraph,
+    edge: EdgeConfig,
+    state_fields: Dict[str, str],
+    nodes: list,
+) -> None:
     """
-    Add edge to graph, translating START/END strings to constants.
+    Add edge to graph, handling all edge types.
 
     Args:
         graph: StateGraph instance
         edge: Edge configuration
+        state_fields: State field names and types
+        nodes: List of node configs for reference
 
-    Design:
-        - "START" string → START constant
-        - "END" string → END constant
-        - Other strings remain as node IDs
+    Edge types:
+        - Linear: edge.to (direct edge)
+        - Conditional: edge.routes (conditional routing based on state)
+        - Loop: edge.loop (iteration with exit condition)
+        - Parallel: edge.parallel (fan-out via Send objects)
     """
     from_node = START if edge.from_ == "START" else edge.from_
-    to_node = END if edge.to == "END" else edge.to
-    graph.add_edge(from_node, to_node)
+
+    # Linear edge
+    if edge.to:
+        to_node = END if edge.to == "END" else edge.to
+        graph.add_edge(from_node, to_node)
+        return
+
+    # Conditional edge (routes)
+    if edge.routes:
+        routing_fn = create_routing_function(edge.routes, state_fields)
+        graph.add_conditional_edges(from_node, routing_fn)
+        return
+
+    # Loop edge
+    if edge.loop:
+        loop_fn = create_loop_router(edge.loop, from_node)
+        graph.add_conditional_edges(from_node, loop_fn)
+        return
+
+    # Parallel edge (fan-out)
+    if edge.parallel:
+        fan_out_fn = create_fan_out_function(edge.parallel)
+        graph.add_conditional_edges(from_node, fan_out_fn)
+        return
+
+
+def _collect_loop_targets(config: WorkflowConfig) -> set:
+    """
+    Collect node IDs that are targets of loop edges.
+
+    These nodes need their output functions wrapped to increment loop counters.
+
+    Args:
+        config: Workflow configuration
+
+    Returns:
+        Set of node IDs that are targets of loops
+    """
+    # Nodes that have incoming loop edges (where they loop back to themselves)
+    loop_targets = set()
+
+    # A node is a loop target if it has an incoming loop edge from itself
+    # or from another node that causes it to repeat
+    for edge in config.edges:
+        if edge.loop:
+            # The node loops back to itself
+            loop_targets.add(edge.from_)
+
+    return loop_targets
+
+
+def _wrap_with_loop_counter(node_fn: Callable, node_id: str) -> Callable:
+    """
+    Wrap a node function to increment its loop iteration counter.
+
+    The wrapped function increments _loop_iteration_{node_id} in state
+    before executing the original node function.
+
+    Args:
+        node_fn: Original node function
+        node_id: Node identifier
+
+    Returns:
+        Wrapped node function that increments loop counter
+    """
+    iteration_key = get_loop_iteration_key(node_id)
+
+    def wrapped_fn(state: BaseModel) -> BaseModel:
+        """Execute node with loop counter increment."""
+        # Increment iteration counter
+        if hasattr(state, "model_dump"):
+            state_dict = state.model_dump()
+        else:
+            state_dict = dict(state)
+
+        # Increment counter
+        current = state_dict.get(iteration_key, 0)
+        # Update state with new counter value
+        if hasattr(state, "model_copy"):
+            new_state = state.model_copy(update={iteration_key: current + 1})
+        else:
+            # Fallback for dict-like state
+            state[iteration_key] = current + 1
+            new_state = state
+
+        # Execute original node function
+        return node_fn(new_state)
+
+    # Preserve function name for debugging
+    wrapped_fn.__name__ = f"loop_wrapped_{node_fn.__name__}"
+    return wrapped_fn
+
+
+def _describe_edge(edge: EdgeConfig) -> str:
+    """Get a human-readable description of an edge for logging."""
+    from_node = edge.from_
+
+    if edge.to:
+        to_node = edge.to
+        return f"{from_node} -> {to_node} (linear)"
+
+    if edge.routes:
+        targets = [r.to for r in edge.routes]
+        return f"{from_node} -> routes({', '.join(targets)}) (conditional)"
+
+    if edge.loop:
+        return f"{from_node} -> loop({edge.loop.condition_field}, exit={edge.loop.exit_to})"
+
+    if edge.parallel:
+        return (
+            f"{from_node} -> parallel(fan_out={edge.parallel.items_field}, "
+            f"target={edge.parallel.target_node}, collect={edge.parallel.collect_field})"
+        )
+
+    return f"{from_node} -> unknown"
 
 
 def _validate_config_for_graph(config: WorkflowConfig) -> None:
@@ -227,45 +371,3 @@ def _validate_config_for_graph(config: WorkflowConfig) -> None:
             "Validator should have caught this. "
             "This is a bug - please report."
         )
-
-
-def _validate_linear_flow(config: WorkflowConfig) -> None:
-    """
-    Verify linear flow constraint (v0.1).
-
-    Should never fail - T-004 enforces this.
-    This is defensive validation.
-
-    Args:
-        config: Workflow configuration
-
-    Raises:
-        GraphBuilderError: If conditional routing found
-
-    Checks:
-        - No conditional routes (edge.routes)
-        - No branching (multiple outgoing edges per node)
-    """
-    # Check for routes (conditional edges) - v0.2+ feature
-    for edge in config.edges:
-        if edge.routes:
-            raise GraphBuilderError(
-                f"Conditional routing not supported in v0.1\n"
-                f"Found routes in edge from '{edge.from_}'\n\n"
-                "Validator should have caught this. "
-                "This is a bug - please report."
-            )
-
-    # Check for multiple outgoing edges (branching)
-    outgoing_counts = {}
-    for edge in config.edges:
-        if edge.from_ != "START":
-            outgoing_counts[edge.from_] = outgoing_counts.get(edge.from_, 0) + 1
-
-    for node, count in outgoing_counts.items():
-        if count > 1:
-            raise GraphBuilderError(
-                f"Node '{node}' has {count} outgoing edges. "
-                "v0.1 supports linear flows only (no branching). "
-                "Validator should have caught this."
-            )

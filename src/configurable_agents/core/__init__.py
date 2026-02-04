@@ -1,8 +1,21 @@
 """Core execution components"""
 
+from configurable_agents.core.control_flow import (
+    ControlFlowError,
+    create_loop_router,
+    create_routing_function,
+    get_loop_iteration_key,
+    increment_loop_iteration,
+)
 from configurable_agents.core.output_builder import (
     OutputBuilderError,
     build_output_model,
+)
+from configurable_agents.core.parallel import (
+    create_fan_out_function,
+    get_parallel_index,
+    get_parallel_item,
+    is_parallel_execution,
 )
 from configurable_agents.core.state_builder import (
     StateBuilderError,
@@ -23,15 +36,30 @@ from configurable_agents.core.graph_builder import (
 )
 
 __all__ = [
+    # Control flow
+    "create_routing_function",
+    "create_loop_router",
+    "get_loop_iteration_key",
+    "increment_loop_iteration",
+    "ControlFlowError",
+    # Parallel execution
+    "create_fan_out_function",
+    "get_parallel_index",
+    "get_parallel_item",
+    "is_parallel_execution",
+    # State and output
     "build_state_model",
     "StateBuilderError",
     "build_output_model",
     "OutputBuilderError",
+    # Template
     "resolve_prompt",
     "extract_variables",
     "TemplateResolutionError",
+    # Node execution
     "execute_node",
     "NodeExecutionError",
+    # Graph builder
     "build_graph",
     "GraphBuilderError",
 ]
