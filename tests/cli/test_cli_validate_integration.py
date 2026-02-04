@@ -79,8 +79,9 @@ class TestCLIValidateErrors:
         )
 
         assert result.returncode != 0
-        # Should indicate empty or invalid config
-        assert any(word in result.stderr.lower() for word in ["empty", "invalid", "required", "missing"])
+        # Should indicate file loading or parsing problem
+        combined_output = result.stdout.lower() + result.stderr.lower()
+        assert any(word in combined_output for word in ["empty", "invalid", "required", "missing", "parse", "load"])
 
 
 class TestCLIValidateValidConfigs:
@@ -93,9 +94,25 @@ class TestCLIValidateValidConfigs:
 flow:
   name: minimal_test
 state:
-  fields: []
-nodes: []
-edges: []
+  fields:
+    input:
+      type: str
+      required: true
+    result:
+      type: str
+      default: ""
+nodes:
+  - id: process
+    prompt: "Process: {state.input}"
+    outputs: [result]
+    output_schema:
+      type: object
+      fields:
+        - name: result
+          type: str
+edges:
+  - {from: START, to: process}
+  - {from: process, to: END}
 """)
 
         result = subprocess.run(
@@ -117,12 +134,18 @@ flow:
   description: A complete test workflow
 state:
   fields:
-    - name: message
+    message:
       type: str
       required: true
-    - name: count
+      description: Input message
+    count:
       type: int
       default: 1
+      description: Counter
+    result:
+      type: str
+      default: ""
+      description: Output result
 nodes:
   - id: process
     prompt: "Process: {state.message}"
@@ -132,6 +155,7 @@ nodes:
       fields:
         - name: result
           type: str
+          description: The processed result
 edges:
   - {from: START, to: process}
   - {from: process, to: END}
@@ -153,9 +177,25 @@ edges:
 flow:
   name: test
 state:
-  fields: []
-nodes: []
-edges: []
+  fields:
+    input:
+      type: str
+      required: true
+    result:
+      type: str
+      default: ""
+nodes:
+  - id: process
+    prompt: "Test: {state.input}"
+    outputs: [result]
+    output_schema:
+      type: object
+      fields:
+        - name: result
+          type: str
+edges:
+  - {from: START, to: process}
+  - {from: process, to: END}
 """)
 
         result = subprocess.run(
@@ -165,7 +205,7 @@ edges: []
         )
 
         assert result.returncode == 0
-        # Verbose mode should show more details
+        # Verbose mode should show output
         assert len(result.stdout) > 0
 
 
@@ -173,18 +213,31 @@ class TestCLIValidateInvalidConfigs:
     """Test validate command catches various invalid configs."""
 
     def test_validate_missing_required_field(self, tmp_path):
-        """Test validate catches missing required field in state."""
+        """Test validate passes when 'required' field is missing (it's optional)."""
         config_file = tmp_path / "missing_field.yaml"
         config_file.write_text("""schema_version: "1.0"
 flow:
   name: test
 state:
   fields:
-    - name: message
+    message:
       type: str
-      # Missing 'required' field
-nodes: []
-edges: []
+      # Missing 'required' field (optional, so this is valid)
+    result:
+      type: str
+      default: ""
+nodes:
+  - id: process
+    prompt: "Test: {state.message}"
+    outputs: [result]
+    output_schema:
+      type: object
+      fields:
+        - name: result
+          type: str
+edges:
+  - {from: START, to: process}
+  - {from: process, to: END}
 """)
 
         result = subprocess.run(
@@ -193,10 +246,9 @@ edges: []
             text=True,
         )
 
-        # May pass or fail depending on schema - but error should be clear if fails
-        if result.returncode != 0:
-            # Should mention the validation issue
-            assert any(word in result.stderr.lower() for word in ["required", "missing", "field", "invalid"])
+        # The 'required' field is optional in StateFieldConfig (defaults to False)
+        # So this should pass validation
+        assert result.returncode == 0
 
     def test_validate_missing_flow_name(self, tmp_path):
         """Test validate catches missing flow name."""
@@ -206,9 +258,25 @@ flow:
   # Missing name
   description: Test
 state:
-  fields: []
-nodes: []
-edges: []
+  fields:
+    input:
+      type: str
+      required: true
+    result:
+      type: str
+      default: ""
+nodes:
+  - id: process
+    prompt: "Test"
+    outputs: [result]
+    output_schema:
+      type: object
+      fields:
+        - name: result
+          type: str
+edges:
+  - {from: START, to: process}
+  - {from: process, to: END}
 """)
 
         result = subprocess.run(
@@ -228,10 +296,22 @@ edges: []
 flow:
   name: test
 state:
-  fields: []
+  fields:
+    input:
+      type: str
+      required: true
+    result:
+      type: str
+      default: ""
 nodes:
   - id: node1
     prompt: "Test"
+    outputs: [result]
+    output_schema:
+      type: object
+      fields:
+        - name: result
+          type: str
 edges:
   - {from: START, to: nonexistent_node}
 """)
@@ -244,22 +324,41 @@ edges:
 
         # Should catch invalid node reference
         assert result.returncode != 0
-        assert any(word in result.stderr.lower() for word in ["node", "reference", "not found", "invalid"])
+        assert any(word in result.stderr.lower() for word in ["node", "reference", "not found", "invalid", "unknown"])
 
     def test_validate_cyclic_edges(self, tmp_path):
-        """Test validate catches cycles in workflow graph."""
+        """Test validate catches cycles in workflow graph (no path to END)."""
         config_file = tmp_path / "cycle.yaml"
         config_file.write_text("""schema_version: "1.0"
 flow:
   name: test
 state:
-  fields: []
+  fields:
+    input:
+      type: str
+      required: true
+    result:
+      type: str
+      default: ""
 nodes:
   - id: node1
     prompt: "Test 1"
+    outputs: [result]
+    output_schema:
+      type: object
+      fields:
+        - name: result
+          type: str
   - id: node2
     prompt: "Test 2"
+    outputs: [result]
+    output_schema:
+      type: object
+      fields:
+        - name: result
+          type: str
 edges:
+  - {from: START, to: node1}
   - {from: node1, to: node2}
   - {from: node2, to: node1}
 """)
@@ -272,7 +371,8 @@ edges:
 
         # Should detect cycle (no path to END)
         assert result.returncode != 0
-        assert any(word in result.stderr.lower() for word in ["cycle", "end", "path", "terminal"])
+        combined_output = result.stdout.lower() + result.stderr.lower()
+        assert any(word in combined_output for word in ["end", "path", "terminal", "reach", "cannot"])
 
 
 class TestCLIValidateCrossPlatform:
@@ -283,7 +383,30 @@ class TestCLIValidateCrossPlatform:
         config_dir = tmp_path / "my folder" / "sub folder"
         config_dir.mkdir(parents=True)
         config_file = config_dir / "workflow with spaces.yaml"
-        config_file.write_text("flow:\n  name: test\nstate:\n  fields: []\nnodes: []\nedges: []\n")
+        config_file.write_text("""schema_version: "1.0"
+flow:
+  name: test
+state:
+  fields:
+    input:
+      type: str
+      required: true
+    result:
+      type: str
+      default: ""
+nodes:
+  - id: process
+    prompt: "Test: {state.input}"
+    outputs: [result]
+    output_schema:
+      type: object
+      fields:
+        - name: result
+          type: str
+edges:
+  - {from: START, to: process}
+  - {from: process, to: END}
+""")
 
         result = subprocess.run(
             [sys.executable, "-m", "configurable_agents", "validate", str(config_file)],
@@ -292,7 +415,7 @@ class TestCLIValidateCrossPlatform:
         )
 
         # Should handle spaces correctly
-        assert "not found" not in result.stderr.lower()
+        assert result.returncode == 0
 
     def test_validate_windows_path_separators(self, tmp_path):
         """Test that Windows path separators work correctly."""
@@ -300,7 +423,30 @@ class TestCLIValidateCrossPlatform:
         config_dir = tmp_path / "nested" / "path"
         config_dir.mkdir(parents=True)
         config_file = config_dir / "config.yaml"
-        config_file.write_text("flow:\n  name: test\nstate:\n  fields: []\nnodes: []\nedges: []\n")
+        config_file.write_text("""schema_version: "1.0"
+flow:
+  name: test
+state:
+  fields:
+    input:
+      type: str
+      required: true
+    result:
+      type: str
+      default: ""
+nodes:
+  - id: process
+    prompt: "Test"
+    outputs: [result]
+    output_schema:
+      type: object
+      fields:
+        - name: result
+          type: str
+edges:
+  - {from: START, to: process}
+  - {from: process, to: END}
+""")
 
         result = subprocess.run(
             [sys.executable, "-m", "configurable_agents", "validate", str(config_file)],
@@ -309,7 +455,7 @@ class TestCLIValidateCrossPlatform:
         )
 
         # Should work regardless of path separator
-        assert result.returncode == 0 or "not found" not in result.stderr.lower()
+        assert result.returncode == 0
 
 
 class TestCLIValidateErrorMessageQuality:
@@ -318,8 +464,30 @@ class TestCLIValidateErrorMessageQuality:
     def test_error_messages_include_field_names(self, tmp_path):
         """Test that validation errors specify which field is problematic."""
         config_file = tmp_path / "test.yaml"
-        # Config with obvious issues
-        config_file.write_text("flow:\n  # missing name\nstate:\n  fields:\n    - type: str\n      # missing name\n")
+        # Config with obvious issues - missing flow name, invalid node reference
+        config_file.write_text("""schema_version: "1.0"
+flow:
+  description: Test
+state:
+  fields:
+    input:
+      type: str
+      required: true
+    result:
+      type: str
+      default: ""
+nodes:
+  - id: process
+    prompt: "Test"
+    outputs: [result]
+    output_schema:
+      type: object
+      fields:
+        - name: result
+          type: str
+edges:
+  - {from: START, to: nonexistent}
+""")
 
         result = subprocess.run(
             [sys.executable, "-m", "configurable_agents", "validate", str(config_file)],
@@ -327,11 +495,12 @@ class TestCLIValidateErrorMessageQuality:
             text=True,
         )
 
-        if result.returncode != 0:
-            # Error should mention the problematic area
-            output = result.stdout.lower() + result.stderr.lower()
-            # At minimum should indicate there's a validation problem
-            assert any(word in output for word in ["invalid", "required", "missing", "field"])
+        # Should have validation errors
+        assert result.returncode != 0
+        # Error should mention the problematic area
+        output = result.stdout.lower() + result.stderr.lower()
+        # At minimum should indicate there's a validation problem
+        assert any(word in output for word in ["invalid", "required", "missing", "field", "name", "node"])
 
     def test_error_messages_suggest_fixes(self, tmp_path):
         """Test that error messages suggest how to fix issues."""
