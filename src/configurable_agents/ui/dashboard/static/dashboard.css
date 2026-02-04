@@ -466,4 +466,167 @@ tbody tr:hover {
     table {
         min-width: 600px;
     }
+
+    .status-grid {
+        grid-template-columns: 1fr;
+    }
+}
+
+/* Status Panel Styles */
+.status-panel {
+    background: white;
+    border-radius: 8px;
+    padding: 16px;
+    margin-bottom: 24px;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+}
+
+.status-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 16px;
+}
+
+.status-card {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 16px;
+    border-radius: 8px;
+    background: white;
+    border: 1px solid #e5e7eb;
+    transition: box-shadow 0.2s;
+}
+
+.status-card:hover {
+    box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+}
+
+.status-card.status-ok { border-left: 4px solid #10b981; }
+.status-card.status-active { border-left: 4px solid #3b82f6; }
+.status-card.status-warning { border-left: 4px solid #f59e0b; }
+.status-card.status-error { border-left: 4px solid #ef4444; }
+
+.status-icon {
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    background: #f3f4f6;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    position: relative;
+}
+
+.status-icon.workflow-icon::before {
+    content: "W";
+    font-weight: 600;
+    color: #3b82f6;
+    font-size: 1.2rem;
+}
+
+.status-icon.agent-icon::before {
+    content: "A";
+    font-weight: 600;
+    color: #10b981;
+    font-size: 1.2rem;
+}
+
+.status-icon.resource-icon::before {
+    content: "R";
+    font-weight: 600;
+    color: #8b5cf6;
+    font-size: 1.2rem;
+}
+
+.status-icon.error-icon::before {
+    content: "!";
+    font-weight: 600;
+    color: #ef4444;
+    font-size: 1.2rem;
+}
+
+.status-content h4 {
+    margin: 0 0 4px 0;
+    font-size: 12px;
+    color: #6b7280;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.status-content .status-value {
+    margin: 0;
+    font-size: 20px;
+    font-weight: 600;
+    color: #1f2937;
+}
+
+.status-content .status-label {
+    font-size: 12px;
+    color: #6b7280;
+}
+
+.error-preview {
+    margin-top: 8px;
+    font-size: 11px;
+    color: #6b7280;
+}
+
+.error-workflow {
+    font-weight: 500;
+}
+
+.error-time {
+    margin-left: 8px;
+}
+
+.recent-errors-list {
+    margin-top: 16px;
+    padding-top: 16px;
+    border-top: 1px solid #e5e7eb;
+}
+
+.recent-errors-list h5 {
+    margin: 0 0 8px 0;
+    font-size: 14px;
+    color: #6b7280;
+}
+
+.error-item {
+    display: flex;
+    gap: 8px;
+    padding: 8px;
+    border-radius: 4px;
+    background: #fef2f2;
+    margin-bottom: 4px;
+}
+
+.error-item .error-workflow {
+    font-weight: 500;
+    min-width: 100px;
+    color: #991b1b;
+}
+
+.error-item .error-message {
+    flex: 1;
+    color: #7f1d1d;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.error-item .error-time {
+    color: #9ca3af;
+    font-size: 12px;
+}
+
+.status-footer {
+    margin-top: 12px;
+    text-align: right;
+}
+
+.status-footer .last-updated {
+    font-size: 11px;
+    color: #9ca3af;
 }

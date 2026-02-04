@@ -1,0 +1,71 @@
+<div class="status-panel" hx-get="/api/status" hx-trigger="load, every 10s" hx-swap="outerHTML">
+  <div class="status-grid">
+    <!-- Active Workflows -->
+    <div class="status-card {{ 'status-ok' if active_workflows == 0 else 'status-active' }}">
+      <div class="status-icon workflow-icon"></div>
+      <div class="status-content">
+        <h4>Active Workflows</h4>
+        <p class="status-value">{{ active_workflows }} / {{ total_workflows }}</p>
+        <span class="status-label">running / total</span>
+      </div>
+    </div>
+
+    <!-- Agent Health -->
+    <div class="status-card {{ 'status-ok' if agent_healthy == agent_total else 'status-warning' }}">
+      <div class="status-icon agent-icon"></div>
+      <div class="status-content">
+        <h4>Agent Health</h4>
+        <p class="status-value">{{ agent_healthy }} / {{ agent_total }}</p>
+        <span class="status-label">healthy / total</span>
+      </div>
+    </div>
+
+    <!-- System Resources -->
+    <div class="status-card {{ 'status-ok' if cpu_percent < 80 and memory_percent < 80 else 'status-warning' }}">
+      <div class="status-icon resource-icon"></div>
+      <div class="status-content">
+        <h4>System Resources</h4>
+        <p class="status-value">CPU {{ cpu_percent|int }}% | RAM {{ memory_percent|int }}%</p>
+        <span class="status-label">current usage</span>
+      </div>
+    </div>
+
+    <!-- Recent Errors -->
+    <div class="status-card {{ 'status-ok' if recent_errors|length == 0 else 'status-error' }}">
+      <div class="status-icon error-icon"></div>
+      <div class="status-content">
+        <h4>Recent Errors</h4>
+        {% if recent_errors %}
+        <p class="status-value">{{ recent_errors|length }}</p>
+        <span class="status-label">in last 24h</span>
+        {% if recent_errors[:1] %}
+        <div class="error-preview">
+          <span class="error-workflow">{{ recent_errors[0].workflow }}</span>
+          <span class="error-time">{{ recent_errors[0].timestamp }}</span>
+        </div>
+        {% endif %}
+        {% else %}
+        <p class="status-value">0</p>
+        <span class="status-label">no errors</span>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+
+  {% if recent_errors %}
+  <div class="recent-errors-list">
+    <h5>Recent Errors (Last 24h)</h5>
+    {% for error in recent_errors[:3] %}
+    <div class="error-item">
+      <span class="error-workflow">{{ error.workflow }}</span>
+      <span class="error-message">{{ error.message[:50] }}{% if error.message|length > 50 %}...{% endif %}</span>
+      <span class="error-time">{{ error.timestamp }}</span>
+    </div>
+    {% endfor %}
+  </div>
+  {% endif %}
+
+  <div class="status-footer">
+    <span class="last-updated">Updated: <time datetime="{{ datetime.utcnow().isoformat() }}">{{ datetime.utcnow().strftime("%H:%M:%S") }}</time></span>
+  </div>
+</div>
