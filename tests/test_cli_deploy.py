@@ -232,13 +232,16 @@ def test_deploy_docker_timeout(mock_path, mock_validate, mock_subprocess):
 @patch("configurable_agents.cli.validate_workflow")
 @patch("configurable_agents.cli.Path")
 def test_deploy_docker_available(mock_path, mock_validate, mock_subprocess, mock_workflow_config_cls, mock_parse, mock_generate):
-    """Test deploy proceeds when Docker is available."""
+    """Test deploy proceeds when Docker is available (build mode, not generate-only)."""
     # Setup: file exists and validation passes
-    mock_path.return_value.exists.return_value = True
+    mock_path_instance = Mock()
+    mock_path_instance.exists.return_value = True
+    mock_path.return_value = mock_path_instance
     mock_validate.return_value = None
 
     # Setup: Docker version succeeds
-    mock_subprocess.return_value = Mock(returncode=0, stdout="", stderr="")
+    docker_result = Mock(returncode=0, stdout="", stderr="")
+    mock_subprocess.return_value = docker_result
 
     # Setup: Config parsing
     mock_parse.return_value = {"flow": {"name": "test_workflow"}}
@@ -246,10 +249,11 @@ def test_deploy_docker_available(mock_path, mock_validate, mock_subprocess, mock
     mock_workflow_config.flow.name = "test_workflow"
     mock_workflow_config_cls.return_value = mock_workflow_config
 
-    # Setup: Artifact generation with --generate flag
+    # Setup: Artifact generation
     mock_generate.return_value = {"Dockerfile": Path("deploy/Dockerfile")}
 
-    args = create_deploy_args(generate=True)  # Exit early after artifacts
+    # Use generate=False so Docker check happens
+    args = create_deploy_args(generate=False)
     result = cmd_deploy(args)
 
     assert result == 0
@@ -269,16 +273,13 @@ def test_deploy_generate_only_exits_after_artifacts(
     mock_path, mock_validate, mock_subprocess, mock_workflow_config_cls,
     mock_parse, mock_generate
 ):
-    """Test deploy with --generate exits after artifact generation."""
+    """Test deploy with --generate exits after artifact generation without Docker check."""
     # Setup: file exists and validation passes
     mock_path_instance = Mock()
     mock_path_instance.exists.return_value = True
     mock_path.return_value = mock_path_instance
 
     mock_validate.return_value = None
-
-    # Setup: Docker available
-    mock_subprocess.return_value = Mock(returncode=0, stdout="", stderr="")
 
     # Setup: Config parsing
     mock_parse.return_value = {"flow": {"name": "test_workflow"}}
@@ -298,11 +299,8 @@ def test_deploy_generate_only_exits_after_artifacts(
 
     assert result == 0
     mock_generate.assert_called_once()
-    # Should NOT call docker build (only docker version)
-    assert all(
-        call_args[0][0] != ["docker", "build"]
-        for call_args in mock_subprocess.call_args_list
-    )
+    # Should NOT call any docker commands in generate-only mode
+    assert mock_subprocess.call_count == 0
 
 
 @patch("configurable_agents.cli.generate_deployment_artifacts")
