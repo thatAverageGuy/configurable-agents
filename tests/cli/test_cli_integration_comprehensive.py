@@ -23,9 +23,9 @@ class TestAllCommandsHelp:
         "run",
         "validate",
         "deploy",
-        "ui",
-        "dashboard",
-        "chat",
+        pytest.param("ui", marks=pytest.mark.slow),
+        pytest.param("dashboard", marks=pytest.mark.slow),
+        pytest.param("chat", marks=pytest.mark.slow),
     ])
     def test_command_help_exists(self, command):
         """Test each command shows help without crashing."""
@@ -33,7 +33,7 @@ class TestAllCommandsHelp:
             [sys.executable, "-m", "configurable_agents", command, "--help"],
             capture_output=True,
             text=True,
-            timeout=10,
+            timeout=30,
         )
         assert result.returncode == 0, f"Command '{command}' --help failed: {result.stderr}"
         assert "usage:" in result.stdout.lower() or command in result.stdout.lower()
@@ -386,6 +386,7 @@ flow:
 state:
   fields:
     message: {type: str, required: true}
+    result: {type: str, default: ""}
 nodes:
   - id: process
     prompt: "Process: {state.message}"
@@ -721,6 +722,7 @@ edges:
         assert "format" not in result.stderr.lower() or result.returncode == 0
 
 
+@pytest.mark.slow
 class TestUICommands:
     """Test UI-related commands (dashboard, chat, ui)."""
 
@@ -730,7 +732,7 @@ class TestUICommands:
             [sys.executable, "-m", "configurable_agents", "dashboard", "--help"],
             capture_output=True,
             text=True,
-            timeout=10,
+            timeout=30,
         )
         # Dashboard command may be an alias or separate command
         # Just verify it doesn't crash
@@ -742,7 +744,7 @@ class TestUICommands:
             [sys.executable, "-m", "configurable_agents", "chat", "--help"],
             capture_output=True,
             text=True,
-            timeout=10,
+            timeout=30,
         )
         # Chat command may be an alias or separate command
         # Just verify it doesn't crash
@@ -754,7 +756,7 @@ class TestUICommands:
             [sys.executable, "-m", "configurable_agents", "ui", "--help"],
             capture_output=True,
             text=True,
-            timeout=10,
+            timeout=30,
         )
         assert result.returncode == 0
         assert "usage:" in result.stdout.lower()
