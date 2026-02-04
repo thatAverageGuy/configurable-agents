@@ -160,6 +160,78 @@ class LLMConfig(BaseModel):
         return v
 
 
+# ============================================
+# 4.5. Optimization (v0.4+)
+# ============================================
+
+
+class MLFlowConfig(BaseModel):
+    """MLFlow experiment configuration for optimization (v0.4+)."""
+
+    experiment: Optional[str] = Field(
+        None, description="MLFlow experiment name for grouping runs"
+    )
+    run_name: Optional[str] = Field(
+        None, description="Optional run identifier template"
+    )
+
+
+class VariantConfig(BaseModel):
+    """Prompt variant configuration for A/B testing (v0.4+)."""
+
+    name: str = Field(..., description="Variant name for identification")
+    prompt: str = Field(..., description="Prompt template to test")
+    config_overrides: Optional[Dict[str, Any]] = Field(
+        None, description="Optional config overrides for this variant"
+    )
+    node_id: Optional[str] = Field(
+        None, description="Specific node ID to apply prompt (default: first node)"
+    )
+
+
+class ABTestConfig(BaseModel):
+    """A/B testing configuration (v0.4+)."""
+
+    enabled: bool = Field(False, description="Enable A/B testing for this workflow")
+    experiment: str = Field(..., description="MLFlow experiment name for results")
+    variants: List[VariantConfig] = Field(
+        ..., description="List of prompt variants to test"
+    )
+    run_count: int = Field(3, ge=1, le=10, description="Runs per variant (default: 3)")
+    parallel: bool = Field(True, description="Run variants concurrently")
+
+
+class QualityGateModel(BaseModel):
+    """Quality gate threshold definition (v0.4+)."""
+
+    metric: str = Field(..., description="Metric name to check (e.g., 'cost_usd', 'duration_ms')")
+    max: Optional[float] = Field(None, description="Maximum allowed value (exclusive)")
+    min: Optional[float] = Field(None, description="Minimum allowed value (exclusive)")
+
+
+class GatesModel(BaseModel):
+    """Quality gates configuration (v0.4+)."""
+
+    gates: List[QualityGateModel] = Field(
+        default_factory=list, description="List of quality gate thresholds"
+    )
+    on_fail: str = Field(
+        "warn",
+        description="Action when gates fail: 'warn', 'fail', or 'block_deploy'"
+    )
+
+    @field_validator("on_fail")
+    @classmethod
+    def validate_on_fail(cls, v: str) -> str:
+        """Validate on_fail value."""
+        valid_actions = {"warn", "fail", "block_deploy"}
+        if v not in valid_actions:
+            raise ValueError(
+                f"on_fail must be one of {valid_actions}, got '{v}'"
+            )
+        return v
+
+
 class NodeConfig(BaseModel):
     """Node configuration."""
 
@@ -183,6 +255,11 @@ class NodeConfig(BaseModel):
     )
     log_artifacts: Optional[bool] = Field(
         None, description="Override workflow-level log_artifacts for this node"
+    )
+
+    # MLFlow override (v0.4+)
+    mlflow: Optional[MLFlowConfig] = Field(
+        None, description="MLFlow experiment configuration (overrides workflow-level)"
     )
 
     @field_validator("id")
@@ -421,6 +498,28 @@ class GlobalConfig(BaseModel):
         None, description="Observability config (v0.2+)"
     )
     storage: Optional[StorageConfig] = Field(None, description="Storage backend config")
+
+    # Optimization configuration (v0.4+)
+    mlflow: Optional[MLFlowConfig] = Field(
+        None, description="MLFlow experiment configuration"
+    )
+    ab_test: Optional[ABTestConfig] = Field(
+        None, description="A/B testing configuration"
+    )
+    gates: Optional[GatesModel] = Field(
+        None, description="Quality gates configuration"
+    )
+
+    # Optimization configuration (v0.4+)
+    mlflow: Optional[MLFlowConfig] = Field(
+        None, description="MLFlow experiment configuration"
+    )
+    ab_test: Optional[ABTestConfig] = Field(
+        None, description="A/B testing configuration"
+    )
+    gates: Optional[GatesModel] = Field(
+        None, description="Quality gates configuration"
+    )
 
 
 # ============================================
