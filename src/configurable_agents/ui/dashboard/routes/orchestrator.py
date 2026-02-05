@@ -201,23 +201,30 @@ async def register_agent(
         raise HTTPException(status_code=500, detail=str(e))
 
 
-@router.get("/health-check")
+@router.get("/health-check", response_class=HTMLResponse)
 async def health_check_all(
     repo: AgentRegistryRepository = Depends(get_agent_registry_repo),
-) -> Dict[str, Any]:
+) -> HTMLResponse:
     """Health check all registered agents.
 
-    Queries the /health endpoint of each agent and returns status.
+    Queries the /health endpoint of each agent and returns HTML partial.
     Called via HTMX polling every 10s from orchestrator page.
 
     Args:
         repo: Agent registry repository
 
     Returns:
-        Dictionary with agents list and health status
+        HTML partial for agents list
     """
+    from fastapi.responses import HTMLResponse
+
     try:
         agents = repo.list_all(include_dead=True)
+
+        if not agents:
+            return HTMLResponse(
+                content='<div class="no-agents">No agents registered yet. Use the form above to register your first agent.</div>'
+            )
 
         result_agents = []
 
@@ -244,6 +251,19 @@ async def health_check_all(
                 except Exception as e:
                     error_message = str(e)[:50]  # Truncate long errors
 
+                # Calculate time ago
+                from datetime import datetime
+                if agent.last_heartbeat:
+                    delta = datetime.utcnow() - agent.last_heartbeat
+                    seconds = delta.total_seconds()
+                    if seconds < 60:
+                        time_ago = f"{int(seconds)}s ago"
+                    else:
+                        minutes = int(seconds / 60)
+                        time_ago = f"{minutes}m ago"
+                else:
+                    time_ago = "Never"
+
                 result_agents.append({
                     "agent_id": agent.agent_id,
                     "agent_name": agent.agent_name,
@@ -252,15 +272,62 @@ async def health_check_all(
                     "agent_url": agent_url,
                     "is_healthy": is_healthy,
                     "error_message": error_message,
-                    "last_seen": agent.last_heartbeat.isoformat() if agent.last_heartbeat else None,
+                    "last_seen": time_ago,
                     "is_alive": agent.is_alive(),
                 })
 
-        return {"agents": result_agents}
+        # Build HTML table
+        html = '''
+        <div id="agents-list-container"
+             hx-get="/orchestrator/health-check"
+             hx-trigger="every 10s"
+             hx-swap="outerHTML">
+            <h3>Registered Agents</h3>
+            <table class="agents-table">
+                <thead>
+                    <tr>
+                        <th>Status</th>
+                        <th>Agent Name</th>
+                        <th>ID</th>
+                        <th>URL</th>
+                        <th>Last Seen</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+        '''
+
+        for agent_data in result_agents:
+            status_class = "status-healthy" if agent_data["is_healthy"] else "status-unhealthy"
+            status_text = "✓ Healthy" if agent_data["is_healthy"] else f"✗ {agent_data['error_message'] or 'Unavailable'}"
+
+            html += f'''
+                    <tr>
+                        <td class="{status_class}">{status_text}</td>
+                        <td><strong>{agent_data['agent_name']}</strong></td>
+                        <td><code>{agent_data['agent_id']}</code></td>
+                        <td><code>{agent_data['agent_url']}</code></td>
+                        <td>{agent_data['last_seen']}</td>
+                        <td>
+                            <button class="btn-execute" onclick="openExecuteModal('{agent_data['agent_id']}', '{agent_data['agent_name']}')">Execute</button>
+                            <button class="btn-remove" onclick="removeAgent('{agent_data['agent_id']}', '{agent_data['agent_name']}')">Remove</button>
+                        </td>
+                    </tr>
+            '''
+
+        html += '''
+                </tbody>
+            </table>
+        </div>
+        '''
+
+        return HTMLResponse(content=html)
 
     except Exception as e:
         logger.error(f"Failed to health check agents: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        return HTMLResponse(
+            content=f'<div class="error-message">Failed to load agents: {str(e)}</div>'
+        )
 
 
 @router.get("/{agent_id}/schema")
