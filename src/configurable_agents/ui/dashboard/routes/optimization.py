@@ -55,11 +55,13 @@ async def experiments_list(
         from mlflow.tracking import MlflowClient
         from mlflow.entities import ViewType
 
-        mlflow_available = True
         client = MlflowClient()
 
         # Get all active experiments
         exp_list = client.search_experiments(view_type=ViewType.ACTIVE_ONLY)
+
+        # Only set mlflow_available = True after successful operation
+        mlflow_available = True
 
         for exp in exp_list:
             # Get run count
@@ -79,8 +81,10 @@ async def experiments_list(
         logger.warning("MLFlow not installed or not available")
     except (FileNotFoundError, OSError) as e:
         logger.warning(f"MLFlow filesystem error (backend not configured): {e}")
+        mlflow_available = False
     except Exception as e:
         logger.error(f"Failed to list experiments: {e}")
+        mlflow_available = False
 
     return templates.TemplateResponse(
         "experiments.html",
@@ -105,10 +109,12 @@ async def experiments_json(
         from mlflow.tracking import MlflowClient
         from mlflow.entities import ViewType
 
-        mlflow_available = True
         client = MlflowClient()
 
         exp_list = client.search_experiments(view_type=ViewType.ACTIVE_ONLY)
+
+        # Only set mlflow_available = True after successful operation
+        mlflow_available = True
 
         for exp in exp_list:
             runs = client.search_runs(
@@ -127,8 +133,10 @@ async def experiments_json(
         logger.warning("MLFlow not installed or not available")
     except (FileNotFoundError, OSError) as e:
         logger.warning(f"MLFlow filesystem error (backend not configured): {e}")
+        mlflow_available = False
     except Exception as e:
         logger.error(f"Failed to get experiments: {e}")
+        mlflow_available = False
 
     return {"experiments": experiments, "mlflow_available": mlflow_available}
 
