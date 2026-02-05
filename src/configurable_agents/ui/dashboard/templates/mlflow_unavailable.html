@@ -1,0 +1,42 @@
+{% extends "base.html" %}
+
+{% block title %}MLFlow Not Configured - Configurable Agents Dashboard{% endblock %}
+
+{% block nav_mlflow %}class="active"{% endblock %}
+
+{% block content %}
+<div class="main-content">
+    <div class="error-container">
+        <div class="error-header">
+            <span class="error-icon">i</span>
+            <h2 class="error-title">MLFlow Not Configured</h2>
+        </div>
+
+        <p class="error-description">
+            MLFlow is not currently enabled for this dashboard. To enable MLFlow tracking,
+            restart the dashboard with one of the following options:
+        </p>
+
+        <div class="error-resolution">
+            <h3>Enable MLFlow</h3>
+            <ol class="resolution-steps">
+                <li>
+                    <strong>Option 1: Built-in MLFlow server</strong><br>
+                    Restart the dashboard with the <code>--mlflow</code> flag:<br>
+                    <pre class="error-stacktrace">configurable-agents ui --mlflow</pre>
+                </li>
+                <li>
+                    <strong>Option 2: External MLFlow server</strong><br>
+                    Connect to an existing MLFlow instance with <code>--mlflow-uri</code>:<br>
+                    <pre class="error-stacktrace">configurable-agents ui --mlflow-uri &lt;your-mlflow-uri&gt;</pre>
+                    <small class="text-muted">Example: --mlflow-uri http://localhost:5000 or sqlite:///mlruns.db</small>
+                </li>
+            </ol>
+        </div>
+
+        <div style="margin-top: 20px;">
+            <a href="/" class="btn btn-primary">Return to Dashboard</a>
+        </div>
+    </div>
+</div>
+{% endblock %}
