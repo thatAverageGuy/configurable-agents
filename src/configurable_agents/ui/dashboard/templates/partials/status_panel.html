@@ -1,4 +1,4 @@
-<div class="status-panel" hx-get="/api/status" hx-trigger="load, every 10s" hx-swap="outerHTML">
+<div class="status-panel" hx-get="/api/status" hx-trigger="every 10s" hx-swap="outerHTML">
   <div class="status-grid">
     <!-- Active Workflows -->
     <div class="status-card {{ 'status-ok' if active_workflows == 0 else 'status-active' }}">

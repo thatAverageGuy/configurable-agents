@@ -19,11 +19,7 @@
                 <div class="filter-group">
                     <label for="status-filter">Status:</label>
                     <select id="status-filter" name="status"
-                            hx-get="/workflows/table"
-                            hx-trigger="change"
-                            hx-include="[name='status']"
-                            hx-target="#workflows-table"
-                            hx-swap="innerHTML">
+                            onchange="window.location.href='/workflows?status=' + this.value">
                         <option value="">All</option>
                         <option value="running" {% if status_filter == 'running' %}selected{% endif %}>Running</option>
                         <option value="completed" {% if status_filter == 'completed' %}selected{% endif %}>Completed</option>
@@ -39,8 +35,7 @@
         <div id="workflows-table"
              hx-get="/workflows/table"
              hx-swap="outerHTML"
-             hx-trigger="load, every 5s"
-             hx-include="[name='status']">
+             hx-trigger="every 5s">
             {% include "workflows_table.html" %}
         </div>
     </div>

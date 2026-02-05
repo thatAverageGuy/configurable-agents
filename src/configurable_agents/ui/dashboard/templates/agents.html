@@ -17,9 +17,7 @@
             <h2>Agent Registry</h2>
             <div class="filters">
                 <button class="btn btn-secondary"
-                        hx-post="/agents/refresh"
-                        hx-swap="innerHTML"
-                        hx-target="#agents-table">
+                        onclick="window.location.reload()">
                     Refresh
                 </button>
                 <a href="/agents/all" class="btn btn-secondary">Show All</a>
@@ -30,7 +28,7 @@
         <div id="agents-table"
              hx-get="/agents/table"
              hx-swap="outerHTML"
-             hx-trigger="load, every 10s">
+             hx-trigger="every 10s">
             {% include "agents_table.html" %}
         </div>
     </div>

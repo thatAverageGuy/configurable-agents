@@ -56,7 +56,7 @@ class DashboardApp:
         self.workflow_repo = workflow_repo
         self.agent_registry_repo = agent_registry_repo
         self.mlflow_tracking_uri = mlflow_tracking_uri
-        self.mlflow_mounted = mlflow_tracking_uri is not None
+        self.mlflow_mounted = False
 
         # Create FastAPI app
         self.app = FastAPI(
@@ -69,9 +69,11 @@ class DashboardApp:
         self._setup_templates(template_dir)
         self._setup_static_files(static_dir)
 
-        # Mount MLFlow if URI provided
-        if mlflow_tracking_uri:
+        # Mount MLFlow only if URI is a file path (embedded mode)
+        # For HTTP URIs (external servers), don't mount - just link to them
+        if mlflow_tracking_uri and not mlflow_tracking_uri.startswith("http"):
             self._mount_mlflow(mlflow_tracking_uri)
+            self.mlflow_mounted = True
 
         # Store repositories in app state for route access
         self.app.state.workflow_repo = workflow_repo
@@ -251,8 +253,15 @@ class DashboardApp:
             return {"status": "healthy", "timestamp": datetime.utcnow().isoformat()}
 
         @self.app.get("/mlflow", response_class=HTMLResponse)
-        async def mlflow_unavailable(request: Request):
-            """Show friendly page when MLFlow is not mounted."""
+        async def mlflow_handler(request: Request):
+            """Handle MLFlow route - redirect to external or show unavailable page."""
+            from fastapi.responses import RedirectResponse
+
+            # If MLFlow is an external HTTP server, redirect to it
+            if self.mlflow_tracking_uri and self.mlflow_tracking_uri.startswith("http"):
+                return RedirectResponse(url=self.mlflow_tracking_uri)
+
+            # Otherwise show unavailable page
             return self.templates.TemplateResponse(
                 "mlflow_unavailable.html",
                 {"request": request}
