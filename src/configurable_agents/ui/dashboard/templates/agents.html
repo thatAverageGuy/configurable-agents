@@ -18,7 +18,7 @@
             <div class="filters">
                 <button class="btn btn-secondary"
                         hx-post="/agents/refresh"
-                        hx-swap="outerHTML"
+                        hx-swap="innerHTML"
                         hx-target="#agents-table">
                     Refresh
                 </button>
@@ -37,7 +37,7 @@
 </div>
 
 <!-- SSE Connection for Real-time Updates -->
-<div hx-ext="sse" sse-connect="/metrics/agents/stream" sse-swap="agent_update">
+<div hx-ext="sse" sse-connect="/metrics/agents/stream" sse-swap="agent_update" style="display: none;">
     <!-- SSE events will trigger table refresh automatically -->
 </div>
 

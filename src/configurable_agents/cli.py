@@ -1603,6 +1603,61 @@ def _run_chat_service(host: str, port: int, dashboard_host: str, dashboard_port:
     )
 
 
+def _run_mlflow_with_config(config: dict) -> None:
+    """Run MLFlow UI with configuration dict - module level for pickle compatibility.
+
+    On Windows, multiprocessing uses the 'spawn' method which requires
+    functions passed to Process() to be pickleable. functools.partial
+    contains weakrefs that cannot be pickled, so we use a simple
+    module-level function that unpacks a config dict.
+
+    Args:
+        config: Dict with keys: host, port, verbose
+    """
+    print(f"[MLFlow] Starting with config: host={config['host']}, port={config['port']}", flush=True)
+
+    try:
+        _run_mlflow_service(
+            host=config['host'],
+            port=config['port'],
+            verbose=config['verbose'],
+        )
+    except Exception as e:
+        import traceback
+        print(f"[MLFlow] CRASH: {e}", file=sys.stderr, flush=True)
+        traceback.print_exc(file=sys.stderr)
+        raise
+
+
+def _run_mlflow_service(host: str, port: int, verbose: bool) -> None:
+    """
+    Run MLFlow UI - module level for pickle compatibility on Windows.
+
+    On Windows, multiprocessing uses the 'spawn' method which requires
+    functions passed to Process() to be pickleable. Nested functions cannot
+    be pickled, so this must be a module-level function.
+
+    Called by _run_mlflow_with_config wrapper which handles config unpacking.
+
+    Args:
+        host: Host to bind to
+        port: Port to bind to
+        verbose: Whether to enable verbose output
+    """
+    import subprocess
+
+    # Build mlflow ui command
+    cmd = [
+        "mlflow", "ui",
+        "--host", host,
+        "--port", str(port),
+    ]
+
+    # Run MLFlow UI as subprocess
+    # stdout/stderr inherit from parent for visibility
+    subprocess.run(cmd, check=True)
+
+
 def cmd_ui(args: argparse.Namespace) -> int:
     """
     Launch the complete Configurable Agents UI (Dashboard + Chat).
@@ -1645,7 +1700,61 @@ def cmd_ui(args: argparse.Namespace) -> int:
     # Mark session as dirty (crash detection for next run) - no-op until Task 4
     manager.mark_session_dirty()
 
-    # Add dashboard service
+    # Handle MLFlow UI first (before dashboard config)
+    mlflow_enabled = False
+    if args.mlflow_uri:
+        # User provided explicit --mlflow-uri
+        mlflow_enabled = True
+        if hasattr(args, 'mlflow_port') and console:
+            console.print(
+                f"[dim]  Note: --mlflow-uri provided, ignoring --mlflow-port ({args.mlflow_port})[/dim]"
+            )
+        elif hasattr(args, 'mlflow_port'):
+            print_warning(f"--mlflow-uri provided, ignoring --mlflow-port ({args.mlflow_port})")
+    else:
+        # Try to auto-start MLFlow if installed
+        try:
+            import mlflow
+            mlflow_enabled = True
+            mlflow_uri = f"http://localhost:{args.mlflow_port}"
+
+            if console:
+                console.print(f"[bold blue]Starting MLFlow UI...[/bold blue]")
+            else:
+                print_info("Starting MLFlow UI...")
+
+            mlflow_config = {
+                'host': args.host,
+                'port': args.mlflow_port,
+                'verbose': args.verbose,
+            }
+            manager.add_service(ServiceSpec(
+                name="mlflow",
+                target=_run_mlflow_with_config,
+                args=(mlflow_config,),
+            ))
+
+            if console:
+                console.print(f"[green]OK[/green] MLFlow UI configured on port {args.mlflow_port}")
+            else:
+                print_success(f"MLFlow UI configured on port {args.mlflow_port}")
+
+            # Update mlflow_uri for dashboard
+            args.mlflow_uri = mlflow_uri
+        except ImportError:
+            if console:
+                console.print(
+                    f"[dim]  MLFlow not installed - MLFlow features disabled. "
+                    f"Install with: pip install mlflow[/dim]"
+                )
+            else:
+                print_warning(
+                    "MLFlow not installed - MLFlow features disabled. "
+                    "Install with: pip install mlflow"
+                )
+            args.mlflow_uri = None
+
+    # Add dashboard service (after MLFlow handling to get correct mlflow_uri)
     if console:
         console.print(f"[bold blue]Starting Dashboard...[/bold blue]")
     else:
@@ -2600,7 +2709,13 @@ For more information, visit: https://github.com/yourusername/configurable-agents
     ui_parser.add_argument(
         "--mlflow-uri",
         default=None,
-        help="MLFlow tracking URI (default: None)",
+        help="MLFlow tracking URI (default: http://localhost:5000 if MLFlow is installed)",
+    )
+    ui_parser.add_argument(
+        "--mlflow-port",
+        type=int,
+        default=5000,
+        help="MLFlow UI port for local instance (default: 5000, ignored if --mlflow-uri is provided)",
     )
     ui_parser.add_argument(
         "--no-chat",

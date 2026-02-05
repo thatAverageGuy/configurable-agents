@@ -22,7 +22,8 @@
                             hx-get="/workflows/table"
                             hx-trigger="change"
                             hx-include="[name='status']"
-                            hx-target="#workflows-table">
+                            hx-target="#workflows-table"
+                            hx-swap="innerHTML">
                         <option value="">All</option>
                         <option value="running" {% if status_filter == 'running' %}selected{% endif %}>Running</option>
                         <option value="completed" {% if status_filter == 'completed' %}selected{% endif %}>Completed</option>
@@ -46,7 +47,7 @@
 </div>
 
 <!-- SSE Connection for Real-time Updates -->
-<div hx-ext="sse" sse-connect="/metrics/workflows/stream" sse-swap="workflow_update">
+<div hx-ext="sse" sse-connect="/metrics/workflows/stream" sse-swap="workflow_update" style="display: none;">
     <!-- SSE events will trigger table refresh automatically -->
 </div>
 
