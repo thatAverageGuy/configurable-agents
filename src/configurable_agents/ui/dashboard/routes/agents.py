@@ -21,7 +21,7 @@ from configurable_agents.storage.models import AgentRecord
 router = APIRouter(prefix="/agents")
 
 
-def _time_ago(dt: Optional[datetime]) -> str:
+def time_ago(dt: Optional[datetime]) -> str:
     """Format datetime as relative time string.
 
     Args:
@@ -51,7 +51,7 @@ def _time_ago(dt: Optional[datetime]) -> str:
         return f"{days}d ago"
 
 
-def _format_datetime(dt: Optional[datetime]) -> str:
+def format_datetime(dt: Optional[datetime]) -> str:
     """Format datetime as string.
 
     Args:
@@ -65,7 +65,7 @@ def _format_datetime(dt: Optional[datetime]) -> str:
     return dt.strftime("%Y-%m-%d %H:%M:%S")
 
 
-def _parse_capabilities(agent_metadata: Optional[str]) -> List[str]:
+def parse_capabilities(agent_metadata: Optional[str]) -> List[str]:
     """Extract capabilities from agent metadata JSON.
 
     Args:
@@ -232,7 +232,7 @@ async def agents_refresh(
 # Export helper functions for use in templates
 __all__ = [
     "router",
-    "_time_ago",
-    "_format_datetime",
-    "_parse_capabilities",
+    "time_ago",
+    "format_datetime",
+    "parse_capabilities",
 ]
