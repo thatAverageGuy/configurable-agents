@@ -56,34 +56,25 @@ result: skipped - No agent data available to test time formatting
 
 total: 10
 passed: 5
-issues: 4
-notes: 1
+issues_fixed: 4
+notes_fixed: 1
+doc_issues: 1
 pending: 0
 skipped: 2
 
 ## Gaps
 
-### Issue 001: MLFlow auto-start feature missing (test 4)
+### Issue 001: MLFlow auto-start feature missing (test 4) ✅ FIXED
 - **User feedback:** "couldn't see any --mlflow flag"
 - **User requirement:** `configurable-agents ui` should auto-start everything including MLFlow UI by default
-- **Expected behavior:**
-  1. MLFlow UI starts automatically with `configurable-agents ui` (no flag required)
-  2. If MLFlow not installed, show graceful debug message in terminal
-  3. Add `--mlflow-port <port>` flag for local MLFlow instance (default: 5000)
-  4. Default `--mlflow-uri` to `http://localhost:5000`
-  5. If `--mlflow-uri` is provided, disregard `--mlflow-port`
-  6. Show terminal message if `--mlflow-uri` overrides `--mlflow-port`
-- **Current state:** `--mlflow-uri` flag exists but MLFlow doesn't auto-start
-- **Severity:** feature request - missing expected functionality
-- **Related files:**
-  - `src/configurable_agents/cli.py:2583-2615` (ui command parser)
-  - `src/configurable_agents/cli.py:cmd_ui` function
-- **Implementation needed:**
-  1. Add `--mlflow-port` argument to ui_parser
-  2. Auto-start MLFlow UI if MLFlow is installed
-  3. Handle ImportError gracefully if MLFlow not installed
-  4. Implement flag precedence logic (--mlflow-uri overrides --mlflow-port)
-  5. Update terminal messages
+- **Implementation completed:**
+  1. ✅ Added `--mlflow-port <port>` flag (default: 5000)
+  2. ✅ Auto-start MLFlow UI when MLFlow is installed
+  3. ✅ Graceful degradation with terminal message if MLFlow not installed
+  4. ✅ Flag precedence: `--mlflow-uri` overrides `--mlflow-port`
+  5. ✅ Added terminal messages for flag precedence
+  6. ✅ Created `_run_mlflow_with_config()` and `_run_mlflow_service()` functions
+- **Commit:** 88dffee
 
 ### Issue 002: --dashboard-port-only flag doesn't exist (UAT only)
 - **User feedback:** "there is no such command as configurable-agents ui --dashboard-port-only 7861"
@@ -95,33 +86,20 @@ skipped: 2
 - **Severity:** documentation bug in UAT test (not in actual code)
 - **Fix needed:** Update UAT test expected instructions to use `--dashboard-port` instead of `--dashboard-port-only`
 
-### Issue 003: HTMX targetError on Workflows page (test 6)
+### Issue 003: HTMX targetError on Workflows page (test 6) ✅ FIXED
 - **User feedback:** "When I update the status, htmx:targetError logged into console"
-- **Expected:** Status filter dropdown should refresh table without errors
-- **Actual:** HTMX throws targetError when status changes
-- **Severity:** functional - HTMX refresh broken
-- **Related files:**
-  - `src/configurable_agents/ui/dashboard/templates/workflows.html:22-25,39-42`
-  - `src/configurable_agents/ui/dashboard/routes/workflows.py:162-185`
-- **Next step:** Inspect HTMX request/response to identify root cause
+- **Root cause:** Status filter had `hx-target="#workflows-table"` but no `hx-swap`, causing HTMX to use default `outerHTML` swap which couldn't find target element
+- **Fix:** Added `hx-swap="innerHTML"` to status filter select element
+- **Commit:** 88dffee
 
-### Issue 004: HTMX targetError on Agents page (test 7)
+### Issue 004: HTMX targetError on Agents page (test 7) ✅ FIXED
 - **User feedback:** "Refresh button on agents page has same error as the workflows: htmx:targetError"
-- **Expected:** Refresh button should update table without errors
-- **Actual:** HTMX throws targetError when clicking refresh
-- **Severity:** functional - HTMX refresh broken
-- **Related files:**
-  - `src/configurable_agents/ui/dashboard/templates/agents.html:20-24,30-35`
-  - `src/configurable_agents/ui/dashboard/routes/agents.py`
-- **Note:** Same root cause as Issue 003 - likely shared HTMX configuration issue
+- **Root cause:** Refresh button had `hx-swap="outerHTML"` which replaced entire div but response didn't include div with id="agents-table"
+- **Fix:** Changed `hx-swap="outerHTML"` to `hx-swap="innerHTML"` on refresh button
+- **Commit:** 88dffee
 
-### Note 001: Empty array [] displayed at bottom of tables (test 8)
+### Note 001: Empty array [] displayed at bottom of tables (test 8) ✅ FIXED
 - **User feedback:** "I noticed one thing, there's this [] empty array type thing at the bottom left of the tables on both workflows and agents page"
-- **Location:** Bottom left of tables on Workflows and Agents pages
-- **Severity:** cosmetic - visual artifact, doesn't break functionality
-- **Possible cause:** Empty JavaScript array or data attribute being rendered to page
-- **Related files:**
-  - `src/configurable_agents/ui/dashboard/templates/workflows.html`
-  - `src/configurable_agents/ui/dashboard/templates/agents.html`
-  - `src/configurable_agents/ui/dashboard/templates/workflows_table.html`
-  - `src/configurable_agents/ui/dashboard/templates/agents_table.html`
+- **Root cause:** SSE connection divs (for real-time updates) were visible on page
+- **Fix:** Added `style="display: none;"` to SSE divs in both workflows.html and agents.html
+- **Commit:** 88dffee
