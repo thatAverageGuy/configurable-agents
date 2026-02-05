@@ -69,6 +69,9 @@ webhooks = [
 sandbox = [
     "docker>=7.0.0",
 ]
+windows = [
+    "pywin32>=305; sys_platform == 'win32'",
+]
 
 [project.scripts]
 configurable-agents = "configurable_agents.cli:main"

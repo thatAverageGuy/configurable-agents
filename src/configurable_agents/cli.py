@@ -1646,6 +1646,8 @@ def _run_mlflow_service(host: str, port: int, verbose: bool) -> None:
     """
     import subprocess
     import time
+    import atexit
+    import sys
 
     # Build mlflow ui command
     cmd = [
@@ -1654,20 +1656,114 @@ def _run_mlflow_service(host: str, port: int, verbose: bool) -> None:
         "--port", str(port),
     ]
 
+    # Track MLFlow subprocess for cleanup
+    mlflow_process = None
+    job_handle = None
+
+    def cleanup_mlflow():
+        """Cleanup MLFlow process on exit."""
+        nonlocal mlflow_process, job_handle
+
+        # First try the job object (Windows)
+        if job_handle is not None:
+            try:
+                import win32job
+                import win32con
+                import win32api
+                # Close the job object which will terminate all processes in the job
+                win32job.CloseHandle(job_handle)
+                print(f"[MLFlow] Job object closed (MLFlow terminated via job)", flush=True)
+                mlflow_process = None  # Mark as handled
+                return
+            except ImportError:
+                # pywin32 not available, fall back to process termination
+                pass
+            except Exception:
+                # Job cleanup failed, fall back to process termination
+                pass
+
+        # Fallback: terminate process directly
+        if mlflow_process and mlflow_process.poll() is None:
+            print(f"[MLFlow] Terminating MLFlow UI...", flush=True)
+            try:
+                mlflow_process.terminate()
+                mlflow_process.wait(timeout=5)
+            except subprocess.TimeoutExpired:
+                mlflow_process.kill()
+                mlflow_process.wait()
+            except Exception:
+                mlflow_process.kill()
+            print(f"[MLFlow] MLFlow UI terminated", flush=True)
+
+    # Windows-specific: Use job objects to ensure child processes are terminated
+    if sys.platform == "win32":
+        try:
+            import win32job
+            import win32con
+            import win32api
+
+            # Create a job object
+            job_handle = win32job.CreateJobObject(None, "")
+
+            # Set job info to kill all processes when job closes
+            info = win32job.JOBOBJECT_EXTENDED_LIMIT_INFORMATION()
+            info.BasicLimitInformation.LimitFlags = win32job.JOB_OBJECT_LIMIT_KILL_ON_JOB_CLOSE
+            win32job.SetInformationJobObject(job_handle, win32job.JobObjectExtendedLimitInformation, info)
+
+        except ImportError:
+            # pywin32 not installed, will use atexit cleanup instead
+            print("[MLFlow] Warning: pywin32 not available, MLFlow cleanup may not be reliable on Windows", flush=True)
+            job_handle = None
+        except Exception as e:
+            print(f"[MLFlow] Warning: Could not create job object: {e}", flush=True)
+            job_handle = None
+
     # Run MLFlow UI as subprocess
     # Don't capture stdout/stderr - let them inherit from parent for visibility
-    process = subprocess.Popen(
+    mlflow_process = subprocess.Popen(
         cmd,
         stdout=None,  # Inherit stdout
         stderr=None,   # Inherit stderr
         text=True
     )
 
+    # Assign process to job on Windows (if job object created)
+    if job_handle is not None:
+        try:
+            import win32job
+            import win32con
+            import win32process
+            # Assign the MLFlow process to the job
+            win32job.AssignProcessToJobObject(job_handle, None, mlflow_process.pid)
+            if verbose:
+                print(f"[MLFlow] Assigned to job object for reliable cleanup", flush=True)
+        except Exception as e:
+            print(f"[MLFlow] Warning: Could not assign to job object: {e}", flush=True)
+            job_handle = None
+
+    # Register cleanup function to be called on exit
+    atexit.register(cleanup_mlflow)
+
+    # Also handle termination signals directly
+    def signal_handler(signum, frame):
+        """Handle shutdown signals by terminating MLFlow."""
+        cleanup_mlflow()
+        # Re-raise to allow normal exit
+        import signal
+        signal.signal(signum, signal.SIG_DFL)
+        sys.exit(0)
+
+    # Register signal handlers (works on both Windows and Unix)
+    import signal
+    signal.signal(signal.SIGINT, signal_handler)
+    if hasattr(signal, 'SIGTERM'):
+        signal.signal(signal.SIGTERM, signal_handler)
+
     # Wait a moment to ensure MLFlow started successfully
     time.sleep(2)
 
     # Check if process is still running (it should be)
-    poll_result = process.poll()
+    poll_result = mlflow_process.poll()
     if poll_result is not None:
         # Process exited already - something went wrong
         raise RuntimeError(f"MLFlow UI failed to start (exit code {poll_result})")
@@ -1675,16 +1771,12 @@ def _run_mlflow_service(host: str, port: int, verbose: bool) -> None:
     print(f"[MLFlow] UI started successfully on http://{host}:{port}", flush=True)
 
     # Keep this service process alive and monitor MLFlow
-    # When ProcessManager shuts down, it will kill this process which will terminate MLFlow
+    # When ProcessManager shuts down this service, cleanup will be triggered
     try:
-        process.wait()
+        mlflow_process.wait()
     except KeyboardInterrupt:
-        # Gracefully shutdown MLFlow
-        process.terminate()
-        try:
-            process.wait(timeout=5)
-        except subprocess.TimeoutExpired:
-            process.kill()
+        # Gracefully shutdown MLFlow via cleanup handler
+        cleanup_mlflow()
         raise
 
 
