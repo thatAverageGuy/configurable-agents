@@ -81,6 +81,9 @@ class DashboardApp:
         # Include routers
         self._include_routers()
 
+        # Register actual helper implementations after routers are loaded
+        self._register_template_helpers()
+
         # Create main routes
         self._create_main_dashboard_routes()
 
@@ -109,6 +112,28 @@ class DashboardApp:
         self.app.include_router(orchestrator_router)
         self.app.include_router(status_routes.router)
 
+    def _register_template_helpers(self) -> None:
+        """Register actual helper function implementations for templates.
+
+        This is called after router loading so we can import the helper
+        functions from the route modules.
+        """
+        from configurable_agents.ui.dashboard.routes.workflows import (
+            _format_duration as fmt_dur_impl,
+            _format_cost as fmt_cost_impl,
+        )
+        from configurable_agents.ui.dashboard.routes.agents import (
+            _time_ago as time_ago_impl,
+            _parse_capabilities as parse_caps_impl,
+        )
+
+        self.templates.env.globals.update({
+            "format_duration": fmt_dur_impl,
+            "format_cost": fmt_cost_impl,
+            "time_ago": time_ago_impl,
+            "parse_capabilities": parse_caps_impl,
+        })
+
     def _setup_templates(self, template_dir: Optional[Path] = None) -> None:
         """Configure Jinja2 templates.
 
@@ -125,6 +150,15 @@ class DashboardApp:
         # Add custom filters for templates
         self.templates.env.filters["to_json"] = json.dumps
         self.templates.env.filters["from_json"] = json.loads
+
+        # Add stub helper functions to template globals
+        # These will be replaced with actual implementations after router loading
+        self.templates.env.globals.update({
+            "format_duration": lambda s: "-",
+            "format_cost": lambda c: "$0.00",
+            "time_ago": lambda dt: "-",
+            "parse_capabilities": lambda m: [],
+        })
 
     def _setup_static_files(self, static_dir: Optional[Path] = None) -> None:
         """Configure static file serving.
