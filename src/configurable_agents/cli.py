@@ -1645,6 +1645,7 @@ def _run_mlflow_service(host: str, port: int, verbose: bool) -> None:
         verbose: Whether to enable verbose output
     """
     import subprocess
+    import time
 
     # Build mlflow ui command
     cmd = [
@@ -1654,8 +1655,37 @@ def _run_mlflow_service(host: str, port: int, verbose: bool) -> None:
     ]
 
     # Run MLFlow UI as subprocess
-    # stdout/stderr inherit from parent for visibility
-    subprocess.run(cmd, check=True)
+    # Don't capture stdout/stderr - let them inherit from parent for visibility
+    process = subprocess.Popen(
+        cmd,
+        stdout=None,  # Inherit stdout
+        stderr=None,   # Inherit stderr
+        text=True
+    )
+
+    # Wait a moment to ensure MLFlow started successfully
+    time.sleep(2)
+
+    # Check if process is still running (it should be)
+    poll_result = process.poll()
+    if poll_result is not None:
+        # Process exited already - something went wrong
+        raise RuntimeError(f"MLFlow UI failed to start (exit code {poll_result})")
+
+    print(f"[MLFlow] UI started successfully on http://{host}:{port}", flush=True)
+
+    # Keep this service process alive and monitor MLFlow
+    # When ProcessManager shuts down, it will kill this process which will terminate MLFlow
+    try:
+        process.wait()
+    except KeyboardInterrupt:
+        # Gracefully shutdown MLFlow
+        process.terminate()
+        try:
+            process.wait(timeout=5)
+        except subprocess.TimeoutExpired:
+            process.kill()
+        raise
 
 
 def cmd_ui(args: argparse.Namespace) -> int:
