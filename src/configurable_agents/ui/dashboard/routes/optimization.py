@@ -76,7 +76,9 @@ async def experiments_list(
             })
 
     except ImportError:
-        logger.warning("MLFlow not available")
+        logger.warning("MLFlow not installed or not available")
+    except (FileNotFoundError, OSError) as e:
+        logger.warning(f"MLFlow filesystem error (backend not configured): {e}")
     except Exception as e:
         logger.error(f"Failed to list experiments: {e}")
 
@@ -121,6 +123,10 @@ async def experiments_json(
                 "creation_time": datetime.fromtimestamp(exp.creation_time / 1000) if exp.creation_time else None,
             })
 
+    except ImportError:
+        logger.warning("MLFlow not installed or not available")
+    except (FileNotFoundError, OSError) as e:
+        logger.warning(f"MLFlow filesystem error (backend not configured): {e}")
     except Exception as e:
         logger.error(f"Failed to get experiments: {e}")
 
@@ -139,6 +145,7 @@ async def compare_page(
     # Get comparison data
     comparison_data = None
     error = None
+    mlflow_available = True  # Assume available until proven otherwise
 
     try:
         evaluator = ExperimentEvaluator()
@@ -159,6 +166,10 @@ async def compare_page(
             ],
         }
 
+    except (ImportError, FileNotFoundError, OSError) as e:
+        logger.warning(f"MLFlow not available or not configured: {e}")
+        mlflow_available = False
+        error = "MLFlow is not available or not configured. Please install MLFlow and configure the tracking URI."
     except Exception as e:
         logger.error(f"Failed to get comparison: {e}")
         error = str(e)
@@ -171,6 +182,7 @@ async def compare_page(
             "metric": metric,
             "comparison": comparison_data,
             "error": error,
+            "mlflow_available": mlflow_available,
         },
     )
 
@@ -198,11 +210,18 @@ async def compare_json(
                 }
                 for v in comparison.variants
             ],
+            "mlflow_available": True,
         }
 
+    except (ImportError, FileNotFoundError, OSError) as e:
+        logger.warning(f"MLFlow not available or not configured: {e}")
+        return {
+            "error": "MLFlow is not available or not configured",
+            "mlflow_available": False,
+        }
     except Exception as e:
         logger.error(f"Failed to get comparison: {e}")
-        return {"error": str(e)}
+        return {"error": str(e), "mlflow_available": True}
 
 
 @router.post("/apply")
@@ -211,22 +230,31 @@ async def apply_prompt(request: Request, body: ApplyPromptRequest):
     try:
         # Find best variant if not specified
         variant = body.variant
-        if not variant:
-            best = find_best_variant(body.experiment)
-            if best:
-                variant = best.get("variant_name")
-                prompt = best.get("prompt")
+        prompt = None
+
+        try:
+            if not variant:
+                best = find_best_variant(body.experiment)
+                if best:
+                    variant = best.get("variant_name")
+                    prompt = best.get("prompt")
+                else:
+                    return Response(
+                        content=f"No variants found in experiment '{body.experiment}'",
+                        status_code=404
+                    )
             else:
-                return Response(
-                    content=f"No variants found in experiment '{body.experiment}'",
-                    status_code=404
-                )
-        else:
-            # Get prompt from MLFlow
-            evaluator = ExperimentEvaluator()
-            best = evaluator.find_best_variant(body.experiment)
-            if best and best.get("variant_name") == variant:
-                prompt = best.get("prompt")
+                # Get prompt from MLFlow
+                evaluator = ExperimentEvaluator()
+                best = evaluator.find_best_variant(body.experiment)
+                if best and best.get("variant_name") == variant:
+                    prompt = best.get("prompt")
+        except (ImportError, FileNotFoundError, OSError) as e:
+            logger.warning(f"MLFlow not available for prompt lookup: {e}")
+            return Response(
+                content="MLFlow is not available or not configured. Cannot retrieve prompts.",
+                status_code=503
+            )
 
         if not prompt:
             return Response(
