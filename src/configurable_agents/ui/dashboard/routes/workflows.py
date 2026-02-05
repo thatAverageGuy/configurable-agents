@@ -163,6 +163,7 @@ async def workflows_list(
 async def workflows_table(
     request: Request,
     status_filter: Optional[str] = None,
+    agent: Optional[str] = None,
     workflow_repo: AbstractWorkflowRunRepository = Depends(_get_workflow_repo),
 ):
     """Render workflows table partial for HTMX refresh."""
@@ -175,12 +176,21 @@ async def workflows_table(
     if status_filter:
         runs = [r for r in runs if r.status == status_filter]
 
+    # Filter by agent if specified
+    if agent == "orchestrator":
+        # Show only orchestrator agent executions (workflow_name contains "-agent" or looks like agent ID)
+        runs = [r for r in runs if r.workflow_name and ("-" in r.workflow_name or r.workflow_name.endswith("-agent"))]
+    elif agent:
+        # Filter by specific agent ID
+        runs = [r for r in runs if r.workflow_name == agent]
+
     return templates.TemplateResponse(
         "workflows_table.html",
         {
             "request": request,
             "workflows": runs,
             "status_filter": status_filter or "all",
+            "agent_filter": agent or "",
         },
     )
 

@@ -28,6 +28,15 @@
                         <option value="cancelled" {% if status_filter == 'cancelled' %}selected{% endif %}>Cancelled</option>
                     </select>
                 </div>
+                <div class="filter-group">
+                    <label for="agent-filter">Agent:</label>
+                    <select id="agent-filter" name="agent"
+                            onchange="window.location.href='/workflows?agent=' + this.value">
+                        <option value="">All</option>
+                        <option value="orchestrator" {% if agent_filter == 'orchestrator' %}selected{% endif %}>Orchestrator Agents</option>
+                    </select>
+                    <small style="color: #666;">Filter by agent ID</small>
+                </div>
             </div>
         </div>
 

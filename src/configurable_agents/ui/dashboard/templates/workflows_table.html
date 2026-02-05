@@ -3,7 +3,8 @@
     <thead>
         <tr>
             <th>ID</th>
-            <th>Name</th>
+            <th>Workflow</th>
+            <th>Agent ID</th>
             <th>Status</th>
             <th>Started</th>
             <th>Duration</th>
@@ -22,6 +23,14 @@
                     </a>
                 </td>
                 <td>{{ workflow.workflow_name }}</td>
+                <td>
+                    {# Show workflow_name as Agent ID if it looks like an agent execution #}
+                    {% if workflow.workflow_name and '-' in workflow.workflow_name or workflow.workflow_name.endswith('-agent') %}
+                        <code>{{ workflow.workflow_name }}</code>
+                    {% else %}
+                        -
+                    {% endif %}
+                </td>
                 <td>{{ macros.status_badge(workflow.status) }}</td>
                 <td>{{ workflow.started_at.strftime('%Y-%m-%d %H:%M:%S') if workflow.started_at else '-' }}</td>
                 <td>{{ macros.format_duration(workflow.duration_seconds) }}</td>
@@ -44,7 +53,7 @@
             {% endfor %}
         {% else %}
             <tr>
-                <td colspan="8" class="empty-state">
+                <td colspan="9" class="empty-state">
                     <div class="empty-state-icon">No workflows found</div>
                     <p>No workflow runs match the current filters.</p>
                 </td>
