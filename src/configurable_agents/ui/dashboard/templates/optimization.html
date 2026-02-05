@@ -148,9 +148,34 @@
     <a href="/optimization/experiments" class="btn-secondary">&larr; Back to Experiments</a>
 </div>
 
+{% if mlflow_available is defined and not mlflow_available %}
+<div class="alert alert-warning" style="padding: 20px; margin: 20px 0; border-radius: 8px;">
+    <h2>MLFlow Not Available</h2>
+    <p>The optimization features require MLFlow to be configured.</p>
+
+    <h3>To enable MLFlow:</h3>
+    <ul>
+        <li>Install MLFlow: <code>pip install mlflow</code></li>
+        <li>Start the dashboard with the <code>--mlflow</code> flag:
+            <code>configurable-agents ui --mlflow</code>
+        </li>
+        <li>Or specify an external MLFlow server:
+            <code>configurable-agents ui --mlflow-uri &lt;your-uri&gt;</code>
+        </li>
+    </ul>
+
+    <p><a href="/optimization/experiments" class="btn-secondary">Refresh Status</a></p>
+</div>
+{% else %}
+
 {% if error %}
 <div class="alert alert-danger">
+    {% if 'MLFlow' in error or 'mlflow' in error or 'not available' in error %}
+    <strong>MLFlow Error:</strong> {{ error }}
+    <p>Please ensure MLFlow is configured and accessible.</p>
+    {% else %}
     <strong>Error:</strong> {{ error }}
+    {% endif %}
 </div>
 {% endif %}
 
@@ -293,5 +318,6 @@ function escapeHtml(text) {
 </script>
 {% else %}
 <p>No comparison data available. Please <a href="/optimization/experiments">select an experiment</a>.</p>
+{% endif %}
 {% endif %}
 {% endblock %}
