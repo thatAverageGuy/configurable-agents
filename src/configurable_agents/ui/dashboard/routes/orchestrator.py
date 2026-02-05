@@ -15,7 +15,7 @@ from fastapi import APIRouter, Depends, HTTPException, Request
 from fastapi.responses import HTMLResponse, RedirectResponse
 from pydantic import BaseModel, Field
 
-from configurable_agents.storage.base import AgentRegistryRepository, WorkflowRunRepository
+from configurable_agents.storage.base import AgentRegistryRepository, AbstractWorkflowRunRepository
 
 logger = logging.getLogger(__name__)
 
@@ -65,14 +65,14 @@ def get_agent_registry_repo(request: Request) -> AgentRegistryRepository:
     return repo
 
 
-def get_workflow_run_repo(request: Request) -> WorkflowRunRepository:
+def get_workflow_run_repo(request: Request) -> AbstractWorkflowRunRepository:
     """Get workflow run repository from app.state.
 
     Args:
         request: FastAPI request object
 
     Returns:
-        WorkflowRunRepository instance
+        AbstractWorkflowRunRepository instance
 
     Raises:
         HTTPException 500: If repository not available
@@ -380,7 +380,7 @@ async def execute_on_agent(
     agent_id: str,
     request_data: ExecuteWorkflowRequest,
     repo: AgentRegistryRepository = Depends(get_agent_registry_repo),
-    workflow_repo: WorkflowRunRepository = Depends(get_workflow_run_repo),
+    workflow_repo: AbstractWorkflowRunRepository = Depends(get_workflow_run_repo),
 ) -> Dict[str, str]:
     """Execute workflow on agent.
 
