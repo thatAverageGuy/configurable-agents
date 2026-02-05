@@ -110,8 +110,17 @@
 <p>No experiments found. Create some experiments to see them here.</p>
 {% endif %}
 
+{% if experiments and experiments[0].run_count > 0 %}
 <div style="margin-top: 20px;">
-    <a href="/optimization/compare?experiment=prompt_test&metric=cost_usd_avg" class="btn-view">View Example Comparison</a>
+    <a href="/optimization/compare?experiment={{ experiments[0].name }}&metric=cost_usd_avg" class="btn-view">View Comparison</a>
+</div>
+<p style="margin-top: 10px; font-size: 0.9em; color: #666;">
+    Or click an experiment name above to compare its variants.
+</p>
+{% elif experiments %}
+<div style="margin-top: 20px; padding: 15px; background-color: #fff3cd; border: 1px solid #ffeaa7; border-radius: 4px;">
+    <strong>No runs yet</strong><br>
+    The "{{ experiments[0].name }}" experiment exists but has no runs. Execute some workflow runs with MLFlow tracking enabled to populate this experiment.
 </div>
 {% endif %}
 {% endblock %}
