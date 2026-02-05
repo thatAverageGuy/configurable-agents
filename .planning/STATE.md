@@ -83,14 +83,20 @@ Recent decisions affecting current work:
 
 ### Pending Todos
 
-**1** pending todo (see `.planning/todos/pending/`):
+**2** pending todos (see `.planning/todos/pending/`):
 
 - **P0 - Orchestrator-Initiated Agent Registration** (2026-02-05)
   - Complete ARCH-02 bidirectional registration (deferred in ADR-020)
-  - Add `configurable-agents orchestrator` CLI command
-  - Implement agent discovery mechanism (config-based, port scanning, or mDNS)
-  - Fix dashboard orchestrator routes (broken imports)
+  - Orchestrator is EMBEDDED in dashboard (not separate service)
+  - Manual registration via dashboard UI (no auto-discovery)
+  - Execute workflows on remote agents from orchestrator page
   - Integration tests for full flow
+
+- **P0 - Orchestrator Implementation Checklist** (2026-02-05)
+  - 10 detailed tasks with integration tests for each
+  - Files: app.py, orchestrator.py routes, orchestrator.html, runs.html
+  - Testing strategy: Integration + E2E, no unit tests
+  - See: `.planning/todos/pending/2026-02-05-orchestrator-implementation-checklist.md`
 
 ### Blockers/Concerns
 
