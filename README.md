@@ -377,6 +377,8 @@ See [ARCHITECTURE.md](docs/ARCHITECTURE.md) for detailed system design.
 
 ## 📚 Documentation
 
+> **Complete Documentation Index**: See [docs/README.md](docs/README.md) for a comprehensive index of all documentation.
+
 ### User Guides
 
 - **[QUICKSTART.md](docs/user/QUICKSTART.md)** - Get started in 5 minutes

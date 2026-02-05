@@ -7,6 +7,50 @@
 
 ## Active Tasks
 
+### NEXT PHASE: Planning - Cleanup and Verification
+
+**Status**: PLANNING NEEDED
+**Priority**: HIGH
+
+**Summary**: A thorough planning phase to coordinate full cleanup and verification of the project.
+
+**Planning Required For**:
+1. Verify all documentation is in sync with actual code
+2. Remove any technical debt
+3. Fix conflicting or misleading information
+4. Review and revise all tests
+5. Ensure all APIs work as documented
+6. Verify all links and references are correct
+7. Update any outdated information
+
+This requires creating a detailed plan with specific tasks, dependencies, and success criteria.
+
+**Project State**: BROKEN - This planning phase is critical before any further development.
+
+---
+
+### CL-002: Documentation Index and Dead Link Cleanup
+
+**Status**: IN PROGRESS (Project state still broken, further cleanup needed)
+**Started**: 2026-02-06
+
+**Summary**: Created docs/README.md index and updated references to non-existent documentation.
+
+**Actions Completed**:
+- ✅ Created docs/README.md as comprehensive documentation index
+- ✅ Updated CHANGELOG.md to remove .planning/ references and add broken state warning
+- ✅ Updated README.md with documentation index link
+- ✅ Updated CLAUDE.md with documentation structure information
+- ✅ Updated docs/development/TASKS.md to remove .planning/ references
+- ✅ Updated CONTEXT.md with broken state declaration
+
+**IMPORTANT**: Project state remains BROKEN. Further cleanup and verification phase
+needed before this can be marked complete.
+
+**Details**: [docs/development/implementation_logs/CL-002_doc_index_cleanup.md](implementation_logs/CL-002_doc_index_cleanup.md)
+
+---
+
 ### CL-001: Cleanup and Documentation Reorganization
 
 **Status**: ✅ COMPLETE
@@ -28,7 +72,7 @@
 
 ---
 
-**Philosophy**: This document tracks v1.0 milestone requirements. For current development, see `.planning/REQUIREMENTS.md`.
+**Philosophy**: This document tracks v1.0 milestone requirements.
 
 ---
 
@@ -315,11 +359,10 @@ The following requirements are tracked but not in v1.0 scope:
 
 ## References
 
-- **Roadmap**: [.planning/milestones/v1.0-ROADMAP.md](../.planning/milestones/v1.0-ROADMAP.md)
-- **Milestone Audit**: [.planning/milestones/v1.0-MILESTONE-AUDIT.md](../.planning/milestones/v1.0-MILESTONE-AUDIT.md)
-- **Architecture Decision Records**: [docs/adr/](adr/)
-- **Technical Specification**: [docs/SPEC.md](SPEC.md)
-- **Architecture Overview**: [docs/ARCHITECTURE.md](ARCHITECTURE.md)
+- **Architecture Decision Records**: [docs/development/adr/](adr/)
+- **Technical Specification**: [docs/development/SPEC.md](SPEC.md)
+- **Architecture Overview**: [docs/development/ARCHITECTURE.md](ARCHITECTURE.md)
+- **Documentation Index**: [docs/README.md](../README.md)
 
 ---
 

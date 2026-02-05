@@ -13,41 +13,59 @@
 
 ## Current State
 
-**Task**: None (CL-001 completed)
-**Phase**: -
-**Status**: READY FOR NEXT TASK
+**Task**: CL-002 in progress
+**Phase**: Cleanup and Verification
+**Status**: ONGOING - PROJECT STATE IS BROKEN
 
-### Recent Completion
+### ALERT
 
-**CL-001: Cleanup and Documentation Reorganization** ✅ (2026-02-06)
+**THE CURRENT PROJECT STATE IS BROKEN.**
 
-Documentation has been reorganized into:
-- `docs/user/` - User-facing documentation
-- `docs/development/` - Internal development docs (ADRs, implementation logs, etc.)
-- `docs/api/` - API reference docs
+After introducing an autonomous agent system post-v1.0, the codebase and documentation
+became inconsistent and out of sync. Cleanup tasks CL-001 and CL-002 have begun
+addressing documentation organization, but full verification is still needed.
 
-Commit: `66fd643`
+### Recent Work
+
+**CL-002: Documentation Index and Dead Link Cleanup** (In Progress)
+
+- Created `docs/README.md` as comprehensive documentation index
+- Updated references to non-existent `.planning/` directory
+- Updated doc paths to correct locations
+- Updated CLAUDE.md with documentation structure information
+
+**CL-001: Documentation Reorganization** ✅ (2026-02-06)
+
+- Reorganized documentation structure (docs/user/ vs docs/development/)
+- Updated CLAUDE.md with permanent project instructions
+- Rewrote CONTEXT.md with streamlined structure
+- Commit: `66fd643` (after squash)
 
 ### What Was Done
 
-Cleaned up after autonomous agent caused documentation and codebase discrepancies:
-1. Reorganized documentation structure (docs/user/ vs docs/development/)
-2. Updated CLAUDE.md with permanent project instructions
-3. Rewrote CONTEXT.md with streamlined structure
-4. Updated README.md with new doc paths
-5. Updated CHANGELOG.md with CL-001 entry
-6. Created implementation log for CL-001
-7. Committed and pushed to dev branch
+Started cleanup after autonomous agent caused discrepancies:
+1. CL-001: Reorganized documentation into user/ and development/ directories
+2. CL-002: Created documentation index and fixed dead links
 
 ### Next Steps
 
-- Project is now in a clean state
-- Ready for next development task
-- Documentation structure is clear and organized
+**PLANNING PHASE: CLEANUP AND VERIFICATION**
+
+A thorough planning phase is needed to:
+1. Verify all documentation is in sync with actual code
+2. Remove any technical debt
+3. Fix conflicting or misleading information
+4. Review and revise all tests
+5. Ensure all APIs work as documented
+6. Verify all links and references are correct
+7. Update any outdated information
+
+This requires detailed planning before implementation.
 
 ### Blockers
 
-None
+- Project state needs thorough verification
+- Unknown what else may be out of sync
 
 ---
 
@@ -55,7 +73,7 @@ None
 
 | Task | Summary | Details |
 |------|---------|---------|
-| None | No pending tasks | |
+| Planning Phase | CLEANUP AND VERIFICATION - thorough planning needed | See Next Steps above |
 
 ---
 
@@ -67,11 +85,12 @@ None
 
 ## Relevant Quick Links
 
-- Implementation logs: docs/implementation_logs/
-- Architecture: docs/ARCHITECTURE.md
-- ADRs: docs/adr/
-- TASKS.md: docs/TASKS.md
+- Documentation Index: **docs/README.md**
+- Implementation logs: docs/development/implementation_logs/
+- Architecture: docs/development/ARCHITECTURE.md
+- ADRs: docs/development/adr/
+- TASKS.md: docs/development/TASKS.md
 
 ---
 
-*Last Updated: 2026-02-06 | Cleanup and restoration ongoing*
+*Last Updated: 2026-02-06 | PROJECT STATE IS BROKEN - Cleanup and verification ongoing*

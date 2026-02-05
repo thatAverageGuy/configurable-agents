@@ -37,6 +37,25 @@ GIT WORKFLOW
 5. DO NOT delete the `dev` branch after merge
 6. Return to `dev` to continue further development
 
+**CRITICAL COMMIT RULES**:
+- ONE commit per task - NO separate "mark as complete" commits
+- Process: Get approval → Update ALL docs/logs → ONE commit → Push
+- Commit format: "CL-XXX: Description" or "T-XXX: Description"
+- The commit must include ALL changes (implementation, docs, logs, status)
+- NEVER commit without getting approval for ALL changes first
+
+**CRITICAL APPROVAL RULES**:
+- NEVER declare project state (clean, organized, ready, etc.) without explicit user approval
+- ALL updates that affect project stability, readiness, or documentation MUST be approved by user FIRST
+- Run ALL updates by user BEFORE applying them, even if it means a large questionnaire
+- User's approval is REQUIRED for:
+  - Any statement about project state/status
+  - Any documentation changes that affect project understanding
+  - Any commits
+  - ANY declaration that "project is ready/clean/done/etc."
+
+**IF IN DOUBT: ASK. DO NOT PROCEED WITHOUT APPROVAL.**
+
 ────────────────────────────────────────────────────────
 PROJECT AUTHOR
 ────────────────────────────────────────────────────────
@@ -79,7 +98,7 @@ LEVEL 2 — LOCAL
 LEVEL 3 — STRUCTURAL
 - Multi-file and architectural changes allowed
 - New abstractions allowed
-- REQUIRES updating docs/ARCHITECTURE.md or creating docs/adr/ADR-NNN.md
+- REQUIRES updating docs/development/ARCHITECTURE.md or creating docs/development/adr/ADR-NNN.md
 
 DEFAULT:
 If no CHANGE LEVEL is explicitly stated, assume LEVEL 0.
@@ -144,7 +163,7 @@ A task is ONLY considered complete when ALL of the following are done:
    - Implementation log updated (see below)
 
 4. IMPLEMENTATION LOG
-   - Detailed log in docs/implementation_logs/ for each task
+   - Detailed log in docs/development/implementation_logs/ for each task
    - What was done
    - How it was tested
    - Any issues encountered
@@ -205,8 +224,9 @@ STRUCTURE (keep under ~50 lines):
 
 ## Relevant Quick Links
 - Latest implementation log: [path]
-- Architecture: docs/ARCHITECTURE.md
-- ADRs: docs/adr/
+- Documentation index: docs/README.md
+- Architecture: docs/development/ARCHITECTURE.md
+- ADRs: docs/development/adr/
 ```
 
 KEY PRINCIPLE: CONTEXT.md stays lean with pointers to detailed logs.
@@ -216,45 +236,89 @@ for the current task.
 ────────────────────────────────────────────────────────
 TASKS.md REQUIREMENTS
 ────────────────────────────────────────────────────────
-TASKS.md provides HIGH-LEVEL abstraction of tasks only.
+TASKS.md (docs/development/TASKS.md) provides HIGH-LEVEL abstraction of tasks only.
 
 - Task names, IDs, and brief descriptions
 - Status tracking
 - Dependencies
 
 Actual DETAILS should be found in implementation_logs:
-- docs/implementation_logs/TASK-XXX/
+- docs/development/implementation_logs/
 
 TASKS.md is the index/map; implementation_logs contain the substance.
 
 ────────────────────────────────────────────────────────
+DOCUMENTATION STRUCTURE
+────────────────────────────────────────────────────────
+**IMPORTANT**: All documentation lives under `docs/`.
+
+**Documentation Index**: docs/README.md (comprehensive index of all docs)
+
+**Directory Structure**:
+```
+docs/
+├── README.md                    # Documentation index - START HERE
+├── user/                        # User-facing documentation
+│   ├── QUICKSTART.md
+│   ├── CONFIG_REFERENCE.md
+│   ├── TROUBLESHOOTING.md
+│   ├── OBSERVABILITY.md
+│   ├── DEPLOYMENT.md
+│   ├── SECURITY_GUIDE.md
+│   ├── ADVANCED_TOPICS.md
+│   ├── PERFORMANCE_OPTIMIZATION.md
+│   ├── PRODUCTION_DEPLOYMENT.md
+│   └── TOOL_DEVELOPMENT.md
+│
+├── development/                 # Internal development docs
+│   ├── PROJECT_VISION.md
+│   ├── ARCHITECTURE.md
+│   ├── SPEC.md
+│   ├── TASKS.md
+│   ├── adr/                    # Architecture Decision Records (25+ ADRs)
+│   ├── bugs/                   # Bug reports
+│   ├── implementation_logs/    # Task-by-task implementation records
+│   └── session_context/        # Archived session contexts
+│
+└── api/                         # API reference (auto-generated)
+```
+
+**Key Paths to Remember**:
+- User guides: `docs/user/`
+- Internal docs: `docs/development/`
+- ADRs: `docs/development/adr/`
+- Implementation logs: `docs/development/implementation_logs/`
+- API docs: `docs/api/`
+
+────────────────────────────────────────────────────────
 DOCUMENTATION PHILOSOPHY
 ────────────────────────────────────────────────────────
-PROJECT_VISION.md:
+PROJECT_VISION.md (docs/development/):
 - High-level goals and philosophy
 - Long-term feature roadmap
 - What success looks like
 - What we're NOT building (non-goals)
 
-ARCHITECTURE.md:
+ARCHITECTURE.md (docs/development/):
 - Current state of the system (living document)
 - Core components and their relationships
 - Updated as system evolves
 - Summarizes key ADRs
 
-SPEC.md:
+SPEC.md (docs/development/):
 - Technical requirements and constraints
 - Interfaces and contracts
 - Validation rules and invariants
 - Performance/security requirements
 
-TASKS.md:
-- Work breakdown (T-000, T-001, etc.)
+TASKS.md (docs/development/):
+- Work breakdown (CL-XXX, T-XXX, AX-XXX, BF-XXX)
 - Status tracking (TODO, IN_PROGRESS, BLOCKED, DONE)
 - Dependencies between tasks
 - Updated as work progresses
 
-adr/ADR-NNN-title.md:
+adr/ (docs/development/adr/):
+- Architecture Decision Records
 - Immutable record of architectural decisions
 - Context, decision, alternatives, consequences
 - Never deleted, only superseded by new ADRs
@@ -283,7 +347,7 @@ For LEVEL 1 and LEVEL 2:
 - Show before/after for clarity
 
 For LEVEL 3:
-- Update ARCHITECTURE.md or create new ADR first
+- Update docs/development/ARCHITECTURE.md or create new ADR first
 - Then implement changes
 - Reference documentation in commit messages
 
