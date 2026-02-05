@@ -488,8 +488,8 @@ async def execute_on_agent(
 
         logger.info(f"Execution completed: run_id={run_id}, agent={agent_id}, duration={duration_seconds:.2f}s")
 
-        # Return redirect URL
-        return {"redirect_url": f"/runs/{run_id}"}
+        # Return redirect URL (use /workflows/ not /runs/)
+        return {"redirect_url": f"/workflows/{run_id}"}
 
     except HTTPException:
         raise
