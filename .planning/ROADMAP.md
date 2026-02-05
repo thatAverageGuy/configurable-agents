@@ -107,15 +107,17 @@ Plans:
   4. User can open Optimization page and use optimization features
   5. User can access MLFlow page or see clear "not running" message
   6. All Dashboard interactive elements work without errors
-**Plans**: TBD
+**Plans**: 6 plans in 3 waves
 
 Plans:
-- [ ] 08-01: Fix Workflows page template errors
-- [ ] 08-02: Fix Agents page Jinja2 import errors
-- [ ] 08-03: Fix MLFlow page 404
-- [ ] 08-04: Fix Optimization page filesystem errors
-- [ ] 08-05: Test all Dashboard pages and interactive elements
-- [ ] 08-06: Add Dashboard integration tests
+- [x] 08-01-PLAN.md — Fix Workflows page template errors (Wave 1 - create macros.html, add global context processor)
+- [x] 08-02-PLAN.md — Fix Agents page Jinja2 import errors (Wave 2 - rename underscore functions, remove template imports)
+- [x] 08-03-PLAN.md — Fix MLFlow page 404 (Wave 1 - friendly unavailable page, mount status tracking)
+- [x] 08-04-PLAN.md — Fix Optimization page filesystem errors (Wave 1 - MLFlow error handling, graceful degradation)
+- [x] 08-05-PLAN.md — Test all Dashboard pages (Wave 3 - E2E tests with httpx, @slow marked)
+- [x] 08-06-PLAN.md — Add Dashboard integration tests (Wave 3 - template rendering, error handling, route params)
+
+**Status:** Complete (2026-02-05) - All 6 dashboard pages fixed, 73 tests created (40 E2E + 33 integration), verified passing
 
 #### Phase 9: Chat UI Testing & Fixes
 **Goal**: Chat UI works end-to-end
@@ -189,7 +191,7 @@ Phases execute in numeric order: 7 → 8 → 9 → 10 → 11
 | 5. Foundation & Reliability | v1.1      | 3/3            | Complete    | 2026-02-04 |
 | 6. Navigation & Onboarding | v1.1      | 0/3            | Deferred    | - |
 | 7. CLI Testing & Fixes | v1.2      | 5/5            | Complete    | 2026-02-05 |
-| 8. Dashboard UI Testing & Fixes | v1.2      | 0/6            | Not started | - |
+| 8. Dashboard UI Testing & Fixes | v1.2      | 6/6            | Complete    | 2026-02-05 |
 | 9. Chat UI Testing & Fixes | v1.2      | 0/5            | Not started | - |
 | 10. Workflow Execution Testing & Fixes | v1.2      | 0/5            | Not started | - |
 | 11. Integration Tests & Verification | v1.2      | 0/5            | Not started | - |

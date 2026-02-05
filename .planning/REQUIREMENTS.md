@@ -18,14 +18,14 @@ Requirements for Integration Testing & Critical Bug Fixes milestone. Each maps t
 
 ### Dashboard UI Testing
 
-- [ ] **DASH-01**: Workflows page loads and displays workflows
-- [ ] **DASH-02**: Agents page loads and displays agents
-- [ ] **DASH-03**: Experiments page loads and displays experiments
-- [ ] **DASH-04**: Optimization page loads and functions
-- [ ] **DASH-05**: MLFlow page loads or shows clear "not running" state
-- [ ] **DASH-06**: All Dashboard pages have no template errors
-- [ ] **DASH-07**: All Dashboard pages have no Jinja2 errors
-- [ ] **DASH-08**: Dashboard interactive elements work correctly
+- [x] **DASH-01**: Workflows page loads and displays workflows
+- [x] **DASH-02**: Agents page loads and displays agents
+- [x] **DASH-03**: Experiments page loads and displays experiments
+- [x] **DASH-04**: Optimization page loads and functions
+- [x] **DASH-05**: MLFlow page loads or shows clear "not running" state
+- [x] **DASH-06**: All Dashboard pages have no template errors
+- [x] **DASH-07**: All Dashboard pages have no Jinja2 errors
+- [x] **DASH-08**: Dashboard interactive elements work correctly
 
 ### Chat UI Testing
 
@@ -84,14 +84,14 @@ Which phases cover which requirements. Updated during roadmap creation.
 | CLI-04 | Phase 7 | Pending |
 | CLI-05 | Phase 7 | Pending |
 | CLI-06 | Phase 7 | Pending |
-| DASH-01 | Phase 8 | Pending |
-| DASH-02 | Phase 8 | Pending |
-| DASH-03 | Phase 8 | Pending |
-| DASH-04 | Phase 8 | Pending |
-| DASH-05 | Phase 8 | Pending |
-| DASH-06 | Phase 8 | Pending |
-| DASH-07 | Phase 8 | Pending |
-| DASH-08 | Phase 8 | Pending |
+| DASH-01 | Phase 8 | Complete |
+| DASH-02 | Phase 8 | Complete |
+| DASH-03 | Phase 8 | Complete |
+| DASH-04 | Phase 8 | Complete |
+| DASH-05 | Phase 8 | Complete |
+| DASH-06 | Phase 8 | Complete |
+| DASH-07 | Phase 8 | Complete |
+| DASH-08 | Phase 8 | Complete |
 | CHAT-01 | Phase 9 | Pending |
 | CHAT-02 | Phase 9 | Pending |
 | CHAT-03 | Phase 9 | Pending |
