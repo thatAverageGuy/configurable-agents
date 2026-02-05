@@ -83,7 +83,14 @@ Recent decisions affecting current work:
 
 ### Pending Todos
 
-None yet.
+**1** pending todo (see `.planning/todos/pending/`):
+
+- **P0 - Orchestrator-Initiated Agent Registration** (2026-02-05)
+  - Complete ARCH-02 bidirectional registration (deferred in ADR-020)
+  - Add `configurable-agents orchestrator` CLI command
+  - Implement agent discovery mechanism (config-based, port scanning, or mDNS)
+  - Fix dashboard orchestrator routes (broken imports)
+  - Integration tests for full flow
 
 ### Blockers/Concerns
 
