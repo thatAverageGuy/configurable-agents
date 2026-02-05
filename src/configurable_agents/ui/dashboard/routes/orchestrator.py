@@ -442,10 +442,21 @@ async def execute_on_agent(
             if response.status_code != 200:
                 # Execution failed
                 completed_at = datetime.utcnow()
-                run_record.status = "failed"
-                run_record.completed_at = completed_at
-                run_record.error_message = f"HTTP {response.status_code}: {response.text[:200]}"
-                workflow_repo.update(run_record)
+                duration_seconds = (completed_at - started_at).total_seconds()
+
+                # Use update_status to mark as failed
+                workflow_repo.update_status(
+                    run_id,
+                    "failed"
+                )
+
+                # Update error message directly via SQL
+                from sqlalchemy import text
+                with workflow_repo.engine.begin() as conn:
+                    conn.execute(
+                        text("UPDATE workflow_runs SET error_message = :error, completed_at = :completed_at, duration_seconds = :duration WHERE id = :id"),
+                        {"error": f"HTTP {response.status_code}: {response.text[:200]}", "completed_at": completed_at, "duration": duration_seconds, "id": run_id}
+                    )
 
                 raise HTTPException(
                     status_code=503,
@@ -458,14 +469,22 @@ async def execute_on_agent(
         completed_at = datetime.utcnow()
         duration_seconds = (completed_at - started_at).total_seconds()
 
-        run_record.status = "completed"
-        run_record.completed_at = completed_at
-        run_record.duration_seconds = duration_seconds
-        run_record.outputs = str(result.get("outputs")) if result.get("outputs") else None
-        run_record.total_cost_usd = result.get("cost_usd")
-        run_record.total_tokens = result.get("total_tokens")
+        # Use update_run_completion method
+        workflow_repo.update_run_completion(
+            run_id,
+            "completed",
+            duration_seconds,
+            result.get("total_tokens") or 0,
+            result.get("cost_usd") or 0.0
+        )
 
-        workflow_repo.update(run_record)
+        # Update outputs and cost directly via SQL
+        from sqlalchemy import text
+        with workflow_repo.engine.begin() as conn:
+            conn.execute(
+                text("UPDATE workflow_runs SET outputs = :outputs WHERE id = :id"),
+                {"outputs": str(result.get("outputs")) or None, "id": run_id}
+            )
 
         logger.info(f"Execution completed: run_id={run_id}, agent={agent_id}, duration={duration_seconds:.2f}s")
 
