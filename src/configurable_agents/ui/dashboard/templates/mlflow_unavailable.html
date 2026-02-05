@@ -21,15 +21,18 @@
             <h3>Enable MLFlow</h3>
             <ol class="resolution-steps">
                 <li>
-                    <strong>Option 1: Built-in MLFlow server</strong><br>
-                    Restart the dashboard with the <code>--mlflow</code> flag:<br>
-                    <pre class="error-stacktrace">configurable-agents ui --mlflow</pre>
+                    <strong>Install MLFlow:</strong><br>
+                    <pre class="error-stacktrace">pip install mlflow</pre>
                 </li>
                 <li>
-                    <strong>Option 2: External MLFlow server</strong><br>
-                    Connect to an existing MLFlow instance with <code>--mlflow-uri</code>:<br>
+                    <strong>Restart the dashboard:</strong><br>
+                    MLFlow UI auto-starts when the dashboard launches (if installed).<br>
+                    <pre class="error-stacktrace">configurable-agents ui</pre>
+                </li>
+                <li>
+                    <strong>Or connect to external MLFlow server:</strong><br>
                     <pre class="error-stacktrace">configurable-agents ui --mlflow-uri &lt;your-mlflow-uri&gt;</pre>
-                    <small class="text-muted">Example: --mlflow-uri http://localhost:5000 or sqlite:///mlruns.db</small>
+                    <small class="text-muted">Example: --mlflow-uri http://localhost:5000</small>
                 </li>
             </ol>
         </div>

@@ -79,6 +79,7 @@ class DashboardApp:
         self.app.state.workflow_repo = workflow_repo
         self.app.state.agent_registry_repo = agent_registry_repo
         self.app.state.templates = self.templates
+        self.app.state.mlflow_tracking_uri = mlflow_tracking_uri
 
         # Include routers
         self._include_routers()

@@ -84,22 +84,34 @@
     Install MLFlow with: <code>pip install mlflow>=3.9.0</code>
     Then set <code>MLFLOW_TRACKING_URI</code> environment variable.
 </div>
+{% else %}
+{% if experiments %}
+<table class="experiments-table">
+    <thead>
+        <tr>
+            <th>Experiment Name</th>
+            <th>ID</th>
+            <th>Runs</th>
+            <th>Created</th>
+        </tr>
+    </thead>
+    <tbody>
+        {% for exp in experiments %}
+        <tr>
+            <td><a href="/optimization/compare?experiment={{ exp.name }}&metric=cost_usd_avg" class="experiment-link">{{ exp.name }}</a></td>
+            <td class="monospace">{{ exp.id }}</td>
+            <td>{{ exp.run_count }}</td>
+            <td>{{ exp.creation_time.strftime('%Y-%m-%d %H:%M') if exp.creation_time else '-' }}</td>
+        </tr>
+        {% endfor %}
+    </tbody>
+</table>
+{% else %}
+<p>No experiments found. Create some experiments to see them here.</p>
 {% endif %}
 
-<div id="experiments-container"
-     hx-get="/optimization/experiments.json"
-     hx-trigger="load, every 10s"
-     hx-swap="innerHTML">
-    <p>Loading experiments...</p>
+<div style="margin-top: 20px;">
+    <a href="/optimization/compare?experiment=prompt_test&metric=cost_usd_avg" class="btn-view">View Example Comparison</a>
 </div>
-
-<script>
-    function loadExperiments() {
-        htmx.ajax('GET', '/optimization/experiments.json', {target: '#experiments-container'});
-    }
-</script>
-
-{% if mlflow_available %}
-<a href="/optimization/compare?experiment=prompt_test&metric=cost_usd_avg" class="btn-view">View Example Comparison</a>
 {% endif %}
 {% endblock %}

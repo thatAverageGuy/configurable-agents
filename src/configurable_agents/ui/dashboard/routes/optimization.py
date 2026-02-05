@@ -49,13 +49,20 @@ async def experiments_list(
     experiments = []
     mlflow_available = False
 
+    # Get MLFlow tracking URI from app state
+    mlflow_tracking_uri = getattr(request.app.state, 'mlflow_tracking_uri', None)
+
     try:
         # Import MLFlow lazily
         import mlflow
         from mlflow.tracking import MlflowClient
         from mlflow.entities import ViewType
 
-        client = MlflowClient()
+        # Pass tracking URI to client if available
+        if mlflow_tracking_uri:
+            client = MlflowClient(tracking_uri=mlflow_tracking_uri)
+        else:
+            client = MlflowClient()
 
         # Get all active experiments
         exp_list = client.search_experiments(view_type=ViewType.ACTIVE_ONLY)
@@ -104,12 +111,19 @@ async def experiments_json(
     experiments = []
     mlflow_available = False
 
+    # Get MLFlow tracking URI from app state
+    mlflow_tracking_uri = getattr(request.app.state, 'mlflow_tracking_uri', None)
+
     try:
         import mlflow
         from mlflow.tracking import MlflowClient
         from mlflow.entities import ViewType
 
-        client = MlflowClient()
+        # Pass tracking URI to client if available
+        if mlflow_tracking_uri:
+            client = MlflowClient(tracking_uri=mlflow_tracking_uri)
+        else:
+            client = MlflowClient()
 
         exp_list = client.search_experiments(view_type=ViewType.ACTIVE_ONLY)
 
@@ -155,8 +169,11 @@ async def compare_page(
     error = None
     mlflow_available = True  # Assume available until proven otherwise
 
+    # Get MLFlow tracking URI from app state
+    mlflow_tracking_uri = getattr(request.app.state, 'mlflow_tracking_uri', None)
+
     try:
-        evaluator = ExperimentEvaluator()
+        evaluator = ExperimentEvaluator(mlflow_tracking_uri=mlflow_tracking_uri)
         comparison = evaluator.compare_variants(experiment, metric)
 
         # Convert to dict for template
