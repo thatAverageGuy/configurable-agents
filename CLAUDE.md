@@ -18,6 +18,43 @@ Expected documents (to be created collaboratively):
 If something is not documented, it is NOT a settled decision.
 
 ────────────────────────────────────────────────────────
+PERMANENT STORAGE OF INSTRUCTIONS
+────────────────────────────────────────────────────────
+When the user uses phrases like "permanently store this", "remember this permanently",
+or similar expressions indicating information should be persistently available across
+sessions, you MUST update that information to CLAUDE.md.
+
+This file serves as the persistent memory for session-to-session continuity.
+Treat instructions to permanently store information as directives to edit this file.
+
+────────────────────────────────────────────────────────
+GIT WORKFLOW
+────────────────────────────────────────────────────────
+1. All development work happens on the `dev` branch
+2. Commits are made to `dev`
+3. When ready, raise a PR from `dev` to `main`
+4. After PR approval, merge to `main`
+5. DO NOT delete the `dev` branch after merge
+6. Return to `dev` to continue further development
+
+────────────────────────────────────────────────────────
+PROJECT AUTHOR
+────────────────────────────────────────────────────────
+GitHub Username: thatAverageGuy
+Email: yogesh.singh893@gmail.com
+
+────────────────────────────────────────────────────────
+TASK NAMING CONVENTIONS
+────────────────────────────────────────────────────────
+- CL-XXX : Cleanup tasks
+- T-XXX  : Main development tasks
+- AX-XXX : Auxiliary tasks
+- BF-XXX : Bug fixes
+
+New task categories can be added as needed. When adding a new category,
+update this section in CLAUDE.md to maintain consistent format.
+
+────────────────────────────────────────────────────────
 CHANGE CONTROL POLICY
 ────────────────────────────────────────────────────────
 All actions must declare a CHANGE LEVEL.
@@ -74,12 +111,121 @@ When starting a new area of work:
 4. Wait for user confirmation before committing
 5. Document decisions in appropriate docs/ files
 
+CRITICAL: Verify existing things and ask A LOT of clarifying questions
+before actually starting implementations. Be thorough in understanding
+the current state before making changes.
+
 Do NOT prematurely converge on:
 - Specific frameworks (LangGraph, CrewAI, etc.)
 - Specific libraries or tools
 - Specific architectural patterns
 
 Explore the problem space first. Let decisions emerge from requirements.
+
+────────────────────────────────────────────────────────
+TASK COMPLETION CRITERIA
+────────────────────────────────────────────────────────
+A task is ONLY considered complete when ALL of the following are done:
+
+1. CODED
+   - Implementation is complete and follows project conventions
+
+2. TESTED THOROUGHLY
+   - Unit tests with mocks
+   - Integration tests with actual integrations
+   - If automated testing is not possible, guide user through manual testing
+   - Verify each step manually before proceeding
+
+3. DOCUMENTATION UPDATED
+   - CONTEXT.md updated with session summary
+   - CHANGELOG.md updated with changes
+   - README.md updated if applicable
+   - Relevant ADRs updated or created
+   - Implementation log updated (see below)
+
+4. IMPLEMENTATION LOG
+   - Detailed log in docs/implementation_logs/ for each task
+   - What was done
+   - How it was tested
+   - Any issues encountered
+   - References to previous logs for structure
+
+5. COMMITTED AND PUSHED
+   - Commit to GitHub with descriptive message
+   - Push to dev branch
+
+Until ALL steps are complete, the task is NOT done.
+
+────────────────────────────────────────────────────────
+TASK PLANNING
+────────────────────────────────────────────────────────
+- Planning must be done in GREAT detail
+- Each task should get its own implementation log
+- Implementation log should include:
+  - What needs to be done
+  - Success criteria
+  - Implementation approach
+  - Testing strategy
+- Create/update implementation log AFTER planning (BEFORE implementation)
+- Update implementation log AFTER completion with actual results
+
+────────────────────────────────────────────────────────
+CONTEXT.md REQUIREMENTS
+────────────────────────────────────────────────────────
+CONTEXT.md serves as the session resume mechanism. Any new session
+should be able to look at CONTEXT.md and resume EXACTLY from where
+the previous session left off.
+
+STRUCTURE (keep under ~50 lines):
+
+```markdown
+# CONTEXT.md
+
+## Current State
+**Task**: T-XXX | **Phase**: Planning/Implementation/Testing/Documentation | **Status**: IN_PROGRESS/BLOCKED/DONE
+
+### What I Was Doing
+[2-3 lines of what was being worked on]
+
+### Next Steps
+1. [ ] [Action 1]
+2. [ ] [Action 2]
+
+### Blockers
+- [Blocker if any, otherwise "None"]
+
+## Pending Work
+| Task | Summary | Details |
+|------|---------|---------|
+| T-XXX | [1-line summary] | docs/implementation_logs/T-XXX/ |
+| T-YYY | [1-line summary] | docs/implementation_logs/T-YYY/ |
+
+## Session History
+→ docs/development/session_context/ (archived sessions)
+
+## Relevant Quick Links
+- Latest implementation log: [path]
+- Architecture: docs/ARCHITECTURE.md
+- ADRs: docs/adr/
+```
+
+KEY PRINCIPLE: CONTEXT.md stays lean with pointers to detailed logs.
+First thing each session: read CONTEXT.md + the linked implementation log
+for the current task.
+
+────────────────────────────────────────────────────────
+TASKS.md REQUIREMENTS
+────────────────────────────────────────────────────────
+TASKS.md provides HIGH-LEVEL abstraction of tasks only.
+
+- Task names, IDs, and brief descriptions
+- Status tracking
+- Dependencies
+
+Actual DETAILS should be found in implementation_logs:
+- docs/implementation_logs/TASK-XXX/
+
+TASKS.md is the index/map; implementation_logs contain the substance.
 
 ────────────────────────────────────────────────────────
 DOCUMENTATION PHILOSOPHY

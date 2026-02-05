@@ -5,13 +5,21 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-For detailed task-by-task implementation notes, see [implementation logs](docs/implementation_logs/) and [planning archives](.planning/milestones/).
+For detailed task-by-task implementation notes, see [implementation logs](docs/development/implementation_logs/) and [planning archives](.planning/milestones/).
 
 ---
 
 ## [Unreleased]
 
 ### Added
+- **CL-001: Documentation Reorganization** (2026-02-06)
+  - Created `docs/user/` for user-facing documentation
+  - Moved internal docs to `docs/development/` (PROJECT_VISION.md, ARCHITECTURE.md, SPEC.md)
+  - Created `docs/development/session_context/` for archived session contexts
+  - Updated CLAUDE.md with permanent project instructions (workflow, task naming, completion criteria)
+  - Rewrote CONTEXT.md with new streamlined structure
+
+- **ARCH-02 Complete: Orchestrator-Initiated Agent Registration** (2026-02-06)
 - **ARCH-02 Complete: Orchestrator-Initiated Agent Registration** (2026-02-06)
   - Manual agent registration via dashboard UI
   - Live health monitoring with HTMX polling (every 10s)

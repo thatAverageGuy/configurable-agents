@@ -292,9 +292,9 @@ configurable-agents run hello.yaml --input name="Alice"
 ```
 
 **Learn more:**
-- [QUICKSTART.md](docs/QUICKSTART.md) - Complete tutorial with v1.0 features
+- [QUICKSTART.md](docs/user/QUICKSTART.md) - Complete tutorial with v1.0 features
 - [examples/](examples/) - More working examples
-- [CONFIG_REFERENCE.md](docs/CONFIG_REFERENCE.md) - Full config schema reference
+- [CONFIG_REFERENCE.md](docs/user/CONFIG_REFERENCE.md) - Full config schema reference
 
 ---
 
@@ -377,35 +377,32 @@ See [ARCHITECTURE.md](docs/ARCHITECTURE.md) for detailed system design.
 
 ## 📚 Documentation
 
+### User Guides
+
+- **[QUICKSTART.md](docs/user/QUICKSTART.md)** - Get started in 5 minutes
+- **[CONFIG_REFERENCE.md](docs/user/CONFIG_REFERENCE.md)** - Config schema guide
+- **[OBSERVABILITY.md](docs/user/OBSERVABILITY.md)** - Monitoring and tracking
+- **[DEPLOYMENT.md](docs/user/DEPLOYMENT.md)** - Docker deployment guide
+- **[TROUBLESHOOTING.md](docs/user/TROUBLESHOOTING.md)** - Common issues and solutions
+- **[SECURITY_GUIDE.md](docs/user/SECURITY_GUIDE.md)** - Security best practices
+- **[TOOL_DEVELOPMENT.md](docs/user/TOOL_DEVELOPMENT.md)** - Custom tool creation
+- **[PERFORMANCE_OPTIMIZATION.md](docs/user/PERFORMANCE_OPTIMIZATION.md)** - A/B testing and quality gates
+- **[PRODUCTION_DEPLOYMENT.md](docs/user/PRODUCTION_DEPLOYMENT.md)** - Production patterns
+- **[ADVANCED_TOPICS.md](docs/user/ADVANCED_TOPICS.md)** - Advanced features overview
+
 ### Core Documentation
 
-- **[ARCHITECTURE.md](docs/ARCHITECTURE.md)** - System design overview
-- **[SPEC.md](docs/SPEC.md)** - Complete config schema specification
-- **[PROJECT_VISION.md](docs/PROJECT_VISION.md)** - Long-term vision and philosophy
-- **[CONTEXT.md](docs/CONTEXT.md)** - Development context (living document)
+- **[ARCHITECTURE.md](docs/development/ARCHITECTURE.md)** - System design overview
+- **[SPEC.md](docs/development/SPEC.md)** - Complete config schema specification
+- **[PROJECT_VISION.md](docs/development/PROJECT_VISION.md)** - Long-term vision and philosophy
+- **[CONTEXT.md](CONTEXT.md)** - Development context (living document)
 
 ### Architecture Decisions
 
-- **[Architecture Decision Records](docs/adr/)** - Design decisions and rationale
-  - 18 ADRs covering all major decisions
+- **[Architecture Decision Records](docs/development/adr/)** - Design decisions and rationale
+  - 25 ADRs covering all major decisions
   - Immutable history (append-only)
   - Alternatives considered with tradeoffs
-
-### User Guides
-
-- **[QUICKSTART.md](docs/QUICKSTART.md)** - Get started in 5 minutes
-- **[CONFIG_REFERENCE.md](docs/CONFIG_REFERENCE.md)** - Config schema guide
-- **[OBSERVABILITY.md](docs/OBSERVABILITY.md)** - Monitoring and tracking
-- **[DEPLOYMENT.md](docs/DEPLOYMENT.md)** - Docker deployment guide
-- **[TROUBLESHOOTING.md](docs/TROUBLESHOOTING.md)** - Common issues and solutions
-- **[SECURITY_GUIDE.md](docs/SECURITY_GUIDE.md)** - Security best practices
-- **[TOOL_DEVELOPMENT.md](docs/TOOL_DEVELOPMENT.md)** - Custom tool creation
-- **[PERFORMANCE_OPTIMIZATION.md](docs/PERFORMANCE_OPTIMIZATION.md)** - A/B testing and quality gates
-- **[PRODUCTION_DEPLOYMENT.md](docs/PRODUCTION_DEPLOYMENT.md)** - Production patterns
-
-### Advanced Topics
-
-- **[ADVANCED_TOPICS.md](docs/ADVANCED_TOPICS.md)** - Advanced features overview
 
 ### Developer Guides
 

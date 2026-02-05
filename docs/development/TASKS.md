@@ -1,7 +1,28 @@
 # Requirements: Configurable Agent Orchestration Platform
 
 **Version**: v1.0 Shipped (2026-02-04)
-**Last Updated**: 2026-02-04
+**Last Updated**: 2026-02-06
+
+---
+
+## Active Tasks
+
+### CL-001: Cleanup and Documentation Reorganization
+
+**Status**: IN_PROGRESS
+**Started**: 2026-02-06
+
+**Summary**: Cleanup after autonomous agent caused documentation and codebase discrepancies.
+
+**Actions**:
+- Reorganize documentation structure (docs/user/ vs docs/development/)
+- Update CLAUDE.md with permanent instructions
+- Update CONTEXT.md with new structure
+- Update all relevant documentation
+
+**Details**: [docs/development/implementation_logs/CL-001_cleanup_restoration.md](implementation_logs/CL-001_cleanup_restoration.md)
+
+---
 
 **Philosophy**: This document tracks v1.0 milestone requirements. For current development, see `.planning/REQUIREMENTS.md`.
 
