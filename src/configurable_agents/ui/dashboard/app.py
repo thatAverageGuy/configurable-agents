@@ -123,8 +123,8 @@ class DashboardApp:
             _format_cost as fmt_cost_impl,
         )
         from configurable_agents.ui.dashboard.routes.agents import (
-            _time_ago as time_ago_impl,
-            _parse_capabilities as parse_caps_impl,
+            time_ago as time_ago_impl,
+            parse_capabilities as parse_caps_impl,
         )
 
         self.templates.env.globals.update({
