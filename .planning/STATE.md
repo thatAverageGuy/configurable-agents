@@ -11,11 +11,11 @@ See: .planning/PROJECT.md (updated 2026-02-05)
 
 Milestone: v1.2 Integration Testing & Critical Bug Fixes
 Phase: 8 of 11 (Dashboard UI Testing & Fixes)
-Plan: 02 of 5
-Status: In progress - Agents page helper functions renamed
-Last activity: 2026-02-05 — Completed 08-02 Agents page helper function renaming
+Plan: 06 of 6
+Status: In progress - Dashboard integration tests complete
+Last activity: 2026-02-05 — Completed 08-06 Dashboard integration tests
 
-Progress: [██████████░░░░░░░░░░░░] 54% (30/37 plans complete - v1.0: 19, v1.1: 3, v1.2: 8/26 planned)
+Progress: [██████████░░░░░░░░░░░░] 57% (31/37 plans complete - v1.0: 19, v1.1: 3, v1.2: 9/26 planned)
 
 ## Milestone Archives
 
@@ -30,9 +30,9 @@ Progress: [██████████░░░░░░░░░░░░] 5
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 30 (v1.0: 19, v1.1: 3, v1.2: 8)
+- Total plans completed: 31 (v1.0: 19, v1.1: 3, v1.2: 9)
 - Average duration: ~17 min
-- Total execution time: ~8.5 hours
+- Total execution time: ~8.75 hours
 
 **By Phase:**
 
@@ -45,14 +45,14 @@ Progress: [██████████░░░░░░░░░░░░] 5
 | 5. Foundation & Reliability | 3 | 33 | 11 min |
 | 6. Navigation & Onboarding | 0 | - | - |
 | 7. CLI Testing & Fixes | 5 | 75 | 15 min |
-| 8. Dashboard UI Testing & Fixes | 5 | 36 | 7 min |
+| 8. Dashboard UI Testing & Fixes | 6 | 43 | 7 min |
 | 9. Chat UI Testing & Fixes | 0 | - | - |
 | 10. Workflow Execution Testing & Fixes | 0 | - | - |
 | 11. Integration Tests & Verification | 0 | - | - |
 
 **Recent Trend:**
-- Last 3 plans: 08-03 (5 min), 08-01 (6 min), 08-02 (4 min)
-- Trend: Dashboard testing in progress (5/5 dashboard plans complete)
+- Last 3 plans: 08-06 (7 min), 08-05 (5 min), 08-04 (9 min)
+- Trend: Dashboard testing complete (6/6 dashboard plans done)
 
 *Updated: 2026-02-05*
 
@@ -77,6 +77,9 @@ Recent decisions affecting current work:
 - [08-03]: MLFlow unavailable page provides clear setup instructions when not configured
 - [08-04]: Set mlflow_available=True only after successful MLFlow operations to handle OSError/FileNotFoundError
 - [08-04]: Graceful degradation pattern for optional dependencies with availability flags
+- [08-06]: Used in-memory SQLite (:memory:) for fast, isolated integration tests
+- [08-06]: httpx.AsyncClient with ASGITransport for realistic FastAPI endpoint testing
+- [08-06]: Seeded fixtures pattern for realistic test data across all states
 
 ### Pending Todos
 
@@ -91,8 +94,8 @@ None yet.
 - ✅ Dashboard: Workflows page crashes (missing macros.html) (FIXED in 08-01)
 - ✅ Dashboard: Agents page crashes (Jinja2 underscore import) (FIXED in 08-01)
 - ✅ Dashboard: Optimization page MLFlow filesystem errors (FIXED in 08-04)
-- ❌ Chat UI: Multi-turn conversations crash (history format wrong)
-- ❌ Chat UI: Download/Validate buttons crash (same history issue)
+- ❌ Chat UI: Multi-turn conversations crash (history format wrong) (Phase 9)
+- ❌ Chat UI: Download/Validate buttons crash (same history issue) (Phase 9)
 
 **Root cause:**
 Tests are heavily mocked and don't verify actual functionality. No integration tests exist for real user workflows.
@@ -102,6 +105,6 @@ Phase 7-11 systematically test each component, fix all failures, add real integr
 
 ## Session Continuity
 
-Last session: 2026-02-05 — Completed 08-02 Agents page helper function renaming
-Stopped at: Helper functions renamed to remove underscore prefix
+Last session: 2026-02-05 — Completed 08-06 Dashboard integration tests
+Stopped at: Integration tests created with 33 passing tests
 Resume file: None
