@@ -159,13 +159,17 @@ async def register_agent(
 
         # Register in database
         from configurable_agents.storage.models import AgentRecord
+        import json
+
+        # Serialize metadata to JSON string for database storage
+        metadata_json = json.dumps(registration.metadata) if registration.metadata else "{}"
 
         agent_record = AgentRecord(
             agent_id=registration.agent_id,
             agent_name=registration.agent_name,
             host=host,
             port=port,
-            agent_metadata=registration.metadata or {},
+            agent_metadata=metadata_json,  # Store as JSON string
             registered_at=datetime.utcnow(),
             last_heartbeat=datetime.utcnow(),
         )
@@ -177,7 +181,7 @@ async def register_agent(
             existing.agent_name = registration.agent_name
             existing.host = host
             existing.port = port
-            existing.agent_metadata = registration.metadata or {}
+            existing.agent_metadata = metadata_json  # Use JSON string
             existing.last_heartbeat = datetime.utcnow()
             repo.update(existing)
         else:
