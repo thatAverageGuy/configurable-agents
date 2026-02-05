@@ -56,6 +56,7 @@ class DashboardApp:
         self.workflow_repo = workflow_repo
         self.agent_registry_repo = agent_registry_repo
         self.mlflow_tracking_uri = mlflow_tracking_uri
+        self.mlflow_mounted = mlflow_tracking_uri is not None
 
         # Create FastAPI app
         self.app = FastAPI(
@@ -161,13 +162,15 @@ class DashboardApp:
 
             # Mount at /mlflow
             self.app.mount("/mlflow", WSGIMiddleware(mlflow_app))
+            self.mlflow_mounted = True
         except ImportError:
             # MLFlow not available - skip mounting
-            pass
+            self.mlflow_mounted = False
         except Exception as e:
             # Log error but don't fail dashboard startup
             import logging
             logging.getLogger(__name__).warning(f"Failed to mount MLFlow: {e}")
+            self.mlflow_mounted = False
 
     def _create_main_dashboard_routes(self) -> None:
         """Create main dashboard routes."""
@@ -212,6 +215,14 @@ class DashboardApp:
         async def health_check():
             """Health check endpoint."""
             return {"status": "healthy", "timestamp": datetime.utcnow().isoformat()}
+
+        @self.app.get("/mlflow", response_class=HTMLResponse)
+        async def mlflow_unavailable(request: Request):
+            """Show friendly page when MLFlow is not mounted."""
+            return self.templates.TemplateResponse(
+                "mlflow_unavailable.html",
+                {"request": request}
+            )
 
     def _get_all_runs(self, limit: int = 100) -> List[WorkflowRunRecord]:
         """Get all workflow runs from repository.
