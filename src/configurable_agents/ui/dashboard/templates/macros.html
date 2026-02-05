@@ -1,0 +1,51 @@
+{# Shared Jinja2 macros for dashboard templates #}
+
+{% macro status_badge(status, css_class=None) -%}
+    {# Render a status badge with appropriate CSS class #}
+    {% set status_lower = (status or '').lower() %}
+    {% set default_class = {
+        'running': 'badge-running',
+        'completed': 'badge-completed',
+        'failed': 'badge-failed',
+        'pending': 'badge-pending',
+        'cancelled': 'badge-cancelled'
+    }.get(status_lower, 'badge-pending') %}
+    <span class="badge {{ css_class or default_class }}">{{ status or '-' }}</span>
+{%- endmacro %}
+
+{% macro status_badge_class(status) -%}
+    {# Return the CSS class for a status (for custom badge rendering) #}
+    {% set status_lower = (status or '').lower() %}
+    {{
+        {
+            'running': 'badge-running',
+            'completed': 'badge-completed',
+            'failed': 'badge-failed',
+            'pending': 'badge-pending',
+            'cancelled': 'badge-cancelled'
+        }.get(status_lower, 'badge-pending')
+    }}
+{%- endmacro %}
+
+{% macro format_duration(seconds) -%}
+    {# Format duration in seconds as human-readable string #}
+    {% if seconds is none or seconds < 0 %}
+        -
+    {% elif seconds < 1 %}
+        &lt; 1s
+    {% else %}
+        {% set minutes = (seconds // 60) | int %}
+        {% set secs = (seconds % 60) | int %}
+        {% if minutes > 0 %}{{ minutes }}m {{ secs }}s{% else %}{{ secs }}s{% endif %}
+    {% endif %}
+{%- endmacro %}
+
+{% macro format_cost(usd) -%}
+    {# Format cost in USD as string #}
+    {% if usd is none %}
+        $0.00
+    {% else %}
+        ${{ '%.4f'|format(usd) }}
+    {% endif %}
+{%- endmacro %}
+
