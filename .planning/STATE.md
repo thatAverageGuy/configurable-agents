@@ -11,11 +11,11 @@ See: .planning/PROJECT.md (updated 2026-02-05)
 
 Milestone: v1.2 Integration Testing & Critical Bug Fixes
 Phase: 8 of 11 (Dashboard UI Testing & Fixes)
-Plan: 04 of 5
-Status: In progress - MLFlow error handling complete
-Last activity: 2026-02-05 — Completed 08-04 Optimization page MLFlow error handling
+Plan: 02 of 5
+Status: In progress - Agents page helper functions renamed
+Last activity: 2026-02-05 — Completed 08-02 Agents page helper function renaming
 
-Progress: [██████████░░░░░░░░░░░░] 54% (29/37 plans complete - v1.0: 19, v1.1: 3, v1.2: 7/26 planned)
+Progress: [██████████░░░░░░░░░░░░] 54% (30/37 plans complete - v1.0: 19, v1.1: 3, v1.2: 8/26 planned)
 
 ## Milestone Archives
 
@@ -30,9 +30,9 @@ Progress: [██████████░░░░░░░░░░░░] 5
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 29 (v1.0: 19, v1.1: 3, v1.2: 7)
+- Total plans completed: 30 (v1.0: 19, v1.1: 3, v1.2: 8)
 - Average duration: ~17 min
-- Total execution time: ~8.2 hours
+- Total execution time: ~8.5 hours
 
 **By Phase:**
 
@@ -45,14 +45,14 @@ Progress: [██████████░░░░░░░░░░░░] 5
 | 5. Foundation & Reliability | 3 | 33 | 11 min |
 | 6. Navigation & Onboarding | 0 | - | - |
 | 7. CLI Testing & Fixes | 5 | 75 | 15 min |
-| 8. Dashboard UI Testing & Fixes | 4 | 32 | 8 min |
+| 8. Dashboard UI Testing & Fixes | 5 | 36 | 7 min |
 | 9. Chat UI Testing & Fixes | 0 | - | - |
 | 10. Workflow Execution Testing & Fixes | 0 | - | - |
 | 11. Integration Tests & Verification | 0 | - | - |
 
 **Recent Trend:**
-- Last 3 plans: 08-03 (5 min), 08-01 (6 min), 08-04 (11 min)
-- Trend: Dashboard testing in progress (4/5 dashboard plans done)
+- Last 3 plans: 08-03 (5 min), 08-01 (6 min), 08-02 (4 min)
+- Trend: Dashboard testing in progress (5/5 dashboard plans complete)
 
 *Updated: 2026-02-05*
 
@@ -72,6 +72,7 @@ Recent decisions affecting current work:
 - [07-05]: All CLI tests use subprocess.run() for actual command invocation (not mocked imports)
 - [08-01]: Registered helper functions as template globals instead of Python imports
 - [08-01]: Created macros.html for shared template logic (status badges, formatting)
+- [08-02]: Renamed underscore-prefixed helper functions for Jinja2 compatibility (time_ago, parse_capabilities, format_datetime)
 - [08-03]: FastAPI routes take precedence over mounts, enabling graceful fallback for /mlflow
 - [08-03]: MLFlow unavailable page provides clear setup instructions when not configured
 - [08-04]: Set mlflow_available=True only after successful MLFlow operations to handle OSError/FileNotFoundError
@@ -101,6 +102,6 @@ Phase 7-11 systematically test each component, fix all failures, add real integr
 
 ## Session Continuity
 
-Last session: 2026-02-05 — Completed 08-04 Optimization page MLFlow error handling
-Stopped at: Dashboard MLFlow graceful degradation implemented
+Last session: 2026-02-05 — Completed 08-02 Agents page helper function renaming
+Stopped at: Helper functions renamed to remove underscore prefix
 Resume file: None
