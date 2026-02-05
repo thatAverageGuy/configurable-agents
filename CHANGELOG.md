@@ -9,6 +9,31 @@ For detailed task-by-task implementation notes, see [implementation logs](docs/i
 
 ---
 
+## [Unreleased]
+
+### Added
+- **ARCH-02 Complete: Orchestrator-Initiated Agent Registration** (2026-02-06)
+  - Manual agent registration via dashboard UI
+  - Live health monitoring with HTMX polling (every 10s)
+  - Execute workflows on remote agents
+  - Agent execution history with filterable views
+  - Orchestrator embedded in dashboard (not separate service)
+  - 14/14 integration tests passing
+
+### Changed
+- Updated ADR-020 to mark ARCH-02 as complete (was deferred)
+- Updated docs/TASKS.md to reflect ARCH-02 completion
+- Enhanced workflows table with Agent ID column
+- Added agent filter to execution history page
+
+### Fixed
+- ImportError: WorkflowRunRepository → AbstractWorkflowRunRepository
+- SQLite type error: metadata dict requires JSON serialization
+- Repository method errors: use update_status() and update_run_completion()
+- Wrong redirect URL: /runs/ → /workflows/
+
+---
+
 ## [1.0.0] - 2026-02-04
 
 ### 🎉 Major Release: Production-Ready Multi-Agent Orchestration Platform
@@ -60,7 +85,7 @@ Transformed from a simple linear workflow runner (v0.1) into a full-featured loc
 - **Service discovery**: Agents register on startup
 - **Health monitoring**: Heartbeat mechanism (20s interval, 60s TTL)
 - **Automatic expiration**: Dead agents removed after TTL expires
-- **Bidirectional registration**: Agent-initiated (complete), orchestrator-initiated (deferred)
+- **Bidirectional registration**: Agent-initiated (complete), orchestrator-initiated (completed 2026-02-06 via dashboard UI)
 - **FastAPI endpoints**: `/register`, `/heartbeat`, `/agents`, `/health`
 - **Registry repository**: AgentRecord ORM with SQLAlchemy
 - **Background cleanup**: Automatic stale agent removal every 60s

@@ -41,7 +41,7 @@
 
 **Architecture (6/6 complete)**:
 - [x] **ARCH-01**: Agent containers are minimal (~50-100MB) with MLFlow UI decoupled as separate sidecar
-- [x] **ARCH-02**: Agents support bidirectional registration (agent-initiated and orchestrator-initiated) ⚠ PARTIAL (agent-initiated complete, orchestrator-initiated deferred to post-v1.0)
+- [x] **ARCH-02**: Agents support bidirectional registration (agent-initiated and orchestrator-initiated) ✅ COMPLETE (2026-02-06)
 - [x] **ARCH-03**: Agent registry tracks active agents with heartbeat and TTL-based expiration
 - [x] **ARCH-04**: Storage backend is pluggable (SQLite default, swappable to PostgreSQL/Redis without code changes)
 - [x] **ARCH-05**: Chat UI sessions persist conversation history in storage backend
@@ -66,7 +66,7 @@
 | ARCH-04 | Phase 1 | Complete | 01-01-PLAN.md |
 | OBS-04 | Phase 1 | Complete | 01-04-PLAN.md |
 | ARCH-01 | Phase 2 | Complete | 02-01-PLAN.md series |
-| ARCH-02 | Phase 2 | Partial | 02-01-PLAN.md series (orchestrator-initiated deferred) |
+| ARCH-02 | Phase 2 | Complete | 02-01-PLAN.md series (orchestrator-initiated completed 2026-02-06) |
 | ARCH-03 | Phase 2 | Complete | 02-01-PLAN.md series |
 | OBS-02 | Phase 2 | Complete | 02-02-PLAN.md |
 | OBS-03 | Phase 2 | Complete | 02-02-PLAN.md |
@@ -96,7 +96,8 @@
 ## v1.0 Milestone Summary
 
 **Shipped**: 27 of 27 v1 requirements (100%)
-**Adjusted**: ARCH-02 marked as partial (orchestrator-initiated deferred post-v1, agent-initiated is sufficient)
+**Previously Adjusted**: ARCH-02 was marked as partial (orchestrator-initiated deferred post-v1, agent-initiated is sufficient)
+**Update (2026-02-06)**: ARCH-02 is now complete - orchestrator-initiated registration implemented via dashboard UI
 **Dropped**: None
 
 All v1.0 requirements were successfully implemented and verified through integration testing.

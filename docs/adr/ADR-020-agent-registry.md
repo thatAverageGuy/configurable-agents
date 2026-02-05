@@ -357,11 +357,21 @@ Log expirations
 
 ## Deferred Features
 
-### ARCH-02: Orchestrator-Initiated Registration
+### ~~ARCH-02: Orchestrator-Initiated Registration~~ ✅ COMPLETE
 
-**Status**: Deferred to post-v1.0
+**Status**: ~~Deferred to post-v1.0~~ **Completed 2026-02-06**
 
-**Reason**: Agent-initiated registration is sufficient for v1.0. Orchestrator-initiated requires agent discovery mechanism (port scanning, mDNS, or explicit configuration). Can add later without breaking changes.
+**Previous Reason**: Agent-initiated registration is sufficient for v1.0. Orchestrator-initiated requires agent discovery mechanism (port scanning, mDNS, or explicit configuration). Can add later without breaking changes.
+
+**Implementation**: Manual registration via dashboard UI (no auto-discovery, as designed). Orchestrator is embedded in dashboard (not separate service).
+
+**Files**:
+- `src/configurable_agents/ui/dashboard/routes/orchestrator.py` - Complete rewrite (467 lines)
+- `src/configurable_agents/ui/dashboard/templates/orchestrator.html` - Complete rewrite (489 lines)
+- `src/configurable_agents/ui/dashboard/app.py` - Orchestrator initialization
+- Test agent: `test_agent.py` (237 lines)
+
+**Testing**: 14/14 integration tests passing
 
 **Impact**: Low - agents can self-register on startup, no manual discovery needed.
 
@@ -376,15 +386,24 @@ Log expirations
 
 ## Implementation Status
 
-**Status**: ✅ Complete (v1.0)
+**Status**: ✅ Complete (v1.0 + ARCH-02 completed 2026-02-06)
 
 **Files**:
 - `src/configurable_agents/registry/models.py` - AgentRecord ORM
 - `src/configurable_agents/registry/repository.py` - Repository pattern implementation
 - `src/configurable_agents/registry/server.py` - FastAPI registry server
 - `src/configurable_agents/registry/client.py` - Agent client with heartbeat loop
+- `src/configurable_agents/ui/dashboard/routes/orchestrator.py` - Orchestrator routes (467 lines)
+- `src/configurable_agents/ui/dashboard/templates/orchestrator.html` - Orchestrator UI (489 lines)
 
-**Testing**: 22 tests covering registration, heartbeat, expiration, and cleanup
+**Testing**: 22 tests for registry + 14 integration tests for orchestrator
+
+**ARCH-02 (Orchestrator-Initiated Registration)**: Complete
+- Manual agent registration via dashboard UI
+- Live health monitoring (HTMX polling every 10s)
+- Execute workflows on remote agents
+- Execution history integration
+- Orchestrator embedded in dashboard (not separate service)
 
 ---
 
