@@ -43,30 +43,6 @@ class ExecuteWorkflowRequest(BaseModel):
 # Dependencies
 # ========================================
 
-def get_orchestrator_service(request: Request):
-    """Get orchestrator service from app.state.
-
-    The orchestrator is initialized once on dashboard startup and stored in app.state.
-
-    Args:
-        request: FastAPI request object
-
-    Returns:
-        OrchestratorService instance
-
-    Raises:
-        HTTPException 500: If orchestrator not initialized
-    """
-    orchestrator = getattr(request.app.state, "orchestrator", None)
-    if orchestrator is None:
-        logger.error("Orchestrator service not initialized in app.state")
-        raise HTTPException(
-            status_code=500,
-            detail="Orchestrator service not initialized. Dashboard may not have started correctly."
-        )
-    return orchestrator
-
-
 def get_agent_registry_repo(request: Request) -> AgentRegistryRepository:
     """Get agent registry repository from app.state.
 

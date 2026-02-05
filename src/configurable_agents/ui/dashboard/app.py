@@ -77,9 +77,25 @@ class DashboardApp:
 
         # Store repositories in app state for route access
         self.app.state.workflow_repo = workflow_repo
+        self.app.state.workflow_run_repo = workflow_repo  # Alias for orchestrator routes
         self.app.state.agent_registry_repo = agent_registry_repo
         self.app.state.templates = self.templates
         self.app.state.mlflow_tracking_uri = mlflow_tracking_uri
+
+        # Register startup event for agent health checks
+        @self.app.on_event("startup")
+        async def startup_event():
+            """Run tasks on dashboard startup."""
+            import logging
+            logger = logging.getLogger(__name__)
+            logger.info("Dashboard startup: Checking registered agents")
+            try:
+                agents = agent_registry_repo.list_all(include_dead=True)
+                logger.info(f"Found {len(agents)} agents in registry")
+                # Note: Actual health checks happen via HTMX polling from orchestrator page
+                # This is just to log the count on startup
+            except Exception as e:
+                logger.warning(f"Failed to list agents on startup: {e}")
 
         # Include routers
         self._include_routers()
