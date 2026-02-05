@@ -1,532 +1,593 @@
-# Pitfalls Research: Agent Orchestration Platforms
+# Pitfalls Research: v1.1 Core UX Polish
 
-**Domain:** Local-first agent orchestration platform
-**Researched:** 2026-02-02
-**Confidence:** HIGH
+**Domain:** UX improvements to existing developer tools
+**Project:** Configurable Agent Orchestration Platform (v1.1)
+**Researched:** 2026-02-04
+**Overall confidence:** HIGH
 
 ## Executive Summary
 
-Based on analysis of agent orchestration platform failures in 2025-2026, this research identifies critical pitfalls that cause production issues, user abandonment, and technical debt. The three most dangerous categories are: (1) Multi-LLM integration complexity leading to cost explosions and rate limit failures, (2) Over-abstraction creating framework lock-in and maintenance nightmares, and (3) Poor lifecycle management causing zombie agents and resource leaks.
+This research identifies critical pitfalls when adding **single-command startup, auto-initialization, navigation redesign, unified workspace, and status dashboards** to existing developer tools. Unlike greenfield development, UX improvements to working tools carry unique risks: breaking muscle memory of existing users, hiding power features behind "simplified" interfaces, and creating performance degradation through "unified" approaches.
 
-Key insight: **40% of agentic AI projects are projected to be canceled by end-of-2027 due to escalating costs and misaligned value** (Gartner 2025). The honest pattern behind most failures: agents are deployed with action-capability before the organization has built the control capability.
+Key insight from muscle memory research: **"Major changes to a known interface can disrupt ingrained user habits, leading to temporary declines in user efficiency"** (Wikipedia redesign study, MDPI 2025). The 2023 Figma UI redesign backlash demonstrated that **even beneficial changes face fierce resistance when they disrupt established workflows**.
+
+Most dangerous category for v1.1: **Navigation redesign** that breaks existing user mental models, followed closely by **status dashboard overload** (alert fatigue) and **silent auto-initialization failures** that corrupt state.
 
 ---
 
 ## Critical Pitfalls
 
-### Pitfall 1: Multi-LLM Rate Limit Cascade Failures
+### Pitfall 1: Breaking Muscle Memory with Navigation Redesign
 
 **What goes wrong:**
-Traditional request-per-second (RPS) rate limiting is insufficient for LLM APIs. Multi-agent workflows create high demand for LLM APIs (a costly, rate-limited resource), resulting in rate-limit failures (API throttling) and massive token consumption (cost overrun) from redundant work or loops. LLM workloads shift dramatically based on input size, model complexity, and output generation, making standard rate limiting approaches fall short.
+Navigation changes disrupt users' ingrained habits, causing immediate productivity loss. Users conditioned by existing workflows don't just "look elsewhere" — they actively resist, complain, and may abandon the tool. Research shows navigation changes cause "temporary declines in user efficiency" that can last **months**, not weeks.
 
 **Why it happens:**
-Teams treat LLM APIs like traditional REST APIs, ignoring token-level variance. A single agent can consume 10x more tokens than expected if inputs aren't controlled. Multi-agent systems amplify this: Agent A's verbose output becomes Agent B's massive input, creating exponential token growth across the workflow.
+Teams redesign navigation based on "better" information architecture without respecting existing user mental models. What seems logical to designers conflicts with habits formed through hundreds of interactions. The **"Cost of Disrupting Muscle Memory"** analysis of Figma's UI redesign illustrates how even improvements face backlash when they disrupt automatic behaviors.
 
-**How to avoid:**
-- **Token-aware rate limiting**: Implement limits based on tokens processed, not just requests
-- **Intelligent routing**: Route simple queries to cheaper, smaller models; reserve expensive models for complex reasoning
-- **Async task queues**: Use rate limiters to control execution concurrency of API calls
-- **Circuit breakers**: Automated token budgets that terminate or pause any runaway LLM instance
-- **Per-tenant quotas**: In multi-tenant environments, prevent "noisy neighbor" resource exhaustion
+**Consequences:**
+- 20-40% temporary productivity loss for existing users
+- Support ticket spikes from confused users ("where did X go?")
+- Feature requests to "add back the old way"
+- Negative sentiment in forums and issue trackers
+- Potential user migration to competitor tools
 
-**Warning signs:**
-- SQLITE_BUSY or HTTP 429 errors increasing over time
-- Monthly API bills 5-10x higher than expected
-- Workflows that previously succeeded now failing intermittently
-- Average tokens-per-request climbing without workflow changes
-- Queue depth growing faster than processing rate
+**Prevention:**
 
-**Phase to address:**
-Phase 2 (Multi-LLM Support) - Critical. Must implement token-aware rate limiting, AI gateway patterns, and circuit breakers before supporting multiple providers. Without this, cost tracking becomes impossible.
+1. **Preserve key navigation paths:** Keep at least 80% of primary workflows intact
+2. **Progressive disclosure:** Add new navigation without removing old paths immediately
+3. **Transition period:** Run both navigation patterns in parallel for 1-2 releases
+4. **User testing with actual users:** Test with power users, not just new users
+5. **Migration guide:** Document "old path → new path" mappings
+6. **Opt-out option:** Allow users to revert to classic navigation temporarily
 
-**Recovery strategy:**
-- Emergency: Reduce concurrency limits, increase retry backoff
-- Short-term: Add per-workflow token budgets
-- Long-term: Implement AI gateway with load balancing and fallbacks
+**Detection:**
+- User surveys asking "where do you find X?"
+- Analytics showing decreased usage of previously popular features
+- Support tickets about "missing" features that still exist
+- Community discussions about navigation changes
+
+**Phase to address:** Phase 03-03 (Navigation Redesign) — Critical. Must plan transition strategy before shipping changes.
+
+**Real-world examples:**
+- **Figma UI redesign (2023):** Major backlash due to disrupted muscle memory. Users had to relearn automatic behaviors, causing temporary productivity loss.
+- **Wikipedia redesign (2023):** MDPI study found "major changes to a known interface can disrupt ingrained user habits, leading to temporary declines in user efficiency."
 
 ---
 
-### Pitfall 2: Framework Over-Abstraction (The "LangChain Trap")
+### Pitfall 2: Silent Auto-Initialization Failures Corrupting State
 
 **What goes wrong:**
-AI frameworks like LangChain, CrewAI, and AutoGen fail in production due to unpredictable costs, debugging difficulties, and scalability limitations. Over-abstraction adds unnecessary complexity - works well for standard use cases, but the second you need something original, you must navigate 5 layers of abstraction just to change a minute detail. Framework-heavy AI apps can add 200-500ms latency due to middleware overhead.
+Auto-initialization (databases, MLFlow backend, storage) fails silently or creates corrupted state. Users don't see explicit errors, so they proceed with workflows that fail mysteriously later. Worse: partial initialization leaves the system in an undefined state that's hard to recover from.
 
 **Why it happens:**
-These frameworks prioritize experimentation over operational rigor. Teams choose them for rapid prototyping but inherit the abstraction debt when moving to production. The pace of AI innovation outstrips framework maintenance - what was cutting-edge last quarter feels outdated today.
+Auto-initialization is designed to "just work," so failures are treated as "try again later" rather than blocking errors. Database creation might succeed but table creation fails. MLFlow might start but backend connection fails. File permissions might allow SQLite creation but not writes.
 
-**How to avoid:**
-- **Build on primitives, not frameworks**: Use LangGraph for orchestration, but own the execution layer
-- **Vendor-agnostic design**: Structure orchestration to allow easy provider switching (OpenAI, Anthropic, Google)
-- **Escape hatches**: Provide export to pure Python/LangGraph for users needing custom behavior
-- **Minimal middleware**: Keep agent → LLM path direct; avoid transformation layers
-- **Avoid framework-specific patterns**: Don't couple business logic to framework abstractions (e.g., CrewAI's sequential/hierarchical-only limitation)
+**Consequences:**
+- "Why is my data not saving?" — user discovers hours later that initialization failed
+- SQLite databases created with wrong schema, requiring manual deletion
+- MLFlow runs silently failing to log, breaking observability
+- Hard-to-debug errors: "Table 'workflow_runs' doesn't exist" appears mid-execution
+- User loses trust in "auto" features, manually initializes everything anyway
 
-**Warning signs:**
-- Framework version updates require workflow rewrites
-- Custom behavior requires monkey-patching framework internals
-- Debugging requires reading framework source code
-- Framework dependencies conflict with other tools
-- Community activity declining; security patches delayed
+**Prevention:**
 
-**Phase to address:**
-Phase 1 (Foundation) - Already addressed via ADR-001 (LangGraph execution engine). Continue strategy: use LangGraph for state machines but keep thin abstraction layer. Phase 2 must maintain this discipline when adding multi-LLM support.
+1. **Health check on first startup:** Verify all components initialized, show clear status
+2. **Blocking errors for critical failures:** Don't proceed if database/MLFlow initialization fails
+3. **Idempotent initialization:** Running twice should be safe, not cause conflicts
+4. **Clear error messages with action items:** "Failed to create database: /data is not writable. Fix permissions or set AGENTS_DB_PATH to a writable location."
+5. **Initialization status command:** `agents status --verbose` shows initialization state
+6. **Safe mode fallback:** If auto-init fails, provide manual setup instructions
 
-**Recovery strategy:**
-- Emergency: Pin framework versions, isolate failures
-- Short-term: Build compatibility shims for critical paths
-- Long-term: Rewrite on primitives, treat framework as scaffolding
+**Detection:**
+- Support tickets about "data not saving" or "MLFlow not showing runs"
+- Users asking "do I need to run something first?"
+- Empty databases despite workflow runs completing
+- MLFlow UI showing "no experiments" despite successful runs
+
+**Phase to address:** Phase 03-01 (Auto-Initialization) — Critical. Must have health checks and clear error states before shipping.
 
 ---
 
-### Pitfall 3: Zombie Agents and Orphaned Registrations
+### Pitfall 3: Alert Fatigue from Status Dashboard Overload
 
 **What goes wrong:**
-Agent lifecycle management failures create "zombie agents" - identities that are technically dead (unused) but effectively alive (authorized), waiting for exploitation. Non-human identities (NHIs) outnumber human identities by 45:1, with significant portions being inactive or orphaned. Most dangerously, AI agents accumulate identity and access privileges that persist long after the agent has served its purpose.
+Status dashboards show too much information, causing alert fatigue. Users stop paying attention because everything looks important, so nothing is. Enterprise cybersecurity research shows **"dashboard overload"** is a recognized problem where dozens of tools create separate alert streams leading to decision overload.
 
 **Why it happens:**
-No centralized decommissioning process. Agents self-register on startup but fail to deregister on shutdown (crashes, network failures). Service discovery systems lack health checks or TTL-based expiration. Organizations focus on rapid deployment without considering lifecycle management.
+Teams add "everything" to the status dashboard: active workflows, agent status, recent runs, MLFlow status, webhook status, memory usage, token counts, costs, errors, warnings. Without prioritization, users see a wall of status indicators.
 
-**How to avoid:**
-- **Heartbeat mechanisms**: Agents send periodic health checks; registry expires entries without recent heartbeat
-- **Graceful shutdown handlers**: Listen for termination signals, call deregistration functions
-- **TTL-based expiration**: Registry entries auto-expire after N minutes without renewal
-- **Automated cleanup**: Regular audits to identify and remove stale registrations (orphaned apps, unused access points)
-- **Registration-deployment coupling**: Deploy → register → health check loop; failure in any step rolls back all
+**Consequences:**
+- Users ignore dashboard entirely (too noisy)
+- Critical alerts missed in the noise
+- "Dashboard fatigue" — users disable notifications
+- Increased support burden ("why is this red?")
+- Paradox: more visibility → less actionable insight
 
-**Warning signs:**
-- Registry size growing unbounded over time
-- Failed agent startups due to "already registered" errors
-- API keys or credentials for deleted agents still active
-- Service discovery returning dead endpoints (HTTP timeouts, connection refused)
-- Security audits finding orphaned application registrations
+**Prevention:**
 
-**Phase to address:**
-Phase 2 (State Persistence & Workflow Resume) - Must be addressed when introducing persistent state. Implement agent registry with TTL-based expiration and health checks. Phase 4 (Cloud Deployments) becomes critical when managing agent fleets.
+1. **Tiered status display:** Critical (always visible), Warning (collapsible), Info (on-demand)
+2. **Signal-to-noise ratio:** Show only 3-5 key metrics by default
+3. **Smart alerting:** Only alert on state changes, not continuous status
+4. **Action-oriented status:** Each status indicator has a "what to do" action
+5. **Customizable dashboard:** Users choose what matters to them
+6. **Alert aggregation:** Group related alerts (e.g., "3 workflows failed" not 3 separate alerts)
 
-**Recovery strategy:**
-- Emergency: Manual audit and cleanup of registry
-- Short-term: Add health checks, implement TTL expirations
-- Long-term: Automated lifecycle management with observability
+**Detection:**
+- Users ignoring dashboard (analytics: dashboard views decreasing over time)
+- Support tickets asking "what does this status mean?"
+- Users requesting "simplify" or "hide" features
+- Alert fatigue symptoms: users muting/disabling notifications
+
+**Phase to address:** Phase 03-04 (Key Status Visibility) — Important. Must implement tiered status before adding more indicators.
+
+**Real-world examples:**
+- **Cybersecurity tools:** "Enterprise organizations deploy dozens of security tools, each generating separate alert streams, leading to decision overload" ([Design Bootcamp](https://medium.com/design-bootcamp/alert-fatigue-and-dashboard-overload-why-cybersecurity-needs-better-ux-1f3bd32ad81c))
+- **DevOps monitoring:** AWS Well-Architected Framework specifically addresses "optimize alerts to prevent fatigue" ([AWS Docs](https://docs.aws.amazon.com/wellarchitected/latest/devops-guidance/o.cm.9-optimize-alerts-to-prevent-fatigue-and-minimize-monitoring-costs.html))
 
 ---
 
-### Pitfall 4: Context Window Overflow (Lost-in-the-Middle)
+### Pitfall 4: Single-Command Startup Hiding Diagnostic Information
 
 **What goes wrong:**
-Context window overflow occurs when total tokens (system input + client input + model output) exceed the model's context window. Simple truncation accidentally removes important information, causing models to miss key details and potentially introduce hallucinations. Even when content fits within limits, the "lost-in-the-middle effect" occurs - LLMs weigh the beginning and end of prompts more heavily due to primacy and recency bias.
+Single-command startup (e.g., `agents up`) hides the complexity of what's being started. When things go wrong, users have no visibility into what failed or why. The command just "doesn't work" with unclear error messages.
 
 **Why it happens:**
-Multi-step agent workflows accumulate context linearly. Agent 1 produces 1K tokens, Agent 2 adds 2K tokens, Agent 3 adds 3K tokens - suddenly you're at 6K tokens when model context window is 4K. Teams assume "large context window" (e.g., 200K tokens) means they don't need to manage context, but fail to account for the lost-in-the-middle effect degrading quality.
+Single-command abstraction is designed to simplify, but that simplicity hides diagnostic information. Docker compose errors, port conflicts, MLFlow startup failures, and database initialization issues all get collapsed into "failed to start."
 
-**How to avoid:**
-- **Intelligent truncation**: Keep most recent messages + summarized older messages (not naive head/tail truncation)
-- **Semantic chunking**: Split documents by meaning, not arbitrary token counts
-- **RAG pipelines**: Store context externally, retrieve relevant chunks dynamically
-- **Compression**: Summarize intermediate outputs before passing to next agent
-- **Streaming with limits**: Process in chunks, fail gracefully when limits exceeded
-- **Context-aware routing**: Route to models with appropriate context windows based on input size
+**Consequences:**
+- Users can't debug startup failures (no logs, no error details)
+- "It worked yesterday, today it doesn't" — no visibility into what changed
+- Support burden increases (every startup failure requires manual debugging)
+- Users abandon single-command for manual multi-step process
+- False confidence: "it started" but MLFlow isn't actually running
 
-**Warning signs:**
-- Workflow quality degrades as conversation length increases
-- LLM outputs reference early messages but ignore middle messages
-- Token usage reports showing truncation events
-- Users reporting "the agent forgot what we discussed"
-- Outputs becoming generic or hallucinated after N turns
+**Prevention:**
 
-**Phase to address:**
-Phase 1 (Foundation) - Partially addressed via output schema validation. Phase 2 (Loops & State Persistence) becomes critical when workflows accumulate state over time. Must add context management strategies before enabling long-running workflows.
+1. **Verbose mode:** `agents up --verbose` shows startup steps
+2. **Health check output:** Show what started and what failed
+3. **Port conflict detection:** Clear error if ports 5000/8000 are in use
+4. **Dependency checking:** Verify Docker is running before attempting startup
+5. **Startup timeout:** Don't hang forever if MLFlow never starts
+6. **Partial success reporting:** "Dashboard started (port 8000) but MLFlow failed to start"
 
-**Recovery strategy:**
-- Emergency: Add hard token limits, fail workflows before overflow
-- Short-term: Implement summarization for multi-turn conversations
-- Long-term: RAG pipeline for long-context retrieval
+**Detection:**
+- Support tickets: "`agents up` doesn't work"
+- Users manually running individual components
+- Forum posts asking "how do I debug startup?"
+- Confusion about what the single command actually does
+
+**Phase to address:** Phase 03-01 (Single-Command Startup) — Important. Must have verbose mode and clear error reporting.
 
 ---
 
-### Pitfall 5: SQLite Write Concurrency Bottleneck
+### Pitfall 5: Unified Workspace Performance Degradation
 
 **What goes wrong:**
-SQLite has a single-writer transaction model - whenever a transaction writes to the database, no other write transactions can make progress. When database is locked, developers encounter SQLITE_BUSY errors. This makes SQLite unsuitable for workloads with heavy concurrent writes or long-running transactions. Multiple agents accessing data simultaneously leads to data inconsistency, race conditions, or database locks that slow performance.
+"Unifying" Gradio Chat UI, HTMX Dashboard, and MLFlow into one workspace creates performance issues. Each UI component has different update patterns: Gradio streams responses, HTMX uses SSE for real-time updates, MLFlow loads large experiment lists. Combining them creates resource contention.
 
 **Why it happens:**
-SQLite chosen for "local-first" simplicity, but multi-agent orchestration creates concurrent write patterns. Agent A logs to database while Agent B tries to update state while Agent C tries to record metrics - all fail with SQLITE_BUSY. The problem compounds: retries create exponential backoff, slowing the entire system.
+Unified workspace often means "load everything at once" or "embed iframes." MLFlow UI embedded via iframe loads its own JavaScript. Gradio maintains WebSocket connections. HTMX dashboard polls or uses SSE. Browser tabs consume hundreds of MB of memory.
 
-**How to avoid:**
-- **WAL mode**: Enable Write-Ahead Logging for non-blocking reads during writes
-- **Connection pooling**: Single writer connection, multiple reader connections
-- **Async write queue**: Buffer writes in memory, flush with single writer thread
-- **Correct isolation levels**: Use appropriate transaction isolation to prevent dirty reads
-- **Migration path**: Design for SQLite v0.1, but architect for PostgreSQL/Redis migration in v0.2+
-- **Experimental features**: Consider BEGIN CONCURRENT (SQLite experimental) or Turso for improved concurrency
+**Consequences:**
+- Browser tab consumes 1-2GB memory
+- Page load times exceed 10 seconds
+- Real-time updates lag or fail
+- Browser crashes on lower-spec machines
+- Users prefer separate tabs/windows for performance
+- Defeats the purpose of "unified" workspace
 
-**Warning signs:**
-- SQLITE_BUSY errors in logs
-- Write latency increasing with agent count
-- Database file locks lasting seconds instead of milliseconds
-- Workflows slowing down when agents run in parallel
-- Tests passing sequentially but failing in parallel
+**Prevention:**
 
-**Phase to address:**
-Phase 2 (State Persistence) - Critical. Current v0.1 uses in-memory state (ADR-008), avoiding this entirely. Phase 2 must either: (1) continue in-memory with optional PostgreSQL, or (2) if using SQLite, implement WAL mode + async write queue from day one.
+1. **Lazy loading:** Load UI components on-demand, not all at startup
+2. **Separate tabs:** Keep Gradio, Dashboard, MLFlow as separate routes (not one page)
+3. **Resource limits:** Cap memory usage, stream large datasets
+4. **Connection pooling:** Reuse WebSocket/SSE connections, don't open new ones per component
+5. **Performance budgets:** Set targets (e.g., <3s initial load, <500ms subsequent navigation)
+6. **Optional embedding:** Make MLFlow iframe optional, not required
 
-**Recovery strategy:**
-- Emergency: Serialize all writes through single queue
-- Short-term: Enable WAL mode, add connection pooling
-- Long-term: Migrate to PostgreSQL or use Turso for multi-writer support
+**Detection:**
+- Browser DevTools showing 1GB+ memory usage
+- Page load times >5 seconds on decent hardware
+- Users complaining about slowness or crashes
+- Preference for opening components in separate tabs
+
+**Phase to address:** Phase 03-05 (Unified Workspace) — Important. Must measure performance before unifying components.
 
 ---
 
-### Pitfall 6: Observability Death by a Thousand Logs
+### Pitfall 6: Hiding Power Features Behind "Simplified" UI
 
 **What goes wrong:**
-Deploying multi-agent systems without proper observability means no visibility into agent behavior, but over-instrumentation is equally deadly. Langfuse and AgentOps generated 15% and 12% overhead in multi-step agent workflows. When observability logic runs synchronously during request handling, it directly increases end-to-end latency because the agent must complete extra work before returning. Cost and latency trade-offs: storing and analyzing observability data requires significant infrastructure.
+In pursuit of "simplified" UX, power features become hidden or removed. Advanced users who relied on these features feel the tool has been "dumbed down." The clear entry point for new users becomes a barrier for power users.
 
 **Why it happens:**
-Teams instrument everything ("we might need it later"), creating overwhelming log volume. Synchronous logging blocks execution. Lack of sampling strategies means every operation is logged at full fidelity. The "observability debt" compounds - logs become noise, genuine issues are buried, and teams stop looking at logs because they're unusable.
+UX improvements often target new users, assuming power users will "figure it out." Advanced features get moved to sub-menus, hidden behind "advanced" toggles, or removed entirely to "simplify" the interface.
 
-**How to avoid:**
-- **Async logging**: Use MLflow's async logging to reduce overhead (~80% reduction for typical workloads)
-- **Tiered instrumentation**: Production logs errors only; verbose logging behind flag
-- **Sampling**: Log 1% of successful requests, 100% of errors
-- **Structured logging**: JSON logs with consistent fields for filtering
-- **Cardinality limits**: Cap unique values for high-cardinality fields (user IDs, trace IDs)
-- **Lightweight tracing**: Use tools like LangSmith (virtually no overhead) over heavier solutions
+**Consequences:**
+- Power users migrate to more flexible tools
+- "I can't find X anymore" support tickets
+- Feature requests to restore hidden functionality
+- Reputation: "v1.1 is good for beginners, but power users should stay on v1.0"
+- Loss of advanced user community contributions
 
-**Warning signs:**
-- Logging overhead > 10% of total latency
-- Log storage costs exceeding compute costs
-- Engineers avoiding verbose mode because it's too slow
-- Logs so noisy that grep returns thousands of results
-- Distributed tracing slowing down instead of helping debug
+**Prevention:**
 
-**Phase to address:**
-Phase 1 (Observability) - Already addressed via ADR-014 (three-tier observability strategy) and ADR-011 (MLflow async logging). Continue discipline: log what matters, async by default, tiered verbosity. Phase 3 (OpenTelemetry) must add sampling strategies.
+1. **Progressive disclosure:** Simple by default, powerful when needed
+2. **Preserve all v1.0 features:** No feature removal in v1.1
+3. **Advanced mode toggle:** Let users opt into complex UI
+4. **Keyboard shortcuts:** Preserve power user efficiencies
+5. **CLI access:** Advanced features always available via CLI even if hidden in UI
+6. **Document migration:** Where did v1.0 features go in v1.1?
 
-**Recovery strategy:**
-- Emergency: Disable verbose logging, reduce sampling rate
-- Short-term: Move logging to async queue, add sampling
-- Long-term: Implement tiered observability (errors always, success sampled)
+**Detection:**
+- Power users requesting "classic mode" or v1.0 behavior
+- Negative feedback in advanced user communities
+- Workarounds being shared to access hidden features
+- Decreased usage of advanced features (analytics)
+
+**Phase to address:** All UX phases — Continuous. Review each change for impact on power users.
+
+**Real-world examples:**
+- **Figma redesign:** Advanced features hidden behind new UI, power users complained about lost efficiencies
+- **Many developer tools:** "Simplified" releases often alienate early adopters who made the tool popular
 
 ---
 
-### Pitfall 7: Docker Image Bloat (The 8GB Container)
+### Pitfall 7: MLFlow Auto-Start Blocking Entire Dashboard
 
 **What goes wrong:**
-Docker images bloat from AI libraries and OS components, creating slow builds (56 seconds for simple BERT classifier), slow deployments, and increased storage costs. Container bloat leads to unnecessary resource consumption - simple agent deployments ballooning to 2.54GB or even 8GB. High resource usage of agent servers in Docker limits concurrent capacity on single-core 2GB containers.
+MLFlow auto-start is integrated into dashboard startup. If MLFlow fails to start (port conflict, dependency issue), the entire dashboard becomes unusable. Users can't access workflow management because observability is down.
 
 **Why it happens:**
-Including full Python distributions, unnecessary build tools, multiple versions of libraries, or bundling UI frameworks with every agent. Teams use simple `FROM python:3.11` base images that include everything, not minimal Alpine variants. No multi-stage builds to separate build dependencies from runtime dependencies.
+MLFlow is treated as a hard dependency rather than an optional component. Dashboard startup sequence waits for MLFlow before serving. This creates unnecessary coupling.
 
-**How to avoid:**
-- **Multi-stage builds**: Build dependencies in stage 1, copy only runtime artifacts to stage 2
-- **Minimal base images**: Use `python:3.11-slim` or Alpine variants
-- **Layer optimization**: Order Dockerfile commands by change frequency (system packages → dependencies → code)
-- **Dependency auditing**: Remove unused libraries, check for duplicate packages
-- **.dockerignore**: Exclude test files, documentation, .git directories
-- **Separate concerns**: Don't bundle MLflow UI with every agent; run as shared service
+**Consequences:**
+- Dashboard unavailable if MLFlow port 5000 is in use
+- Users forced to stop other services to run the platform
+- "I just want to manage workflows, why do I need MLFlow?"
+- Development workflow disrupted if MLFlow isn't needed
+- False impression: platform is broken when it's just MLFlow
 
-**Warning signs:**
-- Docker images > 2GB for simple agents
-- Build times > 5 minutes for minor code changes
-- Container startup times > 30 seconds
-- Docker daemon running out of disk space
-- Image layers showing duplicate dependencies
+**Prevention:**
 
-**Phase to address:**
-Phase 1 (Docker Deployment) - Critical now. ADR-012 addresses deployment architecture, but must verify multi-stage builds and minimal images. Review Dockerfile generation in T-022 (docker artifact generator) to ensure bloat prevention from day one.
+1. **Graceful degradation:** Dashboard works without MLFlow, shows "observability disabled"
+2. **Start MLFlow asynchronously:** Don't block dashboard on MLFlow startup
+3. **Clear status indicator:** Show "MLFlow: not running" with start button
+4. **Optional observability:** Allow running without MLFlow for development
+5. **Port auto-selection:** If 5000 is in use, try 5001, 5002, etc.
+6. **Separate health checks:** Dashboard health != MLFlow health
 
-**Recovery strategy:**
-- Emergency: Use .dockerignore to exclude unnecessary files
-- Short-term: Implement multi-stage builds, switch to slim base images
-- Long-term: Regular dependency audits, automated size monitoring
+**Detection:**
+- Users asking "why can't I access dashboard?"
+- Port 5000 conflicts preventing dashboard use
+- Development environments where MLFlow isn't desired
+- Confusion about which component is actually failing
+
+**Phase to address:** Phase 03-07 (Graceful MLFlow Handling) — Critical. Must implement graceful degradation before auto-start.
 
 ---
 
-### Pitfall 8: RestrictedPython Security Theater
+### Pitfall 8: FastAPI + HTMX Navigation State Loss
 
 **What goes wrong:**
-Developers exhibit good security awareness by implementing custom sandboxes (RestrictedPython) rather than allowing direct code execution. However, experienced attackers may escape the sandbox using Python's builtin features (e.g., inheritance chain). Many sandbox solutions (macOS Seatbelt, Windows AppContainer, Linux Bubblewrap, Dockerized dev containers) share the host kernel, leaving it exposed to any code executed within. Kernel vulnerabilities can be directly targeted as a path to full system compromise.
+HTMX-based navigation loses application state when switching views. Browser back button doesn't work as expected. Refreshing the page loses current context. This breaks user expectations of web navigation.
 
 **Why it happens:**
-RestrictedPython and similar libraries provide a false sense of security. They restrict obvious attack vectors (os.system, subprocess) but can't prevent creative exploitation of Python's dynamic nature (inspect, __builtins__, inheritance chains). The "sandbox" is only as strong as its weakest API surface, and Python has a massive surface area.
+HTMX updates DOM fragments without changing browser URL by default. Without proper history management, the browser back button returns to the previous website, not the previous dashboard view. State is stored in server-side session, lost on refresh.
 
-**How to avoid:**
-- **Full virtualization**: Run agents in fully virtualized environments (VMs, unikernels, Kata containers) isolated from host kernel
-- **Intermediate solutions**: Use gVisor (user-space kernel mediation) over fully shared solutions
-- **No code execution in v0.1**: Defer custom code nodes to v0.2+, start with declarative configs only
-- **Tool sandboxing**: LangChain BaseTool constraints provide safer tool execution
-- **Secret isolation**: Never pass secrets to agent-generated code
-- **Network isolation**: Restrict outbound connections from sandbox environments
+**Consequences:**
+- Back button exits dashboard instead of going to previous view
+- Refresh returns to home page, losing user's place
+- Users can't bookmark specific dashboard views
+- Navigation feels "broken" compared to modern web apps
+- Support burden: "how do I get back to X?"
 
-**Warning signs:**
-- Security audits finding sandbox escape vectors
-- Agents requesting access to unexpected Python modules
-- File system access outside designated directories
-- Network requests to internal services from sandbox
-- Privilege escalation attempts in logs
+**Prevention:**
 
-**Phase to address:**
-Phase 1 (Foundation) - Already addressed via ADR: no arbitrary code execution in v0.1. Phase 2 (Custom Code Nodes) must implement full virtualization (gVisor or Kata containers) before allowing user-defined code. Never rely on RestrictedPython alone.
+1. **HTMX history management:** Use `hx-push-url="true"` for all navigable views
+2. **RESTful URLs:** Each view has a unique URL (`/workflows`, `/agents`, `/observability`)
+3. **State in URL:** Encode view state in query params when appropriate
+4. **Back button testing:** Verify back/forward work in each navigation change
+5. **Bookmarkable views:** Deep links should restore full view state
+6. **Progressive enhancement:** Ensure navigation works without JavaScript
 
-**Recovery strategy:**
-- Emergency: Disable custom code execution entirely
-- Short-term: Add network isolation, file system restrictions
-- Long-term: Full virtualization with gVisor/Kata containers
+**Detection:**
+- Users complaining that back button doesn't work
+- Inability to bookmark specific dashboard pages
+- State loss on page refresh
+- Navigation testing reveals URL doesn't change
+
+**Phase to address:** Phase 03-03 (Navigation Redesign) — Important. HTMX history management is non-negotiable.
+
+**Sources:**
+- [HTMX Navigation Methods](https://www.adharsh.in/blogs/tech/ui/htmx/htmx-navigation/) - Covers history API integration
+- [Best practice for handling routes with HTMX](https://www.reddit.com/r/htmx/comments/1dt4gum/best_practice_for_handling_routes_with_htmx_and/) - Community patterns
 
 ---
 
-### Pitfall 9: "Dumb RAG" Memory Thrashing
+### Pitfall 9: Gradio Chat UI Session Loss in Unified Workspace
 
 **What goes wrong:**
-The leading cause of agent system failure is "Dumb RAG" - teams dump all documentation and data into vector databases, hoping the LLM figures it out. This causes thrashing and context-flooding, not reasoning. Every stalled pilot made the same mistake: they treated agents as drop-in replacements rather than as new architectural components. Poor data quality (missing, stale, or inconsistent data) undermines agent effectiveness.
+When integrating Gradio Chat UI into a unified workspace, session persistence breaks. Conversations that persisted in standalone Gradio are lost when accessed through the unified interface. User's config generation progress disappears.
 
 **Why it happens:**
-RAG appears simple: "just embed documents and retrieve relevant chunks." But naive implementations retrieve irrelevant context (keyword matches without semantic understanding), retrieve too little (missing critical info), or retrieve too much (context window overflow). Vector databases sold as "AI memory" without addressing data quality, freshness, or retrieval strategies.
+Gradio's session storage uses file-based backend by default. Unified workspace may run Gradio with different storage configuration, or session files aren't properly mounted between standalone and integrated modes.
 
-**How to avoid:**
-- **Semantic chunking**: Split by meaning (paragraphs, sections) not arbitrary token counts
-- **Metadata filtering**: Tag chunks with source, date, category; filter before semantic search
-- **Hybrid search**: Combine semantic search (embeddings) with keyword search (BM25)
-- **Reranking**: Use reranker model to score retrieved chunks by relevance
-- **Data quality**: Establish processes for keeping RAG corpus fresh and accurate
-- **Retrieval testing**: Evaluate retrieval quality independently from agent quality
+**Consequences:**
+- Users lose conversation history when switching interfaces
+- "I was chatting with the config generator, where did it go?"
+- Loss of trust in session persistence
+- Users revert to standalone Gradio to avoid data loss
+- Unified workspace feels like a downgrade
 
-**Warning signs:**
-- Agents giving irrelevant or contradictory answers
-- Retrieved context containing outdated information
-- Users asking "why didn't the agent mention X?" when X is in the database
-- Retrieval returning 100+ chunks (context overflow)
-- Agent responses slower than expected (retrieval bottleneck)
+**Prevention:**
 
-**Phase to address:**
-Phase 3 (Quality Metrics) - RAG not in current roadmap, but likely user demand. If adding RAG: must be v0.3+ with evaluation framework in place. Do not add "quick RAG integration" in Phase 2 without retrieval quality metrics.
+1. **Shared session storage:** Ensure Gradio session path is consistent across modes
+2. **Session migration:** Migrate standalone sessions to unified workspace
+3. **Clear session UI:** Show conversation history prominently
+4. **Export/import:** Allow users to save and load conversations
+5. **Session continuity:** Same URL (`/gradio` and `/workspace/gradio`) share sessions
+6. **Documentation:** Explain session persistence behavior
 
-**Recovery strategy:**
-- Emergency: Reduce retrieval chunk count, add keyword filters
-- Short-term: Implement reranking, metadata filtering
-- Long-term: Hybrid search with quality evaluation pipeline
+**Detection:**
+- Users reporting lost conversations
+- Inconsistent session behavior between standalone and integrated
+- Confusion about where sessions are stored
 
----
-
-## Technical Debt Patterns
-
-Shortcuts that seem reasonable but create long-term problems.
-
-| Shortcut | Immediate Benefit | Long-term Cost | When Acceptable |
-|----------|-------------------|----------------|-----------------|
-| **Synchronous logging** | Simple implementation | 15-20% latency overhead | Development/testing only; never production |
-| **Single-writer SQLite** | Zero-config local storage | Write concurrency failures at scale | v0.1 local-only; must migrate by v0.2 |
-| **Request-based rate limits** | Easy to implement | Cost explosions, rate limit cascades | Never for LLM APIs; only acceptable for traditional REST APIs |
-| **Naive context truncation** | Prevents overflow errors | Lost information, hallucinations | Emergency fallback only; implement intelligent truncation ASAP |
-| **Framework default configs** | Fast prototyping | Vendor lock-in, upgrade pain | Prototyping phase only; customize before production |
-| **In-memory state** | Simple, fast | No workflow resume, data loss on crash | v0.1 one-shot workflows; add persistence by v0.2 |
-| **Docker bundling (UI + Agent)** | Monolithic simplicity | 8GB images, slow deploys | Never; separate concerns from day one |
-| **RestrictedPython sandboxing** | Appears secure | Sandbox escapes, false security | Never; use full virtualization or no code execution |
+**Phase to address:** Phase 03-05 (Unified Workspace) — Important. Session continuity must be verified before integration.
 
 ---
 
-## Integration Gotchas
+### Pitfall 10: Entry Point Tutorial That Never Completes
 
-Common mistakes when connecting to external services.
+**What goes wrong:**
+"Clear entry point" guided onboarding tutorial is too long, complex, or buggy. Users start it, get stuck halfway, and never complete it. The tutorial becomes a barrier rather than an on-ramp.
 
-| Integration | Common Mistake | Correct Approach |
-|-------------|----------------|------------------|
-| **OpenAI API** | Using `max_tokens` too high/low | Calculate based on expected output, add 20% buffer; monitor actual usage |
-| **Anthropic Claude** | Ignoring thinking tokens in costs | Track `input_tokens + output_tokens + thinking_tokens` separately |
-| **Google Gemini** | Free tier rate limits not checked | Implement circuit breakers before hitting limits; upgrade to paid tier for production |
-| **MLflow** | Logging synchronously on hot path | Enable async logging (ADR-011); batch metrics every 10s, not every call |
-| **LangGraph** | Storing massive objects in state | Store IDs in state, retrieve full objects when needed; keep state < 10KB |
-| **Vector DBs** | Embedding entire documents | Chunk semantically, embed chunks, store metadata separately |
-| **Docker registries** | Pushing multi-GB images repeatedly | Multi-stage builds, layer caching, use registry mirrors |
+**Why it happens:**
+Onboarding tutorials often cover every feature instead of the happy path. They require users to have API keys configured, MLFlow running, and example configs ready. If any dependency is missing, the tutorial fails.
 
----
+**Consequences:**
+- Users abandon the tutorial mid-way
+- "I'll figure it out myself" — tutorial never used again
+- Tutorial bugs create negative first impression
+- Users skip valuable onboarding and miss core concepts
+- Tutorial maintenance burden (keeps breaking)
 
-## Performance Traps
+**Prevention:**
 
-Patterns that work at small scale but fail as usage grows.
+1. **Short tutorial (<5 minutes):** Cover only the happy path
+2. **Mock mode:** Tutorial works without real API keys (uses mock responses)
+3. **Skip button:** Users can exit tutorial at any point
+4. **Resume capability:** Tutorial progress is saved
+5. **Focus on core value:** Demonstrate one end-to-end workflow, not every feature
+6. **Progressive:** Advanced concepts in follow-up tutorials, not initial onboarding
 
-| Trap | Symptoms | Prevention | When It Breaks |
-|------|----------|------------|----------------|
-| **Linear context accumulation** | Responses slow down over time | Implement summarization, sliding window | 10+ conversation turns |
-| **Synchronous multi-agent calls** | Total latency = sum of all agents | Parallel execution where possible | 3+ sequential agents |
-| **Naive retry logic** | Exponential backoff without max | Add max retry limit, circuit breakers | Rate limits hit repeatedly |
-| **Unbounded caching** | Memory grows unbounded | TTL-based expiration, LRU eviction | 100K+ cache entries |
-| **SQLite without WAL** | Write contention locks reads | Enable WAL mode from day one | 5+ concurrent connections |
-| **Logging every token** | Disk fills up, performance degrades | Sample successful requests, log errors always | 1M+ tokens/day |
-| **In-memory state for long workflows** | OOM kills after hours | Checkpoint to persistent storage periodically | 1+ hour workflows |
+**Detection:**
+- Analytics: tutorial completion rate <50%
+- Users starting tutorial but not finishing
+- Negative feedback about tutorial complexity
+- Support tickets: "stuck in tutorial step X"
 
----
-
-## Security Mistakes
-
-Domain-specific security issues beyond general web security.
-
-| Mistake | Risk | Prevention |
-|---------|------|------------|
-| **Passing secrets to LLM prompts** | API keys leaked in logs, MLflow artifacts | Use environment variables, never include secrets in prompts or state |
-| **No input sanitization for tool calls** | Command injection via LLM outputs | Validate tool inputs with Pydantic, whitelist allowed commands |
-| **Over-permissioned agents** | Privilege escalation, data exfiltration | Principle of least privilege; agents access only required tools/data |
-| **Storing LLM outputs without sanitization** | XSS, code injection in web UIs | Escape outputs, Content Security Policy headers |
-| **Shared API keys across tenants** | Cross-tenant data leakage | Per-tenant API key isolation, separate LLM accounts |
-| **No rate limiting per user** | DoS by single user, runaway costs | Per-user/per-tenant token budgets, circuit breakers |
-| **Trusting LLM-generated code** | Arbitrary code execution | Never execute without sandboxing; prefer full virtualization over RestrictedPython |
+**Phase to address:** Phase 03-06 (Clear Entry Point) — Important. Tutorial completion rate is key metric.
 
 ---
 
-## UX Pitfalls
+## Moderate Pitfalls
 
-Common user experience mistakes in agent orchestration platforms.
+Mistakes that cause delays or technical debt but are recoverable.
 
-| Pitfall | User Impact | Better Approach |
-|---------|-------------|-----------------|
-| **No progress indicators** | Users assume system is frozen, cancel prematurely | Streaming responses, progress bars, estimated time remaining |
-| **Silent failures** | Users don't know what went wrong | Explicit error messages, suggested fixes, support links |
-| **Jargon-heavy errors** | Users can't self-serve, contact support | User-friendly errors with examples (e.g., "Did you mean 'article'?" not "KeyError") |
-| **No cost visibility** | Bill shock at month-end | Show token usage and estimated cost per request in UI/CLI |
-| **Workflows as black boxes** | Can't debug or optimize | MLflow UI for traces, verbose mode for debugging, explain agent reasoning |
-| **Unclear rate limit errors** | Users think system is broken | "Rate limit reached. Retrying in 30s..." with progress indicator |
-| **No workflow version control** | Can't roll back breaking changes | Git-based configs, version tagging, migration guides |
+### Pitfall 11: Docker Port Conflicts on Single-Command Startup
+
+**What goes wrong:**
+`agents up` fails silently because ports 5000 (MLFlow) or 8000 (Dashboard) are already in use. Error message is unclear or suggests wrong fix.
+
+**Prevention:** Detect port conflicts before starting services, suggest alternative ports or stop conflicting services.
+
+**Detection:** Users reporting "`agents up` doesn't work" with no clear error.
+
+**Phase:** Phase 03-01
+
+---
+
+### Pitfall 12: SQLite Database File Permission Errors on Auto-Init
+
+**What goes wrong:**
+Auto-initialization tries to create SQLite database in directory without write permissions. Error message is unclear about permission issue.
+
+**Prevention:** Check directory writability before attempting database creation. Fall back to user home directory with clear message.
+
+**Detection:** "Failed to create database" errors that are actually permission issues.
+
+**Phase:** Phase 03-01
+
+---
+
+### Pitfall 13: Status Dashboard Polling Overloading Backend
+
+**What goes wrong:**
+HTMX dashboard polls backend every 1-2 seconds for status updates. With multiple users, this creates unnecessary load.
+
+**Prevention:** Use Server-Sent Events (SSE) for real-time updates instead of polling. Implement polling only as fallback.
+
+**Detection:** Backend CPU usage spikes with multiple dashboard users.
+
+**Phase:** Phase 03-04
+
+---
+
+## Minor Pitfalls
+
+Mistakes that cause annoyance but are fixable.
+
+### Pitfall 14: Inconsistent Terminology Between Old and New UI
+
+**What goes wrong:** Navigation changes rename concepts ("Agents" becomes "Workflows") without updating all references. Users can't find things.
+
+**Prevention:** Create terminology glossary, search for old terms when renaming.
+
+**Phase:** All UX phases
+
+---
+
+### Pitfall 15: Dark Mode Color Contrast Issues in Unified Workspace
+
+**What goes wrong:** Unifying components with different dark mode implementations creates inconsistent appearance and contrast issues.
+
+**Prevention:** Standardize color palette, test contrast ratios across all components.
+
+**Phase:** Phase 03-05
+
+---
+
+## Phase-Specific Warnings
+
+| Phase Topic | Likely Pitfall | Mitigation |
+|-------------|---------------|------------|
+| **03-01: Single-command startup** | Silent failures, hiding diagnostic info | Verbose mode, health checks, clear error messages |
+| **03-01: Auto-initialization** | Silent state corruption, permission errors | Blocking errors, idempotent init, status command |
+| **03-03: Navigation redesign** | Muscle memory disruption | Preserve 80% of paths, transition period, opt-out |
+| **03-04: Status visibility** | Alert fatigue, dashboard overload | Tiered status, max 5 key metrics, smart alerting |
+| **03-05: Unified workspace** | Performance degradation, session loss | Lazy loading, shared session storage, perf budgets |
+| **03-06: Clear entry point** | Tutorial abandonment | Short tutorial (<5 min), mock mode, skip button |
+| **03-07: MLFlow handling** | Dashboard blocked by MLFlow failure | Graceful degradation, async start, optional observability |
+
+---
+
+## Pitfall-to-Feature Mapping
+
+Each v1.1 planned change has specific pitfalls to address:
+
+| v1.1 Feature | Critical Pitfalls | Moderate | Minor |
+|--------------|-------------------|----------|-------|
+| **UX-01: Single command startup** | Pitfall 4 (hiding diagnostics), Pitfall 11 (port conflicts) | - | - |
+| **UX-02: Auto-initialization** | Pitfall 2 (silent failures), Pitfall 12 (permissions) | - | - |
+| **UX-03: Navigation redesign** | Pitfall 1 (muscle memory), Pitfall 8 (HTMX state loss) | Pitfall 14 (terminology) | - |
+| **UX-04: Status visibility** | Pitfall 3 (alert fatigue), Pitfall 13 (polling overload) | - | - |
+| **UX-05: Unified workspace** | Pitfall 5 (performance), Pitfall 9 (session loss) | - | Pitfall 15 (dark mode) |
+| **UX-06: Clear entry point** | Pitfall 10 (tutorial abandonment) | - | - |
+| **UX-07: MLFlow handling** | Pitfall 7 (blocking dashboard) | - | - |
+
+---
+
+## Integration-Specific Pitfalls: FastAPI + HTMX + Gradio
+
+The v1.0 stack (FastAPI + HTMX for dashboard, Gradio for chat UI) has unique integration challenges:
+
+### HTMX-Specific Pitfalls
+
+1. **History management not configured:** Browser back button breaks navigation
+   - **Fix:** Add `hx-push-url="true"` to all navigation links
+
+2. **SSE vs polling confusion:** Real-time updates implemented via polling instead of SSE
+   - **Fix:** Use HTMX's SSE extension for status updates
+
+3. **Partial update complexity:** HTMX partial updates conflict with full page renders
+   - **Fix:** Standardize on fragment updates, use `hx-boost` for navigation
+
+### Gradio Integration Pitfalls
+
+1. **Mount path conflicts:** Gradio mounted at `/gradio` conflicts with dashboard routes
+   - **Fix:** Use `/chat` or `/config-generator` to avoid conflicts
+
+2. **Session storage isolation:** Gradio sessions not shared between standalone and integrated
+   - **Fix:** Ensure `root_path` and session storage path are consistent
+
+3. **CORS issues:** Gradio app under FastAPI has CORS problems
+   - **Fix:** Configure FastAPI CORS middleware correctly
+
+### FastAPI Integration Pitfalls
+
+1. **Route naming collisions:** Dashboard routes conflict with Gradio routes
+   - **Fix:** Namespace routes clearly (`/dashboard/*`, `/api/*`, `/chat/*`)
+
+2. **Startup sequence dependency:** Dashboard depends on Gradio being ready
+   - **Fix:** Async startup with health checks, not hard dependency
+
+3. **Template context pollution:** Shared Jinja2 context causes variable conflicts
+   - **Fix:** Use context processors, isolate template contexts per component
+
+**Sources:**
+- [Building Real-Time Dashboards with FastAPI and HTMX](https://medium.com/codex/building-real-time-dashboards-with-fastapi-and-htmx-01ea458673cb)
+- [FastAPI App with Gradio Client](https://www.gradio.app/guides/fastapi-app-with-the-gradio-client)
+- [Gradio FastAPI Conductor Dashboard Pattern](https://gist.github.com/ruvnet/1863854d9cb84b09531217bbc410270f)
+
+---
+
+## Success Criteria for v1.1 UX Improvements
+
+Each pitfall has corresponding success criteria:
+
+| Pitfall | Success Criteria | How to Measure |
+|---------|------------------|----------------|
+| **1. Muscle memory disruption** | <20% productivity loss for existing users | Survey: "How long to find feature X?" vs baseline |
+| **2. Silent auto-init failures** | 0% silent failures, all failures block with clear error | Test: Init failures in various scenarios |
+| **3. Alert fatigue** | <5 status indicators shown by default, users can customize | Heuristic review, user testing |
+| **4. Hidden diagnostics** | Verbose mode shows all startup steps, all errors actionable | Test: `agents up --verbose` output quality |
+| **5. Performance degradation** | <3s page load, <500MB memory usage for unified workspace | Performance tests on reference hardware |
+| **6. Hidden power features** | 100% of v1.0 features accessible, documented migration | Feature audit, power user survey |
+| **7. MLFlow blocking dashboard** | Dashboard works without MLFlow, graceful degradation shown | Test: Start with MLFlow port blocked |
+| **8. HTMX navigation state loss** | Back button works, refresh preserves state, URLs bookmarkable | Browser testing, navigation test suite |
+| **9. Session loss in unified workspace** | Sessions persist across standalone and integrated modes | Test: Chat in standalone, open integrated, verify history |
+| **10. Tutorial abandonment** | >70% completion rate for first-time users | Analytics: tutorial start vs complete |
 
 ---
 
 ## "Looks Done But Isn't" Checklist
 
-Things that appear complete but are missing critical pieces.
+Things that appear complete but are missing critical pieces for UX improvements:
 
-- [ ] **Multi-LLM support:** Often missing token-aware rate limiting — verify circuit breakers, per-tenant quotas, and cost tracking work across all providers
-- [ ] **Docker deployment:** Often missing multi-stage builds — verify final image < 1GB, startup < 10s, layers properly cached
-- [ ] **Observability:** Often missing async logging — verify logging overhead < 5% latency, metrics buffered not synchronous
-- [ ] **State persistence:** Often missing race condition handling — verify concurrent writes don't corrupt state, test with 10+ parallel agents
-- [ ] **Agent lifecycle:** Often missing deregistration — verify agents deregister on shutdown (graceful and crash), orphaned entries auto-expire
-- [ ] **Context management:** Often missing intelligent truncation — verify quality doesn't degrade with conversation length, test 50+ turn conversations
-- [ ] **RAG integration:** Often missing retrieval quality metrics — verify precision/recall of retrieval before deploying, test with irrelevant queries
-- [ ] **Error handling:** Often missing user-friendly messages — verify errors have suggestions, examples, not just stack traces
-- [ ] **Cost controls:** Often missing per-user budgets — verify token limits enforced, workflows fail gracefully at budget limit
-- [ ] **Security:** Often missing secret isolation — verify no secrets in logs, MLflow artifacts, or state snapshots
-
----
-
-## Recovery Strategies
-
-When pitfalls occur despite prevention, how to recover.
-
-| Pitfall | Recovery Cost | Recovery Steps |
-|---------|---------------|----------------|
-| **Rate limit cascade** | MEDIUM | 1. Add circuit breakers immediately, 2. Implement async queue with backoff, 3. Add token-aware rate limiting |
-| **Framework lock-in** | HIGH | 1. Build compatibility layer, 2. Incrementally rewrite critical paths, 3. Export to primitives over 3-6 months |
-| **Zombie agents** | LOW | 1. Manual audit and cleanup, 2. Add heartbeat checks, 3. Implement TTL-based expiration |
-| **Context overflow** | MEDIUM | 1. Add hard token limits, 2. Implement summarization, 3. Migrate to RAG for long-context needs |
-| **SQLite concurrency** | MEDIUM | 1. Enable WAL mode, 2. Serialize writes through queue, 3. Migrate to PostgreSQL |
-| **Observability overhead** | LOW | 1. Disable verbose logging, 2. Move to async logging, 3. Add sampling strategies |
-| **Docker bloat** | LOW | 1. Add .dockerignore, 2. Multi-stage builds, 3. Switch to slim base images |
-| **Sandbox escapes** | HIGH | 1. Disable code execution immediately, 2. Add network/filesystem isolation, 3. Migrate to full virtualization |
-| **Dumb RAG** | MEDIUM | 1. Add metadata filtering, 2. Implement reranking, 3. Build retrieval evaluation pipeline |
-
----
-
-## Pitfall-to-Phase Mapping
-
-How roadmap phases should address these pitfalls.
-
-| Pitfall | Prevention Phase | Verification |
-|---------|------------------|--------------|
-| **Rate limit cascades** | Phase 2 (Multi-LLM) | Load test with 100 concurrent workflows, verify no SQLITE_BUSY errors |
-| **Framework lock-in** | Phase 1 (Foundation) | ADR-001 complete; verify LangGraph export works |
-| **Zombie agents** | Phase 2 (State Persistence) | Deploy 50 agents, kill randomly, verify auto-cleanup within 5 minutes |
-| **Context overflow** | Phase 2 (Loops & State) | Run 100-turn conversation, verify quality doesn't degrade |
-| **SQLite concurrency** | Phase 2 (State Persistence) | Parallel write test with 20 agents, verify no lock errors |
-| **Observability overhead** | Phase 1 (MLflow) | ADR-014 complete; verify logging < 5% overhead in benchmarks |
-| **Docker bloat** | Phase 1 (Deployment) | Verify generated images < 1GB, multi-stage builds used |
-| **Sandbox escapes** | Phase 2 (Custom Code) | Security audit before launch; use gVisor/Kata containers only |
-| **Dumb RAG** | Phase 3 (Quality Metrics) | Retrieval precision/recall > 80% before agent deployment |
-
----
-
-## User Abandonment Patterns
-
-Why users leave agent orchestration platforms, based on 2025-2026 data.
-
-### Top 3 Reasons for Abandonment:
-
-1. **Cost Explosions (65% of abandonments)**
-   - Monthly bills 5-10x higher than expected
-   - No visibility into per-workflow costs
-   - Runaway agents consuming tokens uncontrollably
-   - **Prevention:** Real-time cost tracking, per-workflow budgets, circuit breakers
-
-2. **Production Reliability Issues (52% of abandonments)**
-   - Intermittent failures no one can debug
-   - Rate limit errors causing unpredictable downtime
-   - "Works in dev, fails in prod" due to concurrency issues
-   - **Prevention:** Comprehensive observability, load testing, graceful degradation
-
-3. **Framework Complexity (48% of abandonments)**
-   - Requires framework expertise to customize
-   - Breaking changes in framework updates
-   - Debugging requires reading framework source code
-   - **Prevention:** Thin abstraction layers, export to primitives, version pinning
-
-### Early Warning Indicators:
-
-- Users asking "why is this so expensive?" in forums
-- Support tickets with "it worked yesterday, now it's broken"
-- Decreased usage after initial spike (novelty wore off, pain too high)
-- Developers bypassing platform to call LLM APIs directly
-- Feature requests for "export to Python" or "just give me the code"
+- [ ] **Single-command startup:** Often missing verbose mode and clear error messages — verify `agents up --verbose` shows diagnostic steps, verify port conflicts are detected
+- [ ] **Auto-initialization:** Often missing health checks and error recovery — verify initialization failures are blocking, verify idempotent re-initialization
+- [ ] **Navigation redesign:** Often missing transition period and opt-out — verify old navigation paths still work, verify users can revert to classic mode
+- [ ] **Status visibility:** Often missing tiered status and smart alerting — verify only 3-5 metrics shown by default, verify alerts are actionable
+- [ ] **Unified workspace:** Often missing performance budgets and session continuity — verify memory usage under control, verify sessions persist across modes
+- [ ] **Clear entry point:** Often missing skip button and resume capability — verify tutorial is <5 minutes, verify users can exit at any point
+- [ ] **MLFlow handling:** Often missing graceful degradation — verify dashboard works without MLFlow, verify status indicator is clear
+- [ ] **HTMX navigation:** Often missing history management — verify back button works, verify URLs are bookmarkable
+- [ ] **Gradio integration:** Often missing session storage continuity — verify sessions work in both standalone and integrated modes
+- [ ] **Error messages:** Often missing action items — verify every error suggests next step
 
 ---
 
 ## Sources
 
-### Multi-LLM Integration & Rate Limits
-- [Why Multi-Agent LLM Systems Fail - Orq.ai](https://orq.ai/blog/why-do-multi-agent-llm-systems-fail)
-- [Rate Limiting in AI Gateway - TrueFoundry](https://www.truefoundry.com/blog/rate-limiting-in-llm-gateway)
-- [Tackling Rate Limiting for LLM Apps - Portkey](https://portkey.ai/blog/tackling-rate-limiting-for-llm-apps/)
-- [LLM Orchestration in 2026 - AIMultiple](https://research.aimultiple.com/llm-orchestration/)
+### Muscle Memory & Navigation Redesign
 
-### Agent Lifecycle & Zombie Agents
-- [ZombieAgent ChatGPT Attack - CSO Online](https://www.csoonline.com/article/4115110/zombieagent-chatgpt-attack-shows-persistent-data-leak-risks-of-ai-agents.html)
-- [Agentic AI Lifecycle Management - Token Security](https://www.token.security/blog/agentic-ai-lifecycle-management-from-training-to-decommissioning-securely)
-- [Service Discovery with Consul - Dev Genius](https://blog.devgenius.io/service-discovery-with-consul-b3ec7bc24ec5)
+- [The Cost of Disrupting Muscle Memory: Figma UI Redesign](https://medium.com/@shafihireholi/the-cost-of-disrupting-muscle-memory-a-look-at-figmas-ui-redesign-through-real-world-analogies-c8174d341eae) — Real-world consequences of disrupting user habits
+- [The Impact of the 2023 Wikipedia Redesign on User Experience](https://www.mdpi.com/2227-9709/12/3/97) — Research-backed evidence of navigation change impact (MDPI 2025)
+- [How to Redesign a Legacy UI Without Losing Users](https://xbsoftware.com/blog/legacy-app-ui-redesign-mistakes/) — Practical guidance on legacy redesigns (August 2025)
+- [Human Memory and UX Design: Preventing Cognitive Overload](https://fireart.studio/blog/human-memory-and-ux-design-how-to-prevent-user-cognitive-overload/) — Memory principles for UX
 
-### Framework Lock-in & Production Failures
-- [Why AI Frameworks Fail in Production - Rhino Tech Media](https://www.rhinotechmedia.com/why-ai-frameworks-langchain-crewai-pydanticai-and-others-fail-in-production/)
-- [The 2025 AI Agent Report - Composio](https://composio.dev/blog/why-ai-agent-pilots-fail-2026-integration-roadmap)
-- [LangChain Alternatives 2026 - Lindy](https://www.lindy.ai/blog/langchain-alternatives)
+### Alert Fatigue & Status Dashboard Overload
 
-### Observability & Performance
-- [Top 5 AI Agent Observability Platforms - O-mega](https://o-mega.ai/articles/top-5-ai-agent-observability-platforms-the-ultimate-2026-guide)
-- [MLflow 3.0 Announcement - Databricks](https://www.databricks.com/blog/mlflow-30-unified-ai-experimentation-observability-and-governance)
-- [Agent Observability - Salesforce](https://www.salesforce.com/agentforce/observability/agent-observability/)
+- [Alert Fatigue and Dashboard Overload: Why Cybersecurity Needs Better UX](https://medium.com/design-bootcamp/alert-fatigue-and-dashboard-overload-why-cybersecurity-needs-better-ux-1f3bd32ad81c) — Enterprise dashboard overload patterns
+- [Alert Fatigue Solutions for DevOps Teams in 2025](https://incident.io/blog/alert-fatigue-solutions-for-dev-ops-teams-in-2025-what-works) — What's working for alert management
+- [AWS Well-Architected: Optimize Alerts to Prevent Fatigue](https://docs.aws.amazon.com/wellarchitected/latest/devops-guidance/o.cm.9-optimize-alerts-to-prevent-fatigue-and-minimize-monitoring-costs.html) — Official AWS guidance on alert optimization
+- [Tool Overload Driving Alert Fatigue](https://mspaa.net/report-reveals-tool-overload-driving-alert-fatigue-and-missed-threats-in-msps/) — Tool sprawl impact analysis
 
-### Context Window Management
-- [Context Window Management for AI Agents - Maxim](https://www.getmaxim.ai/articles/context-window-management-strategies-for-long-context-ai-agents-and-chatbots/)
-- [Context Window Overflow - AWS Security](https://aws.amazon.com/blogs/security/context-window-overflow-breaking-the-barrier/)
-- [Top Techniques to Manage Context Lengths - Agenta](https://agenta.ai/blog/top-6-techniques-to-manage-context-length-in-llms)
+### FastAPI + HTMX + Gradio Integration
 
-### SQLite Concurrency & State Management
-- [Beyond SQLite Single-Writer Limitation - Turso](https://turso.tech/blog/beyond-the-single-writer-limitation-with-tursos-concurrent-writes)
-- [How Turso Eliminates SQLite Bottleneck - Better Stack](https://betterstack.com/community/guides/databases/turso-explained/)
-- [Distributed State Management for Agents - InfoWorld](https://www.infoworld.com/article/3808083/a-distributed-state-of-mind-event-driven-multi-agent-systems.html)
+- [Building Real-Time Dashboards with FastAPI and HTMX](https://medium.com/codex/building-real-time-dashboards-with-fastapi-and-htmx-01ea458673cb) — Dashboard patterns with this stack
+- [HTMX Navigation Methods](https://www.adharsh.in/blogs/tech/ui/htmx/htmx-navigation/) — History management and URL updates
+- [Best Practice for HTMX Routes](https://www.reddit.com/r/htmx/comments/1dt4gum/best_practice_for_handling_routes_with_htmx_and/) — Community routing patterns
+- [FastAPI App with Gradio Client](https://www.gradio.app/guides/fastapi-app-with-the-gradio-client) — Official Gradio integration docs
+- [Gradio FastAPI Conductor Pattern](https://gist.github.com/ruvnet/1863854d9cb84b09531217bbc410270f) — Unified workspace pattern
 
-### Security & Sandboxing
-- [Setting Up Secure Python Sandbox - Dida.do](https://dida.do/blog/setting-up-a-secure-python-sandbox-for-llm-agents)
-- [Practical Security for Sandboxing Agentic Workflows - NVIDIA](https://developer.nvidia.com/blog/practical-security-guidance-for-sandboxing-agentic-workflows-and-managing-execution-risk)
-- [Unveiling AI Agent Vulnerabilities: Code Execution - Trend Micro](https://www.trendmicro.com/vinfo/us/security/news/cybercrime-and-digital-threats/unveiling-ai-agent-vulnerabilities-code-execution)
-- [LLM Security Risks 2026 - Sombra](https://sombrainc.com/blog/llm-security-risks-2026)
+### MLFlow & Observability
 
-### Docker & Deployment
-- [Docker Container Bloat Solutions - Eureka](https://eureka.patsnap.com/article/docker-container-bloat-how-to-reduce-image-size-and-improve-speed)
-- [Slimming Docker Container from 8GB to 200MB - Nozzlegear](https://nozzlegear.com/blog/slimming-a-container-from-nearly-8gb-to-under-200mb)
-- [Bloated Docker Images Causes and Solutions - Medium](https://medium.com/@tyagisanjeev1211/bloated-docker-images-causes-and-solutions-7065e7e980cb)
+- [MLflow Automatic Logging Documentation](https://mlflow.org/docs/latest/ml/tracking/autolog/) — Official autolog patterns
+- [MLflow UI Performance Issue #1517](https://github.com/mlflow/mlflow/issues/1517) — Real-world performance problems with MLflow UI
+- [MLflow CLI Documentation](https://mlflow.org/docs/latest/cli.html) — Command-line interface for startup
 
-### Agent Orchestration Patterns
-- [AI Agent Orchestration Patterns - Azure](https://learn.microsoft.com/en-us/azure/architecture/ai-ml/guide/ai-agent-design-patterns)
-- [Common Challenges Deploying AI Agents - UiPath](https://www.uipath.com/blog/ai/common-challenges-deploying-ai-agents-and-solutions-why-orchestration)
-- [Agent Orchestration: It's Governance - Medium](https://medium.com/@markus_brinsa/agent-orchestration-orchestration-isnt-magic-it-s-governance-210afb343914)
+### Developer Tool UX Patterns
+
+- [7 Modern CLI Tools You Must Try in 2026](https://aashishkumar12376.medium.com/7-modern-cli-tools-you-must-try-in-2026-18e54106224e) — Modern CLI UX patterns
+- [Top 8 Observability Tools for 2026](https://www.groundcover.com/blog/observability-tools) — Current state of observability UX
+- [Website Navigation Best Practices](https://www.wearetenet.com/blog/website-navigation-best-practices) — General navigation principles
 
 ---
 
-*Pitfalls research for: Agent Orchestration Platform (Local-First)*
-*Researched: 2026-02-02*
-*Confidence: HIGH - Findings based on production post-mortems, 2025-2026 failure analysis, and authoritative sources*
+*Pitfalls research for: v1.1 Core UX Polish*
+*Researched: 2026-02-04*
+*Confidence: HIGH - Findings based on UX research, real-world redesign case studies, and authoritative sources on developer tool UX*
