@@ -1,0 +1,74 @@
+# Sample Workflow Configuration
+# Purpose: Testing basic workflow execution
+# Usage: configurable-agents run sample_config.yaml --input message="Hello World"
+
+schema_version: "1.0"
+
+flow:
+  name: sample_workflow
+  description: A simple workflow for testing - echoes input with enhancement
+  version: "1.0.0"
+
+# State definition - what data flows through the workflow
+state:
+  fields:
+    # Input field - user must provide this
+    message:
+      type: str
+      required: true
+      description: The message to process
+
+    # Output field - will be populated by the node
+    response:
+      type: str
+      default: ""
+      description: The enhanced response
+
+# Nodes - the execution steps
+nodes:
+  - id: process_message
+    description: Process the input message and create an enhanced response
+
+    # Prompt template with state reference
+    prompt: |
+      You are a helpful assistant.
+      The user provided this message: {state.message}
+
+      Please respond with a friendly, enhanced version of this message.
+      Keep your response concise (1-2 sentences).
+
+    # What state fields this node writes to
+    outputs: [response]
+
+    # Schema for LLM output - enforces structure
+    output_schema:
+      type: object
+      fields:
+        - name: response
+          type: str
+          description: The enhanced response message
+
+# Edges - control flow (linear in this case)
+edges:
+  - from: START
+    to: process_message
+  - from: process_message
+    to: END
+
+# Global configuration (optional but recommended)
+config:
+  llm:
+    provider: google
+    model: gemini-2.5-flash-lite
+    temperature: 0.7
+
+  execution:
+    timeout: 60
+    max_retries: 3
+
+  # Observability (optional)
+  observability:
+    mlflow:
+      enabled: false  # Set to true to enable MLFlow tracking
+      tracking_uri: "sqlite:///mlflow.db"
+      experiment_name: "sample_workflow"

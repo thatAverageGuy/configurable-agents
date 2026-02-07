@@ -18,7 +18,6 @@ from configurable_agents.config.schema import (
     OptimizeConfig,
     OutputSchema,
     OutputSchemaField,
-    ParallelConfig,
     Route,
     RouteCondition,
     StateFieldConfig,
@@ -195,12 +194,12 @@ class TestLLMConfig:
     def test_valid_complete(self):
         config = LLMConfig(
             provider="google",
-            model="gemini-2.0-flash-exp",
+            model="gemini-2.5-flash-lite",
             temperature=0.7,
             max_tokens=1024,
         )
         assert config.provider == "google"
-        assert config.model == "gemini-2.0-flash-exp"
+        assert config.model == "gemini-2.5-flash-lite"
         assert config.temperature == 0.7
         assert config.max_tokens == 1024
 
@@ -415,18 +414,39 @@ class TestLoopConfig:
         assert config.max_iterations == 100
 
 
-class TestParallelConfig:
-    """Test ParallelConfig model."""
+class TestEdgeConfigForkJoin:
+    """Test EdgeConfig with fork-join (list to) and loop options."""
 
-    def test_valid_minimal(self):
-        config = ParallelConfig(items_field="tasks", target_node="process_task", collect_field="results")
-        assert config.items_field == "tasks"
-        assert config.target_node == "process_task"
-        assert config.collect_field == "results"
+    def test_valid_fork_join_edge(self):
+        """Fork-join edge with list of targets."""
+        edge = EdgeConfig(**{"from": "START", "to": ["node_a", "node_b"]})
+        assert edge.from_ == "START"
+        assert edge.to == ["node_a", "node_b"]
+        assert edge.routes is None
+        assert edge.loop is None
 
+    def test_valid_fork_join_three_targets(self):
+        """Fork-join with three targets."""
+        edge = EdgeConfig(**{"from": "process", "to": ["a", "b", "c"]})
+        assert edge.to == ["a", "b", "c"]
 
-class TestEdgeConfigWithLoopAndParallel:
-    """Test EdgeConfig with loop and parallel options."""
+    def test_fork_join_single_target_fails(self):
+        """Fork-join must have at least 2 targets."""
+        with pytest.raises(ValidationError) as exc_info:
+            EdgeConfig(**{"from": "process", "to": ["only_one"]})
+        assert "at least 2 targets" in str(exc_info.value).lower()
+
+    def test_fork_join_duplicate_targets_fails(self):
+        """Fork-join must not have duplicate targets."""
+        with pytest.raises(ValidationError) as exc_info:
+            EdgeConfig(**{"from": "process", "to": ["node_a", "node_a"]})
+        assert "duplicates" in str(exc_info.value).lower()
+
+    def test_fork_join_empty_string_target_fails(self):
+        """Fork-join must not have empty string targets."""
+        with pytest.raises(ValidationError) as exc_info:
+            EdgeConfig(**{"from": "process", "to": ["node_a", ""]})
+        assert "empty strings" in str(exc_info.value).lower()
 
     def test_valid_loop_edge(self):
         edge = EdgeConfig(**{"from": "process", "loop": {"condition_field": "is_done", "exit_to": "END"}})
@@ -436,35 +456,6 @@ class TestEdgeConfigWithLoopAndParallel:
         assert edge.loop.exit_to == "END"
         assert edge.to is None
         assert edge.routes is None
-        assert edge.parallel is None
-
-    def test_valid_parallel_edge(self):
-        edge = EdgeConfig(
-            **{
-                "from": "process",
-                "parallel": {"items_field": "items", "target_node": "worker", "collect_field": "results"},
-            }
-        )
-        assert edge.from_ == "process"
-        assert edge.parallel is not None
-        assert edge.parallel.items_field == "items"
-        assert edge.parallel.target_node == "worker"
-        assert edge.parallel.collect_field == "results"
-        assert edge.to is None
-        assert edge.routes is None
-        assert edge.loop is None
-
-    def test_multiple_edge_types_fails(self):
-        """Edge cannot have both loop and parallel config."""
-        with pytest.raises(ValidationError) as exc_info:
-            EdgeConfig(
-                **{
-                    "from": "process",
-                    "loop": {"condition_field": "is_done", "exit_to": "END"},
-                    "parallel": {"items_field": "items", "target_node": "worker", "collect_field": "results"},
-                }
-            )
-        assert "multiple edge types" in str(exc_info.value).lower()
 
     def test_loop_and_to_fails(self):
         """Edge cannot have both loop and to."""
@@ -478,16 +469,14 @@ class TestEdgeConfigWithLoopAndParallel:
             )
         assert "multiple edge types" in str(exc_info.value).lower()
 
-    def test_routes_and_parallel_fails(self):
-        """Edge cannot have both routes and parallel."""
-        from configurable_agents.config.schema import Route, RouteCondition
-
+    def test_routes_and_loop_fails(self):
+        """Edge cannot have both routes and loop."""
         with pytest.raises(ValidationError) as exc_info:
             EdgeConfig(
                 **{
                     "from": "process",
                     "routes": [{"condition": {"logic": "default"}, "to": "next"}],
-                    "parallel": {"items_field": "items", "target_node": "worker", "collect_field": "results"},
+                    "loop": {"condition_field": "is_done", "exit_to": "END"},
                 }
             )
         assert "multiple edge types" in str(exc_info.value).lower()

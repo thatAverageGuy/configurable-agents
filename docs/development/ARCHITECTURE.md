@@ -75,7 +75,7 @@ The system transforms YAML configuration into executable agent workflows through
 - **Tool Binding**: Tool integration before structured output (correct order)
 
 **Providers Supported**:
-- Google: gemini-2.0-flash-exp, gemini-2.5-pro, gemini-2.5-flash, gemini-1.5-pro, gemini-1.5-flash
+- Google: gemini-2.5-flash-lite, gemini-2.5-pro, gemini-2.5-flash, gemini-1.5-pro, gemini-1.5-flash
 - OpenAI: gpt-4, gpt-4-turbo, gpt-3.5-turbo
 - Anthropic: claude-3-opus, claude-3-sonnet, claude-3-haiku
 - Ollama: llama2, mistral, codellama (local models, zero cost)
@@ -782,26 +782,31 @@ nodes:
 
 ---
 
-### Parallel Execution
+### Fork-Join Parallel Execution
 
 **Schema**:
 ```yaml
 edges:
   - from: START
-    parallel:
-      - node_1
-      - node_2
-      - node_3
-    join: merge_node
+    to: [analyze_pros, analyze_cons]  # Fork: both nodes run in parallel
+  - from: analyze_pros
+    to: combine
+  - from: analyze_cons
+    to: combine                        # Join: both converge at combine
 ```
 
 **Implementation**:
-- LangGraph Send objects for fan-out
-- State dict augmentation for parallel branches
-- Automatic fan-in at join node
-- No shared state between branches
+- `EdgeConfig.to` accepts `Union[str, List[str]]` — list means fork-join
+- Each target in the list gets its own `graph.add_edge()` call
+- LangGraph natively runs nodes in parallel when they share the same source
+- Each branch writes to its own state fields (no shared state between branches)
+- Join node receives merged state from all branches
 
-**Code**: [`core/graph_builder.py:parallel_execution`](../src/configurable_agents/core/graph_builder.py)
+**Design Decision**: Fork-join (different nodes concurrently) over MAP (same node on different data).
+MAP pattern using LangGraph `Send` objects was removed because Send passes raw dicts, causing
+Pydantic model compatibility issues. Fork-join uses native LangGraph edges with zero overhead.
+
+**Code**: [`core/graph_builder.py:_add_edge`](../src/configurable_agents/core/graph_builder.py)
 
 ---
 

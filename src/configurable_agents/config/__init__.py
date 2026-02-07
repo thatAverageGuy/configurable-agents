@@ -23,7 +23,7 @@ from configurable_agents.config.schema import (
     OptimizeConfig,
     OutputSchema,
     OutputSchemaField,
-    ParallelConfig,
+
     QualityGateModel,
     Route,
     RouteCondition,
@@ -61,7 +61,7 @@ __all__ = [
     "Route",
     "RouteCondition",
     "LoopConfig",
-    "ParallelConfig",
+
     "OptimizationConfig",
     "OptimizeConfig",
     "LLMConfig",

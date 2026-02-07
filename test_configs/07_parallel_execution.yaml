@@ -1,0 +1,97 @@
+# Test Config 07: Fork-Join Parallel Execution
+# Purpose: Verify fork-join parallel execution (different nodes running concurrently)
+# Test: configurable-agents run test_configs/07_parallel_execution.yaml --input topic="AI"
+
+schema_version: "1.0"
+
+flow:
+  name: test_07_fork_join
+  description: Workflow with fork-join parallel execution
+  version: "1.0.0"
+
+state:
+  fields:
+    # Input
+    topic:
+      type: str
+      required: true
+      description: Topic to analyze from multiple angles
+
+    # Parallel branch outputs (each branch writes to its own field)
+    pros:
+      type: str
+      default: ""
+      description: Positive aspects analysis
+    cons:
+      type: str
+      default: ""
+      description: Negative aspects analysis
+
+    # Final combined output
+    summary:
+      type: str
+      default: ""
+      description: Combined summary of both analyses
+
+nodes:
+  - id: analyze_pros
+    description: Analyze positive aspects of the topic
+    prompt: |
+      Analyze the positive aspects and benefits of: {state.topic}
+      Be concise (2-3 sentences).
+    outputs: [pros]
+    output_schema:
+      type: object
+      fields:
+        - name: pros
+          type: str
+          description: Positive aspects analysis
+
+  - id: analyze_cons
+    description: Analyze negative aspects of the topic
+    prompt: |
+      Analyze the negative aspects and risks of: {state.topic}
+      Be concise (2-3 sentences).
+    outputs: [cons]
+    output_schema:
+      type: object
+      fields:
+        - name: cons
+          type: str
+          description: Negative aspects analysis
+
+  - id: combine
+    description: Combine both analyses into a balanced summary
+    prompt: |
+      Topic: {state.topic}
+      Pros: {state.pros}
+      Cons: {state.cons}
+
+      Create a balanced 2-sentence summary combining both perspectives.
+    outputs: [summary]
+    output_schema:
+      type: object
+      fields:
+        - name: summary
+          type: str
+          description: Combined balanced summary
+
+edges:
+  # Fork: START -> both analyze nodes run in parallel
+  - from: START
+    to: [analyze_pros, analyze_cons]
+
+  # Join: both branches converge to combine
+  - from: analyze_pros
+    to: combine
+  - from: analyze_cons
+    to: combine
+
+  - from: combine
+    to: END
+
+config:
+  llm:
+    provider: google
+    model: gemini-2.5-flash-lite
+    temperature: 0.7

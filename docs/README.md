@@ -81,9 +81,11 @@
 |-----------|-------------|------|
 | **Implementation Logs** | Detailed task-by-task implementation records | [development/implementation_logs/](development/implementation_logs/) |
 
-**Recent Logs:**
-- [CL-001: Cleanup and Documentation Reorganization](development/implementation_logs/CL-001_cleanup_restoration.md)
-- [CL-002: Documentation Index and Dead Link Cleanup](development/implementation_logs/CL-002_doc_index_cleanup.md)
+**Phase 5 (Cleanup and Verification):**
+- [CL-001: Cleanup and Documentation Reorganization](development/implementation_logs/phase_5_cleanup_and_verification/CL-001_cleanup_restoration.md)
+- [CL-002: Documentation Index and Dead Link Cleanup](development/implementation_logs/phase_5_cleanup_and_verification/CL-002_doc_index_cleanup.md)
+- [CL-003: Fork-Join Parallel Replacement](development/implementation_logs/phase_5_cleanup_and_verification/CL-003_fork_join_parallel.md)
+- [CL-003: Test Findings](development/implementation_logs/phase_5_cleanup_and_verification/CL-003_TEST_FINDINGS.md)
 
 **Phase 1 (Foundation):**
 - [T-001: Project Setup](development/implementation_logs/phase_1_foundation/T-001_project_setup.md)
@@ -176,12 +178,18 @@ docs/
 │   ├── adr/                    # Architecture Decision Records (25+ ADRs)
 │   ├── bugs/                   # Bug reports
 │   ├── implementation_logs/    # Task-by-task implementation records
-│   │   ├── CL-001_cleanup_restoration.md
-│   │   ├── CL-002_doc_index_cleanup.md
 │   │   ├── phase_1_foundation/
 │   │   ├── phase_2_core_execution/
 │   │   ├── phase_3_polish_ux/
-│   │   └── phase_4_observability_docker/
+│   │   ├── phase_4_observability_docker/
+│   │   └── phase_5_cleanup_and_verification/
+│   │       ├── CL-001_cleanup_restoration.md
+│   │       ├── CL-002_doc_index_cleanup.md
+│   │       ├── CL-003_fork_join_parallel.md
+│   │       ├── CL-003_TEST_FINDINGS.md
+│   │       ├── CL-003_CODEBASE_SNAPSHOT.md
+│   │       ├── CL-003_CONSOLIDATION.md
+│   │       └── CL-003_MASTER_REFERENCE.md
 │   └── session_context/        # Archived session contexts
 │
 └── api/                         # API reference (auto-generated)

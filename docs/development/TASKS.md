@@ -7,25 +7,33 @@
 
 ## Active Tasks
 
-### NEXT PHASE: Planning - Cleanup and Verification
+### CL-003: Codebase Cleanup, Testing, and Verification
 
-**Status**: PLANNING NEEDED
+**Status**: IN PROGRESS
+**Started**: 2026-02-07
 **Priority**: HIGH
 
-**Summary**: A thorough planning phase to coordinate full cleanup and verification of the project.
+**Summary**: Systematic testing of all 12 test configs, fixing bugs discovered during testing.
 
-**Planning Required For**:
-1. Verify all documentation is in sync with actual code
-2. Remove any technical debt
-3. Fix conflicting or misleading information
-4. Review and revise all tests
-5. Ensure all APIs work as documented
-6. Verify all links and references are correct
-7. Update any outdated information
+**Completed**:
+- All 12 test configs validated and executing successfully
+- Fixed INVALID_CONCURRENT_GRAPH_UPDATE (Annotated reducers in state_builder.py)
+- Fixed test config YAML syntax (routes, loop blocks)
+- Replaced broken MAP/Send parallel with fork-join parallel (10-phase implementation)
+- Config 07 and 12 fully rewritten and verified
 
-This requires creating a detailed plan with specific tasks, dependencies, and success criteria.
+**Remaining Bug Fixes** (discovered during CL-003):
 
-**Project State**: BROKEN - This planning phase is critical before any further development.
+| ID | Issue | Priority | Status |
+|----|-------|----------|--------|
+| BF-001 | Storage backend tuple unpacking (`too many values to unpack`) | HIGH | TODO |
+| BF-002 | Tool execution — no agent loop in provider.py | CRITICAL | TODO |
+| BF-003 | Memory persistence — not persisting between runs | MEDIUM | TODO (may resolve with BF-001) |
+| BF-004 | MLFlow cost summary parsing error | MEDIUM | TODO |
+| BF-005 | Pre-existing test failures (dict-vs-Pydantic, storage, deploy) | MEDIUM | TODO |
+| BF-006 | ChatLiteLLM deprecation migration | LOW | TODO |
+
+**Details**: [CL-003 Test Findings](implementation_logs/phase_5_cleanup_and_verification/CL-003_TEST_FINDINGS.md)
 
 ---
 
@@ -47,7 +55,7 @@ This requires creating a detailed plan with specific tasks, dependencies, and su
 **IMPORTANT**: Project state remains BROKEN. Further cleanup and verification phase
 needed before this can be marked complete.
 
-**Details**: [docs/development/implementation_logs/CL-002_doc_index_cleanup.md](implementation_logs/CL-002_doc_index_cleanup.md)
+**Details**: [CL-002 Doc Index Cleanup](implementation_logs/phase_5_cleanup_and_verification/CL-002_doc_index_cleanup.md)
 
 ---
 
@@ -68,7 +76,7 @@ needed before this can be marked complete.
 - ✅ Created implementation log for CL-001
 - ✅ Committed and pushed to dev (commit: 66fd643)
 
-**Details**: [docs/development/implementation_logs/CL-001_cleanup_restoration.md](implementation_logs/CL-001_cleanup_restoration.md)
+**Details**: [CL-001 Cleanup Restoration](implementation_logs/phase_5_cleanup_and_verification/CL-001_cleanup_restoration.md)
 
 ---
 

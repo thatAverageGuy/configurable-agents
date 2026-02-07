@@ -873,143 +873,81 @@ def test_invalid_loop_edge_unknown_condition_field():
 
 
 # ============================================
-# Parallel Edge Tests
+# Fork-Join Edge Tests
 # ============================================
 
 
-def test_valid_parallel_edge():
-    """Test parallel edge with valid config passes validation."""
-    from configurable_agents.config.schema import ParallelConfig
-
-    # Use inputs mapping to avoid placeholder validation error
+def test_valid_fork_join_edge():
+    """Test fork-join edge (list to) passes validation."""
     config = WorkflowConfig(
         schema_version="1.0",
         flow=FlowMetadata(name="test_flow"),
         state=StateSchema(
             fields={
-                "items": StateFieldConfig(type="list[str]", required=True),
-                "result": StateFieldConfig(type="str", default=""),
-                "results": StateFieldConfig(type="list[str]", default=[]),
+                "topic": StateFieldConfig(type="str", required=True),
+                "pros": StateFieldConfig(type="str", default=""),
+                "cons": StateFieldConfig(type="str", default=""),
+                "summary": StateFieldConfig(type="str", default=""),
             }
         ),
         nodes=[
             NodeConfig(
-                id="worker",
-                prompt="Process {item}",
-                inputs={"item": "items"},  # Use inputs mapping to avoid placeholder validation
-                outputs=["result"],
+                id="analyze_pros",
+                prompt="Pros of {topic}",
+                outputs=["pros"],
                 output_schema=OutputSchema(type="str"),
-            )
+            ),
+            NodeConfig(
+                id="analyze_cons",
+                prompt="Cons of {topic}",
+                outputs=["cons"],
+                output_schema=OutputSchema(type="str"),
+            ),
+            NodeConfig(
+                id="combine",
+                prompt="Combine {pros} and {cons}",
+                outputs=["summary"],
+                output_schema=OutputSchema(type="str"),
+            ),
         ],
         edges=[
-            EdgeConfig(
-                from_="START",
-                parallel=ParallelConfig(items_field="items", target_node="worker", collect_field="results"),
-            ),
-            EdgeConfig(from_="worker", to="END"),
+            EdgeConfig(from_="START", to=["analyze_pros", "analyze_cons"]),
+            EdgeConfig(from_="analyze_pros", to="combine"),
+            EdgeConfig(from_="analyze_cons", to="combine"),
+            EdgeConfig(from_="combine", to="END"),
         ],
     )
     validate_config(config)
 
 
-def test_invalid_parallel_edge_non_list_items_field():
-    """Test parallel edge with non-list items_field fails validation."""
-    from configurable_agents.config.schema import ParallelConfig
-
-    config = WorkflowConfig(
-        schema_version="1.0",
-        flow=FlowMetadata(name="test_flow"),
-        state=StateSchema(
-            fields={
-                "items": StateFieldConfig(type="str", required=True),  # Not a list!
-                "result": StateFieldConfig(type="str", default=""),
-                "results": StateFieldConfig(type="list[str]", default=[]),
-            }
-        ),
-        nodes=[
-            NodeConfig(
-                id="worker",
-                prompt="Process",
-                outputs=["result"],
-                output_schema=OutputSchema(type="str"),
-            )
-        ],
-        edges=[
-            EdgeConfig(
-                from_="START",
-                parallel=ParallelConfig(items_field="items", target_node="worker", collect_field="results"),
-            ),
-            EdgeConfig(from_="worker", to="END"),
-        ],
-    )
-    with pytest.raises(ValidationError) as exc_info:
-        validate_config(config)
-    assert "must be a list type" in str(exc_info.value)
-    assert "items" in str(exc_info.value)
-
-
-def test_invalid_parallel_edge_non_list_collect_field():
-    """Test parallel edge with non-list collect_field fails validation."""
-    from configurable_agents.config.schema import ParallelConfig
-
-    config = WorkflowConfig(
-        schema_version="1.0",
-        flow=FlowMetadata(name="test_flow"),
-        state=StateSchema(
-            fields={
-                "items": StateFieldConfig(type="list[str]", required=True),
-                "result": StateFieldConfig(type="str", default=""),
-                "collected": StateFieldConfig(type="str", default=""),  # Not a list!
-            }
-        ),
-        nodes=[
-            NodeConfig(
-                id="worker",
-                prompt="Process",
-                outputs=["result"],
-                output_schema=OutputSchema(type="str"),
-            )
-        ],
-        edges=[
-            EdgeConfig(
-                from_="START",
-                parallel=ParallelConfig(items_field="items", target_node="worker", collect_field="collected"),
-            ),
-            EdgeConfig(from_="worker", to="END"),
-        ],
-    )
-    with pytest.raises(ValidationError) as exc_info:
-        validate_config(config)
-    assert "must be a list type" in str(exc_info.value)
-    assert "collected" in str(exc_info.value)
-
-
-def test_invalid_parallel_edge_unknown_target_node():
-    """Test parallel edge with unknown target_node fails validation."""
-    from configurable_agents.config.schema import ParallelConfig
-
+def test_invalid_fork_join_unknown_target():
+    """Test fork-join edge with unknown target node fails validation."""
     config = make_minimal_config(
         state=StateSchema(
             fields={
                 "input": StateFieldConfig(type="str", required=True),
-                "items": StateFieldConfig(type="list[str]", default=[]),
-                "results": StateFieldConfig(type="list[str]", default=[]),
+                "output": StateFieldConfig(type="str", default=""),
+                "other": StateFieldConfig(type="str", default=""),
             }
         ),
         nodes=[
             NodeConfig(
                 id="process",
                 prompt="Process {input}",
-                outputs=["results"],
+                outputs=["output"],
                 output_schema=OutputSchema(type="str"),
-            )
+            ),
+            NodeConfig(
+                id="other_node",
+                prompt="Other {input}",
+                outputs=["other"],
+                output_schema=OutputSchema(type="str"),
+            ),
         ],
         edges=[
-            EdgeConfig(from_="START", to="process"),
-            EdgeConfig(
-                from_="process",
-                parallel=ParallelConfig(items_field="items", target_node="unknown_node", collect_field="results"),
-            ),
+            EdgeConfig(from_="START", to=["process", "unknown_node"]),
+            EdgeConfig(from_="process", to="END"),
+            EdgeConfig(from_="other_node", to="END"),
         ],
     )
     with pytest.raises(ValidationError) as exc_info:

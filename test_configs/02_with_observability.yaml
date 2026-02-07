@@ -1,0 +1,52 @@
+# Test Config 02: With MLFlow Observability
+# Purpose: Verify MLFlow tracking integration
+# Test: configurable-agents run test_configs/02_with_observability.yaml --input message="Hello"
+
+schema_version: "1.0"
+
+flow:
+  name: test_02_observability
+  description: Linear workflow with MLFlow tracking enabled
+  version: "1.0.0"
+
+state:
+  fields:
+    message:
+      type: str
+      required: true
+    response:
+      type: str
+      default: ""
+
+nodes:
+  - id: process
+    description: Process with MLFlow tracking
+    prompt: |
+      You are a helpful assistant.
+      The user says: {state.message}
+      Respond briefly in 1 sentence.
+    outputs: [response]
+    output_schema:
+      type: object
+      fields:
+        - name: response
+          type: str
+          description: The response
+
+edges:
+  - from: START
+    to: process
+  - from: process
+    to: END
+
+config:
+  llm:
+    provider: google
+    model: gemini-2.5-flash-lite
+    temperature: 0.7
+
+  observability:
+    mlflow:
+      enabled: true
+      tracking_uri: "sqlite:///mlflow_test.db"
+      experiment_name: "test_02_observability"

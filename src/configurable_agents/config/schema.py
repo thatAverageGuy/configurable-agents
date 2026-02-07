@@ -405,31 +405,18 @@ class LoopConfig(BaseModel):
     )
 
 
-class ParallelConfig(BaseModel):
-    """Parallel execution configuration for fan-out edges."""
-
-    items_field: str = Field(
-        ..., description="State field containing list of items to fan out over"
-    )
-    target_node: str = Field(..., description="Node to execute for each item")
-    collect_field: str = Field(
-        ..., description="State field to collect results into (must be list type)"
-    )
-
-
 class EdgeConfig(BaseModel):
     """Edge configuration."""
 
     from_: str = Field(..., alias="from", description="Source node (or START)")
-    to: Optional[str] = Field(None, description="Target node (or END) - for linear edges")
+    to: Optional[Union[str, List[str]]] = Field(
+        None, description="Target node (or END) - str for linear, list for fork-join parallel"
+    )
     routes: Optional[List[Route]] = Field(
         None, description="Conditional routes (v0.2+)"
     )
     loop: Optional[LoopConfig] = Field(
         None, description="Loop configuration (retry/iteration)"
-    )
-    parallel: Optional[ParallelConfig] = Field(
-        None, description="Parallel fan-out configuration"
     )
 
     class Config:
@@ -437,23 +424,38 @@ class EdgeConfig(BaseModel):
 
     @model_validator(mode="after")
     def validate_to_or_routes(self) -> "EdgeConfig":
-        """Validate that exactly one of 'to', 'routes', 'loop', or 'parallel' is specified."""
+        """Validate that exactly one of 'to', 'routes', or 'loop' is specified."""
         has_to = self.to is not None
         has_routes = self.routes is not None and len(self.routes) > 0
         has_loop = self.loop is not None
-        has_parallel = self.parallel is not None
 
-        edge_types = sum([has_to, has_routes, has_loop, has_parallel])
+        edge_types = sum([has_to, has_routes, has_loop])
 
         if edge_types == 0:
             raise ValueError(
-                "Edge must have exactly one of: 'to' (linear), 'routes' (conditional), 'loop' (iteration), or 'parallel' (fan-out)"
+                "Edge must have exactly one of: 'to' (linear/fork-join), 'routes' (conditional), or 'loop' (iteration)"
             )
 
         if edge_types > 1:
             raise ValueError(
-                "Edge cannot have multiple edge types. Choose exactly one of: 'to', 'routes', 'loop', or 'parallel'"
+                "Edge cannot have multiple edge types. Choose exactly one of: 'to', 'routes', or 'loop'"
             )
+
+        # Validate list 'to' (fork-join)
+        if isinstance(self.to, list):
+            if len(self.to) < 2:
+                raise ValueError(
+                    "Fork-join 'to' must have at least 2 targets"
+                )
+            if len(self.to) != len(set(self.to)):
+                raise ValueError(
+                    "Fork-join 'to' must not contain duplicates"
+                )
+            for target in self.to:
+                if not target or not target.strip():
+                    raise ValueError(
+                        "Fork-join 'to' must not contain empty strings"
+                    )
 
         return self
 

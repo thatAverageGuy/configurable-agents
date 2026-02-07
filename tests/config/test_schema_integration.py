@@ -160,7 +160,7 @@ optimization:
 config:
   llm:
     provider: google
-    model: gemini-2.0-flash-exp
+    model: gemini-2.5-flash-lite
     temperature: 0.7
   execution:
     timeout: 180
@@ -217,7 +217,7 @@ config:
 
             # Verify global config
             assert config.config.llm.provider == "google"
-            assert config.config.llm.model == "gemini-2.0-flash-exp"
+            assert config.config.llm.model == "gemini-2.5-flash-lite"
             assert config.config.execution.timeout == 180
             assert config.config.observability.logging.level == "INFO"
 

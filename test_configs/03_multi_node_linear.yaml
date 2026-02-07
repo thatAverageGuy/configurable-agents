@@ -1,0 +1,68 @@
+# Test Config 03: Multi-Node Linear Flow
+# Purpose: Verify multiple nodes execute in sequence
+# Test: configurable-agents run test_configs/03_multi_node_linear.yaml --input topic="Python"
+
+schema_version: "1.0"
+
+flow:
+  name: test_03_multi_node
+  description: Multiple nodes in linear sequence
+  version: "1.0.0"
+
+state:
+  fields:
+    topic:
+      type: str
+      required: true
+      description: Topic to discuss
+    fact:
+      type: str
+      default: ""
+      description: An interesting fact
+    summary:
+      type: str
+      default: ""
+      description: Final summary
+
+nodes:
+  - id: get_fact
+    description: Get an interesting fact about the topic
+    prompt: |
+      Provide one interesting fact about: {state.topic}
+      Keep it to 1 sentence.
+    outputs: [fact]
+    output_schema:
+      type: object
+      fields:
+        - name: fact
+          type: str
+          description: The fact
+
+  - id: summarize
+    description: Create a summary combining topic and fact
+    prompt: |
+      Topic: {state.topic}
+      Fact: {state.fact}
+
+      Create a brief 1-sentence summary combining both.
+    outputs: [summary]
+    output_schema:
+      type: object
+      fields:
+        - name: summary
+          type: str
+          description: The summary
+
+edges:
+  - from: START
+    to: get_fact
+  - from: get_fact
+    to: summarize
+  - from: summarize
+    to: END
+
+config:
+  llm:
+    provider: google
+    model: gemini-2.5-flash-lite
+    temperature: 0.7

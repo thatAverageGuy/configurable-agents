@@ -55,14 +55,14 @@ class State(TypedDict):
     article: str
 
 def research_node(state: State) -> State:
-    llm = ChatGoogleGenerativeAI(model="gemini-2.0-flash-exp")
+    llm = ChatGoogleGenerativeAI(model="gemini-2.5-flash-lite")
     prompt = f"Research: {state['topic']}"
     result = llm.invoke(prompt)
     state['research'] = result.content
     return state
 
 def write_node(state: State) -> State:
-    llm = ChatGoogleGenerativeAI(model="gemini-2.0-flash-exp")
+    llm = ChatGoogleGenerativeAI(model="gemini-2.5-flash-lite")
     prompt = f"Write article about {state['topic']} using {state['research']}"
     result = llm.invoke(prompt)
     state['article'] = result.content
@@ -121,7 +121,7 @@ edges:
 
 config:
   llm:
-    model: gemini-2.0-flash-exp
+    model: gemini-2.5-flash-lite
 ```
 
 **To run**:
@@ -174,7 +174,7 @@ For experimentation, speed matters.
 ```bash
 git diff article_writer.yaml
 
-- model: gemini-2.0-flash-exp
+- model: gemini-2.5-flash-lite
 + model: gemini-2.0-flash-lite
 
 - temperature: 0.7
@@ -388,7 +388,7 @@ nodes:
           value: technical
       then:
         llm:
-          model: gemini-2.0-flash-exp
+          model: gemini-2.5-flash-lite
           temperature: 0.3
       else:
         llm:
@@ -813,7 +813,7 @@ state: { fields: [...] }
 nodes: [...]
 edges: [...]
 config:
-  llm: { model: gemini-2.0-flash-exp }
+  llm: { model: gemini-2.5-flash-lite }
   observability: { mlflow: { enabled: true } }
 ```
 

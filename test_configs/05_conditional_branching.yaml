@@ -1,0 +1,96 @@
+# Test Config 05: Conditional Branching
+# Purpose: Verify conditional edge routing works
+# Test: configurable-agents run test_configs/05_conditional_branching.yaml --input sentiment="positive"
+# Test: configurable-agents run test_configs/05_conditional_branching.yaml --input sentiment="negative"
+
+schema_version: "1.0"
+
+flow:
+  name: test_05_conditional
+  description: Workflow with conditional branching based on input
+  version: "1.0.0"
+
+state:
+  fields:
+    sentiment:
+      type: str
+      required: true
+      description: Either "positive" or "negative"
+    response:
+      type: str
+      default: ""
+      description: Response based on sentiment
+
+nodes:
+  # Router node that determines which path to take
+  - id: router
+    description: Route based on sentiment and acknowledge
+    prompt: |
+      Analyze the sentiment: {state.sentiment}
+      Acknowledge the sentiment type briefly.
+    outputs: [response]
+    output_schema:
+      type: object
+      fields:
+        - name: response
+          type: str
+          description: Brief acknowledgment of sentiment type
+
+  - id: positive_response
+    description: Generate positive response
+    prompt: |
+      The user expressed POSITIVE sentiment.
+      Previous: {state.response}
+      Generate an enthusiastic, upbeat, HAPPY response in 1 sentence.
+      Make it clear this is a POSITIVE response.
+    outputs: [response]
+    output_schema:
+      type: object
+      fields:
+        - name: response
+          type: str
+          description: Positive response
+
+  - id: negative_response
+    description: Generate empathetic response
+    prompt: |
+      The user expressed NEGATIVE sentiment.
+      Previous: {state.response}
+      Generate a sad, sympathetic, APOLOGETIC response in 1 sentence.
+      Make it clear this is a NEGATIVE/EMPATHETIC response.
+    outputs: [response]
+    output_schema:
+      type: object
+      fields:
+        - name: response
+          type: str
+          description: Empathetic response
+
+edges:
+  - from: START
+    to: router
+
+  # Conditional routing using 'routes' (correct schema format)
+  - from: router
+    routes:
+      - condition:
+          logic: "state.sentiment == 'positive'"
+        to: positive_response
+      - condition:
+          logic: "state.sentiment == 'negative'"
+        to: negative_response
+      - condition:
+          logic: "default"
+        to: END
+
+  - from: positive_response
+    to: END
+
+  - from: negative_response
+    to: END
+
+config:
+  llm:
+    provider: google
+    model: gemini-2.5-flash-lite
+    temperature: 0.7

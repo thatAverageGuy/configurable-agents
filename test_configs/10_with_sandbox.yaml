@@ -1,0 +1,86 @@
+# Test Config 10: Code Sandbox Execution
+# Purpose: Verify code execution sandbox works
+# Test: configurable-agents run test_configs/10_with_sandbox.yaml --input task="Calculate fibonacci of 10"
+
+schema_version: "1.0"
+
+flow:
+  name: test_10_sandbox
+  description: Workflow with code execution sandbox
+  version: "1.0.0"
+
+state:
+  fields:
+    task:
+      type: str
+      required: true
+      description: Programming task to solve
+    code:
+      type: str
+      default: ""
+      description: Generated code
+    result:
+      type: str
+      default: ""
+      description: Execution result
+
+nodes:
+  - id: generate_code
+    description: Generate Python code for the task
+    prompt: |
+      Task: {state.task}
+
+      Generate Python code to solve this task.
+      The code should print the result.
+      Keep it simple and safe.
+    outputs: [code]
+    output_schema:
+      type: object
+      fields:
+        - name: code
+          type: str
+          description: Python code
+
+  - id: execute_code
+    description: Execute the generated code in sandbox
+    prompt: |
+      Execute this Python code safely:
+      ```python
+      {state.code}
+      ```
+      Return the execution result.
+    outputs: [result]
+    # Enable sandbox for this node
+    sandbox:
+      enabled: true
+      runtime: restrictedpython  # Options: restrictedpython, docker
+      timeout: 30
+      max_memory_mb: 256
+    output_schema:
+      type: object
+      fields:
+        - name: result
+          type: str
+          description: Execution output
+
+edges:
+  - from: START
+    to: generate_code
+  - from: generate_code
+    to: execute_code
+  - from: execute_code
+    to: END
+
+config:
+  llm:
+    provider: google
+    model: gemini-2.5-flash-lite
+    temperature: 0.7
+
+  # Global sandbox settings
+  sandbox:
+    enabled: true
+    runtime: restrictedpython
+    timeout: 30
+    max_memory_mb: 256
+    allowed_modules: ["math", "random", "datetime"]

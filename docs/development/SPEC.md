@@ -542,7 +542,7 @@ config:
 config:
   llm:
     provider: string               # Default: "google"
-    model: string                  # Default: "gemini-2.0-flash-exp"
+    model: string                  # Default: "gemini-2.5-flash-lite"
     temperature: float             # Default: 0.7
     max_tokens: int                # Optional
 ```
@@ -834,7 +834,7 @@ nodes:
 
 | Provider | Models | API Key Env Var | Notes |
 |----------|--------|-----------------|-------|
-| `google` | gemini-2.0-flash-exp, gemini-2.5-pro, gemini-2.5-flash, gemini-1.5-pro, gemini-1.5-flash | `GOOGLE_API_KEY` | Direct LangChain implementation |
+| `google` | gemini-2.5-flash-lite, gemini-2.5-pro, gemini-2.5-flash, gemini-1.5-pro, gemini-1.5-flash | `GOOGLE_API_KEY` | Direct LangChain implementation |
 | `openai` | gpt-4, gpt-4-turbo, gpt-3.5-turbo | `OPENAI_API_KEY` | LiteLLM wrapper |
 | `anthropic` | claude-3-opus, claude-3-sonnet, claude-3-haiku | `ANTHROPIC_API_KEY` | LiteLLM wrapper |
 | `ollama` | llama2, mistral, codellama, etc. | None (local) | Zero cost, local only |
@@ -1095,7 +1095,7 @@ edges:
 config:
   llm:
     provider: "google"
-    model: "gemini-2.0-flash-exp"
+    model: "gemini-2.5-flash-lite"
     temperature: 0.7
 
   execution:

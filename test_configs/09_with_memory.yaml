@@ -1,0 +1,60 @@
+# Test Config 09: Persistent Memory
+# Purpose: Verify agent memory persistence works
+# Test: configurable-agents run test_configs/09_with_memory.yaml --input message="Remember my name is Alice"
+# Then: configurable-agents run test_configs/09_with_memory.yaml --input message="What is my name?"
+
+schema_version: "1.0"
+
+flow:
+  name: test_09_memory
+  description: Workflow with persistent memory enabled
+  version: "1.0.0"
+
+state:
+  fields:
+    message:
+      type: str
+      required: true
+      description: User message
+    response:
+      type: str
+      default: ""
+      description: Response considering memory
+
+nodes:
+  - id: process_with_memory
+    description: Process message using memory context
+    prompt: |
+      You have access to persistent memory about previous conversations.
+
+      User says: {state.message}
+
+      If the user is sharing information to remember, acknowledge it.
+      If the user is asking about remembered information, recall it.
+      Respond briefly.
+    outputs: [response]
+    output_schema:
+      type: object
+      fields:
+        - name: response
+          type: str
+          description: Memory-aware response
+
+edges:
+  - from: START
+    to: process_with_memory
+  - from: process_with_memory
+    to: END
+
+config:
+  llm:
+    provider: google
+    model: gemini-2.5-flash-lite
+    temperature: 0.7
+
+  # Memory configuration
+  memory:
+    enabled: true
+    backend: sqlite
+    scope: workflow  # Options: workflow, session, global
+    max_entries: 100

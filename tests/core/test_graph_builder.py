@@ -658,49 +658,63 @@ def test_loop_edge_supported(mock_execute):
 
 
 # ============================================
-# Test: Parallel Edge Support
+# Test: Fork-Join Edge Support
 # ============================================
 
 
 @patch("configurable_agents.core.graph_builder.execute_node")
-def test_parallel_edge_supported(mock_execute):
-    """Should support parallel fan-out edges."""
-    from configurable_agents.config.schema import ParallelConfig
-
+def test_fork_join_edge_supported(mock_execute):
+    """Should support fork-join parallel edges via list 'to'."""
     # Arrange
-    mock_execute.side_effect = lambda nc, state, gc, tracker: state.model_copy()
+    mock_execute.side_effect = lambda nc, state, gc, tracker: {"pros": "good", "cons": "bad", "summary": "ok"}
+
+    class ForkJoinState(BaseModel):
+        topic: str
+        pros: str = ""
+        cons: str = ""
+        summary: str = ""
 
     config = WorkflowConfig(
         schema_version="1.0",
         flow=FlowMetadata(name="test"),
         state=StateSchema(
             fields={
-                "items": StateFieldConfig(type="list[str]", required=True),
-                "result": StateFieldConfig(type="str", default=""),
-                "results": StateFieldConfig(type="list[str]", default=[]),
+                "topic": StateFieldConfig(type="str", required=True),
+                "pros": StateFieldConfig(type="str", default=""),
+                "cons": StateFieldConfig(type="str", default=""),
+                "summary": StateFieldConfig(type="str", default=""),
             }
         ),
         nodes=[
             NodeConfig(
-                id="worker",
-                prompt="test",
-                outputs=["result"],
+                id="analyze_pros",
+                prompt="Pros of {topic}",
+                outputs=["pros"],
                 output_schema=OutputSchema(type="str"),
-            )
+            ),
+            NodeConfig(
+                id="analyze_cons",
+                prompt="Cons of {topic}",
+                outputs=["cons"],
+                output_schema=OutputSchema(type="str"),
+            ),
+            NodeConfig(
+                id="combine",
+                prompt="Combine {pros} and {cons}",
+                outputs=["summary"],
+                output_schema=OutputSchema(type="str"),
+            ),
         ],
         edges=[
-            EdgeConfig(
-                from_="START",
-                parallel=ParallelConfig(
-                    items_field="items", target_node="worker", collect_field="results"
-                ),
-            ),
-            EdgeConfig(from_="worker", to="END"),
+            EdgeConfig(from_="START", to=["analyze_pros", "analyze_cons"]),
+            EdgeConfig(from_="analyze_pros", to="combine"),
+            EdgeConfig(from_="analyze_cons", to="combine"),
+            EdgeConfig(from_="combine", to="END"),
         ],
     )
 
-    # Act - graph should build with parallel support
-    graph = build_graph(config, SimpleState)
+    # Act - graph should build with fork-join support
+    graph = build_graph(config, ForkJoinState)
 
     # Assert - graph compiled successfully
     assert graph is not None

@@ -1,0 +1,80 @@
+# Test Config 04: With Tool Usage
+# Purpose: Verify tool binding and execution works
+# Test: configurable-agents run test_configs/04_with_tools.yaml --input query="Python programming"
+# Requires: SERPER_API_KEY environment variable
+
+schema_version: "1.0"
+
+flow:
+  name: test_04_tools
+  description: Workflow with web search tool
+  version: "1.0.0"
+
+state:
+  fields:
+    query:
+      type: str
+      required: true
+      description: Search query
+    search_results:
+      type: str
+      default: ""
+      description: Search results
+    answer:
+      type: str
+      default: ""
+      description: Final answer
+
+nodes:
+  - id: search
+    description: Search the web for information
+    prompt: |
+      You have access to a web_search tool. You MUST use it.
+
+      Your task: Search the web for "{state.query}"
+
+      IMPORTANT:
+      - You MUST call the web_search tool with the query.
+      - Do NOT answer from your own knowledge.
+      - Do NOT skip the tool call.
+      - Call web_search now with the query: {state.query}
+
+      After getting results, return them in the search_results field.
+    outputs: [search_results]
+    tools: [web_search]
+    output_schema:
+      type: object
+      fields:
+        - name: search_results
+          type: str
+          description: Raw search results from web_search tool
+
+  - id: answer
+    description: Formulate answer from search results
+    prompt: |
+      Query: {state.query}
+      Search Results: {state.search_results}
+
+      Based ONLY on the search results above (not your own knowledge),
+      provide a brief answer to the query.
+    outputs: [answer]
+    output_schema:
+      type: object
+      fields:
+        - name: answer
+          type: str
+          description: The answer
+
+edges:
+  - from: START
+    to: search
+  - from: search
+    to: answer
+  - from: answer
+    to: END
+
+config:
+  llm:
+    provider: google
+    model: gemini-2.5-flash-lite
+    temperature: 0.7

@@ -134,7 +134,7 @@ def execute_node(
     state: BaseModel,
     global_config: Optional[GlobalConfig] = None,
     tracker: Optional["MLFlowTracker"] = None,
-) -> BaseModel:
+) -> dict:
     """
     Execute a single workflow node.
 
@@ -156,7 +156,7 @@ def execute_node(
         tracker: MLFlow tracker for observability (optional)
 
     Returns:
-        Updated state (new Pydantic instance with outputs applied)
+        Dict of updated output fields (partial update for LangGraph reducers)
 
     Raises:
         NodeExecutionError: If any execution step fails
@@ -355,15 +355,13 @@ def execute_node(
                             node_id=node_id,
                         )
 
-                    # Update state with result
-                    new_state = state.model_copy()
+                    # Return partial update dict
                     output_name = node_config.outputs[0]
-                    setattr(new_state, output_name, sandbox_result.output)
                     logger.info(
                         f"Node '{node_id}': Sandbox execution complete, "
                         f"output={output_name}={sandbox_result.output}"
                     )
-                    return new_state
+                    return {output_name: sandbox_result.output}
 
                 except SafetyError as e:
                     raise NodeExecutionError(
@@ -384,10 +382,8 @@ def execute_node(
                         "memory": agent_memory,  # Inject memory for code access
                     }
                     exec(node_config.code, exec_globals)
-                    new_state = state.model_copy()
                     output_name = node_config.outputs[0]
-                    setattr(new_state, output_name, exec_globals["result"])
-                    return new_state
+                    return {output_name: exec_globals["result"]}
                 except Exception as e:
                     raise NodeExecutionError(
                         f"Node '{node_id}': Direct code execution failed: {e}",
@@ -532,21 +528,16 @@ def execute_node(
             logger.debug(f"Failed to estimate cost for node '{node_id}': {e}")
 
         # ========================================
-        # 7. UPDATE STATE
+        # 7. BUILD OUTPUT DICT (partial update for LangGraph reducers)
         # ========================================
-        # Copy-on-write: create new state instance (immutable pattern)
-        new_state = state.model_copy()
+        updates = {}
 
-        # Add execution metadata to state (hidden fields for tracking)
-        setattr(new_state, f"_execution_time_ms_{node_id}", round(node_duration_ms, 2))
-        setattr(new_state, f"_cost_usd_{node_id}", round(cost_usd, 6))
-
-        # Extract output values from LLM result and update state
+        # Extract output values from LLM result
         if node_config.output_schema.type == "object":
             # Object output: multiple fields
             for output_name in node_config.outputs:
                 value = getattr(result, output_name)
-                setattr(new_state, output_name, value)
+                updates[output_name] = value
                 logger.debug(
                     f"Node '{node_id}': Updated state.{output_name} "
                     f"(type: {type(value).__name__})"
@@ -555,17 +546,27 @@ def execute_node(
             # Simple output: single field wrapped in 'result' (from T-007)
             output_name = node_config.outputs[0]
             value = result.result
-            setattr(new_state, output_name, value)
+            updates[output_name] = value
             logger.debug(
                 f"Node '{node_id}': Updated state.{output_name} "
                 f"(type: {type(value).__name__})"
             )
 
-        # Pydantic auto-validates on setattr
-        # If validation fails, raises ValidationError (caught above)
+        # ========================================
+        # 7.5: VALIDATE OUTPUT DICT
+        # ========================================
+        try:
+            state_dict = state.model_dump()
+            merged = {**state_dict, **updates}
+            type(state).model_validate(merged)
+        except ValidationError as val_err:
+            raise NodeExecutionError(
+                f"Node '{node_id}': Output validation failed: {val_err}",
+                node_id=node_id,
+            )
 
         # ========================================
-        # 6.5: PERSIST EXECUTION STATE (if storage available)
+        # 8: PERSIST EXECUTION STATE (if storage available)
         # ========================================
         if execution_state_repo and run_id:
             try:
@@ -595,7 +596,7 @@ def execute_node(
                 # Include the output state values (for trace inspection)
                 output_values = {}
                 for output_name in node_config.outputs:
-                    val = getattr(new_state, output_name, None)
+                    val = updates.get(output_name)
                     if val is not None:
                         # Truncate large string outputs for storage efficiency
                         str_val = str(val)
@@ -620,7 +621,7 @@ def execute_node(
             f"state fields"
         )
 
-        return new_state
+        return updates
 
     except NodeExecutionError:
         # Re-raise NodeExecutionError as-is

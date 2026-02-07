@@ -1,0 +1,92 @@
+# Test Config 08: Multi-LLM Support
+# Purpose: Verify per-node LLM override works
+# Test: configurable-agents run test_configs/08_multi_llm.yaml --input question="What is 2+2?"
+# Requires: ANTHROPIC_API_KEY or appropriate API key for second provider
+
+schema_version: "1.0"
+
+flow:
+  name: test_08_multi_llm
+  description: Workflow using multiple LLM providers
+  version: "1.0.0"
+
+state:
+  fields:
+    question:
+      type: str
+      required: true
+      description: Question to answer
+    answer_gemini:
+      type: str
+      default: ""
+      description: Answer from Gemini
+    answer_anthropic:
+      type: str
+      default: ""
+      description: Answer from Anthropic
+    comparison:
+      type: str
+      default: ""
+      description: Comparison of answers
+
+nodes:
+  - id: ask_gemini
+    description: Ask Gemini (uses default LLM)
+    prompt: |
+      Answer this question briefly: {state.question}
+    outputs: [answer_gemini]
+    output_schema:
+      type: object
+      fields:
+        - name: answer_gemini
+          type: str
+          description: Gemini's answer
+
+  - id: ask_anthropic
+    description: Ask Anthropic (per-node LLM override)
+    prompt: |
+      Answer this question briefly: {state.question}
+    outputs: [answer_anthropic]
+    # Per-node LLM override
+    llm:
+      provider: anthropic
+      model: claude-haiku-4-5
+      temperature: 0.7
+    output_schema:
+      type: object
+      fields:
+        - name: answer_anthropic
+          type: str
+          description: Anthropic's answer
+
+  - id: compare
+    description: Compare both answers
+    prompt: |
+      Question: {state.question}
+      Gemini said: {state.answer_gemini}
+      Anthropic said: {state.answer_anthropic}
+
+      Are they the same? Brief comparison in 1 sentence.
+    outputs: [comparison]
+    output_schema:
+      type: object
+      fields:
+        - name: comparison
+          type: str
+          description: Comparison result
+
+edges:
+  - from: START
+    to: ask_gemini
+  - from: ask_gemini
+    to: ask_anthropic
+  - from: ask_anthropic
+    to: compare
+  - from: compare
+    to: END
+
+config:
+  llm:
+    provider: google
+    model: gemini-2.5-flash-lite
+    temperature: 0.7

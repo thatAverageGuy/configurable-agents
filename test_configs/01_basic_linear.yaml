@@ -1,0 +1,48 @@
+# Test Config 01: Basic Linear Flow
+# Purpose: Verify minimal workflow execution works
+# Test: configurable-agents run test_configs/01_basic_linear.yaml --input message="Hello"
+
+schema_version: "1.0"
+
+flow:
+  name: test_01_basic_linear
+  description: Minimal linear workflow - single node
+  version: "1.0.0"
+
+state:
+  fields:
+    message:
+      type: str
+      required: true
+      description: Input message
+    response:
+      type: str
+      default: ""
+      description: Output response
+
+nodes:
+  - id: process
+    description: Process the input message
+    prompt: |
+      You are a helpful assistant.
+      The user says: {state.message}
+      Respond briefly in 1 sentence.
+    outputs: [response]
+    output_schema:
+      type: object
+      fields:
+        - name: response
+          type: str
+          description: The response message
+
+edges:
+  - from: START
+    to: process
+  - from: process
+    to: END
+
+config:
+  llm:
+    provider: google
+    model: gemini-2.5-flash-lite
+    temperature: 0.7

@@ -1,0 +1,203 @@
+# Test Config 12: Full Featured Workflow
+# Purpose: Test all features together - routes, loops, tools, observability
+# Test: configurable-agents run test_configs/12_full_featured.yaml --input query="Latest AI news" --input depth="shallow"
+# Requires: SERPER_API_KEY, GOOGLE_API_KEY
+
+schema_version: "1.0"
+
+flow:
+  name: test_12_full_featured
+  description: Full-featured workflow testing conditionals, loops, tools, observability
+  version: "1.0.0"
+
+state:
+  fields:
+    # Inputs
+    query:
+      type: str
+      required: true
+      description: Search query
+    depth:
+      type: str
+      required: true
+      description: Analysis depth - "shallow" or "deep"
+
+    # Intermediate state
+    search_results:
+      type: str
+      default: ""
+    analysis:
+      type: str
+      default: ""
+    pros:
+      type: str
+      default: ""
+    cons:
+      type: str
+      default: ""
+    is_refined:
+      type: bool
+      default: false
+
+    # Output
+    final_report:
+      type: str
+      default: ""
+
+nodes:
+  - id: search
+    description: Search the web
+    prompt: |
+      Search for: {state.query}
+      Use web_search tool.
+    outputs: [search_results]
+    tools: [web_search]
+    output_schema:
+      type: object
+      fields:
+        - name: search_results
+          type: str
+
+  - id: depth_router
+    description: Route based on analysis depth
+    prompt: |
+      Depth requested: {state.depth}
+      Acknowledge the depth level briefly.
+    outputs: [analysis]
+    output_schema:
+      type: object
+      fields:
+        - name: analysis
+          type: str
+          description: Acknowledgment of depth level
+
+  # Shallow path - quick analysis
+  - id: quick_analysis
+    description: Quick analysis for shallow depth
+    prompt: |
+      Query: {state.query}
+      Results: {state.search_results}
+
+      Provide a quick 2-sentence analysis.
+    outputs: [analysis]
+    output_schema:
+      type: object
+      fields:
+        - name: analysis
+          type: str
+
+  # Deep path - sequential pros/cons then iterative refinement
+  - id: analyze_pros
+    description: Analyze positive aspects
+    prompt: |
+      Query: {state.query}
+      Results: {state.search_results}
+
+      List key pros in 1 sentence.
+    outputs: [pros]
+    output_schema:
+      type: object
+      fields:
+        - name: pros
+          type: str
+
+  - id: analyze_cons
+    description: Analyze negative aspects
+    prompt: |
+      Query: {state.query}
+      Results: {state.search_results}
+
+      List key cons in 1 sentence.
+    outputs: [cons]
+    output_schema:
+      type: object
+      fields:
+        - name: cons
+          type: str
+
+  - id: refine_analysis
+    description: Iteratively refine analysis
+    prompt: |
+      Pros: {state.pros}
+      Cons: {state.cons}
+      Current analysis: {state.analysis}
+
+      Refine and improve the analysis. Set is_refined to true when satisfied.
+    outputs: [analysis, is_refined]
+    output_schema:
+      type: object
+      fields:
+        - name: analysis
+          type: str
+        - name: is_refined
+          type: bool
+
+  - id: generate_report
+    description: Generate final report
+    prompt: |
+      Query: {state.query}
+      Analysis: {state.analysis}
+      Pros: {state.pros}
+      Cons: {state.cons}
+
+      Generate a comprehensive final report.
+    outputs: [final_report]
+    output_schema:
+      type: object
+      fields:
+        - name: final_report
+          type: str
+
+edges:
+  - from: START
+    to: search
+
+  - from: search
+    to: depth_router
+
+  # Conditional branching based on depth
+  - from: depth_router
+    routes:
+      - condition:
+          logic: "state.depth == 'shallow'"
+        to: quick_analysis
+      - condition:
+          logic: default
+        to: analyze_pros
+
+  # Deep path: sequential pros -> cons -> refine loop
+  - from: analyze_pros
+    to: analyze_cons
+
+  - from: analyze_cons
+    to: refine_analysis
+
+  # Loop for refinement
+  - from: refine_analysis
+    loop:
+      condition_field: is_refined
+      exit_to: generate_report
+      max_iterations: 3
+
+  # Shallow path joins at generate_report
+  - from: quick_analysis
+    to: generate_report
+
+  - from: generate_report
+    to: END
+
+config:
+  llm:
+    provider: google
+    model: gemini-2.5-flash-lite
+    temperature: 0.7
+
+  execution:
+    timeout: 120
+    max_retries: 3
+
+  observability:
+    mlflow:
+      enabled: true
+      tracking_uri: "sqlite:///mlflow_full_test.db"
+      experiment_name: "test_12_full_featured"

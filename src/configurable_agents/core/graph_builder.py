@@ -6,7 +6,7 @@ Integrates:
 - State builder (T-006): Dynamic Pydantic models
 - Config schema (T-003): WorkflowConfig structure
 - Control flow (T-013): Conditional routing and loop functions
-- Parallel execution (T-013): Fan-out/fan-in via Send objects
+- Fork-join parallel: Multiple concurrent nodes via list `to`
 
 Design decisions:
 - Direct Pydantic BaseModel integration with LangGraph
@@ -14,7 +14,7 @@ Design decisions:
 - START/END as entry/exit points (not identity nodes)
 - Compiled graph return (ready for execution)
 - Minimal defensive validation (T-004 already validates)
-- Support for conditional edges, loop edges, and parallel fan-out
+- Support for conditional edges, loop edges, and fork-join parallel
 """
 
 import logging
@@ -37,7 +37,6 @@ from configurable_agents.core.control_flow import (
     increment_loop_iteration,
 )
 from configurable_agents.core.node_executor import NodeExecutionError, execute_node
-from configurable_agents.core.parallel import create_fan_out_function
 
 if TYPE_CHECKING:
     from configurable_agents.observability import MLFlowTracker
@@ -69,9 +68,9 @@ def build_graph(
 
     Supports:
     - Linear edges (from -> to)
+    - Fork-join parallel edges (from -> [to1, to2, ...])
     - Conditional edges (routes with state-based conditions)
     - Loop edges (iteration with termination conditions)
-    - Parallel edges (fan-out/fan-in via Send objects)
 
     Args:
         config: Validated workflow configuration
@@ -160,7 +159,7 @@ def make_node_function(
         tracker: MLFlow tracker for observability (optional)
 
     Returns:
-        Node function: (state: BaseModel) -> BaseModel
+        Node function: (state: BaseModel) -> dict
 
     Design:
         - Closure captures node_config, global_config, and tracker
@@ -169,7 +168,7 @@ def make_node_function(
         - Unexpected errors wrapped with node context
     """
 
-    def node_fn(state: BaseModel) -> BaseModel:
+    def node_fn(state: BaseModel) -> dict:
         """Node function that executes the node."""
         try:
             updated_state = execute_node(node_config, state, global_config, tracker)
@@ -205,17 +204,23 @@ def _add_edge(
         nodes: List of node configs for reference
 
     Edge types:
-        - Linear: edge.to (direct edge)
+        - Linear: edge.to as str (direct edge)
+        - Fork-join: edge.to as list (multiple parallel targets)
         - Conditional: edge.routes (conditional routing based on state)
         - Loop: edge.loop (iteration with exit condition)
-        - Parallel: edge.parallel (fan-out via Send objects)
     """
     from_node = START if edge.from_ == "START" else edge.from_
 
-    # Linear edge
+    # Linear or fork-join edge
     if edge.to:
-        to_node = END if edge.to == "END" else edge.to
-        graph.add_edge(from_node, to_node)
+        if isinstance(edge.to, list):
+            # Fork-join: add edge to each target
+            for target in edge.to:
+                to_node = END if target == "END" else target
+                graph.add_edge(from_node, to_node)
+        else:
+            to_node = END if edge.to == "END" else edge.to
+            graph.add_edge(from_node, to_node)
         return
 
     # Conditional edge (routes)
@@ -230,11 +235,6 @@ def _add_edge(
         graph.add_conditional_edges(from_node, loop_fn)
         return
 
-    # Parallel edge (fan-out)
-    if edge.parallel:
-        fan_out_fn = create_fan_out_function(edge.parallel)
-        graph.add_conditional_edges(from_node, fan_out_fn)
-        return
 
 
 def _collect_loop_targets(config: WorkflowConfig) -> set:
@@ -278,7 +278,7 @@ def _wrap_with_loop_counter(node_fn: Callable, node_id: str) -> Callable:
     """
     iteration_key = get_loop_iteration_key(node_id)
 
-    def wrapped_fn(state: BaseModel) -> BaseModel:
+    def wrapped_fn(state: BaseModel) -> dict:
         """Execute node with loop counter increment."""
         # Increment iteration counter
         if hasattr(state, "model_dump"):
@@ -288,16 +288,14 @@ def _wrap_with_loop_counter(node_fn: Callable, node_id: str) -> Callable:
 
         # Increment counter
         current = state_dict.get(iteration_key, 0)
-        # Update state with new counter value
-        if hasattr(state, "model_copy"):
-            new_state = state.model_copy(update={iteration_key: current + 1})
-        else:
-            # Fallback for dict-like state
-            state[iteration_key] = current + 1
-            new_state = state
 
-        # Execute original node function
-        return node_fn(new_state)
+        # Execute original node function with current state
+        result = node_fn(state)
+
+        # Merge counter update into returned dict
+        if isinstance(result, dict):
+            result[iteration_key] = current + 1
+        return result
 
     # Preserve function name for debugging
     wrapped_fn.__name__ = f"loop_wrapped_{node_fn.__name__}"
@@ -309,8 +307,9 @@ def _describe_edge(edge: EdgeConfig) -> str:
     from_node = edge.from_
 
     if edge.to:
-        to_node = edge.to
-        return f"{from_node} -> {to_node} (linear)"
+        if isinstance(edge.to, list):
+            return f"{from_node} -> fork-join({', '.join(edge.to)})"
+        return f"{from_node} -> {edge.to} (linear)"
 
     if edge.routes:
         targets = [r.to for r in edge.routes]
@@ -318,12 +317,6 @@ def _describe_edge(edge: EdgeConfig) -> str:
 
     if edge.loop:
         return f"{from_node} -> loop({edge.loop.condition_field}, exit={edge.loop.exit_to})"
-
-    if edge.parallel:
-        return (
-            f"{from_node} -> parallel(fan_out={edge.parallel.items_field}, "
-            f"target={edge.parallel.target_node}, collect={edge.parallel.collect_field})"
-        )
 
     return f"{from_node} -> unknown"
 

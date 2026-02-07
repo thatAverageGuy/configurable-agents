@@ -10,7 +10,7 @@
 
 The system needs to call LLMs to execute workflow nodes. Multiple LLM providers exist:
 
-- **Google (Gemini)**: gemini-2.0-flash-exp, gemini-1.5-pro, etc.
+- **Google (Gemini)**: gemini-2.5-flash-lite, gemini-1.5-pro, etc.
 - **OpenAI (GPT)**: gpt-4o, gpt-4o-mini, o1, etc.
 - **Anthropic (Claude)**: claude-3-5-sonnet, claude-3-5-haiku, etc.
 - **Local (Ollama)**: llama3, mistral, etc.
@@ -129,7 +129,7 @@ def create_llm(config):
 config:
   llm:
     provider: google  # or openai, anthropic
-    model: gemini-2.0-flash-exp
+    model: gemini-2.5-flash-lite
 ```
 
 **Pros**:
@@ -323,7 +323,7 @@ def execute_node(node, llm):
 config:
   llm:
     provider: google  # NEW: Default to google for backwards compat
-    model: gemini-2.0-flash-exp
+    model: gemini-2.5-flash-lite
 ```
 
 ### Step 2: Implement Provider Factory
@@ -391,7 +391,7 @@ nodes:
   - id: research
     llm:
       provider: google  # Use Gemini (fast, cheap)
-      model: gemini-2.0-flash-exp
+      model: gemini-2.5-flash-lite
 
   - id: write
     llm:
@@ -414,11 +414,11 @@ nodes:
 config:
   llm:
     provider: google
-    model: gemini-2.0-flash-exp  # Default
+    model: gemini-2.5-flash-lite  # Default
     temperature: 0.7
 ```
 
-**Why `gemini-2.0-flash-exp`?**
+**Why `gemini-2.5-flash-lite`?**
 - **Free tier**: 1500 requests/day
 - **Fast**: Low latency (~1-2 seconds)
 - **Good quality**: Competitive with GPT-4 Turbo
@@ -427,7 +427,7 @@ config:
 ### Alternative Gemini Models (v0.1)
 
 Users can override in config:
-- `gemini-2.0-flash-exp`: Fast, cheap, good quality (DEFAULT)
+- `gemini-2.5-flash-lite`: Fast, cheap, good quality (DEFAULT)
 - `gemini-2.0-flash-lite`: Faster, simpler tasks
 - `gemini-1.5-pro`: Higher quality, slower, more expensive
 - `gemini-1.5-flash`: Balance of speed and quality
@@ -445,7 +445,7 @@ In README and docs:
 **v0.1 supports Google Gemini only.**
 
 Supported models:
-- gemini-2.0-flash-exp (default, free tier)
+- gemini-2.5-flash-lite (default, free tier)
 - gemini-2.0-flash-lite
 - gemini-1.5-pro
 - gemini-1.5-flash
@@ -513,7 +513,7 @@ python -m configurable_agents compare workflow.yaml \
   --input topic="AI Safety"
 
 Results:
-  Google (gemini-2.0-flash-exp):
+  Google (gemini-2.5-flash-lite):
     Cost: $0.001
     Time: 2.3s
     Quality: 8/10
