@@ -12,6 +12,6 @@ services:
       - GOOGLE_API_KEY=$${GOOGLE_API_KEY}
       - SERPER_API_KEY=$${SERPER_API_KEY}
     volumes:
-      # Persist MLFlow traces across container restarts
-      - ./mlruns:/app/mlruns
+      # Persist MLFlow data across container restarts
+      - ./mlflow.db:/app/mlflow.db
     restart: unless-stopped

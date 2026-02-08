@@ -164,9 +164,9 @@ class DeploymentArtifactGenerator:
         if enable_mlflow and mlflow_port > 0:
             cmd_line = (
                 "CMD mlflow ui --host 0.0.0.0 --port 5000 "
-                "--backend-store-uri file:///app/mlruns & python server.py"
+                "--backend-store-uri sqlite:///app/mlflow.db & python server.py"
             )
-            mlflow_requirement = "mlflow>=2.9.0"
+            mlflow_requirement = "mlflow>=3.9.0"
         else:
             cmd_line = "CMD python server.py"
             mlflow_requirement = "# mlflow disabled"

@@ -2470,8 +2470,8 @@ For more information, visit: https://github.com/yourusername/configurable-agents
     )
     costs_parser.add_argument(
         "--tracking-uri",
-        default="file://./mlruns",
-        help="MLFlow tracking URI (default: file://./mlruns)",
+        default="sqlite:///mlflow.db",
+        help="MLFlow tracking URI (default: sqlite:///mlflow.db)",
     )
     costs_parser.add_argument(
         "--experiment",
@@ -2544,7 +2544,7 @@ For more information, visit: https://github.com/yourusername/configurable-agents
     cost_report_parser.add_argument(
         "--mlflow-uri",
         default=None,
-        help="MLFlow tracking URI (default: from config or file://./mlruns)",
+        help="MLFlow tracking URI (default: from config or sqlite:///mlflow.db)",
     )
     cost_report_parser.add_argument(
         "-v", "--verbose", action="store_true", help="Enable verbose output"
@@ -2565,7 +2565,7 @@ For more information, visit: https://github.com/yourusername/configurable-agents
     profile_report_parser.add_argument(
         "--mlflow-uri",
         default=None,
-        help="MLFlow tracking URI (default: from config or file://./mlruns)",
+        help="MLFlow tracking URI (default: from config or sqlite:///mlflow.db)",
     )
     profile_report_parser.add_argument(
         "-v", "--verbose", action="store_true", help="Enable verbose output"
@@ -2591,7 +2591,7 @@ For more information, visit: https://github.com/yourusername/configurable-agents
     obs_status_parser.add_argument(
         "--mlflow-uri",
         default=None,
-        help="MLFlow tracking URI (default: from config or file://./mlruns)",
+        help="MLFlow tracking URI (default: from config or sqlite:///mlflow.db)",
     )
     obs_status_parser.add_argument(
         "-v", "--verbose", action="store_true", help="Enable verbose output"
@@ -2612,7 +2612,7 @@ For more information, visit: https://github.com/yourusername/configurable-agents
     obs_cost_parser.add_argument(
         "--mlflow-uri",
         default=None,
-        help="MLFlow tracking URI (default: from config or file://./mlruns)",
+        help="MLFlow tracking URI (default: from config or sqlite:///mlflow.db)",
     )
     obs_cost_parser.add_argument(
         "-v", "--verbose", action="store_true", help="Enable verbose output"
@@ -2633,7 +2633,7 @@ For more information, visit: https://github.com/yourusername/configurable-agents
     obs_profile_parser.add_argument(
         "--mlflow-uri",
         default=None,
-        help="MLFlow tracking URI (default: from config or file://./mlruns)",
+        help="MLFlow tracking URI (default: from config or sqlite:///mlflow.db)",
     )
     obs_profile_parser.add_argument(
         "-v", "--verbose", action="store_true", help="Enable verbose output"
@@ -2880,7 +2880,7 @@ For more information, visit: https://github.com/yourusername/configurable-agents
     eval_parser.add_argument(
         "--mlflow-uri",
         default=None,
-        help="MLFlow tracking URI (default: from config or file://./mlruns)",
+        help="MLFlow tracking URI (default: from config or sqlite:///mlflow.db)",
     )
     eval_parser.add_argument(
         "-v", "--verbose", action="store_true", help="Enable verbose output"

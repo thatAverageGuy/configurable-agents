@@ -25,7 +25,8 @@ ENV/
 htmlcov/
 
 # MLFlow (generated at runtime)
-mlruns/
+mlflow.db
+mlflow_*.db
 
 # Secrets
 .env

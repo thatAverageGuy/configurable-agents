@@ -16,7 +16,7 @@
 #   configurable-agents optimization apply-optimized --experiment prompt_opt_test --workflow mlflow_optimization.yaml
 #
 #   # Or view in dashboard
-#   configurable-agents dashboard --mlflow-uri file://./mlruns
+#   configurable-agents dashboard --mlflow-uri sqlite:///mlflow.db
 
 schema_version: "1.0"
 
@@ -91,7 +91,7 @@ config:
   # Global MLFlow configuration
   mlflow:
     enabled: true
-    tracking_uri: "file://./mlruns"
+    tracking_uri: "sqlite:///mlflow.db"
     experiment_name: "prompt_optimization"
 
   # Default LLM settings

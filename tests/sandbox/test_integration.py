@@ -53,7 +53,7 @@ class TestPythonSandboxIntegration:
         # Execute node
         new_state = execute_node(node_config, state)
 
-        assert new_state.result == 15
+        assert new_state["result"] == 15
 
     def test_sandbox_with_preset(self):
         """Test sandbox with resource preset."""
@@ -80,7 +80,7 @@ class TestPythonSandboxIntegration:
         )
 
         new_state = execute_node(node_config, state)
-        assert new_state.result == "success"
+        assert new_state["result"] == "success"
 
     def test_code_execution_error_propagation(self):
         """Test that code execution errors are propagated properly."""
@@ -130,7 +130,7 @@ class TestPythonSandboxIntegration:
         )
 
         new_state = execute_node(node_config, state)
-        assert new_state.doubled == 42
+        assert new_state["doubled"] == 42
 
     def test_sandbox_disabled_unsafe_execution(self):
         """Test that sandbox can be disabled (unsafe)."""
@@ -154,7 +154,7 @@ class TestPythonSandboxIntegration:
 
         # This should work but may log a warning
         new_state = execute_node(node_config, state)
-        assert new_state.result == "unsafe_success"
+        assert new_state["result"] == "unsafe_success"
 
     def test_network_disabled_in_config(self):
         """Test that network can be disabled via config."""
@@ -180,7 +180,7 @@ class TestPythonSandboxIntegration:
         )
 
         new_state = execute_node(node_config, state)
-        assert new_state.result == "no_network"
+        assert new_state["result"] == "no_network"
 
     def test_custom_timeout_in_config(self):
         """Test custom timeout in sandbox config."""
@@ -206,7 +206,7 @@ class TestPythonSandboxIntegration:
         )
 
         new_state = execute_node(node_config, state)
-        assert new_state.result == "quick"
+        assert new_state["result"] == "quick"
 
 
 class TestWorkflowConfigIntegration:
@@ -314,7 +314,7 @@ class TestEdgeCases:
         )
 
         new_state = execute_node(node_config, state)
-        assert new_state.result == "no_inputs_needed"
+        assert new_state["result"] == "no_inputs_needed"
 
     def test_complex_return_value(self):
         """Test code execution with complex return value."""
@@ -339,8 +339,8 @@ result = str(data)
         )
 
         new_state = execute_node(node_config, state)
-        assert "key" in new_state.result
-        assert "value" in new_state.result
+        assert "key" in new_state["result"]
+        assert "value" in new_state["result"]
 
     def test_code_with_print_statements(self):
         """Test that print statements are captured."""
@@ -367,7 +367,7 @@ print("Done!")
 
         # Should succeed and capture output
         new_state = execute_node(node_config, state)
-        assert new_state.result == 42
+        assert new_state["result"] == 42
 
     def test_multiple_operations_in_code(self):
         """Test code with multiple operations."""
@@ -396,6 +396,6 @@ result = f"total={total}, count={count}, avg={average}"
         )
 
         new_state = execute_node(node_config, state)
-        assert "total=100" in new_state.result
-        assert "count=4" in new_state.result
-        assert "avg=25" in new_state.result
+        assert "total=100" in new_state["result"]
+        assert "count=4" in new_state["result"]
+        assert "avg=25" in new_state["result"]

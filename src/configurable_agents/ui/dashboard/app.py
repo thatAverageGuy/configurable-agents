@@ -345,7 +345,7 @@ def create_dashboard_app(
     Example:
         >>> app = create_dashboard_app(
         ...     db_url="sqlite:///agents.db",
-        ...     mlflow_tracking_uri="file://./mlruns"
+        ...     mlflow_tracking_uri="sqlite:///mlflow.db"
         ... )
         >>> import uvicorn
         >>> uvicorn.run(app.get_app(), host="0.0.0.0", port=7861)

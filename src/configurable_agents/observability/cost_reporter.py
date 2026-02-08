@@ -71,7 +71,7 @@ class CostReporter:
     Provides methods to generate cost reports with various filters and aggregations.
 
     Example:
-        >>> reporter = CostReporter(tracking_uri="file://./mlruns")
+        >>> reporter = CostReporter(tracking_uri="sqlite:///mlflow.db")
         >>> # Get all costs for an experiment
         >>> entries = reporter.get_cost_entries(experiment_name="my_workflows")
         >>> # Generate summary
@@ -79,11 +79,11 @@ class CostReporter:
         >>> print(f"Total cost: ${summary.total_cost_usd:.2f}")
     """
 
-    def __init__(self, tracking_uri: str = "file://./mlruns"):
+    def __init__(self, tracking_uri: str = "sqlite:///mlflow.db"):
         """Initialize cost reporter.
 
         Args:
-            tracking_uri: MLFlow tracking URI (default: file://./mlruns)
+            tracking_uri: MLFlow tracking URI (default: sqlite:///mlflow.db)
         """
         if not MLFLOW_AVAILABLE:
             raise RuntimeError(

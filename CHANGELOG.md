@@ -19,6 +19,33 @@ the project to a verifiable state.
 
 ### Fixed
 
+**BF-005: Fix pre-existing test failures** (2026-02-08)
+- Fixed 22 test failures across 5 test files — all 69 tests in affected modules now pass
+- Fixed dict-vs-Pydantic assertions in `test_node_executor.py`, `test_node_executor_metrics.py`, `test_integration.py` (sandbox) — `execute_node()` returns partial dict, not full Pydantic model
+- Fixed deploy artifact count assertions in `test_generator.py`, `test_generator_integration.py` — generator now produces 10 artifacts (added `src/` and `pyproject.toml`)
+- Fixed Dockerfile port assertions — template uses fixed internal ports (8000/5000), not user-configured ports
+- Fixed `st_size > 0` check for directory artifacts on Windows
+
+### Changed
+
+**MLflow storage defaults: mlruns → sqlite** (2026-02-08)
+- Changed default `tracking_uri` from `file://./mlruns` to `sqlite:///mlflow.db` across all code and templates (12 files)
+- Updated deploy templates: Dockerfile, docker-compose, .dockerignore, README
+- Updated user-facing docs: OBSERVABILITY.md, DEPLOYMENT.md
+- MLflow 3.9 uses SQLite by default; `file://./mlruns` still works for backward compatibility
+- Updated `mlflow>=2.9.0` requirement to `mlflow>=3.9.0` in deploy generator
+
+### Fixed
+
+**BF-004: Fix MLFlow cost summary and GenAI view integration** (2026-02-08)
+- Fixed `search_traces()` call using wrong location format (`"mlflow-experiment:{id}"` → raw experiment ID) and missing `return_type="list"` (was returning DataFrame, causing `KeyError: 0`)
+- Fixed model name attribution for Gemini/Google spans — added fallback chain to extract model from `invocation_params.model` and `metadata.ls_model_name` when `ai.model.name` is absent
+- Fixed token key mismatch — Gemini uses `input_tokens`/`output_tokens` while code expected `prompt_tokens`/`completion_tokens`, now handles both
+- Added per-span `try/except ValueError` on `estimate_cost()` so unknown models default to cost 0 instead of aborting entire summary
+- Rewrote `log_workflow_summary()` to use `mlflow.log_feedback()` (trace-level assessments) instead of `mlflow.log_metrics()`/`mlflow.log_dict()` (run-level), making cost data visible in MLflow GenAI experiment view
+- Added `mlflow.flush_trace_async_logging()` in executor before cost query to prevent race condition
+- Verified: Config 02 and 12 run clean, assessments stored on traces (`cost_usd`, `total_tokens`, `cost_breakdown`)
+
 **BF-001: Fix storage backend tuple unpacking** (2026-02-08)
 - Fixed `create_storage_backend()` callers that unpacked wrong number of values (function returns 8, callers expected 3-6)
 - Fixed 8 call sites across 5 files: `runtime/executor.py`, `cli.py` (×2), `tests/registry/test_ttl_expiry.py`, `tests/registry/test_server.py`, `tests/runtime/test_executor_storage.py` (×3)

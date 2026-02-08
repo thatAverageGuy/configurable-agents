@@ -22,7 +22,7 @@ docker run -d \\
   -p ${api_port}:${api_port} \\
   -p ${mlflow_port}:${mlflow_port} \\
   --env-file .env \\
-  -v $$(pwd)/mlruns:/app/mlruns \\
+  -v $$(pwd)/mlflow.db:/app/mlflow.db \\
   ${container_name}:latest
 ```
 
@@ -240,7 +240,7 @@ View workflow traces, costs, and performance metrics at:
 - Compare runs
 - Export data (CSV, JSON)
 
-**Persistence**: Traces are stored in `./mlruns` and survive container restarts.
+**Persistence**: Traces are stored in `./mlflow.db` (SQLite) and survive container restarts.
 
 ---
 

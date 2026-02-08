@@ -29,8 +29,8 @@
 | BF-001 | Storage backend tuple unpacking (`too many values to unpack`) | HIGH | ✅ DONE |
 | BF-002 | Tool execution — no agent loop in provider.py | CRITICAL | ✅ DONE |
 | BF-003 | Memory persistence — not persisting between runs | MEDIUM | ✅ DONE |
-| BF-004 | MLFlow cost summary parsing error | MEDIUM | TODO |
-| BF-005 | Pre-existing test failures (dict-vs-Pydantic, storage, deploy) | MEDIUM | TODO |
+| BF-004 | MLFlow cost summary — parsing, model attribution, GenAI view | MEDIUM | ✅ DONE |
+| BF-005 | Pre-existing test failures (dict-vs-Pydantic, deploy artifacts) | MEDIUM | ✅ DONE |
 | BF-006 | ChatLiteLLM deprecation migration | LOW | TODO |
 
 **Details**: [CL-003 Test Findings](implementation_logs/phase_5_cleanup_and_verification/CL-003_TEST_FINDINGS.md)

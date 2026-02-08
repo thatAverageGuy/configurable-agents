@@ -180,7 +180,7 @@ mlflow.langchain.autolog()  ← Automatic instrumentation
       ↓
 Traces & Spans (automatic)
       ↓
-sqlite:///mlflow.db  OR  file://./mlruns (deprecated)
+sqlite:///mlflow.db  (default)
 ├── traces/
 │   └── trace_abc123.../
 │       ├── spans/  (workflow, nodes)
@@ -233,7 +233,7 @@ config:
 
 **Still Supported: File Backend** (deprecated):
 ```yaml
-tracking_uri: "file://./mlruns"  # Still works, but shows deprecation warning
+tracking_uri: "sqlite:///mlflow.db"  # Default — recommended
 ```
 
 **Remote Backends** (team collaboration, production):
@@ -284,7 +284,7 @@ config:
 **tracking_uri** (str, default: `"sqlite:///mlflow.db"`):
 - Where to store tracking data
 - **Recommended**: `sqlite:///mlflow.db` (default in 3.9)
-- **Deprecated**: `file://./mlruns` (still works, but shows warning)
+- **Deprecated**: `file://./mlruns` (still works for backward compatibility, but not recommended)
 - **Remote**: `postgresql://...`, `s3://...`, `databricks://...`
 
 **experiment_name** (str, default: `"configurable_agents"`):
@@ -555,7 +555,7 @@ configurable-agents deploy workflow.yaml
 
 **Architecture**:
 ```dockerfile
-CMD mlflow ui --host 0.0.0.0 --port 5000 --backend-store-uri file:///app/mlruns & \
+CMD mlflow ui --host 0.0.0.0 --port 5000 --backend-store-uri sqlite:///app/mlflow.db & \
     python server.py
 ```
 
@@ -590,12 +590,12 @@ services:
       - "8000:8000"
       - "5000:5000"
     volumes:
-      - ./mlruns:/app/mlruns  # Traces persist across restarts
+      - ./mlflow.db:/app/mlflow.db  # Traces persist across restarts
 ```
 
 **Benefits**:
 - Traces survive container restarts
-- Easy backup (just copy `./mlruns` directory)
+- Easy backup (just copy `./mlflow.db` file)
 - Can query from host machine
 
 ---
@@ -625,7 +625,7 @@ configurable-agents report costs \
 ```
 
 **Available Options**:
-- `--tracking-uri` - MLFlow URI (default: file://./mlruns)
+- `--tracking-uri` - MLFlow URI (default: sqlite:///mlflow.db)
 - `--experiment` - Filter by experiment name
 - `--workflow` - Filter by workflow name
 - `--period` - Predefined periods: today, yesterday, last_7_days, last_30_days, this_month
@@ -662,7 +662,7 @@ Cost by Model:
 import mlflow
 
 # Connect to tracking server
-mlflow.set_tracking_uri("file://./mlruns")
+mlflow.set_tracking_uri("sqlite:///mlflow.db")
 
 # Get experiment
 experiment = mlflow.get_experiment_by_name("my_workflows")
@@ -781,17 +781,18 @@ print("Exported to mlflow_runs.csv")
 
 ### Storage Management
 
-**File-based storage grows unbounded** → Monitor disk usage:
+**SQLite storage grows unbounded** → Monitor disk usage:
 
 ```bash
-du -sh ./mlruns
-# 2.3G	./mlruns
+du -sh ./mlflow.db
+# 2.3G	./mlflow.db
 ```
 
-**Manual cleanup**:
-```bash
-# Delete runs older than 90 days
-find ./mlruns -mtime +90 -delete
+**Manual cleanup** (via MLflow API):
+```python
+import mlflow
+client = mlflow.tracking.MlflowClient()
+# Delete old runs programmatically (see below)
 ```
 
 **Programmatic cleanup** (v0.2+):
@@ -827,7 +828,7 @@ inputs = {
 ```
 
 **Access control**:
-- File-based storage: Unix permissions (`chmod 700 mlruns`)
+- SQLite storage: Unix file permissions (`chmod 600 mlflow.db`)
 - Remote storage: PostgreSQL user permissions, S3 bucket policies
 
 ---
@@ -898,8 +899,8 @@ tracker.log_workflow_summary(cost_summary)
 ### Data Migration
 
 **Old traces are preserved**:
-- File-based runs in `file://./mlruns` remain accessible
-- MLflow 3.9 can query old runs
+- Old file-based runs in `file://./mlruns` remain accessible if present
+- MLflow 3.9 defaults to `sqlite:///mlflow.db` for new traces
 - Historical data is not lost
 
 **New traces use new format**:
@@ -1175,7 +1176,7 @@ config:
 config:
   observability:
     mlflow:
-      tracking_uri: "file://./mlruns"  # Is this correct?
+      tracking_uri: "sqlite:///mlflow.db"  # Is this correct?
 
 # Start UI from same directory
 cd /path/to/project
@@ -1184,7 +1185,7 @@ mlflow ui
 
 **Check file permissions**:
 ```bash
-ls -la mlruns
+ls -la mlflow.db
 # Should be readable/writable by your user
 ```
 
@@ -1192,8 +1193,8 @@ ls -la mlruns
 
 **Check storage**:
 ```bash
-du -sh ./mlruns
-# 5.2G	./mlruns
+du -sh ./mlflow.db
+# 5.2G	./mlflow.db
 ```
 
 **Solution**: Delete old runs or move to remote backend.

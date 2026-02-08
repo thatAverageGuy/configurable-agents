@@ -87,7 +87,7 @@ class ExperimentEvaluator:
         """Initialize experiment evaluator.
 
         Args:
-            mlflow_tracking_uri: MLFlow tracking URI (default: from env or file://./mlruns)
+            mlflow_tracking_uri: MLFlow tracking URI (default: from env or sqlite:///mlflow.db)
         """
         if not MLFLOW_AVAILABLE:
             raise RuntimeError(
@@ -96,7 +96,7 @@ class ExperimentEvaluator:
             )
 
         self.mlflow_tracking_uri = mlflow_tracking_uri or os.environ.get(
-            "MLFLOW_TRACKING_URI", "file://./mlruns"
+            "MLFLOW_TRACKING_URI", "sqlite:///mlflow.db"
         )
         mlflow.set_tracking_uri(self.mlflow_tracking_uri)
         self.client = MlflowClient()

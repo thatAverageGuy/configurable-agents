@@ -339,7 +339,7 @@ class TestDeploymentArtifactGenerator:
 
         assert output_dir.exists()
         assert output_dir.is_dir()
-        assert len(artifacts) == 8  # All artifacts created
+        assert len(artifacts) == 10  # All artifacts created (includes src/ and pyproject.toml)
 
     def test_generate_with_custom_container_name(self, generator, tmp_path):
         """Test generate() with custom container name"""
@@ -406,7 +406,7 @@ edges:
             mlflow_port=5001,
         )
 
-        assert len(artifacts) == 8
+        assert len(artifacts) == 10
         assert all(path.exists() for path in artifacts.values())
         assert (output_dir / "Dockerfile").exists()
         assert (output_dir / "server.py").exists()

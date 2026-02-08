@@ -81,7 +81,7 @@ def test_node_saves_execution_state(
     updated_state = execute_node(node_config, state, tracker=tracker)
 
     # Verify state updated
-    assert updated_state.research == "AI safety research findings..."
+    assert updated_state["research"] == "AI safety research findings..."
 
     # Verify save_state was called
     execution_state_repo.save_state.assert_called_once()
@@ -281,7 +281,7 @@ def test_storage_failure_does_not_break_node(
     updated_state = execute_node(node_config, state, tracker=tracker)
 
     # Verify node completed
-    assert updated_state.research == "Result"
+    assert updated_state["research"] == "Result"
 
 
 @patch("configurable_agents.core.node_executor.call_llm_structured")
@@ -319,7 +319,7 @@ def test_no_storage_runs_normally(
     updated_state = execute_node(node_config, state, tracker=tracker)
 
     # Verify node completed
-    assert updated_state.research == "Result without storage"
+    assert updated_state["research"] == "Result without storage"
 
     # Verify save_state was NOT called (no repo attached)
     execution_state_repo.save_state.assert_not_called()
@@ -354,7 +354,7 @@ def test_node_saves_state_with_no_tracker(
     updated_state = execute_node(node_config, state)
 
     # Verify node completed
-    assert updated_state.research == "Result no tracker"
+    assert updated_state["research"] == "Result no tracker"
 
 
 @patch("configurable_agents.core.node_executor.call_llm_structured")

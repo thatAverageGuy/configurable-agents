@@ -270,8 +270,8 @@ COPY workflow.yaml server.py ./
 ENV PATH=/root/.local/bin:$PATH
 ENV PYTHONUNBUFFERED=1
 
-# Create mlruns directory
-RUN mkdir -p /app/mlruns
+# Create data directory for MLflow SQLite DB
+RUN mkdir -p /app
 
 # Expose ports
 EXPOSE 8000 5000
@@ -281,7 +281,7 @@ HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
   CMD python -c "import requests; requests.get('http://localhost:8000/health')"
 
 # Start both FastAPI and MLFlow UI
-CMD mlflow ui --host 0.0.0.0 --port 5000 --backend-store-uri file:///app/mlruns & \
+CMD mlflow ui --host 0.0.0.0 --port 5000 --backend-store-uri sqlite:///app/mlflow.db & \
     python server.py
 ```
 
@@ -386,7 +386,7 @@ services:
       - GOOGLE_API_KEY=${GOOGLE_API_KEY}
       - SERPER_API_KEY=${SERPER_API_KEY}
     volumes:
-      - ./mlruns:/app/mlruns  # Persist traces
+      - ./mlflow.db:/app/mlflow.db  # Persist traces
     restart: unless-stopped
 ```
 
@@ -598,7 +598,7 @@ jobs = {
 
 **Startup command**:
 ```dockerfile
-CMD mlflow ui --host 0.0.0.0 --port 5000 --backend-store-uri file:///app/mlruns & \
+CMD mlflow ui --host 0.0.0.0 --port 5000 --backend-store-uri sqlite:///app/mlflow.db & \
     python server.py
 ```
 
@@ -607,7 +607,7 @@ CMD mlflow ui --host 0.0.0.0 --port 5000 --backend-store-uri file:///app/mlruns 
 **Persistent traces** (volume mount):
 ```yaml
 volumes:
-  - ./mlruns:/app/mlruns  # Host directory mapped to container
+  - ./mlflow.db:/app/mlflow.db  # Host file mapped to container
 ```
 
 **Benefits**:
@@ -949,14 +949,14 @@ docker inspect --format='{{.State.Health.Status}}' article_writer
 
 ```bash
 docker run -d \
-  -v $(pwd)/mlruns:/app/mlruns \
+  -v $(pwd)/mlflow.db:/app/mlflow.db \
   -p 8000:8000 -p 5000:5000 \
   article_writer:latest
 ```
 
 **Backup traces**:
 ```bash
-tar -czf mlruns-backup-$(date +%Y%m%d).tar.gz mlruns/
+cp mlflow.db mlflow-backup-$(date +%Y%m%d).db
 ```
 
 ### 6. Use docker-compose for Production
@@ -975,7 +975,7 @@ services:
     environment:
       - GOOGLE_API_KEY=${GOOGLE_API_KEY}
     volumes:
-      - ./mlruns:/app/mlruns
+      - ./mlflow.db:/app/mlflow.db
     restart: unless-stopped
     deploy:
       resources:

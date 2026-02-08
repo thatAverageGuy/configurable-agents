@@ -207,7 +207,9 @@ Failed to get cost summary: invalid literal for int() with base 10: 'mlflow-expe
 
 **Impact**: Cost tracking/reporting broken
 
-**Priority**: MEDIUM - observability feature degraded
+**Priority**: RESOLVED (BF-004)
+
+**Fix**: See [BF-004 implementation log](CL-003_bug_fix_BF004.md). Fixed search_traces location format, model name attribution, token key mismatch, and rewrote cost storage to use trace-level assessments for GenAI view visibility.
 
 ---
 
@@ -534,20 +536,21 @@ Chronological log of test execution.
 - ✅ **Memory persistence (09)** — FIXED (BF-003: scope namespaces, truthiness, GlobalConfig)
 
 ### What's Still Broken
-- ❌ **MLFlow cost summary (R-003)** — Experiment ID parsing error (`invalid literal for int()`)
+- All runtime issues resolved. See warnings/deprecations below.
 
 ### Warnings/Deprecations
 - ⚠️ ChatLiteLLM deprecated (LangChain 0.3.24) — needs migration to `langchain-litellm`
 - ⚠️ Model name needed update (gemini-2.0-flash-exp → gemini-2.5-flash-lite) — fixed by user
 
-### Pre-existing Test Failures (not caused by any of these fixes)
-- 3 failures in `test_node_executor.py` — tests access `.research`/`.summary` on dict (execute_node returns dict, tests expect Pydantic)
-- 5 failures in `test_generator.py` / `test_generator_integration.py` — deploy artifact count mismatch (10 vs 8)
-- 10 failures in `test_integration.py` (sandbox) — same dict-vs-Pydantic issue
+### Pre-existing Test Failures — RESOLVED (BF-005)
+- ✅ 3+4 failures in `test_node_executor.py` + `test_node_executor_metrics.py` — Fixed dict access assertions
+- ✅ 5 failures in `test_generator.py` / `test_generator_integration.py` — Fixed artifact count (10), port assertions, directory size check
+- ✅ 10 failures in `test_integration.py` (sandbox) — Fixed dict access assertions
 
-### Test Suite Status After All Fixes
-- **187 passed, 3 pre-existing failures** in core test modules (node_executor, provider, graph_builder, schema, validator, executor_storage)
+### Test Suite Status After All Fixes (BF-001 through BF-005)
+- **All 69 tests pass** in affected modules (node_executor, node_executor_metrics, sandbox integration, generator, generator_integration)
+- **187+ passed, 0 failures** in core test modules
 
 ---
 
-*Last updated: 2026-02-08 — BF-001, BF-002, BF-003 all fixed and verified*
+*Last updated: 2026-02-08 — BF-001 through BF-005 all fixed and verified. MLflow defaults migrated from mlruns to sqlite.*

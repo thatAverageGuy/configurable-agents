@@ -156,9 +156,10 @@ def test_execute_node_simple_output(mock_build_output, mock_create_llm, mock_cal
     updated_state = execute_node(node_config, state)
 
     # Verify state updated
-    assert updated_state.research == "AI safety research findings..."
-    assert updated_state.topic == "AI Safety"  # Unchanged
-    assert updated_state.score == 0  # Unchanged
+    assert updated_state["research"] == "AI safety research findings..."
+    # execute_node returns only updated fields (partial state dict for LangGraph reducers)
+    assert "topic" not in updated_state
+    assert "score" not in updated_state
 
     # Verify state is a new instance (copy-on-write)
     assert updated_state is not state
@@ -208,10 +209,11 @@ def test_execute_node_object_output(mock_build_output, mock_create_llm, mock_cal
     updated_state = execute_node(node_config, state)
 
     # Verify all fields updated
-    assert updated_state.summary == "AI summary text"
-    assert updated_state.word_count == 42
-    assert updated_state.sources == ["https://example.com"]
-    assert updated_state.topic == "AI"  # Unchanged
+    assert updated_state["summary"] == "AI summary text"
+    assert updated_state["word_count"] == 42
+    assert updated_state["sources"] == ["https://example.com"]
+    # execute_node returns only updated fields (partial state dict)
+    assert "topic" not in updated_state
 
 
 @patch("configurable_agents.core.node_executor.call_llm_structured")
@@ -712,5 +714,6 @@ def test_execute_node_state_is_copied(
     assert original_state.score == 5
 
     # Verify updated state has changes
-    assert updated_state.research == "new research"
-    assert updated_state.score == 5  # Unchanged fields preserved
+    assert updated_state["research"] == "new research"
+    # execute_node returns only updated fields (partial state dict)
+    assert "score" not in updated_state

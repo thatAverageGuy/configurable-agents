@@ -321,6 +321,14 @@ def run_workflow_from_config(
         # Execute workflow (tracing happens automatically)
         final_state = _execute_workflow()
 
+        # Flush async trace queue so trace is in DB before querying/attaching feedback
+        if tracker.enabled:
+            try:
+                import mlflow
+                mlflow.flush_trace_async_logging()
+            except Exception:
+                pass
+
         # Post-process: Calculate and log cost summary
         if tracker.enabled:
             cost_summary = tracker.get_workflow_cost_summary()

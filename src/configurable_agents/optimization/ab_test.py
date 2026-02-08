@@ -147,10 +147,10 @@ class ABTestRunner:
         """Initialize A/B test runner.
 
         Args:
-            mlflow_tracking_uri: MLFlow tracking URI (default: from env or file://./mlruns)
+            mlflow_tracking_uri: MLFlow tracking URI (default: from env or sqlite:///mlflow.db)
         """
         self.mlflow_tracking_uri = mlflow_tracking_uri or os.environ.get(
-            "MLFLOW_TRACKING_URI", "file://./mlruns"
+            "MLFLOW_TRACKING_URI", "sqlite:///mlflow.db"
         )
 
         if MLFLOW_AVAILABLE:

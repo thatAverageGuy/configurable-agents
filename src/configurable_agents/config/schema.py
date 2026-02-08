@@ -495,7 +495,7 @@ class ObservabilityMLFlowConfig(BaseModel):
 
     enabled: bool = Field(False, description="Enable MLFlow tracking")
     tracking_uri: str = Field(
-        "file://./mlruns",
+        "sqlite:///mlflow.db",
         description="MLFlow backend URI (file://, sqlite://, postgresql://, s3://, etc.). "
         "Note: file:// is deprecated in MLflow 3.9, consider sqlite:///mlflow.db"
     )

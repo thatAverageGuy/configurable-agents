@@ -38,8 +38,8 @@ COPY workflow.yaml server.py ./
 ENV PATH=/root/.local/bin:$$PATH
 ENV PYTHONUNBUFFERED=1
 
-# Create mlruns directory
-RUN mkdir -p /app/mlruns
+# Create data directory for MLflow SQLite DB
+RUN mkdir -p /app
 
 # Expose ports (container internal ports, always 8000 and 5000)
 EXPOSE 8000 5000
