@@ -129,6 +129,60 @@ def _strip_state_prefix(template: str) -> str:
     return re.sub(r"\{state\.([^}]+)\}", r"{\1}", template)
 
 
+# --- Memory fact extraction models (private) ---
+
+from typing import List as _List
+
+class _MemoryFact(BaseModel):
+    """A single fact extracted from a conversation turn."""
+    key: str
+    value: str
+
+class _MemoryExtraction(BaseModel):
+    """Facts extracted from a conversation for memory storage."""
+    facts: _List[_MemoryFact] = []
+
+
+def _extract_memory_facts(
+    llm,
+    user_input: str,
+    agent_output: str,
+) -> list[tuple[str, str]]:
+    """Extract key facts from a conversation turn for memory storage.
+
+    Makes a lightweight LLM call to identify concrete facts worth remembering
+    (names, preferences, decisions, data) and returns them as key-value pairs.
+
+    Args:
+        llm: LLM instance to use for extraction
+        user_input: The user's input (truncated to 1000 chars)
+        agent_output: The agent's response (truncated to 1000 chars)
+
+    Returns:
+        List of (key, value) tuples. Empty list if extraction fails or no facts found.
+    """
+    # Truncate to keep extraction call cheap
+    user_input = user_input[:1000]
+    agent_output = agent_output[:1000]
+
+    extraction_prompt = (
+        "Extract key facts from this interaction that should be remembered for future conversations.\n"
+        "Only extract concrete, useful information (names, preferences, decisions, important data).\n"
+        "Do NOT extract conversational pleasantries, acknowledgments, or vague statements.\n"
+        "If there are no facts worth remembering, return an empty list.\n\n"
+        f"User: {user_input}\n"
+        f"Agent: {agent_output}"
+    )
+
+    try:
+        structured_llm = llm.with_structured_output(_MemoryExtraction)
+        result = structured_llm.invoke(extraction_prompt)
+        return [(fact.key, fact.value) for fact in result.facts]
+    except Exception as e:
+        logger.warning(f"Memory fact extraction failed (non-blocking): {e}")
+        return []
+
+
 def execute_node(
     node_config: NodeConfig,
     state: BaseModel,
@@ -234,21 +288,32 @@ def execute_node(
         # ========================================
         # 3. CREATE MEMORY CONTEXT (if enabled)
         # ========================================
+        # Node-level memory config overrides global config
         agent_memory = None
-        if node_config.memory and node_config.memory.enabled and memory_repo:
-            memory_config = node_config.memory
-            # Get scope (node-level overrides workflow-level defaults)
+        memory_config = node_config.memory
+        if memory_config is None and global_config:
+            memory_config = global_config.memory
+
+        if memory_config and memory_config.enabled and memory_repo:
             scope = memory_config.default_scope or "agent"
+
+            # Namespace components depend on scope:
+            # "agent" scope  → shared across all runs (no workflow_id, no node_id)
+            # "workflow" scope → shared within a run (workflow_id, no node_id)
+            # "node" scope   → isolated per node (workflow_id + node_id)
+            mem_workflow_id = workflow_id if scope in ("workflow", "node") else None
+            mem_node_id = node_id if scope == "node" else None
 
             agent_memory = AgentMemory(
                 agent_id=agent_id,
-                workflow_id=workflow_id,
-                node_id=node_id,
+                workflow_id=mem_workflow_id,
+                node_id=mem_node_id,
                 scope=scope,
                 repo=memory_repo,
             )
             logger.debug(
-                f"Node '{node_id}': Memory enabled with scope '{scope}'"
+                f"Node '{node_id}': Memory enabled with scope '{scope}', "
+                f"namespace={agent_id}:{mem_workflow_id or '*'}:{mem_node_id or '*'}"
             )
 
         # ========================================
@@ -426,6 +491,31 @@ def execute_node(
             )
 
         # ========================================
+        # 5.5. INJECT MEMORY CONTEXT INTO PROMPT
+        # ========================================
+        if agent_memory is not None:
+            try:
+                max_entries = memory_config.max_entries if memory_config else 50
+                memories = agent_memory.list()[:max_entries]
+                if memories:
+                    memory_lines = []
+                    for key, value in memories:
+                        value_str = str(value)
+                        if len(value_str) > 200:
+                            value_str = value_str[:200] + "..."
+                        memory_lines.append(f"- {key}: {value_str}")
+                    memory_text = "\n".join(memory_lines)
+                    resolved_prompt = (
+                        f"Memory from previous interactions:\n{memory_text}\n\n"
+                        f"{resolved_prompt}"
+                    )
+                    logger.debug(
+                        f"Node '{node_id}': Injected {len(memories)} memory entries into prompt"
+                    )
+            except Exception as e:
+                logger.warning(f"Node '{node_id}': Failed to load memories (non-blocking): {e}")
+
+        # ========================================
         # 6. CALL LLM WITH STRUCTURED OUTPUT
         # ========================================
         # Get max_retries from global config
@@ -564,6 +654,27 @@ def execute_node(
                 f"Node '{node_id}': Output validation failed: {val_err}",
                 node_id=node_id,
             )
+
+        # ========================================
+        # 7.6: EXTRACT FACTS AND WRITE TO MEMORY
+        # ========================================
+        if agent_memory is not None:
+            try:
+                # Build a summary of the agent's output for fact extraction
+                output_summary = "; ".join(
+                    f"{k}={v}" for k, v in updates.items() if v
+                )
+                facts = _extract_memory_facts(llm, resolved_prompt, output_summary)
+                if facts:
+                    for key, value in facts:
+                        agent_memory.write(key, value)
+                    logger.info(
+                        f"Node '{node_id}': Extracted and stored {len(facts)} memory facts"
+                    )
+                else:
+                    logger.debug(f"Node '{node_id}': No facts extracted for memory")
+            except Exception as e:
+                logger.warning(f"Node '{node_id}': Memory write failed (non-blocking): {e}")
 
         # ========================================
         # 8: PERSIST EXECUTION STATE (if storage available)

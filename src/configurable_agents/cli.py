@@ -1284,7 +1284,7 @@ def cmd_agent_registry_list(args: argparse.Namespace) -> int:
         from configurable_agents.storage.factory import create_storage_backend
 
         config = StorageConfig(backend="sqlite", path=db_path)
-        _, _, repo = create_storage_backend(config)
+        _, _, repo, _, _, _, _, _ = create_storage_backend(config)
     else:
         print_error(f"Unsupported database URL: {db_url}")
         return 1
@@ -1352,7 +1352,7 @@ def cmd_agent_registry_cleanup(args: argparse.Namespace) -> int:
         from configurable_agents.storage.factory import create_storage_backend
 
         config = StorageConfig(backend="sqlite", path=db_path)
-        _, _, repo = create_storage_backend(config)
+        _, _, repo, _, _, _, _, _ = create_storage_backend(config)
     else:
         print_error(f"Unsupported database URL: {db_url}")
         return 1

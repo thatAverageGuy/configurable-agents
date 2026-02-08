@@ -26,9 +26,9 @@
 
 | ID | Issue | Priority | Status |
 |----|-------|----------|--------|
-| BF-001 | Storage backend tuple unpacking (`too many values to unpack`) | HIGH | TODO |
-| BF-002 | Tool execution — no agent loop in provider.py | CRITICAL | TODO |
-| BF-003 | Memory persistence — not persisting between runs | MEDIUM | TODO (may resolve with BF-001) |
+| BF-001 | Storage backend tuple unpacking (`too many values to unpack`) | HIGH | ✅ DONE |
+| BF-002 | Tool execution — no agent loop in provider.py | CRITICAL | ✅ DONE |
+| BF-003 | Memory persistence — not persisting between runs | MEDIUM | ✅ DONE |
 | BF-004 | MLFlow cost summary parsing error | MEDIUM | TODO |
 | BF-005 | Pre-existing test failures (dict-vs-Pydantic, storage, deploy) | MEDIUM | TODO |
 | BF-006 | ChatLiteLLM deprecation migration | LOW | TODO |
@@ -315,6 +315,7 @@ The following requirements are tracked but not in v1.0 scope:
 
 - **MEM-01**: Contextual/agentic memory that learns and evolves beyond RAG patterns
 - **MEM-02**: Agent Protocol support (A2A, MCP) for cross-platform interoperability
+- **MEM-03**: Memory persistence revisit — optimize KV store, evaluate vector/semantic memory, add memory re-use patterns across agents, consider Mem0/LightRAG integration, optimize extraction cost (batch, async, selective extraction)
 
 ---
 

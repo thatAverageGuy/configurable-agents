@@ -78,7 +78,7 @@ edges:
 config:
   memory:
     enabled: true
-    backend: "sqlite"  # Persistent across runs
+    default_scope: agent  # Persists across runs (agent|workflow|node)
 
   observability:
     mlflow:
@@ -117,10 +117,10 @@ configurable-agents chat
 - **Per-node configuration**: Mix providers in one workflow
 
 ### 🧠 Persistent Memory
-- **Namespaced storage**: Per-node, per-agent, per-workflow
-- **Pluggable backends**: SQLite, PostgreSQL, Redis
-- **Automatic persistence**: Survives crashes and restarts
-- **Context retention**: Learn from previous executions
+- **Scoped storage**: Agent (cross-run), workflow (intra-run), or node (isolated)
+- **Auto-extraction**: Key facts automatically extracted from LLM responses
+- **Automatic persistence**: SQLite-backed, survives crashes and restarts
+- **Context injection**: Previous memories injected into prompts with configurable limits
 
 ### 🔍 Complete Observability
 - **MLFlow 3.9 integration**: Automatic tracing and metrics

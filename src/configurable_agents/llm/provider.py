@@ -169,6 +169,122 @@ class LLMUsageMetadata:
         self.output_tokens = output_tokens
 
 
+def _execute_tool_loop(
+    llm: BaseChatModel,
+    prompt: str,
+    tools: List[BaseTool],
+    max_iterations: int = 10,
+) -> tuple[str, LLMUsageMetadata]:
+    """Execute tool calls in a loop until the LLM stops requesting tools.
+
+    Binds tools to the LLM and runs an agent loop:
+    invoke LLM -> detect tool calls -> execute tools -> feed results back -> repeat.
+
+    After the loop, returns an enriched prompt containing the original prompt
+    plus all tool results, suitable for a follow-up structured output call.
+
+    Args:
+        llm: Base LLM instance (tools will be bound to a copy)
+        prompt: The original user prompt
+        tools: List of LangChain BaseTool instances
+        max_iterations: Safety limit on tool call rounds (default 10)
+
+    Returns:
+        Tuple of (enriched_prompt with tool results, token usage from tool loop)
+    """
+    import logging
+    from langchain_core.messages import HumanMessage, ToolMessage as LCToolMessage
+
+    logger = logging.getLogger(__name__)
+
+    # Bind tools to LLM (without structured output)
+    try:
+        from langchain_community.chat_models import ChatLiteLLM
+        if isinstance(llm, ChatLiteLLM):
+            model = getattr(llm, "model", "")
+            if isinstance(model, str) and "gemini/" in model:
+                llm_with_tools = llm.bind_tools(tools, tool_choice="auto")
+            else:
+                llm_with_tools = llm.bind_tools(tools)
+        else:
+            llm_with_tools = llm.bind_tools(tools)
+    except (ImportError, AttributeError):
+        llm_with_tools = llm.bind_tools(tools)
+
+    messages = [HumanMessage(content=prompt)]
+    total_input_tokens = 0
+    total_output_tokens = 0
+    tool_results = []
+
+    for iteration in range(max_iterations):
+        response = llm_with_tools.invoke(messages)
+
+        # Track token usage
+        usage_data = getattr(response, "usage_metadata", None)
+        if usage_data:
+            total_input_tokens += getattr(usage_data, "input_tokens", 0)
+            total_output_tokens += getattr(usage_data, "output_tokens", 0)
+
+        messages.append(response)
+
+        # Check for tool calls
+        if not getattr(response, "tool_calls", None):
+            break
+
+        logger.debug(
+            f"Tool loop iteration {iteration + 1}: "
+            f"{len(response.tool_calls)} tool call(s)"
+        )
+
+        # Execute each tool call
+        for tool_call in response.tool_calls:
+            tool_name = tool_call["name"]
+            tool_args = tool_call["args"]
+            tool_call_id = tool_call.get("id", f"call_{iteration}")
+
+            # Find matching tool
+            tool = next((t for t in tools if t.name == tool_name), None)
+            if tool is None:
+                result_str = f"Error: Tool '{tool_name}' not found"
+                logger.warning(f"Tool '{tool_name}' not found in registry")
+            else:
+                try:
+                    logger.debug(f"Executing tool '{tool_name}' with args: {tool_args}")
+                    result = tool.invoke(tool_args)
+                    result_str = str(result)
+                    # Truncate very large tool results to avoid prompt overflow
+                    if len(result_str) > 8000:
+                        result_str = result_str[:8000] + "\n... (truncated)"
+                    logger.debug(f"Tool '{tool_name}' returned {len(result_str)} chars")
+                except Exception as e:
+                    result_str = f"Error executing tool '{tool_name}': {e}"
+                    logger.warning(f"Tool '{tool_name}' execution failed: {e}")
+
+            tool_results.append((tool_name, result_str))
+            messages.append(LCToolMessage(
+                content=result_str,
+                tool_call_id=tool_call_id,
+            ))
+
+    # Build enriched prompt with tool results for structured output phase
+    if tool_results:
+        tool_context = "\n\n".join(
+            f"[{name}]:\n{result}" for name, result in tool_results
+        )
+        enriched_prompt = (
+            f"{prompt}\n\n"
+            f"Tool Results:\n{tool_context}\n\n"
+            f"Using the tool results above, provide your response."
+        )
+        logger.info(f"Tool loop complete: {len(tool_results)} tool(s) executed")
+    else:
+        enriched_prompt = prompt
+        logger.debug("Tool loop complete: no tools were called by the LLM")
+
+    usage = LLMUsageMetadata(total_input_tokens, total_output_tokens)
+    return enriched_prompt, usage
+
+
 def call_llm_structured(
     llm: BaseChatModel,
     prompt: str,
@@ -213,31 +329,19 @@ def call_llm_structured(
     """
     from pydantic import ValidationError
 
-    # Bind tools FIRST if provided (before structured output)
-    if tools:
-        # Special handling for ChatLiteLLM with Google/Gemini to fix tool_choice
-        # VertexAI doesn't support tool_choice="any" which is LangChain's default
-        try:
-            from langchain_community.chat_models import ChatLiteLLM
-            if isinstance(llm, ChatLiteLLM):
-                model = getattr(llm, "model", "")
-                if isinstance(model, str) and "gemini/" in model:
-                    # Bind with explicit tool_choice="auto" instead of default "any"
-                    llm = llm.bind_tools(tools, tool_choice="auto")
-                else:
-                    llm = llm.bind_tools(tools)
-            else:
-                llm = llm.bind_tools(tools)
-        except (ImportError, AttributeError):
-            # Not a ChatLiteLLM or other issue, use default binding
-            llm = llm.bind_tools(tools)
-
-    # Then bind structured output to LLM
-    structured_llm = llm.with_structured_output(output_model, include_raw=True)
-
-    # Track retries for usage calculation
+    # Track total token usage across tool loop and structured output phases
     total_input_tokens = 0
     total_output_tokens = 0
+
+    # Phase 1: Tool execution loop (if tools provided)
+    # Execute tools first, enrich prompt with results, then extract structured output
+    if tools:
+        prompt, tool_usage = _execute_tool_loop(llm, prompt, tools)
+        total_input_tokens += tool_usage.input_tokens
+        total_output_tokens += tool_usage.output_tokens
+
+    # Phase 2: Structured output extraction (clean LLM, no tools bound)
+    structured_llm = llm.with_structured_output(output_model, include_raw=True)
 
     # Attempt call with retries
     last_error = None
@@ -262,8 +366,6 @@ def call_llm_structured(
             else:
                 # Fallback for unexpected response format
                 result = response
-                total_input_tokens = 0
-                total_output_tokens = 0
 
             # Validate result
             if isinstance(result, output_model):

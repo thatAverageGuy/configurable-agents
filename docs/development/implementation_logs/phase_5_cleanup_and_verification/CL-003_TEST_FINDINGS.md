@@ -123,15 +123,15 @@ Issues discovered during `configurable-agents run` phase.
 
 | ID | Config | Issue | Error Message | Status |
 |----|--------|-------|---------------|--------|
-| R-001 | ALL | Storage backend always fails | `too many values to unpack (expected 6)` | BROKEN |
-| R-002 | 05,06,07,12 | Conditional/Loop/Parallel execution fails | `INVALID_CONCURRENT_GRAPH_UPDATE` | BROKEN |
+| R-001 | ALL | Storage backend always fails | `too many values to unpack (expected 6)` | ✅ FIXED (BF-001) |
+| R-002 | 05,06,07,12 | Conditional/Loop/Parallel execution fails | `INVALID_CONCURRENT_GRAPH_UPDATE` | ✅ FIXED (CL-003) |
 | R-003 | 02,12 | MLFlow cost summary fails | `invalid literal for int() with base 10: 'mlflow-experiment:1'` | BROKEN |
 | R-004 | 08 | ChatLiteLLM deprecated | `LangChainDeprecationWarning: ChatLiteLLM deprecated` | WARNING |
 | R-005 | ALL | Model name invalid | `gemini-2.0-flash-exp` not valid for generateContent | FIXED by user |
 
 ---
 
-### R-001: Storage Backend Initialization Failure
+### R-001: Storage Backend Initialization Failure — RESOLVED (BF-001)
 
 **Affects**: Every single workflow run
 **Error**:
@@ -139,15 +139,23 @@ Issues discovered during `configurable-agents run` phase.
 Storage backend initialization failed, continuing without persistence: too many values to unpack (expected 6)
 ```
 
-**Impact**:
-- Storage always fails silently
-- Workflow runs are NOT persisted
-- Config 11 (with_storage) doesn't actually store anything
-- System continues but without persistence
+**Root Cause**: `create_storage_backend()` returns 8-tuple but callers unpacked 3-6 values.
+Return: `(runs, states, agents, chat, webhook, memory, workflow_reg, orchestrator)`
 
-**Root Cause**: Likely a tuple unpacking mismatch in storage initialization code
+**Fix Applied** (2026-02-08, BF-001):
+Fixed 8 call sites across 5 files:
+- `runtime/executor.py` line 212: 6 → 8 values
+- `cli.py` lines 1287, 1355: 3 → 8 values
+- `tests/registry/test_ttl_expiry.py` line 21: 5 → 8 values
+- `tests/registry/test_server.py` line 30: 5 → 8 values
+- `tests/runtime/test_executor_storage.py` lines 126, 176, 229: 5 → 8 values
 
-**Priority**: HIGH - affects all workflows
+**Verification**:
+- 47 previously-failing tests now pass
+- Configs 09 and 12 run end-to-end with storage persisting
+- Config 11 now actually stores workflow runs
+
+**Status**: ✅ FIXED AND VERIFIED (2026-02-08)
 
 ---
 
@@ -235,18 +243,18 @@ Features that don't work as expected or are missing.
 
 | ID | Feature | Expected | Actual | Config | Notes |
 |----|---------|----------|--------|--------|-------|
-| F-001 | Persistent Memory | Run 2 remembers Run 1 | No memory between runs | 09 | Memory not persisting |
-| F-002 | Tool Execution | Actual web search via Serper | Query echoed back, no search | 04 | Tool may not be invoked |
+| F-001 | Persistent Memory | Run 2 remembers Run 1 | ✅ FIXED (scope-aware namespaces, truthiness fix, GlobalConfig field) | 09 | See BF-003 |
+| F-002 | Tool Execution | Actual web search via Serper | ✅ FIXED (two-phase agent loop in provider.py) | 04,12 | See BF-002 |
 | F-003 | Conditional Routing | Route based on state | ✅ FIXED (Annotated reducers + correct YAML) | 05 | See R-002 |
 | F-004 | Loop Iteration | Iterate N times | ✅ FIXED (Annotated reducers + correct YAML) | 06 | See R-002 |
 | F-005 | Parallel Execution | Run nodes concurrently | ✅ FIXED (Replaced MAP/Send with fork-join) | 07 | Rewrote parallel infrastructure |
-| F-006 | Storage Persistence | Store workflow runs | Silent failure, no storage | 11 | See R-001 |
+| F-006 | Storage Persistence | Store workflow runs | ✅ FIXED (tuple unpacking fixed) | 11 | See BF-001 / R-001 |
 
 ---
 
-### F-001: Memory Not Persisting
+### F-001: Memory Not Persisting — RESOLVED (BF-003)
 
-**Test**:
+**Test Before Fix**:
 ```
 Run 1: --input message="Remember my name is Alice"
 Response: "Ok, I will remember your name is Alice."
@@ -255,57 +263,80 @@ Run 2: --input message="What is my name?"
 Response: "I do not have access to your name. You have not shared it with me."
 ```
 
-**Expected**: Run 2 should remember "Alice" from Run 1
-**Actual**: No memory persistence between runs
+**Root Causes Found** (3 separate bugs):
 
-**Possible Causes**:
-- Memory backend not initialized
-- Memory config ignored
-- Storage failure (R-001) affects memory too
+1. **Namespace ignored scope**: `AgentMemory` was created with `workflow_id=run_uuid` (unique per
+   run) and `node_id` regardless of scope setting. For "agent" scope, namespace should use
+   wildcards: `agent:*:*:key`. Instead it was `agent:{uuid}:{node}:key` — unique per run.
+
+2. **`AgentMemory.__len__` truthiness trap**: `AgentMemory` defines `__len__()` returning 0 for
+   empty memory. Python's `if agent_memory:` calls `bool()` → `__len__()` → 0 → False.
+   All memory read/write code was silently skipped on first run (empty memory = falsy).
+
+3. **`GlobalConfig` missing memory field**: Config 09's `config.memory:` YAML section was silently
+   ignored because `GlobalConfig` had no `memory` field — Pydantic `model_config` has
+   `extra = "ignore"` so unknown fields are dropped.
+
+**Fix Applied** (2026-02-08, BF-003):
+- Scope-aware namespace construction in `node_executor.py`: agent scope → `workflow_id=None, node_id=None`
+- Changed `if agent_memory:` to `if agent_memory is not None:` in two places
+- Added `memory: Optional[MemoryConfig]` to `GlobalConfig` in `schema.py`
+- Fixed config 09 field names (`default_scope` instead of `scope`, removed `backend`)
+- Added auto-extraction of facts from responses via lightweight LLM extraction call
+- Added `max_entries` limit (default 50) on memory injection to prevent prompt bloat
+
+**Test After Fix**:
+```
+Run 1: --input message="Remember my name is Alice"
+Response: "Okay, Alice. I will remember that."
+DB: 1 record — namespace=test_09_memory:*:*:name, value="Alice"
+
+Run 2: --input message="What is my name?"
+Response: "Your name is Alice."
+```
+
+**Status**: ✅ FIXED AND VERIFIED (2026-02-08)
 
 ---
 
-### F-002: Tool Execution Fundamentally Broken - No Agent Loop
+### F-002: Tool Execution Fundamentally Broken — RESOLVED (BF-002)
 
-**Test 1**: Config 04 with `--input query="Python programming"`
+**Test Before Fix**:
 ```
-search_results: "Python programming"  # Just echoed the query
-```
-
-**Test 2**: Config 04 (updated with explicit tool instructions) with `--input query="AI in Sex"`
-```
-search_results: "web_search_tool_code"  # LLM trying to signal tool call!
-answer: [LLM's own knowledge, not search results]
+Config 04: --input query="Python programming"
+→ search_results: "Python programming"  # Just echoed the query — tool never ran
 ```
 
-**Root Cause Found** (in `src/configurable_agents/llm/provider.py:216-236`):
+**Root Cause**: `call_llm_structured()` in `provider.py` called `llm.bind_tools(tools)` then
+immediately applied `llm.with_structured_output()`. When both are active, the LLM skips tool
+calls and goes straight to structured output. There was NO tool execution loop — tools were
+bound but never invoked.
 
-```python
-# Tools are bound...
-if tools:
-    llm = llm.bind_tools(tools)
+**Fix Applied** (2026-02-08, BF-002):
+Added `_execute_tool_loop()` function in `provider.py` — manual agent loop:
+1. Bind tools to LLM
+2. Invoke LLM with HumanMessage
+3. Detect `tool_calls` in response
+4. Execute tools via `tool.invoke(tool_args)`
+5. Feed `ToolMessage` results back to LLM
+6. Repeat until no more tool calls (max 10 iterations)
+7. Build enriched prompt with tool results
 
-# But then structured output is forced immediately
-structured_llm = llm.with_structured_output(output_model, include_raw=True)
+Modified `call_llm_structured()` to two-phase approach:
+- **Phase 1**: Tool loop (enriches prompt with actual tool execution results)
+- **Phase 2**: Structured output extraction on clean LLM (no tools bound)
+
+**Test After Fix**:
+```
+Config 12: --input query="Latest AI news" --input depth="shallow"
+→ search_results now contain REAL web search results from Serper API
+→ analysis and report use actual search data, not LLM hallucinations
 ```
 
-**The Problem**: There is NO TOOL EXECUTION LOOP!
+**Verification**: Updated `test_call_with_tools` mock to match two-phase flow. 23/23 provider
+tests pass. 86 LLM + node executor tests: 83 pass (3 pre-existing dict-vs-Pydantic failures).
 
-When LLM wants to use a tool, it returns a "tool call" message. An agent loop must:
-1. Detect tool calls in response
-2. **Actually execute the tool function**
-3. Feed tool results back to LLM
-4. Get final structured response
-
-Current code just binds tools and immediately expects structured output. The tool **NEVER ACTUALLY RUNS**.
-
-The output `"web_search_tool_code"` is the LLM's attempt to signal it wants to call a tool, but nothing processes this signal.
-
-**Impact**: ALL tool functionality is broken. The 15 registered tools are effectively unusable.
-
-**Fix Required**: Implement proper agent loop with tool call detection and execution. This is a significant architectural fix.
-
-**Priority**: CRITICAL - Major claimed feature completely non-functional
+**Status**: ✅ FIXED AND VERIFIED (2026-02-08)
 
 ---
 
@@ -356,8 +387,8 @@ Issues that need decision/clarification before fixing.
 | Q-001 | Should router nodes be exempt from output requirement? | V-001 | A) Keep as-is B) Add router node type C) Allow empty outputs | Pending |
 | Q-002 | Should START support parallel fan-out? | V-002 | A) Keep single entry B) Allow parallel from START | Pending |
 | Q-003 | Priority: Fix control flow or accept linear-only for now? | R-002 | A) Fix ASAP B) Defer, focus on linear | Pending |
-| Q-004 | Is tool invocation actually broken or just missing API key? | F-002 | Need to verify SERPER_API_KEY is set | Pending |
-| Q-005 | Storage unpacking error - quick fix or redesign? | R-001 | A) Debug and fix B) Redesign storage layer | Pending |
+| Q-004 | Is tool invocation actually broken or just missing API key? | F-002 | **RESOLVED**: No agent loop existed. Fixed with two-phase approach in BF-002 | Resolved |
+| Q-005 | Storage unpacking error - quick fix or redesign? | R-001 | **RESOLVED**: Quick fix — tuple unpacking mismatch. Fixed 8 sites in BF-001 | Resolved |
 
 ---
 
@@ -417,6 +448,7 @@ Chronological log of test execution.
   - 07_parallel_execution.yaml   ⏳ PENDING - Type fix applied, needs testing
 
   GLOBAL ISSUE: Storage init STILL fails on EVERY run with "too many values to unpack"
+  → FIXED in BF-001 session (see below)
 
 [2026-02-08] Fork-Join Parallel Replacement (10-phase implementation)
   Replaced MAP/Send parallel with fork-join parallel:
@@ -452,13 +484,42 @@ Chronological log of test execution.
 
   Unit tests: 1366 passed, 25 failed, 37 skipped, 23 errors
   All failures are PRE-EXISTING (dict-vs-Pydantic, storage tuple unpacking, deploy artifact count)
+
+[2026-02-08] Bug Fix Session: BF-001, BF-002, BF-003
+
+  BF-001: Storage Backend Tuple Unpacking
+  - create_storage_backend() returns 8 values, callers unpacked 3-6
+  - Fixed 8 call sites across 5 files
+  - 47 previously-failing tests now pass
+  - Configs 09, 12 run end-to-end with storage
+
+  BF-002: Tool Execution Agent Loop
+  - Added _execute_tool_loop() in provider.py (manual agent loop)
+  - Modified call_llm_structured() to two-phase: tool loop → structured output
+  - Config 12 web_search returns real Serper results
+  - 23/23 provider tests pass, 86 LLM+node tests: 83 pass (3 pre-existing)
+
+  BF-003: Memory Persistence
+  - Root cause 1: Namespace ignored scope (per-run UUID in agent scope)
+  - Root cause 2: AgentMemory.__len__=0 → if agent_memory: was False
+  - Root cause 3: GlobalConfig missing memory field (YAML silently ignored)
+  - Added: fact auto-extraction from responses, max_entries limit
+  - Run 1 stores name=Alice → DB has 1 record → Run 2 recalls "Your name is Alice"
+
+  Execution Phase 3 (After BF-001/BF-002/BF-003):
+  - 04_with_tools.yaml           ✅ PASS - Tools execute via agent loop
+  - 09_with_memory.yaml          ✅ PASS - Memory persists across runs!
+  - 11_with_storage.yaml         ✅ PASS - Storage persists workflow runs!
+  - 12_full_featured.yaml        ✅ PASS - Tools return real search results!
+
+  Core unit tests: 187 passed, 3 pre-existing failures
 ```
 
 ---
 
 ## Part 8: Summary
 
-### What Works
+### What Works (as of 2026-02-08)
 - ✅ Basic single-node workflow (01)
 - ✅ Multi-node linear sequence (03)
 - ✅ MLFlow tracking (02) — creates DB, traces logged
@@ -466,20 +527,27 @@ Chronological log of test execution.
 - ✅ Code sandbox execution (10) — RestrictedPython
 - ✅ Conditional branching (05) — FIXED (Annotated reducers + correct YAML)
 - ✅ Loop iteration (06) — FIXED (Annotated reducers + correct YAML)
-- ✅ **Fork-join parallel execution (07)** — FIXED (replaced MAP/Send with fork-join)
-- ✅ **Full-featured workflow (12)** — FIXED (proper routes/loop syntax, both paths work)
+- ✅ Fork-join parallel execution (07) — FIXED (replaced MAP/Send with fork-join)
+- ✅ Full-featured workflow (12) — FIXED (proper routes/loop syntax, both paths work)
+- ✅ **Storage persistence (11)** — FIXED (BF-001: tuple unpacking)
+- ✅ **Tool execution (04, 12)** — FIXED (BF-002: two-phase agent loop)
+- ✅ **Memory persistence (09)** — FIXED (BF-003: scope namespaces, truthiness, GlobalConfig)
 
 ### What's Still Broken
-- ❌ **Storage persistence (R-001)** — `too many values to unpack (expected 6)` on every run
-- ❌ **Tool invocation (F-002)** — NO AGENT LOOP EXISTS (tools never actually execute)
-- ❌ **Memory persistence (F-001)** — Not working between runs (likely depends on R-001)
-- ❌ **MLFlow cost summary (R-003)** — Experiment ID parsing error
+- ❌ **MLFlow cost summary (R-003)** — Experiment ID parsing error (`invalid literal for int()`)
 
 ### Warnings/Deprecations
-- ⚠️ ChatLiteLLM deprecated (LangChain 0.3.24)
-- ⚠️ MLFlow cost summary parsing error
-- ⚠️ Model name needed update (gemini-2.0-flash-exp → gemini-2.5-flash-lite)
+- ⚠️ ChatLiteLLM deprecated (LangChain 0.3.24) — needs migration to `langchain-litellm`
+- ⚠️ Model name needed update (gemini-2.0-flash-exp → gemini-2.5-flash-lite) — fixed by user
+
+### Pre-existing Test Failures (not caused by any of these fixes)
+- 3 failures in `test_node_executor.py` — tests access `.research`/`.summary` on dict (execute_node returns dict, tests expect Pydantic)
+- 5 failures in `test_generator.py` / `test_generator_integration.py` — deploy artifact count mismatch (10 vs 8)
+- 10 failures in `test_integration.py` (sandbox) — same dict-vs-Pydantic issue
+
+### Test Suite Status After All Fixes
+- **187 passed, 3 pre-existing failures** in core test modules (node_executor, provider, graph_builder, schema, validator, executor_storage)
 
 ---
 
-*This document is updated continuously during CL-003 testing.*
+*Last updated: 2026-02-08 — BF-001, BF-002, BF-003 all fixed and verified*

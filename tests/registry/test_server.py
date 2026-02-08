@@ -27,7 +27,7 @@ def test_db_url(tmp_path):
 def test_repo(test_db_url):
     """Create a test repository."""
     config = StorageConfig(backend="sqlite", path=test_db_url.replace("sqlite:///", ""))
-    _, _, repo, _, _ = create_storage_backend(config)
+    _, _, repo, _, _, _, _, _ = create_storage_backend(config)
     return repo
 
 

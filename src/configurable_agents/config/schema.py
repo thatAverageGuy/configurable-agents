@@ -289,7 +289,11 @@ class MemoryConfig(BaseModel):
     enabled: bool = Field(False, description="Enable persistent memory for this scope")
     default_scope: Literal["agent", "workflow", "node"] = Field(
         "agent",
-        description="Default memory scope: 'agent', 'workflow', or 'node'",
+        description="Default memory scope: 'agent' (cross-run), 'workflow' (intra-run), or 'node' (isolated)",
+    )
+    max_entries: int = Field(
+        50,
+        description="Max memory entries to inject into prompt context. Prevents prompt bloat as memory accumulates.",
     )
 
 
@@ -587,6 +591,9 @@ class GlobalConfig(BaseModel):
         None, description="Observability config (v0.2+)"
     )
     storage: Optional[StorageConfig] = Field(None, description="Storage backend config")
+    memory: Optional[MemoryConfig] = Field(
+        None, description="Memory configuration (v0.4+)"
+    )
 
     # Optimization configuration (v0.4+)
     mlflow: Optional[MLFlowConfig] = Field(

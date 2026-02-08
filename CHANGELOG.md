@@ -17,6 +17,31 @@ After introducing an autonomous agent system post-v1.0, the codebase and documen
 became inconsistent and out of sync. Cleanup tasks are in progress to restore
 the project to a verifiable state.
 
+### Fixed
+
+**BF-001: Fix storage backend tuple unpacking** (2026-02-08)
+- Fixed `create_storage_backend()` callers that unpacked wrong number of values (function returns 8, callers expected 3-6)
+- Fixed 8 call sites across 5 files: `runtime/executor.py`, `cli.py` (×2), `tests/registry/test_ttl_expiry.py`, `tests/registry/test_server.py`, `tests/runtime/test_executor_storage.py` (×3)
+- Resolves `too many values to unpack (expected 6)` crash on every workflow run with storage enabled
+- Verified with test configs 09 and 12 (end-to-end execution) and 47 previously-failing unit tests now pass
+
+**BF-002: Implement tool execution agent loop** (2026-02-08)
+- Added `_execute_tool_loop()` in `provider.py` — manual agent loop: invoke LLM → detect tool calls → execute tools → feed results back → repeat
+- Changed `call_llm_structured()` to two-phase approach: Phase 1 runs tool loop (enriches prompt with tool results), Phase 2 extracts structured output
+- Previously tools were bound via `bind_tools()` but `with_structured_output()` was applied immediately, causing the LLM to skip tool calls entirely
+- Updated `test_call_with_tools` mock setup to match new two-phase flow
+- Verified: config 12 `web_search` tool now returns real search results instead of echoing the query
+- Confirmed BF-003 (memory persistence) is a separate issue — storage initializes but memory load/save not wired into prompts
+
+**BF-003: Fix memory persistence across runs** (2026-02-08)
+- Fixed scope-aware namespace construction: agent scope now uses wildcard `*:*` for workflow/node instead of per-run UUIDs, enabling cross-run memory persistence
+- Fixed `AgentMemory` truthiness bug: `if agent_memory:` evaluated to False due to `__len__` returning 0 on empty memory, skipping all memory read/write code — changed to `if agent_memory is not None:`
+- Added `memory` field to `GlobalConfig` schema so `config.memory:` in YAML is actually parsed
+- Added auto-extraction of facts from LLM responses via lightweight extraction call
+- Added `max_entries` limit on memory injection into prompts to prevent context bloat
+- Fixed config 09 field names to match schema (`default_scope` instead of `scope`)
+- Verified end-to-end: Run 1 stores "name=Alice", Run 2 recalls "Your name is Alice"
+
 ### Added
 
 **CL-002: Documentation Index and Dead Link Cleanup** (In Progress - 2026-02-06)

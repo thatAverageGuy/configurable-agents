@@ -18,7 +18,7 @@ def test_repo(tmp_path):
     """Create a test repository for TTL expiry tests."""
     db_path = str(tmp_path / "test_ttl_expiry.db")
     config = StorageConfig(backend="sqlite", path=db_path)
-    _, _, repo, _, _ = create_storage_backend(config)
+    _, _, repo, _, _, _, _, _ = create_storage_backend(config)
     return repo
 
 

@@ -258,30 +258,41 @@ class TestCallLLMStructured:
         assert isinstance(usage, LLMUsageMetadata)
 
     def test_call_with_tools(self):
-        """Test LLM call with tools binding."""
+        """Test LLM call with tools binding and two-phase execution."""
 
         class TestOutput(BaseModel):
             result: str
 
         # Mock tools
         mock_tool1 = Mock()
+        mock_tool1.name = "tool1"
         mock_tool2 = Mock()
+        mock_tool2.name = "tool2"
         tools = [mock_tool1, mock_tool2]
 
-        # Mock LLM (tools bound first, then structured output)
+        # Mock LLM
         mock_llm = Mock(spec=BaseChatModel)
+
+        # Phase 1: Tool loop — LLM responds without making tool calls
         mock_with_tools = Mock()
+        tool_loop_response = Mock()
+        tool_loop_response.tool_calls = []  # No tool calls
+        tool_loop_response.usage_metadata = None
+        mock_with_tools.invoke.return_value = tool_loop_response
+        mock_llm.bind_tools.return_value = mock_with_tools
+
+        # Phase 2: Structured output on clean LLM (no tools bound)
         mock_structured = Mock()
         mock_structured.invoke.return_value = make_mock_response(TestOutput(result="Done"))
-        mock_with_tools.with_structured_output.return_value = mock_structured
-        mock_llm.bind_tools.return_value = mock_with_tools
+        mock_llm.with_structured_output.return_value = mock_structured
 
         # Call
         result, usage = call_llm_structured(mock_llm, "Test", TestOutput, tools=tools)
 
-        # Verify tools were bound first, then structured output
+        # Verify Phase 1: tools were bound for tool loop
         mock_llm.bind_tools.assert_called_once_with(tools)
-        mock_with_tools.with_structured_output.assert_called_once_with(TestOutput, include_raw=True)
+        # Verify Phase 2: structured output on clean LLM
+        mock_llm.with_structured_output.assert_called_once_with(TestOutput, include_raw=True)
         assert isinstance(result, TestOutput)
         assert isinstance(usage, LLMUsageMetadata)
 

@@ -55,6 +55,5 @@ config:
   # Memory configuration
   memory:
     enabled: true
-    backend: sqlite
-    scope: workflow  # Options: workflow, session, global
+    default_scope: agent  # "agent" = persists across runs, "workflow" = intra-run only, "node" = isolated
     max_entries: 100

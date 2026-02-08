@@ -69,26 +69,31 @@ configurable-agents run test_configs/12_full_featured.yaml --input query="Latest
 | # | Validate | Run | Notes |
 |---|----------|-----|-------|
 | 01 | ✅ | ✅ | Basic execution works |
-| 02 | ✅ | ✅ | MLFlow works (cost summary fails) |
+| 02 | ✅ | ✅ | MLFlow works (cost summary fails — R-003) |
 | 03 | ✅ | ✅ | Multi-node sequence works |
-| 04 | ✅ | ❌ | Tool execution broken - no agent loop exists |
-| 05 | ✅ | ✅ | **FIXED** - Conditional routing works! |
-| 06 | ✅ | ✅ | **FIXED** - Loop iteration works! |
-| 07 | ⏳ | ⏳ | Rewritten for fork-join, needs testing |
-| 08 | ✅ | ✅ | Multi-LLM works (deprecation warning) |
-| 09 | ✅ | ⚠️ | Memory not persisting between runs |
+| 04 | ✅ | ✅ | **FIXED** (BF-002) — Tools execute via agent loop |
+| 05 | ✅ | ✅ | **FIXED** (CL-003) — Conditional routing works |
+| 06 | ✅ | ✅ | **FIXED** (CL-003) — Loop iteration works |
+| 07 | ✅ | ✅ | **FIXED** (CL-003) — Fork-join parallel works |
+| 08 | ✅ | ✅ | Multi-LLM works (ChatLiteLLM deprecation warning) |
+| 09 | ✅ | ✅ | **FIXED** (BF-003) — Memory persists across runs |
 | 10 | ✅ | ✅ | Sandbox works! fib(10)=55 |
-| 11 | ✅ | ⚠️ | Storage fails silently |
-| 12 | ⏳ | ⏳ | Rewritten with correct edge syntax, needs testing |
+| 11 | ✅ | ✅ | **FIXED** (BF-001) — Storage persists workflow runs |
+| 12 | ✅ | ✅ | **FIXED** (CL-003 + BF-002) — Full integration works |
 
 Legend: ✅ Pass | ❌ Fail | ⚠️ Partial | ⏳ Pending
 
 **Fixes Applied (2026-02-08)**:
-1. Annotated reducers in state_builder.py for LangGraph compatibility
-2. Corrected YAML syntax: `routes:` for conditionals, `loop:` block for loops
-3. Replaced MAP parallel (Send-based) with fork-join parallel (`to: [node_a, node_b]`)
+1. Annotated reducers in state_builder.py for LangGraph compatibility (CL-003)
+2. Corrected YAML syntax: `routes:` for conditionals, `loop:` block for loops (CL-003)
+3. Replaced MAP parallel (Send-based) with fork-join parallel (CL-003)
+4. Fixed storage backend tuple unpacking — 8-tuple mismatch (BF-001)
+5. Implemented tool execution agent loop — two-phase approach (BF-002)
+6. Fixed memory persistence — scope namespaces, truthiness, GlobalConfig field (BF-003)
 
-**Global Issue**: Storage backend fails on ALL runs with "too many values to unpack"
+**Remaining Issues**:
+- MLFlow cost summary parsing error (R-003 / BF-004)
+- ChatLiteLLM deprecated warning (R-004 / BF-006)
 
 See `docs/development/implementation_logs/phase_5_cleanup_and_verification/CL-003_TEST_FINDINGS.md` for detailed issue tracking.
 

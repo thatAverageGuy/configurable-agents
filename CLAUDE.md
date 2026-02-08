@@ -40,9 +40,21 @@ GIT WORKFLOW
 **CRITICAL COMMIT RULES**:
 - ONE commit per task - NO separate "mark as complete" commits
 - Process: Get approval → Update ALL docs/logs → ONE commit → Push
-- Commit format: "CL-XXX: Description" or "T-XXX: Description"
+- Commit format: "T-XXX: Brief description - What was done" (from PR #1 pattern)
+  Examples: "T-009: LLM provider - Google Gemini integration"
+            "CL-003: Fix parallel execution, control flow, and test configs"
 - The commit must include ALL changes (implementation, docs, logs, status)
 - NEVER commit without getting approval for ALL changes first
+
+**PRE-COMMIT DOC UPDATE RULE**:
+Unless explicitly told NOT to update docs, permission to commit means
+update ALL relevant docs FIRST, then commit. Docs to check every time:
+1. CHANGELOG.md — Keep a Changelog format (Added/Changed/Fixed/Removed)
+2. README.md — If user-facing features changed
+3. CONTEXT.md — Current state and session resume info
+4. docs/development/TASKS.md — Task status
+5. Implementation log in docs/development/implementation_logs/phase_X_*/
+6. Any task-specific docs (test findings, architecture, ADRs)
 
 **CRITICAL APPROVAL RULES**:
 - NEVER declare project state (clean, organized, ready, etc.) without explicit user approval
