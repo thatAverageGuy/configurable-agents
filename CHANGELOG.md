@@ -17,6 +17,15 @@ After introducing an autonomous agent system post-v1.0, the codebase and documen
 became inconsistent and out of sync. Cleanup tasks are in progress to restore
 the project to a verifiable state.
 
+### Changed
+
+**BF-006: Migrate ChatLiteLLM to langchain-litellm** (2026-02-09)
+- Migrated `ChatLiteLLM` import from deprecated `langchain-community` to standalone `langchain-litellm` package (v0.4.0)
+- Updated import paths in `litellm_provider.py` and `provider.py`
+- Added `langchain-litellm>=0.2.0` to project dependencies
+- Updated 11 `@patch()` mock paths in test files
+- Fixed 4 pre-existing test failures: updated mlflow config default assertion and `log_workflow_summary` test expectations to match `log_feedback` rewrite
+
 ### Fixed
 
 **BF-005: Fix pre-existing test failures** (2026-02-08)

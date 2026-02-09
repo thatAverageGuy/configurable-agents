@@ -77,7 +77,7 @@ def get_litellm_model_string(provider: str, model: str) -> str:
 def create_litellm_llm(llm_config: Any) -> Any:
     """Create a LangChain BaseChatModel using LiteLLM.
 
-    Uses ChatLiteLLM from langchain-community, which wraps litellm.completion()
+    Uses ChatLiteLLM from langchain-litellm, which wraps litellm.completion()
     to provide the standard BaseChatModel interface expected by the rest of the
     codebase (compatible with with_structured_output).
 
@@ -89,7 +89,7 @@ def create_litellm_llm(llm_config: Any) -> Any:
 
     Raises:
         LLMConfigError: If LiteLLM is not available or config is invalid
-        ImportError: If langchain_community is not installed
+        ImportError: If langchain-litellm is not installed
 
     Example:
         >>> from configurable_agents.config import LLMConfig
@@ -104,13 +104,13 @@ def create_litellm_llm(llm_config: Any) -> Any:
             suggestion="Install litellm: pip install litellm>=1.80.0",
         )
 
-    # Import ChatLiteLLM from langchain_community
+    # Import ChatLiteLLM from langchain-litellm (migrated from deprecated langchain-community)
     try:
-        from langchain_community.chat_models import ChatLiteLLM
+        from langchain_litellm import ChatLiteLLM
     except ImportError as e:
         raise ImportError(
-            "langchain-community is required for LiteLLM integration. "
-            "Install: pip install 'langchain-community>=0.0.20'"
+            "langchain-litellm is required for LiteLLM integration. "
+            "Install: pip install 'langchain-litellm>=0.2.0'"
         ) from e
 
     # Get provider and model

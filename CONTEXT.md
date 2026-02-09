@@ -7,50 +7,48 @@
 
 ---
 
-**Last Updated**: 2026-02-08
+**Last Updated**: 2026-02-09
 
 ---
 
 ## Current State
 
-**Task**: CL-003 (Bug Fixes) | **Phase**: Bug Fixing | **Status**: IN_PROGRESS
+**Task**: CL-003 (Cleanup, Testing, Verification) | **Phase**: CLI Verification | **Status**: IN_PROGRESS
 
 ### What Was Done This Session
 
-**BF-004: Fixed MLFlow cost summary and GenAI view integration** ✅
-- Fixed `search_traces()` location format and return type
-- Fixed model name attribution for Gemini spans (fallback chain)
-- Fixed token key mismatch (`prompt_tokens` vs `input_tokens`)
-- Rewrote `log_workflow_summary()` to use `log_feedback()` for GenAI view visibility
-- Added `flush_trace_async_logging()` in executor to prevent race condition
+**BF-006: Migrated ChatLiteLLM to langchain-litellm** ✅
+- Replaced deprecated `langchain_community.chat_models.ChatLiteLLM` with `langchain_litellm.ChatLiteLLM`
+- Added `langchain-litellm>=0.2.0` to dependencies (kept `langchain-community` for `tools/serper.py`)
+- Updated 11 `@patch()` mock paths in tests
+- Fixed 4 pre-existing test failures (mlflow config default + log_workflow_summary test expectations)
+- Full suite: 1410 passed, 0 failed, 37 skipped (excluding UI)
 
-**BF-005: Fixed pre-existing test failures** ✅
-- Fixed 22 test failures across 5 test files (all 69 tests now pass)
-- dict-vs-Pydantic: `execute_node()` returns partial dict, tests expected Pydantic model
-- Deploy artifacts: generator produces 10 artifacts (was 8), fixed count + port + directory assertions
+### All Bug Fixes Complete
 
-**MLflow mlruns → sqlite migration** ✅
-- Changed default `tracking_uri` from `file://./mlruns` to `sqlite:///mlflow.db` (12 code/template files)
-- Updated user-facing docs (OBSERVABILITY.md, DEPLOYMENT.md)
+| ID | Summary | Status |
+|----|---------|--------|
+| BF-001 | Storage backend tuple unpacking | ✅ DONE |
+| BF-002 | Tool execution agent loop | ✅ DONE |
+| BF-003 | Memory persistence | ✅ DONE |
+| BF-004 | MLFlow cost summary / GenAI view | ✅ DONE |
+| BF-005 | Pre-existing test failures | ✅ DONE |
+| BF-006 | ChatLiteLLM deprecation migration | ✅ DONE |
 
-### Previous Session Fixes (already committed)
+### Next Steps — CLI Command Discovery & Verification
 
-**BF-001**: Fixed storage backend tuple unpacking (8 call sites, 5 files) ✅
-**BF-002**: Implemented tool execution agent loop (two-phase in `provider.py`) ✅
-**BF-003**: Fixed memory persistence (scope-aware namespaces, truthiness, GlobalConfig) ✅
+1. [ ] Discover ALL CLI commands (entry points, subcommands, flags)
+2. [ ] Document what each command does and its expected behavior
+3. [ ] Manually test each CLI command one-by-one with appropriate configs
+4. [ ] Verify outputs match intended behavior
+5. [ ] Fix bugs discovered during CLI testing
+6. [ ] Skip UI commands for now (need separate fix pass)
 
-### What's Still Pending
-
-| ID | Issue | Priority | Status |
-|----|-------|----------|--------|
-| BF-006 | ChatLiteLLM deprecation migration | LOW | TODO |
-
-### Next Steps
-1. [ ] **BF-006: Migrate ChatLiteLLM** — Update to `langchain-litellm` package (R-004)
-2. [ ] Final test suite verification after all fixes
+### Known Issues (Not Blocking)
+- UI tests: `test_dashboard.py` has `_time_ago` import error (pre-existing, UI skipped for now)
 
 ### Blockers
-- None currently
+- None
 
 ---
 
@@ -58,14 +56,12 @@
 
 | Task | Summary | Details |
 |------|---------|---------|
-| CL-003 | Codebase cleanup, testing, and verification | docs/development/implementation_logs/phase_5_cleanup_and_verification/CL-003_TEST_FINDINGS.md |
-| BF-006 | Migrate ChatLiteLLM | `langchain-litellm` package migration |
+| CL-003 | CLI command verification phase | This file → Next Steps section |
 
 ## Relevant Quick Links
 
-- **Bug fix impl log (BF-001/002/003)**: docs/development/implementation_logs/phase_5_cleanup_and_verification/CL-003_bug_fixes_BF001_BF002_BF003.md
-- **Bug fix impl log (BF-004)**: docs/development/implementation_logs/phase_5_cleanup_and_verification/CL-003_bug_fix_BF004.md
-- **Bug fix impl log (BF-005)**: docs/development/implementation_logs/phase_5_cleanup_and_verification/CL-003_bug_fix_BF005.md
+- **BF-006 impl log**: docs/development/implementation_logs/phase_5_cleanup_and_verification/CL-003_bug_fix_BF006.md
+- **All BF impl logs**: docs/development/implementation_logs/phase_5_cleanup_and_verification/CL-003_bug_fix_BF*.md
 - **Test findings**: docs/development/implementation_logs/phase_5_cleanup_and_verification/CL-003_TEST_FINDINGS.md
 - **Test configs**: test_configs/README.md
 - Documentation Index: docs/README.md
@@ -74,4 +70,4 @@
 
 ---
 
-*Last Updated: 2026-02-08 | BF-001 through BF-005 fixed. MLflow defaults migrated to sqlite. Remaining: BF-006 (LiteLLM migration)*
+*Last Updated: 2026-02-09 | BF-001 through BF-006 all fixed. Next: CLI command discovery and manual verification.*

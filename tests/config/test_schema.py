@@ -537,7 +537,7 @@ class TestObservabilityConfig:
     def test_mlflow_config_defaults(self):
         config = ObservabilityMLFlowConfig()
         assert config.enabled is False
-        assert config.tracking_uri == "file://./mlruns"
+        assert config.tracking_uri == "sqlite:///mlflow.db"
         assert config.experiment_name == "configurable_agents"
         assert config.run_name is None
         assert config.log_prompts is True

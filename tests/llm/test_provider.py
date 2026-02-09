@@ -79,7 +79,7 @@ class TestCreateLLM:
         call_kwargs = mock_chat.call_args[1]
         assert call_kwargs["model"] == "gemini-2.5-flash-lite"  # Default model
 
-    @patch("langchain_community.chat_models.ChatLiteLLM")
+    @patch("langchain_litellm.ChatLiteLLM")
     def test_create_with_openai_provider(self, mock_chat):
         """Test creating LLM with OpenAI provider via LiteLLM."""
         config = LLMConfig(provider="openai", model="gpt-4o")
@@ -90,7 +90,7 @@ class TestCreateLLM:
         call_kwargs = mock_chat.call_args[1]
         assert call_kwargs["model"] == "openai/gpt-4o"
 
-    @patch("langchain_community.chat_models.ChatLiteLLM")
+    @patch("langchain_litellm.ChatLiteLLM")
     def test_create_with_anthropic_provider(self, mock_chat):
         """Test creating LLM with Anthropic provider via LiteLLM."""
         config = LLMConfig(provider="anthropic", model="claude-sonnet-4-20250514")
@@ -101,7 +101,7 @@ class TestCreateLLM:
         call_kwargs = mock_chat.call_args[1]
         assert call_kwargs["model"] == "anthropic/claude-sonnet-4-20250514"
 
-    @patch("langchain_community.chat_models.ChatLiteLLM")
+    @patch("langchain_litellm.ChatLiteLLM")
     def test_create_with_ollama_provider(self, mock_chat):
         """Test creating LLM with Ollama provider via LiteLLM."""
         config = LLMConfig(provider="ollama", model="llama3")

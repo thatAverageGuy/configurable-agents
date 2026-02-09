@@ -199,7 +199,7 @@ def _execute_tool_loop(
 
     # Bind tools to LLM (without structured output)
     try:
-        from langchain_community.chat_models import ChatLiteLLM
+        from langchain_litellm import ChatLiteLLM
         if isinstance(llm, ChatLiteLLM):
             model = getattr(llm, "model", "")
             if isinstance(model, str) and "gemini/" in model:

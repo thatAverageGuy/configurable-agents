@@ -222,9 +222,9 @@ LangChainDeprecationWarning: The class `ChatLiteLLM` was deprecated in LangChain
 Use `langchain-litellm` package instead
 ```
 
-**Impact**: Multi-LLM still works but using deprecated API
+**Priority**: RESOLVED (BF-006)
 
-**Priority**: LOW - works but needs update
+**Fix**: Migrated from `langchain_community.chat_models.ChatLiteLLM` to `langchain_litellm.ChatLiteLLM`. Added `langchain-litellm>=0.2.0` dependency. See [BF-006 implementation log](CL-003_bug_fix_BF006.md).
 
 ---
 

@@ -54,7 +54,7 @@ class TestGetLiteLLMModelString:
 class TestCreateLiteLLM:
     """Test create_litellm_llm function."""
 
-    @patch("langchain_community.chat_models.ChatLiteLLM")
+    @patch("langchain_litellm.ChatLiteLLM")
     def test_create_with_openai_provider(self, mock_chat):
         """Test creating LLM with OpenAI provider."""
         config = LLMConfig(provider="openai", model="gpt-4o", temperature=0.7)
@@ -65,7 +65,7 @@ class TestCreateLiteLLM:
         assert call_kwargs["model"] == "openai/gpt-4o"
         assert call_kwargs["temperature"] == 0.7
 
-    @patch("langchain_community.chat_models.ChatLiteLLM")
+    @patch("langchain_litellm.ChatLiteLLM")
     def test_create_with_anthropic_provider(self, mock_chat):
         """Test creating LLM with Anthropic provider."""
         config = LLMConfig(provider="anthropic", model="claude-sonnet-4-20250514")
@@ -74,7 +74,7 @@ class TestCreateLiteLLM:
         call_kwargs = mock_chat.call_args[1]
         assert call_kwargs["model"] == "anthropic/claude-sonnet-4-20250514"
 
-    @patch("langchain_community.chat_models.ChatLiteLLM")
+    @patch("langchain_litellm.ChatLiteLLM")
     def test_create_with_google_provider(self, mock_chat):
         """Test creating LLM with Google provider."""
         config = LLMConfig(provider="google", model="gemini-2.5-flash")
@@ -83,7 +83,7 @@ class TestCreateLiteLLM:
         call_kwargs = mock_chat.call_args[1]
         assert call_kwargs["model"] == "gemini/gemini-2.5-flash"
 
-    @patch("langchain_community.chat_models.ChatLiteLLM")
+    @patch("langchain_litellm.ChatLiteLLM")
     def test_create_with_ollama_provider_sets_api_base(self, mock_chat):
         """Test creating LLM with Ollama provider sets api_base."""
         config = LLMConfig(provider="ollama", model="llama3")
@@ -93,7 +93,7 @@ class TestCreateLiteLLM:
         assert call_kwargs["model"] == "ollama_chat/llama3"
         assert call_kwargs["api_base"] == "http://localhost:11434"
 
-    @patch("langchain_community.chat_models.ChatLiteLLM")
+    @patch("langchain_litellm.ChatLiteLLM")
     def test_create_with_ollama_custom_api_base(self, mock_chat):
         """Test Ollama with custom api_base from config."""
         config = LLMConfig(provider="ollama", model="llama3", api_base="http://192.168.1.100:11434")
@@ -102,7 +102,7 @@ class TestCreateLiteLLM:
         call_kwargs = mock_chat.call_args[1]
         assert call_kwargs["api_base"] == "http://192.168.1.100:11434"
 
-    @patch("langchain_community.chat_models.ChatLiteLLM")
+    @patch("langchain_litellm.ChatLiteLLM")
     def test_create_with_max_tokens(self, mock_chat):
         """Test creating LLM with max_tokens setting."""
         config = LLMConfig(provider="openai", model="gpt-4o", max_tokens=2048)
@@ -111,7 +111,7 @@ class TestCreateLiteLLM:
         call_kwargs = mock_chat.call_args[1]
         assert call_kwargs["max_tokens"] == 2048
 
-    @patch("langchain_community.chat_models.ChatLiteLLM")
+    @patch("langchain_litellm.ChatLiteLLM")
     def test_create_with_default_provider(self, mock_chat):
         """Test creating LLM with no provider defaults to Google."""
         config = LLMConfig(model="gemini-2.5-flash")
@@ -120,7 +120,7 @@ class TestCreateLiteLLM:
         call_kwargs = mock_chat.call_args[1]
         assert call_kwargs["model"] == "gemini/gemini-2.5-flash"
 
-    @patch("langchain_community.chat_models.ChatLiteLLM")
+    @patch("langchain_litellm.ChatLiteLLM")
     def test_create_error_wrapped_in_llm_config_error(self, mock_chat):
         """Test that ChatLiteLLM errors are wrapped in LLMConfigError."""
         from configurable_agents.llm.provider import LLMConfigError

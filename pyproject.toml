@@ -28,6 +28,7 @@ dependencies = [
     "langgraph>=0.0.20",
     "langchain>=0.1.0",
     "langchain-community>=0.0.20",
+    "langchain-litellm>=0.2.0",
     "langchain-google-genai>=1.0.0",
     "litellm>=1.80.0",
     "python-dotenv>=1.0.0",

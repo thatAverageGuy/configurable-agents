@@ -310,48 +310,50 @@ class TestMLFlowTrackerLogSummary:
     def test_log_summary_logs_metrics(
         self, mlflow_config, minimal_workflow_config, mlflow_mock
     ):
-        """Test that log summary logs metrics to MLflow."""
-        mlflow_mock.active_run.return_value = MagicMock()
-
+        """Test that log summary logs feedback to MLflow via log_feedback."""
         tracker = MLFlowTracker(mlflow_config, minimal_workflow_config)
 
         cost_summary = {
+            "trace_id": "test-trace-456",
             "total_cost_usd": 0.0023,
             "total_tokens": {
                 "prompt_tokens": 100,
                 "completion_tokens": 200,
                 "total_tokens": 300,
             },
-            "node_breakdown": {"node1": {}, "node2": {}},
+            "by_provider": {"google": {"total_cost_usd": 0.0023, "total_tokens": 300, "calls": 2}},
+            "workflow_name": "test",
         }
 
         tracker.log_workflow_summary(cost_summary)
 
-        # Should log metrics
-        mlflow_mock.log_metrics.assert_called_once()
-        logged_metrics = mlflow_mock.log_metrics.call_args.args[0]
-        assert logged_metrics["total_cost_usd"] == 0.0023
-        assert logged_metrics["total_tokens"] == 300
-        assert logged_metrics["node_count"] == 2
+        # Should call log_feedback 3 times: cost_usd, total_tokens, cost_breakdown
+        assert mlflow_mock.log_feedback.call_count == 3
+        assert mlflow_mock.log_feedback.call_args_list[0].kwargs["name"] == "cost_usd"
+        assert mlflow_mock.log_feedback.call_args_list[0].kwargs["value"] == 0.0023
+        assert mlflow_mock.log_feedback.call_args_list[1].kwargs["name"] == "total_tokens"
+        assert mlflow_mock.log_feedback.call_args_list[1].kwargs["value"] == 300
 
     def test_log_summary_logs_artifact(
         self, mlflow_config, minimal_workflow_config, mlflow_mock
     ):
-        """Test that log summary logs cost summary as artifact."""
-        mlflow_mock.active_run.return_value = MagicMock()
-
+        """Test that log summary logs cost breakdown as structured feedback."""
         tracker = MLFlowTracker(mlflow_config, minimal_workflow_config)
 
         cost_summary = {
+            "trace_id": "test-trace-789",
             "total_cost_usd": 0.0023,
-            "total_tokens": {"total_tokens": 300},
-            "node_breakdown": {},
+            "total_tokens": {"total_tokens": 300, "prompt_tokens": 100, "completion_tokens": 200},
+            "by_provider": {"google": {"total_cost_usd": 0.0023, "total_tokens": 300, "calls": 1}},
+            "workflow_name": "test",
         }
 
         tracker.log_workflow_summary(cost_summary)
 
-        # Should log artifact (minimal level and above)
-        mlflow_mock.log_dict.assert_called_once_with(cost_summary, "cost_summary.json")
+        # Third log_feedback call should be cost_breakdown
+        assert mlflow_mock.log_feedback.call_count == 3
+        breakdown_call = mlflow_mock.log_feedback.call_args_list[2]
+        assert breakdown_call.kwargs["name"] == "cost_breakdown"
 
 
 class TestMLFlowTrackerArtifactLevels:
