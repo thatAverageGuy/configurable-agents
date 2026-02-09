@@ -1995,7 +1995,7 @@ def cmd_webhooks(args: argparse.Namespace) -> int:
     try:
         from fastapi import FastAPI
 
-        from configurable_agents.webhooks import router as webhook_router
+        from configurable_agents.webhooks.router import router as webhook_router
 
         app = FastAPI(title="Configurable Agents Webhooks", version="0.1.0")
         app.include_router(webhook_router)

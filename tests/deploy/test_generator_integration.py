@@ -231,12 +231,12 @@ class TestDeploymentArtifactGenerationIntegration:
         # Check server.py
         server_content = artifacts["server.py"].read_text()
         assert "SYNC_TIMEOUT = 60" in server_content
-        assert "port=9000" in server_content
+        assert "port=8000" in server_content
 
         # Check docker-compose.yml
         compose_content = artifacts["docker-compose.yml"].read_text()
-        assert "9000:9000" in compose_content
-        assert "5001:5001" in compose_content
+        assert "9000:8000" in compose_content
+        assert "5001:5000" in compose_content
 
         # Check README.md
         readme_content = artifacts["README.md"].read_text()
@@ -280,4 +280,4 @@ class TestDeploymentArtifactGenerationIntegration:
         ports = compose_dict["services"]["workflow"]["ports"]
         # Should only have API port, not MLFlow port
         assert len([p for p in ports if "8000" in p]) > 0
-        assert len([p for p in ports if "5000" in p]) == 0 or "0:0" in str(ports)
+        assert len([p for p in ports if "5000" in p]) == 0 or "0:5000" in str(ports)

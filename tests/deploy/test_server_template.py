@@ -314,7 +314,7 @@ class TestConfiguration:
 
         server_content = artifacts["server.py"].read_text()
 
-        assert "port=9000" in server_content
+        assert "port=8000" in server_content
 
     def test_workflow_name_in_title(self, sample_workflow_config, tmp_path):
         """Server includes workflow name in API title"""

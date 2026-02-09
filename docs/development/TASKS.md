@@ -22,7 +22,7 @@
 - Replaced broken MAP/Send parallel with fork-join parallel (10-phase implementation)
 - Config 07 and 12 fully rewritten and verified
 
-**Remaining Bug Fixes** (discovered during CL-003):
+**Bug Fixes** (discovered during CL-003):
 
 | ID | Issue | Priority | Status |
 |----|-------|----------|--------|
@@ -32,6 +32,14 @@
 | BF-004 | MLFlow cost summary — parsing, model attribution, GenAI view | MEDIUM | ✅ DONE |
 | BF-005 | Pre-existing test failures (dict-vs-Pydantic, deploy artifacts) | MEDIUM | ✅ DONE |
 | BF-006 | ChatLiteLLM deprecation migration (`langchain-litellm`) | LOW | ✅ DONE |
+| BF-007 | Webhooks CLI — wrong router import | MEDIUM | ✅ DONE |
+| BF-008 | Docker deploy — build failure + port mismatch | HIGH | ✅ DONE |
+
+**CLI Verification** (2026-02-09):
+- All 20 CLI commands discovered and documented in `docs/user/cli_guide.md`
+- All commands manually tested — basic functionality verified for all
+- Full Docker deploy verified end-to-end (build → run → API calls)
+- Next: Deep flag-by-flag verification
 
 **Details**: [CL-003 Test Findings](implementation_logs/phase_5_cleanup_and_verification/CL-003_TEST_FINDINGS.md)
 

@@ -17,6 +17,26 @@ After introducing an autonomous agent system post-v1.0, the codebase and documen
 became inconsistent and out of sync. Cleanup tasks are in progress to restore
 the project to a verifiable state.
 
+### Fixed
+
+**BF-007: Fix webhooks command — wrong router import** (2026-02-09)
+- Fixed `from configurable_agents.webhooks import router` importing the module instead of the `APIRouter` instance
+- Changed to `from configurable_agents.webhooks.router import router as webhook_router` in `cli.py`
+- Webhooks server now starts correctly, `/` and `/webhooks/health` respond
+
+**BF-008: Fix Docker deploy — build failure and port mismatch** (2026-02-09)
+- **BF-008a**: Fixed Docker build failure caused by invalid `pyproject.toml` script entries (`docs:build`, `docs:serve`, `docs:clean` are shell commands, not Python entry points) — rewrote `_copy_pyproject_toml()` in `deploy/generator.py` to filter invalid entries
+- **BF-008b**: Fixed container port mismatch — `server.py.template` used `port=${api_port}` but Dockerfile exposes 8000 internally — hardcoded to `port=8000`, updated `docker-compose.yml.template` port mappings to `${api_port}:8000` and `${mlflow_port}:5000`
+- Updated test assertions in `test_generator_integration.py` and `test_server_template.py` to match new fixed-port behavior
+- Full Docker deploy verified: container builds, starts, `/health`, `/docs`, `/schema`, `/run` all work
+
+### Added
+
+**CLI Reference Guide** (2026-02-09)
+- Created `docs/user/cli_guide.md` — comprehensive reference for all 20 CLI commands
+- Covers all flags, defaults, examples, port map, and verification status
+- Systematic manual testing of all CLI commands documented
+
 ### Changed
 
 **BF-006: Migrate ChatLiteLLM to langchain-litellm** (2026-02-09)

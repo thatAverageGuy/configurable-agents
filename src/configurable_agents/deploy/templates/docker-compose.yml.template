@@ -5,8 +5,8 @@ services:
     build: .
     container_name: ${container_name}
     ports:
-      - "${api_port}:${api_port}"
-      - "${mlflow_port}:${mlflow_port}"
+      - "${api_port}:8000"
+      - "${mlflow_port}:5000"
     environment:
       # API keys loaded from .env file
       - GOOGLE_API_KEY=$${GOOGLE_API_KEY}

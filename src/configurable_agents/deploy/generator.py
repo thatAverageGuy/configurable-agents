@@ -405,7 +405,13 @@ async def health_ready():
 
     def _copy_pyproject_toml(self, output_path: Path) -> Path:
         """
-        Copy pyproject.toml to output directory.
+        Copy pyproject.toml to output directory, stripping invalid script entries.
+
+        The main pyproject.toml may contain non-PEP-517 script entries (e.g.
+        "docs:build") that are shell commands rather than Python entry points.
+        These break ``pip install`` in Docker where strict validation is enforced.
+        This method removes any script entry whose value is not a valid
+        Python entry point reference (must contain a colon-separated module path).
 
         Args:
             output_path: Output file path
@@ -420,7 +426,40 @@ async def health_ready():
         if not pyproject_path.exists():
             raise FileNotFoundError(f"pyproject.toml not found: {pyproject_path}")
 
-        shutil.copy2(pyproject_path, output_path)
+        # Read, sanitize invalid script entries, then write
+        content = pyproject_path.read_text(encoding="utf-8")
+
+        # Remove script lines whose values aren't Python entry points.
+        # Valid entry point: "name = \"module.path:func\""
+        # Invalid: "docs:build = \"sphinx-build ...\""
+        sanitized_lines = []
+        in_scripts = False
+        for line in content.splitlines():
+            stripped = line.strip()
+            if stripped == "[project.scripts]":
+                in_scripts = True
+                sanitized_lines.append(line)
+                continue
+            if in_scripts:
+                if stripped.startswith("["):
+                    # Entered a new section
+                    in_scripts = False
+                    sanitized_lines.append(line)
+                    continue
+                if "=" in stripped and not stripped.startswith("#"):
+                    # Check if the value looks like a Python entry point (module:attr)
+                    _, _, value = stripped.partition("=")
+                    value = value.strip().strip('"').strip("'")
+                    # A valid entry point contains a module path with a colon
+                    # e.g. "configurable_agents.cli:main"
+                    # Invalid ones look like shell commands: "sphinx-build ..."
+                    if ":" in value and " " not in value:
+                        sanitized_lines.append(line)
+                    # else: skip invalid entry
+                    continue
+            sanitized_lines.append(line)
+
+        output_path.write_text("\n".join(sanitized_lines) + "\n", encoding="utf-8")
 
         return output_path
 
