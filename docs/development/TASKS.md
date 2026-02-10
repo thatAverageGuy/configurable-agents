@@ -39,9 +39,41 @@
 - All 20 CLI commands discovered and documented in `docs/user/cli_guide.md`
 - All commands manually tested — basic functionality verified for all
 - Full Docker deploy verified end-to-end (build → run → API calls)
-- Next: Deep flag-by-flag verification
 
-**Details**: [CL-003 Test Findings](implementation_logs/phase_5_cleanup_and_verification/CL-003_TEST_FINDINGS.md)
+**Deep Flag Verification — Round 1** (2026-02-09):
+- All 10 flag/command items tested in depth — 5 issues found (VF-001–VF-005)
+- Created `OBSERVABILITY_REFERENCE.md` — MLflow 3.9 GenAI reference doc
+
+**Extended CLI Verification — Round 2** (2026-02-09):
+- 4 commands tested — 1 new issue found (VF-006)
+- Created `UI_ARCHITECTURE.md`
+
+**VF Fixing Session** (2026-02-10) — ALL 6 ISSUES FIXED:
+
+| ID | Summary | Fix Applied | Status |
+|----|---------|-------------|--------|
+| VF-001 | `--verbose` no DEBUG output | Added `setup_logging()` in `main()` | ✅ FIXED |
+| VF-002 | `--enable-profiling` no-op | Removed dead env var + `mlflow.active_run()` code | ✅ FIXED |
+| VF-003 | `--no-mlflow` cosmetic artifacts | Conditional template variables in generator.py | ✅ FIXED |
+| VF-004 | Reporting uses legacy `search_runs()` | Rewrote cost-report, profile-report, obs status to `search_traces()` | ✅ FIXED |
+| VF-005 | `report costs` wrong tracking URI | Added `mlflow.set_tracking_uri()` + trace-based rewrite | ✅ FIXED |
+| VF-006 | Parent commands crash without subcommand | Added `hasattr(args, 'func')` check in `main()` | ✅ FIXED |
+
+**Additional actions completed** (2026-02-10):
+- **Removed optimization module** — Entire `optimization/` package, CLI commands, dashboard routes, templates, tests deleted. Quality gates moved to `runtime/gates.py`. See [OPTIMIZATION_INVESTIGATION.md](OPTIMIZATION_INVESTIGATION.md)
+- **Renamed Agent Registry → Workflow Registry** — CLI command `agent-registry` → `workflow-registry`, added `WorkflowRegistryServer`/`WorkflowRegistryClient` aliases. Internal class names preserved for DB compatibility.
+
+**Test results after fixes**: 656 passed, 0 failed, 3 skipped
+
+**Remaining**: `dashboard`, `chat`, `ui` (3 commands, Round 3, items #15–#17)
+
+**Details**:
+- [CL-003 VF Fixing Session](implementation_logs/phase_5_cleanup_and_verification/CL-003_VF_FIXING_SESSION.md)
+- [CL-003 Deep Flag Verification](implementation_logs/phase_5_cleanup_and_verification/CL-003_DEEP_FLAG_VERIFICATION.md)
+- [CL-003 Test Findings](implementation_logs/phase_5_cleanup_and_verification/CL-003_TEST_FINDINGS.md)
+- [UI Architecture](UI_ARCHITECTURE.md) — Read before UI testing or fixing
+- [Observability Reference](OBSERVABILITY_REFERENCE.md)
+- [Optimization Investigation](OPTIMIZATION_INVESTIGATION.md)
 
 ---
 

@@ -348,9 +348,10 @@ class MultiProviderCostTracker:
     def generate_report(
         self, experiment_name: str, mlflow_client: Optional[Any] = None
     ) -> Dict[str, Any]:
-        """Generate cost report from MLFlow experiment data.
+        """Generate cost report from MLFlow experiment trace data.
 
-        Queries MLFlow for all runs in the experiment and aggregates costs by provider.
+        Queries MLFlow for traces in the experiment and aggregates costs by provider,
+        extracting token usage from CHAT_MODEL span attributes.
 
         Args:
             experiment_name: MLFlow experiment name
@@ -372,46 +373,72 @@ class MultiProviderCostTracker:
         client = mlflow_client or MlflowClient()
 
         # Get experiment
-        experiment = mlflow.get_experiment_by_name(experiment_name)
+        experiment = client.get_experiment_by_name(experiment_name)
         if experiment is None:
             raise ValueError(f"Experiment not found: {experiment_name}")
 
-        # Query runs
-        runs = client.search_runs(experiment_ids=[experiment.experiment_id])
+        # Query traces (GenAI paradigm — not runs)
+        traces = mlflow.search_traces(
+            locations=[experiment.experiment_id],
+            max_results=1000,
+            order_by=["timestamp DESC"],
+            return_type="list",
+        )
 
-        # Aggregate costs from runs
+        # Aggregate costs from trace spans
         provider_data: Dict[str, Dict[str, Any]] = {}
         total_cost = 0.0
         total_tokens = 0
 
-        for run in runs:
-            # Extract provider/model from run params
-            params = run.data.params
-            metrics = run.data.metrics
+        for trace in traces:
+            for span in trace.data.spans:
+                span_attrs = span.attributes or {}
+                token_usage = span_attrs.get("mlflow.chat.tokenUsage")
 
-            provider = params.get("provider", "unknown")
-            model = params.get("model", "unknown")
+                if not token_usage:
+                    continue
 
-            # Auto-detect provider if not specified
-            if provider == "unknown":
+                # Extract model name from span attributes
+                model = (
+                    span_attrs.get("ai.model.name")
+                    or (span_attrs.get("invocation_params") or {}).get("model")
+                    or (span_attrs.get("metadata") or {}).get("ls_model_name")
+                    or "unknown"
+                )
+
                 provider = _extract_provider(model)
 
-            key = f"{provider}/{model}"
-            if key not in provider_data:
-                provider_data[key] = {
-                    "provider": provider,
-                    "model": model,
-                    "total_cost_usd": 0.0,
-                    "total_tokens": 0,
-                    "run_count": 0,
-                }
+                prompt_tokens = token_usage.get("prompt_tokens") or token_usage.get("input_tokens", 0)
+                completion_tokens = token_usage.get("completion_tokens") or token_usage.get("output_tokens", 0)
+                span_total_tokens = token_usage.get("total_tokens", prompt_tokens + completion_tokens)
 
-            provider_data[key]["total_cost_usd"] += metrics.get("total_cost_usd", 0.0)
-            provider_data[key]["total_tokens"] += metrics.get("total_tokens", 0)
-            provider_data[key]["run_count"] += 1
+                # Estimate cost
+                try:
+                    cost = self.cost_estimator.estimate_cost(
+                        model=model,
+                        input_tokens=prompt_tokens,
+                        output_tokens=completion_tokens,
+                        provider=provider,
+                    )
+                except Exception:
+                    cost = 0.0
 
-            total_cost += metrics.get("total_cost_usd", 0.0)
-            total_tokens += metrics.get("total_tokens", 0)
+                key = f"{provider}/{model}"
+                if key not in provider_data:
+                    provider_data[key] = {
+                        "provider": provider,
+                        "model": model,
+                        "total_cost_usd": 0.0,
+                        "total_tokens": 0,
+                        "run_count": 0,
+                    }
+
+                provider_data[key]["total_cost_usd"] += cost
+                provider_data[key]["total_tokens"] += span_total_tokens
+                provider_data[key]["run_count"] += 1
+
+                total_cost += cost
+                total_tokens += span_total_tokens
 
         # Aggregate by provider
         by_provider: Dict[str, Dict[str, Any]] = {}
@@ -429,7 +456,6 @@ class MultiProviderCostTracker:
             by_provider[provider]["total_tokens"] += data["total_tokens"]
             by_provider[provider]["run_count"] += data["run_count"]
 
-            # Track individual models
             model = data["model"]
             by_provider[provider]["models"][model] = {
                 "total_cost_usd": data["total_cost_usd"],

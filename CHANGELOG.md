@@ -19,6 +19,33 @@ the project to a verifiable state.
 
 ### Fixed
 
+**CL-003: Fix VF-001–VF-006, remove optimization module, rename workflow registry** (2026-02-10)
+
+- **VF-001**: Fixed `--verbose` producing no DEBUG output — added `setup_logging()` call in `main()` so all commands get proper logging handlers
+- **VF-002**: Removed dead `--enable-profiling` code — env var `CONFIGURABLE_AGENTS_PROFILING` was set but never read; removed `mlflow.active_run()` metric logging in `node_executor.py` (always None under trace paradigm)
+- **VF-003**: Fixed `--no-mlflow` deploy artifacts — Dockerfile now exposes only port 8000 (not 8000+5000), docker-compose.yml omits MLflow port mapping and volume mount when MLflow disabled
+- **VF-004**: Rewrote all observability reporting commands (`cost-report`, `profile-report`, `observability status`, `report costs`) from legacy `search_runs()` to `search_traces()` + span extraction, matching MLflow 3.9 GenAI paradigm
+- **VF-005**: Fixed `CostReporter` experiment lookup — added `mlflow.set_tracking_uri()` in `__init__` and rewrote `get_cost_entries()` to use trace-based queries
+- **VF-006**: Fixed parent commands (`optimization`, `workflow-registry`) crashing without subcommand — added `hasattr(args, 'func')` check in `main()`
+
+### Removed
+
+**Optimization module removed** (2026-02-10)
+- Removed entire `optimization/` package (`evaluator.py`, `ab_test.py`, `gates.py`, `__init__.py`)
+- Removed CLI commands: `optimization evaluate`, `optimization apply-optimized`, `optimization ab-test`
+- Removed dashboard route (`routes/optimization.py`) and templates (`optimization.html`, `experiments.html`)
+- Removed all optimization tests (`tests/optimization/`, `tests/cli/test_optimization_commands.py`)
+- Moved `QualityGate` system from `optimization/gates.py` to `runtime/gates.py` (used by executor, not an optimization concern)
+- Optimization to be redesigned later with MLflow 3.9 GenAI evaluation + DSPy
+
+### Changed
+
+**Agent Registry renamed to Workflow Registry** (2026-02-10)
+- CLI command renamed from `agent-registry` to `workflow-registry`
+- Added `WorkflowRegistryServer` and `WorkflowRegistryClient` aliases in `registry/__init__.py`
+- CLI help text updated from "agent" to "workflow" terminology
+- Internal class names (`AgentRegistryServer`, `AgentRecord`, etc.) preserved for backward compatibility
+
 **BF-007: Fix webhooks command — wrong router import** (2026-02-09)
 - Fixed `from configurable_agents.webhooks import router` importing the module instead of the `APIRouter` instance
 - Changed to `from configurable_agents.webhooks.router import router as webhook_router` in `cli.py`

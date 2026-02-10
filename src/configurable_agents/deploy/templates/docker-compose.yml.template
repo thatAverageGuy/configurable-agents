@@ -6,12 +6,12 @@ services:
     container_name: ${container_name}
     ports:
       - "${api_port}:8000"
-      - "${mlflow_port}:5000"
+${compose_mlflow_port}
     environment:
       # API keys loaded from .env file
       - GOOGLE_API_KEY=$${GOOGLE_API_KEY}
       - SERPER_API_KEY=$${SERPER_API_KEY}
     volumes:
-      # Persist MLFlow data across container restarts
-      - ./mlflow.db:/app/mlflow.db
+${compose_mlflow_comment}
+${compose_mlflow_volume}
     restart: unless-stopped

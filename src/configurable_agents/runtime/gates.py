@@ -8,6 +8,9 @@ Key features:
 - Configurable actions: WARN, FAIL, BLOCK_DEPLOY
 - Aggregate gate checking with detailed results
 - Integration with executor for post-execution validation
+
+Moved from optimization module (which was removed) since quality gates
+are a runtime concern, not an optimization feature.
 """
 
 import logging
@@ -137,20 +140,6 @@ def check_gates(
 
     Returns:
         List of GateResult for each gate checked
-
-    Example:
-        >>> from configurable_agents.optimization import check_gates, GatesConfig, QualityGate
-        >>> metrics = {"cost_usd": 0.5, "duration_ms": 5000}
-        >>> config = GatesConfig(
-        ...     gates=[
-        ...         QualityGate(metric="cost_usd", max=1.0),
-        ...         QualityGate(metric="duration_ms", max=10000),
-        ...     ],
-        ...     on_fail=GateAction.WARN,
-        ... )
-        >>> results = check_gates(metrics, config)
-        >>> all(r.passed for r in results)
-        True
     """
     results = []
 
@@ -164,7 +153,6 @@ def check_gates(
 
         if value is None:
             logger.warning(f"Gate metric not found in metrics: {gate.metric}")
-            # Create failed result for missing metric
             results.append(GateResult(
                 gate=gate,
                 passed=False,
@@ -222,21 +210,18 @@ def take_action(
     Raises:
         QualityGateError: If action is FAIL and gates failed
     """
-    # Filter failed gates
     failed = [r for r in results if not r.passed]
 
     if not failed:
         logger.debug("All quality gates passed")
         return
 
-    # Log failures
     for result in failed:
         logger.warning(
             f"Quality gate failed: {result.gate.metric} = {result.actual} "
             f"(threshold: {result.threshold})"
         )
 
-    # Take action based on configuration
     if action == GateAction.WARN:
         logger.warning(
             f"Quality gates failed but continuing (WARN action): "
@@ -255,41 +240,28 @@ def take_action(
         raise error
 
     elif action == GateAction.BLOCK_DEPLOY:
-        # Set deploy block flag
         flag_key = f"deploy_block:{context or 'default'}"
         _deploy_block_flags[flag_key] = {
-            "timestamp": None,  # Could add timestamp
+            "timestamp": None,
             "failed_gates": [r.gate.metric for r in failed],
         }
         logger.error(
             f"Quality gates failed: deployment blocked for {context or 'workflow'}. "
             f"{len(failed)} gate(s) failed. Clear flags to re-enable deployment."
         )
-        # Don't raise - execution continues but deployment is blocked
 
     else:
         logger.warning(f"Unknown gate action: {action}")
 
 
 def is_deploy_blocked(context: Optional[str] = None) -> bool:
-    """Check if deployment is blocked for a workflow.
-
-    Args:
-        context: Optional context string (e.g., workflow name)
-
-    Returns:
-        True if deployment is blocked
-    """
+    """Check if deployment is blocked for a workflow."""
     flag_key = f"deploy_block:{context or 'default'}"
     return flag_key in _deploy_block_flags
 
 
 def clear_deploy_block(context: Optional[str] = None) -> None:
-    """Clear deployment block flag for a workflow.
-
-    Args:
-        context: Optional context string (e.g., workflow name)
-    """
+    """Clear deployment block flag for a workflow."""
     flag_key = f"deploy_block:{context or 'default'}"
     if flag_key in _deploy_block_flags:
         del _deploy_block_flags[flag_key]
@@ -297,14 +269,7 @@ def clear_deploy_block(context: Optional[str] = None) -> None:
 
 
 def get_failed_gates(context: Optional[str] = None) -> List[str]:
-    """Get list of failed gates for blocked deployment.
-
-    Args:
-        context: Optional context string (e.g., workflow name)
-
-    Returns:
-        List of failed gate metric names
-    """
+    """Get list of failed gates for blocked deployment."""
     flag_key = f"deploy_block:{context or 'default'}"
     flag_data = _deploy_block_flags.get(flag_key, {})
     return flag_data.get("failed_gates", [])

@@ -225,6 +225,22 @@ async def health_ready():
             registry_shutdown_handler = ""
             health_check_endpoints = ""
 
+        # VF-003: Conditional MLflow fragments for templates
+        if enable_mlflow and mlflow_port > 0:
+            compose_mlflow_port = f'      - "{mlflow_port}:5000"'
+            compose_mlflow_volume = "      - ./mlflow.db:/app/mlflow.db"
+            compose_mlflow_comment = "      # Persist MLFlow data across container restarts"
+            dockerfile_expose = "EXPOSE 8000 5000"
+            dockerfile_mlflow_dir_comment = "# Create data directory for MLflow SQLite DB"
+            dockerfile_cmd_comment = "# Start server (MLFlow UI in background if enabled, FastAPI in foreground)"
+        else:
+            compose_mlflow_port = ""
+            compose_mlflow_volume = ""
+            compose_mlflow_comment = ""
+            dockerfile_expose = "EXPOSE 8000"
+            dockerfile_mlflow_dir_comment = "# Create data directory"
+            dockerfile_cmd_comment = "# Start server"
+
         return {
             "workflow_name": workflow_name,
             "workflow_version": workflow_version,
@@ -237,6 +253,13 @@ async def health_ready():
             "example_input": example_input,
             "package_version": package_version,
             "generated_at": datetime.utcnow().isoformat() + "Z",
+            # MLflow conditional fragments
+            "compose_mlflow_port": compose_mlflow_port,
+            "compose_mlflow_volume": compose_mlflow_volume,
+            "compose_mlflow_comment": compose_mlflow_comment,
+            "dockerfile_expose": dockerfile_expose,
+            "dockerfile_mlflow_dir_comment": dockerfile_mlflow_dir_comment,
+            "dockerfile_cmd_comment": dockerfile_cmd_comment,
             # Registry variables
             "registry_enabled": str(enable_registry).lower(),
             "registry_import": registry_import,

@@ -27,12 +27,9 @@
 | `observability status` | Show MLFlow connection & recent activity | Observability |
 | `observability cost-report` | Alias for `cost-report` | Observability |
 | `observability profile-report` | Alias for `profile-report` | Observability |
-| `agent-registry start` | Start the agent registry server | Registry |
-| `agent-registry list` | List registered agents | Registry |
-| `agent-registry cleanup` | Clean up expired agents | Registry |
-| `optimization evaluate` | Compare prompt variants in an experiment | Optimization |
-| `optimization apply-optimized` | Apply best prompt to a workflow YAML | Optimization |
-| `optimization ab-test` | Run A/B test for prompt variants | Optimization |
+| `workflow-registry start` | Start the workflow registry server | Registry |
+| `workflow-registry list` | List registered workflows | Registry |
+| `workflow-registry cleanup` | Clean up expired workflows | Registry |
 
 ---
 
@@ -395,14 +392,14 @@ These are **aliases** to the top-level `cost-report` and `profile-report` comman
 
 ---
 
-## Agent Registry Commands
+## Workflow Registry Commands
 
-### `agent-registry start` - Start Registry Server
+### `workflow-registry start` - Start Registry Server
 
-Starts the agent registry FastAPI server for distributed agent coordination.
+Starts the workflow registry FastAPI server for distributed workflow coordination.
 
 ```
-configurable-agents agent-registry start [OPTIONS]
+configurable-agents workflow-registry start [OPTIONS]
 ```
 
 | Flag | Short | Default | Description |
@@ -414,107 +411,36 @@ configurable-agents agent-registry start [OPTIONS]
 
 ---
 
-### `agent-registry list` - List Agents
+### `workflow-registry list` - List Workflows
 
-Lists all registered agents from the registry database.
-
-```
-configurable-agents agent-registry list [OPTIONS]
-```
-
-| Flag | Short | Default | Description |
-|------|-------|---------|-------------|
-| `--db-url` | | `sqlite:///agent_registry.db` | Database URL |
-| `--include-dead` | | off | Include expired/dead agents |
-| `--verbose` | `-v` | off | Enable verbose output |
-
-**Output columns**: Agent ID, Name, Host:Port, Last Heartbeat, Status (Alive/Dead)
-
----
-
-### `agent-registry cleanup` - Remove Expired Agents
-
-Manually triggers deletion of expired agents from the registry.
+Lists all registered workflows from the registry database.
 
 ```
-configurable-agents agent-registry cleanup [OPTIONS]
+configurable-agents workflow-registry list [OPTIONS]
 ```
 
 | Flag | Short | Default | Description |
 |------|-------|---------|-------------|
 | `--db-url` | | `sqlite:///agent_registry.db` | Database URL |
+| `--include-dead` | | off | Include expired/dead workflows |
 | `--verbose` | `-v` | off | Enable verbose output |
+
+**Output columns**: Workflow ID, Name, Host:Port, Last Heartbeat, Status (Alive/Dead)
 
 ---
 
-## Optimization Commands
+### `workflow-registry cleanup` - Remove Expired Workflows
 
-### `optimization evaluate` - Compare Variants
-
-Evaluates and compares prompt variants from an MLFlow experiment. Displays a Rich-formatted comparison table.
+Manually triggers deletion of expired workflows from the registry.
 
 ```
-configurable-agents optimization evaluate --experiment <name> [OPTIONS]
+configurable-agents workflow-registry cleanup [OPTIONS]
 ```
 
 | Flag | Short | Default | Description |
 |------|-------|---------|-------------|
-| `--experiment` | | *required* | MLFlow experiment name |
-| `--metric` | | `cost_usd_avg` | Metric for comparison |
-| `--mlflow-uri` | | config default | MLFlow tracking URI |
+| `--db-url` | | `sqlite:///agent_registry.db` | Database URL |
 | `--verbose` | `-v` | off | Enable verbose output |
-
-**Requires**: `rich>=13.0.0`
-
----
-
-### `optimization apply-optimized` - Apply Best Prompt
-
-Finds the best-performing prompt variant and applies it to a workflow YAML file.
-
-```
-configurable-agents optimization apply-optimized --experiment <name> --workflow <path> [OPTIONS]
-```
-
-| Flag | Short | Default | Description |
-|------|-------|---------|-------------|
-| `--experiment` | | *required* | MLFlow experiment name |
-| `--variant` | | best variant | Specific variant name to apply |
-| `--workflow` | | *required* | Path to workflow YAML to update |
-| `--dry-run` | | off | Show preview without applying |
-| `--mlflow-uri` | | config default | MLFlow tracking URI |
-| `--verbose` | `-v` | off | Enable verbose output |
-
-**Behavior**: Creates a backup of the original file before overwriting.
-
----
-
-### `optimization ab-test` - Run A/B Test
-
-Executes A/B test using variant definitions from the workflow config's `ab_test` section.
-
-```
-configurable-agents optimization ab-test <config_file> [OPTIONS]
-```
-
-| Flag | Short | Default | Description |
-|------|-------|---------|-------------|
-| `config_file` | (positional) | *required* | Workflow YAML with `ab_test` section |
-| `--input` | `-i` | none | Workflow inputs as `key=value` (repeatable) |
-| `--verbose` | `-v` | off | Enable verbose output |
-
-**Config requirement**: The workflow YAML must have an `ab_test` section:
-```yaml
-ab_test:
-  enabled: true
-  experiment: "my_test"
-  run_count: 3
-  variants:
-    - name: "variant_a"
-      prompt: "Prompt A"
-    - name: "variant_b"
-      prompt: "Prompt B"
-```
 
 ---
 
@@ -527,7 +453,7 @@ ab_test:
 | Webhooks (FastAPI) | 7862 | `webhooks` |
 | MLFlow UI | 5000 | `ui`, `deploy` |
 | Deploy API (FastAPI) | 8000 | `deploy` |
-| Agent Registry | 9000 | `agent-registry start` |
+| Workflow Registry | 9000 | `workflow-registry start` |
 
 ---
 
@@ -553,12 +479,10 @@ ab_test:
 | `observability status` | 2026-02-09 | YES | Shows connection status, experiment count, recent activity |
 | `observability cost-report` | 2026-02-09 | YES | Alias works, identical output to `cost-report` |
 | `observability profile-report` | 2026-02-09 | YES | Alias works, identical output to `profile-report` |
-| `agent-registry start` | 2026-02-09 | YES | Server starts, listens on configured port |
-| `agent-registry list` | 2026-02-09 | YES | Shows "No agents found" on empty DB |
-| `agent-registry cleanup` | 2026-02-09 | YES | Shows "No expired agents found" on empty DB |
-| `optimization evaluate` | 2026-02-09 | YES | Shows empty comparison table, no crash |
-| `optimization apply-optimized` | 2026-02-09 | YES | Correctly reports "No variants found" with `--dry-run` |
-| `optimization ab-test` | 2026-02-09 | YES | Correctly reports "A/B testing not configured" with guidance |
+| `workflow-registry start` | 2026-02-09 | YES | Server starts, listens on configured port (renamed from agent-registry) |
+| `workflow-registry list` | 2026-02-09 | YES | Shows "No workflows found" on empty DB |
+| `workflow-registry cleanup` | 2026-02-09 | YES | Shows "No expired workflows found" on empty DB |
+| ~~`optimization *`~~ | 2026-02-10 | REMOVED | Optimization module removed — redesign planned with MLflow 3.9 GenAI + DSPy |
 
 ### All `--help` subcommands verified
 

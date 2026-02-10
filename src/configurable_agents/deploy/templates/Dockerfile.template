@@ -38,15 +38,15 @@ COPY workflow.yaml server.py ./
 ENV PATH=/root/.local/bin:$$PATH
 ENV PYTHONUNBUFFERED=1
 
-# Create data directory for MLflow SQLite DB
+${dockerfile_mlflow_dir_comment}
 RUN mkdir -p /app
 
-# Expose ports (container internal ports, always 8000 and 5000)
-EXPOSE 8000 5000
+# Expose ports
+${dockerfile_expose}
 
 # Health check (always checks container port 8000)
 HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
   CMD python -c "import urllib.request; urllib.request.urlopen('http://localhost:8000/health').read()"
 
-# Start server (MLFlow UI in background if enabled, FastAPI in foreground)
+${dockerfile_cmd_comment}
 ${cmd_line}

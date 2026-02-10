@@ -32,6 +32,7 @@
 | **Troubleshooting** | Common issues and solutions | [user/TROUBLESHOOTING.md](user/TROUBLESHOOTING.md) |
 | **Observability** | MLFlow setup, cost tracking, and monitoring | [user/OBSERVABILITY.md](user/OBSERVABILITY.md) |
 | **Deployment** | Docker deployment guide | [user/DEPLOYMENT.md](user/DEPLOYMENT.md) |
+| **CLI Guide** | Complete CLI command reference with all flags | [user/cli_guide.md](user/cli_guide.md) |
 | **Security Guide** | Security best practices | [user/SECURITY_GUIDE.md](user/SECURITY_GUIDE.md) |
 
 ### Advanced Topics
@@ -58,6 +59,8 @@
 | **Spec** | Technical specification and requirements | [development/SPEC.md](development/SPEC.md) |
 | **TASKS** | Work breakdown and current status | [development/TASKS.md](development/TASKS.md) |
 | **CONTEXT** | Development context and current state | [../CONTEXT.md](../CONTEXT.md) |
+| **Observability Reference** | MLflow 3.9 GenAI model — read before fixing observability | [development/OBSERVABILITY_REFERENCE.md](development/OBSERVABILITY_REFERENCE.md) |
+| **UI Architecture** | Dashboard, Chat, Unified Launcher — read before testing/fixing UI | [development/UI_ARCHITECTURE.md](development/UI_ARCHITECTURE.md) |
 
 ### Architecture Decision Records (ADRs)
 
@@ -86,6 +89,12 @@
 - [CL-002: Documentation Index and Dead Link Cleanup](development/implementation_logs/phase_5_cleanup_and_verification/CL-002_doc_index_cleanup.md)
 - [CL-003: Fork-Join Parallel Replacement](development/implementation_logs/phase_5_cleanup_and_verification/CL-003_fork_join_parallel.md)
 - [CL-003: Test Findings](development/implementation_logs/phase_5_cleanup_and_verification/CL-003_TEST_FINDINGS.md)
+- [CL-003: Deep Flag Verification](development/implementation_logs/phase_5_cleanup_and_verification/CL-003_DEEP_FLAG_VERIFICATION.md)
+
+**Reference Documents:**
+- [Observability Reference (MLflow 3.9 GenAI)](development/OBSERVABILITY_REFERENCE.md) — Read before fixing any observability code
+- [Optimization Investigation](development/OPTIMIZATION_INVESTIGATION.md) — Read before any optimization work (module parked for redesign)
+- [UI Architecture](development/UI_ARCHITECTURE.md) — Read before testing or fixing any UI code
 
 **Phase 1 (Foundation):**
 - [T-001: Project Setup](development/implementation_logs/phase_1_foundation/T-001_project_setup.md)
@@ -189,7 +198,8 @@ docs/
 │   │       ├── CL-003_TEST_FINDINGS.md
 │   │       ├── CL-003_CODEBASE_SNAPSHOT.md
 │   │       ├── CL-003_CONSOLIDATION.md
-│   │       └── CL-003_MASTER_REFERENCE.md
+│   │       ├── CL-003_MASTER_REFERENCE.md
+│   │       └── CL-003_DEEP_FLAG_VERIFICATION.md
 │   └── session_context/        # Archived session contexts
 │
 └── api/                         # API reference (auto-generated)
@@ -223,4 +233,4 @@ docs/
 
 ---
 
-*Last Updated: 2026-02-06*
+*Last Updated: 2026-02-09*

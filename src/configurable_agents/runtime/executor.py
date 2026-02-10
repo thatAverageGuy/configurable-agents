@@ -381,7 +381,7 @@ def run_workflow_from_config(
 
         # Phase 7.5: Check quality gates (v0.4+)
         if config.config and config.config.gates:
-            from configurable_agents.optimization.gates import (
+            from configurable_agents.runtime.gates import (
                 check_gates,
                 take_action,
                 GateAction,
@@ -420,7 +420,7 @@ def run_workflow_from_config(
                 gate_action = GateAction.WARN
 
             # Convert schema GatesModel to optimization GatesConfig
-            from configurable_agents.optimization.gates import QualityGate, GatesConfig
+            from configurable_agents.runtime.gates import QualityGate, GatesConfig
             quality_gates = [
                 QualityGate(
                     metric=gm.metric,

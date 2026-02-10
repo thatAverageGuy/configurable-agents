@@ -590,15 +590,9 @@ def execute_node(
         except ImportError:
             pass  # Profiler not available
 
-        # Log per-node metrics to MLFlow
-        if MLFLOW_AVAILABLE and mlflow.active_run():
-            try:
-                mlflow.log_metric(f"node_{node_id}_duration_ms", node_duration_ms)
-                logger.debug(f"Logged MLFlow metric: node_{node_id}_duration_ms = {node_duration_ms:.2f}ms")
-            except Exception as e:
-                logger.warning(f"Failed to log node duration to MLFlow: {e}")
-
         # Calculate cost using CostEstimator
+        # (Node-level metrics are captured automatically via MLflow trace spans;
+        #  no need for explicit mlflow.log_metric — see OBSERVABILITY_REFERENCE.md)
         cost_usd = 0.0
         try:
             cost_estimator = CostEstimator()
@@ -607,13 +601,6 @@ def execute_node(
                 input_tokens=usage.input_tokens,
                 output_tokens=usage.output_tokens,
             )
-            # Log per-node cost to MLFlow
-            if MLFLOW_AVAILABLE and mlflow.active_run():
-                try:
-                    mlflow.log_metric(f"node_{node_id}_cost_usd", cost_usd)
-                    logger.debug(f"Logged MLFlow metric: node_{node_id}_cost_usd = ${cost_usd:.6f}")
-                except Exception as e:
-                    logger.warning(f"Failed to log node cost to MLFlow: {e}")
         except Exception as e:
             logger.debug(f"Failed to estimate cost for node '{node_id}': {e}")
 

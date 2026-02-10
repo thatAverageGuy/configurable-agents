@@ -499,22 +499,14 @@ class TestEnableProfilingFlag:
 
         assert args.enable_profiling is False
 
-    def test_enable_profiling_sets_environment_variable(self):
-        """Verify --enable-profiling sets environment variable."""
+    def test_enable_profiling_accepted_but_no_env_var(self):
+        """Verify --enable-profiling is accepted (backward compat) but no longer sets env var.
+
+        VF-002: The env var was dead code — profiling data is captured via MLflow trace spans.
+        """
         from configurable_agents.cli import cmd_run
         from argparse import Namespace
-        from pathlib import Path
         import os
-
-        # Create a dummy workflow file
-        mock_config = {
-            "flow": {
-                "name": "test",
-                "nodes": [
-                    {"id": "test_node", "type": "llm", "model": "gpt-4o", "prompt": "test"}
-                ]
-            }
-        }
 
         with patch("pathlib.Path.exists", return_value=True):
             with patch("configurable_agents.cli.run_workflow", return_value={"result": "success"}):
@@ -531,12 +523,8 @@ class TestEnableProfilingFlag:
 
                 cmd_run(args)
 
-                # Verify environment variable was set
-                assert os.environ.get("CONFIGURABLE_AGENTS_PROFILING") == "1"
-
-                # Clean up
-                if "CONFIGURABLE_AGENTS_PROFILING" in os.environ:
-                    del os.environ["CONFIGURABLE_AGENTS_PROFILING"]
+                # Env var is no longer set (dead code removed)
+                assert "CONFIGURABLE_AGENTS_PROFILING" not in os.environ
 
 
 @pytest.mark.skipif(not RICH_AVAILABLE, reason="Rich library not available")

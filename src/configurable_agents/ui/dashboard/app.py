@@ -119,7 +119,6 @@ class DashboardApp:
             workflows_router,
             agents_router,
             metrics_router,
-            optimization_router,
             orchestrator_router,
         )
         from configurable_agents.ui.dashboard.routes import status as status_routes
@@ -127,7 +126,6 @@ class DashboardApp:
         self.app.include_router(workflows_router)
         self.app.include_router(agents_router)
         self.app.include_router(metrics_router)
-        self.app.include_router(optimization_router)
         self.app.include_router(orchestrator_router)
         self.app.include_router(status_routes.router)
 

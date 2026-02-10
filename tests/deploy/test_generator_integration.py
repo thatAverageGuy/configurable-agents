@@ -266,18 +266,15 @@ class TestDeploymentArtifactGenerationIntegration:
         dockerfile_content = artifacts["Dockerfile"].read_text()
         assert "mlflow ui" not in dockerfile_content
         assert "CMD python server.py" in dockerfile_content
-        # Dockerfile template always exposes both ports (static template);
-        # MLflow disabling is done via CMD (no mlflow process) and requirements
-        assert "EXPOSE 8000 5000" in dockerfile_content
+        # VF-003: When MLflow disabled, only expose port 8000
+        assert "EXPOSE 8000" in dockerfile_content
+        assert "EXPOSE 8000 5000" not in dockerfile_content
 
         # Check requirements.txt
         requirements_content = artifacts["requirements.txt"].read_text()
         assert "mlflow" not in requirements_content or "disabled" in requirements_content
 
-        # Check docker-compose.yml
+        # Check docker-compose.yml — VF-003: no MLflow port or volume when disabled
         compose_content = artifacts["docker-compose.yml"].read_text()
-        compose_dict = yaml.safe_load(compose_content)
-        ports = compose_dict["services"]["workflow"]["ports"]
-        # Should only have API port, not MLFlow port
-        assert len([p for p in ports if "8000" in p]) > 0
-        assert len([p for p in ports if "5000" in p]) == 0 or "0:5000" in str(ports)
+        assert "5000" not in compose_content
+        assert "mlflow.db" not in compose_content

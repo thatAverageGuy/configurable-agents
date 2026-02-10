@@ -91,6 +91,8 @@ class CostReporter:
             )
 
         self.tracking_uri = tracking_uri
+        # VF-005: Set global tracking URI so mlflow.* functions use it
+        mlflow.set_tracking_uri(tracking_uri)
         self.client = MlflowClient(tracking_uri=tracking_uri)
         logger.debug(f"Initialized CostReporter with tracking_uri: {tracking_uri}")
 
@@ -102,13 +104,16 @@ class CostReporter:
         end_date: Optional[datetime] = None,
         status_filter: Optional[str] = None,  # "success" or "failure"
     ) -> List[CostEntry]:
-        """Query MLFlow for cost entries with optional filters.
+        """Query MLFlow for cost entries from traces with optional filters.
+
+        Extracts cost data from CHAT_MODEL spans in MLflow traces
+        (GenAI paradigm, not legacy runs).
 
         Args:
             experiment_name: Filter by experiment name (default: all experiments)
             workflow_name: Filter by workflow name (default: all workflows)
-            start_date: Filter runs starting after this date (default: no filter)
-            end_date: Filter runs ending before this date (default: no filter)
+            start_date: Filter traces starting after this date (default: no filter)
+            end_date: Filter traces ending before this date (default: no filter)
             status_filter: Filter by status - "success" or "failure" (default: all)
 
         Returns:
@@ -117,67 +122,71 @@ class CostReporter:
         Raises:
             ValueError: If experiment doesn't exist or filters are invalid
         """
+        from configurable_agents.observability.cost_estimator import CostEstimator
+        from configurable_agents.observability.multi_provider_tracker import _extract_provider
+
+        cost_estimator = CostEstimator()
+
         # Get experiment(s)
         if experiment_name:
             try:
-                experiment = mlflow.get_experiment_by_name(experiment_name)
+                experiment = self.client.get_experiment_by_name(experiment_name)
                 if experiment is None:
                     raise ValueError(f"Experiment not found: {experiment_name}")
                 experiment_ids = [experiment.experiment_id]
+            except ValueError:
+                raise
             except Exception as e:
                 raise ValueError(f"Failed to get experiment '{experiment_name}': {e}")
         else:
-            # Get all experiments
             experiments = self.client.search_experiments()
             experiment_ids = [exp.experiment_id for exp in experiments]
 
-        # Build filter string for MLFlow
+        # Build trace filter string
         filter_parts = []
-
         if start_date:
-            start_timestamp = int(start_date.timestamp() * 1000)
-            filter_parts.append(f"attributes.start_time >= {start_timestamp}")
-
+            start_ms = int(start_date.timestamp() * 1000)
+            filter_parts.append(f"trace.timestamp_ms >= {start_ms}")
         if end_date:
-            end_timestamp = int(end_date.timestamp() * 1000)
-            filter_parts.append(f"attributes.start_time <= {end_timestamp}")
-
-        if status_filter:
-            if status_filter not in ["success", "failure"]:
-                raise ValueError(f"Invalid status_filter: {status_filter}")
-            # Status is logged as metric: 1 = success, 0 = failure
-            status_value = "1" if status_filter == "success" else "0"
-            filter_parts.append(f"metrics.status = {status_value}")
+            end_ms = int(end_date.timestamp() * 1000)
+            filter_parts.append(f"trace.timestamp_ms <= {end_ms}")
 
         filter_string = " and ".join(filter_parts) if filter_parts else None
 
-        # Query runs across all experiments
-        all_runs = []
+        # Query traces across all experiments
+        all_traces = []
         for exp_id in experiment_ids:
             try:
-                runs = self.client.search_runs(
-                    experiment_ids=[exp_id],
+                traces = mlflow.search_traces(
+                    locations=[exp_id],
                     filter_string=filter_string,
-                    order_by=["start_time DESC"],
+                    max_results=1000,
+                    order_by=["timestamp DESC"],
+                    return_type="list",
                 )
-                all_runs.extend(runs)
+                all_traces.extend(traces)
             except Exception as e:
                 logger.warning(f"Failed to query experiment {exp_id}: {e}")
                 continue
 
-        # Convert runs to CostEntry objects
+        # Convert traces to CostEntry objects
         entries = []
-        for run in all_runs:
+        for trace in all_traces:
             try:
-                entry = self._run_to_cost_entry(run)
+                entry = self._trace_to_cost_entry(trace, cost_estimator, _extract_provider)
 
-                # Apply workflow_name filter (client-side filtering)
+                # Apply status filter
+                if status_filter and entry.status != status_filter:
+                    continue
+
+                # Apply workflow_name filter
                 if workflow_name and entry.workflow_name != workflow_name:
                     continue
 
                 entries.append(entry)
             except Exception as e:
-                logger.warning(f"Failed to parse run {run.info.run_id}: {e}")
+                trace_id = getattr(trace.info, 'request_id', 'unknown')
+                logger.warning(f"Failed to parse trace {trace_id}: {e}")
                 continue
 
         logger.info(
@@ -187,77 +196,85 @@ class CostReporter:
 
         return entries
 
-    def _run_to_cost_entry(self, run: Any) -> CostEntry:
-        """Convert MLFlow run to CostEntry.
+    def _trace_to_cost_entry(self, trace: Any, cost_estimator: Any, extract_provider: Any) -> CostEntry:
+        """Convert MLFlow trace to CostEntry.
+
+        Extracts token usage and cost from CHAT_MODEL spans in the trace.
 
         Args:
-            run: MLFlow Run object
+            trace: MLFlow Trace object
+            cost_estimator: CostEstimator instance
+            extract_provider: Provider extraction function
 
         Returns:
             CostEntry object
-
-        Raises:
-            ValueError: If required metrics/params are missing
         """
-        metrics = run.data.metrics
-        params = run.data.params
+        trace_info = trace.info
 
-        # Fail fast: Validate required fields exist
-        required_metrics = [
-            "total_cost_usd",
-            "total_input_tokens",
-            "total_output_tokens",
-            "duration_seconds",
-            "node_count",
-            "status",
-        ]
+        # Extract trace-level info
+        trace_id = getattr(trace_info, 'request_id', 'unknown')
+        start_time_ms = getattr(trace_info, 'timestamp_ms', None)
+        execution_time_ms = getattr(trace_info, 'execution_time_ms', 0) or 0
+        status_str = str(getattr(trace_info, 'status', 'OK'))
+        status = "success" if "OK" in status_str else "failure"
 
-        missing_metrics = [m for m in required_metrics if m not in metrics]
-        if missing_metrics:
-            raise ValueError(
-                f"Missing required metrics: {', '.join(missing_metrics)}. "
-                f"This run may not have been tracked properly."
-            )
+        start_time = datetime.fromtimestamp(start_time_ms / 1000) if start_time_ms else datetime.now()
+        duration_seconds = execution_time_ms / 1000.0
 
-        # Extract and validate required fields
-        try:
-            total_cost = float(metrics["total_cost_usd"])
-            input_tokens = int(metrics["total_input_tokens"])
-            output_tokens = int(metrics["total_output_tokens"])
-            duration_seconds = float(metrics["duration_seconds"])
-            node_count = int(metrics["node_count"])
-            status_metric = float(metrics["status"])
-            status = "success" if status_metric == 1.0 else "failure"
+        # Extract workflow name from trace tags or root span name
+        tags = getattr(trace_info, 'tags', {}) or {}
+        trace_name = tags.get('mlflow.traceName', '')
+        # Root span name often follows pattern: workflow_{name}
+        workflow_name = trace_name.replace('workflow_', '') if trace_name.startswith('workflow_') else (trace_name or 'unknown')
 
-            # Workflow name is required
-            if "workflow_name" not in params:
-                raise ValueError("Missing required parameter: workflow_name")
+        # Aggregate token usage and cost from CHAT_MODEL spans
+        total_input = 0
+        total_output = 0
+        total_cost = 0.0
+        model_name = None
+        node_count = 0
 
-            workflow_name = params["workflow_name"]
-            model = params.get("global_model", None)  # Optional
+        for span in trace.data.spans:
+            span_attrs = span.attributes or {}
+            token_usage = span_attrs.get("mlflow.chat.tokenUsage")
 
-            # Convert start time from milliseconds to datetime
-            start_time_ms = run.info.start_time
-            if start_time_ms is None:
-                raise ValueError("Missing run start_time")
+            if token_usage:
+                model = (
+                    span_attrs.get("ai.model.name")
+                    or (span_attrs.get("invocation_params") or {}).get("model")
+                    or "unknown"
+                )
+                if model_name is None:
+                    model_name = model
 
-            start_time = datetime.fromtimestamp(start_time_ms / 1000)
+                prompt_tokens = token_usage.get("prompt_tokens") or token_usage.get("input_tokens", 0)
+                completion_tokens = token_usage.get("completion_tokens") or token_usage.get("output_tokens", 0)
 
-        except (KeyError, ValueError, TypeError) as e:
-            raise ValueError(f"Invalid field value: {e}")
+                total_input += prompt_tokens
+                total_output += completion_tokens
+
+                try:
+                    cost = cost_estimator.estimate_cost(
+                        model=model, input_tokens=prompt_tokens, output_tokens=completion_tokens
+                    )
+                    total_cost += cost
+                except Exception:
+                    pass
+
+                node_count += 1
 
         return CostEntry(
-            run_id=run.info.run_id,
-            run_name=run.info.run_name or "unnamed",
+            run_id=trace_id,
+            run_name=trace_name or "unnamed",
             workflow_name=workflow_name,
             start_time=start_time,
             duration_seconds=duration_seconds,
             status=status,
             total_cost_usd=total_cost,
-            input_tokens=input_tokens,
-            output_tokens=output_tokens,
+            input_tokens=total_input,
+            output_tokens=total_output,
             node_count=node_count,
-            model=model,
+            model=model_name,
         )
 
     def generate_summary(self, entries: List[CostEntry]) -> CostSummary:

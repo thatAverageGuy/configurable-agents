@@ -2,7 +2,7 @@
 
 import pytest
 
-from configurable_agents.optimization.gates import (
+from configurable_agents.runtime.gates import (
     GateAction,
     GatesConfig,
     QualityGate,

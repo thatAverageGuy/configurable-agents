@@ -28,7 +28,7 @@ from configurable_agents.observability import (
 from configurable_agents.observability.multi_provider_tracker import (
     generate_cost_report,
 )
-from configurable_agents.registry import AgentRegistryServer
+from configurable_agents.registry import WorkflowRegistryServer
 from configurable_agents.runtime import (
     ConfigLoadError,
     ConfigValidationError,
@@ -226,10 +226,8 @@ def cmd_run(args: argparse.Namespace) -> int:
         print_error(f"Invalid input format: {e}")
         return 1
 
-    # Set profiling flag via environment variable
-    if args.enable_profiling:
-        os.environ["CONFIGURABLE_AGENTS_PROFILING"] = "1"
-        print_info(f"Profiling enabled for this run")
+    # Note: --enable-profiling is accepted for backwards compatibility but profiling
+    # data is always captured via MLflow trace spans. Use profile-report to view it.
 
     # Print execution info
     print_info(f"Loading workflow: {colorize(config_path, Colors.CYAN)}")
@@ -934,7 +932,7 @@ def cmd_cost_report(args: argparse.Namespace) -> int:
 
 def cmd_profile_report(args: argparse.Namespace) -> int:
     """
-    Generate profiling report with bottleneck analysis.
+    Generate profiling report with bottleneck analysis from trace span data.
 
     Args:
         args: Parsed command-line arguments
@@ -949,77 +947,94 @@ def cmd_profile_report(args: argparse.Namespace) -> int:
 
     try:
         import mlflow
-        from mlflow.tracking import MlflowClient
+        from mlflow.entities import ViewType
 
         mlflow_uri = args.mlflow_uri
-        run_id = args.run_id
+        trace_id = getattr(args, 'run_id', None)  # --run-id repurposed as trace selector
 
         # Set tracking URI if provided
         if mlflow_uri:
             mlflow.set_tracking_uri(mlflow_uri)
 
-        client = MlflowClient()
-
-        # Get the run
-        if run_id:
-            run = client.get_run(run_id)
+        # Get trace
+        if trace_id:
+            trace = mlflow.get_trace(trace_id)
+            if not trace:
+                print_error(f"Trace not found: {trace_id}")
+                return 1
         else:
-            # Get latest run from default experiment
-            from mlflow.entities import ViewType
+            # Get latest trace from first experiment
+            from mlflow.tracking import MlflowClient
+            client = MlflowClient()
             experiments = client.search_experiments(view_type=ViewType.ACTIVE_ONLY)
             if not experiments:
                 print_error("No MLFlow experiments found")
                 return 1
 
-            # Use first experiment (usually Default)
             experiment_id = experiments[0].experiment_id
-            runs = client.search_runs(
-                experiment_ids=[experiment_id],
-                order_by=["start_time DESC"],
-                max_results=1
+            traces = mlflow.search_traces(
+                locations=[experiment_id],
+                max_results=1,
+                order_by=["timestamp DESC"],
+                return_type="list",
             )
-            if not runs:
-                print_error(f"No runs found in experiment: {experiments[0].name}")
+            if not traces:
+                print_error(f"No traces found in experiment: {experiments[0].name}")
                 return 1
 
-            run = runs[0]
-            run_id = run.info.run_id
+            trace = traces[0]
 
         console = Console()
 
         # Display title
+        trace_id_display = trace.info.request_id[:12] if hasattr(trace.info, 'request_id') else "latest"
         console.print()
-        title = Text(f"Profile Report: {run_id[:8]}", style="bold cyan")
+        title = Text(f"Profile Report: {trace_id_display}", style="bold cyan")
         console.print(Panel(title, expand=False))
         console.print()
 
-        # Extract node timing metrics
-        metrics = run.data.metrics
+        # Extract node timings from trace spans
+        from configurable_agents.observability.cost_estimator import CostEstimator
+        cost_estimator = CostEstimator()
         node_timings = {}
 
-        for metric_name, metric_value in metrics.items():
-            if metric_name.startswith("node_") and metric_name.endswith("_duration_ms"):
-                # Extract node_id from metric name
-                # Format: node_{node_id}_duration_ms
-                parts = metric_name.split("_")
-                if len(parts) >= 3:
-                    node_id = "_".join(parts[1:-2])  # Handle node_ids with underscores
-                    if node_id not in node_timings:
-                        node_timings[node_id] = {"duration_ms": 0.0, "cost_usd": 0.0, "calls": 0}
-                    node_timings[node_id]["duration_ms"] = metric_value
-                    node_timings[node_id]["calls"] = 1
+        for span in trace.data.spans:
+            # Calculate duration from span timestamps
+            if span.start_time_ns and span.end_time_ns:
+                duration_ms = (span.end_time_ns - span.start_time_ns) / 1_000_000
+            else:
+                continue
 
-            elif metric_name.startswith("node_") and metric_name.endswith("_cost_usd"):
-                parts = metric_name.split("_")
-                if len(parts) >= 3:
-                    node_id = "_".join(parts[1:-2])
-                    if node_id not in node_timings:
-                        node_timings[node_id] = {"duration_ms": 0.0, "cost_usd": 0.0, "calls": 0}
-                    node_timings[node_id]["cost_usd"] = metric_value
+            span_attrs = span.attributes or {}
+            span_name = span.name
+
+            # Extract cost from CHAT_MODEL spans
+            cost_usd = 0.0
+            token_usage = span_attrs.get("mlflow.chat.tokenUsage")
+            if token_usage:
+                model = (
+                    span_attrs.get("ai.model.name")
+                    or (span_attrs.get("invocation_params") or {}).get("model")
+                    or "unknown"
+                )
+                prompt_tokens = token_usage.get("prompt_tokens") or token_usage.get("input_tokens", 0)
+                completion_tokens = token_usage.get("completion_tokens") or token_usage.get("output_tokens", 0)
+                try:
+                    cost_usd = cost_estimator.estimate_cost(
+                        model=model, input_tokens=prompt_tokens, output_tokens=completion_tokens
+                    )
+                except Exception:
+                    pass
+
+            # Aggregate by span name (multiple calls to same node get summed)
+            if span_name not in node_timings:
+                node_timings[span_name] = {"duration_ms": 0.0, "cost_usd": 0.0, "calls": 0}
+            node_timings[span_name]["duration_ms"] += duration_ms
+            node_timings[span_name]["cost_usd"] += cost_usd
+            node_timings[span_name]["calls"] += 1
 
         if not node_timings:
-            print_warning("No profiling data found for this run")
-            print_info("Run with --enable-profiling flag to capture profiling data")
+            print_warning("No span data found in this trace")
             return 0
 
         # Calculate totals
@@ -1033,14 +1048,13 @@ def cmd_profile_report(args: argparse.Namespace) -> int:
 
         # Create table
         table = Table(title=None)
-        table.add_column("Node ID", style="cyan", no_wrap=False)
+        table.add_column("Span Name", style="cyan", no_wrap=False)
         table.add_column("Avg Duration (ms)", justify="right", style="green")
         table.add_column("Total Duration (ms)", justify="right", style="green")
         table.add_column("Calls", justify="right", style="blue")
         table.add_column("% of Total", justify="right", style="yellow")
         table.add_column("Cost USD", justify="right", style="magenta")
 
-        # Add rows sorted by total duration
         for node_id, timing_data in sorted(node_timings.items(), key=lambda x: x[1]["duration_ms"], reverse=True):
             duration_ms = timing_data["duration_ms"]
             cost_usd = timing_data["cost_usd"]
@@ -1048,9 +1062,7 @@ def cmd_profile_report(args: argparse.Namespace) -> int:
             avg_duration = duration_ms / calls if calls > 0 else 0
             percent_of_total = (duration_ms / total_duration * 100) if total_duration > 0 else 0
 
-            # Highlight slowest node in bold red
             style = "bold red" if node_id == slowest_node_id else ""
-            # Highlight bottlenecks (>50%) in yellow
             if percent_of_total > 50 and node_id != slowest_node_id:
                 style = "bold yellow"
 
@@ -1064,31 +1076,23 @@ def cmd_profile_report(args: argparse.Namespace) -> int:
                 style=style
             )
 
-        # Add totals row
         table.add_row()
         table.add_row(
-            "TOTAL",
-            "-",
-            f"{total_duration:.1f}",
-            f"{total_calls}",
-            "100.0%",
-            f"${total_cost:.6f}",
-            style="bold"
+            "TOTAL", "-", f"{total_duration:.1f}", f"{total_calls}",
+            "100.0%", f"${total_cost:.6f}", style="bold"
         )
 
         console.print(table)
         console.print()
 
-        # Highlight slowest node
-        print_warning(f"Slowest node: {colorize(slowest_node_id, Colors.BOLD + Colors.RED)} ({slowest_data['duration_ms']:.1f}ms avg)")
+        print_warning(f"Slowest span: {colorize(slowest_node_id, Colors.BOLD + Colors.RED)} ({slowest_data['duration_ms']:.1f}ms)")
 
         # Highlight bottlenecks
-        bottlenecks = []
-        for node_id, timing_data in node_timings.items():
-            percent = (timing_data["duration_ms"] / total_duration * 100) if total_duration > 0 else 0
-            if percent > 50:
-                bottlenecks.append((node_id, percent))
-
+        bottlenecks = [
+            (nid, (td["duration_ms"] / total_duration * 100))
+            for nid, td in node_timings.items()
+            if total_duration > 0 and (td["duration_ms"] / total_duration * 100) > 50
+        ]
         if bottlenecks:
             print()
             print_warning("Bottlenecks (>50% of total time):")
@@ -1174,33 +1178,35 @@ def cmd_observability_status(args: argparse.Namespace) -> int:
             # Show experiment count
             print_success(f"Found {len(experiments)} experiment(s)")
 
-            # Show recent runs (last 24 hours)
+            # Show recent traces (last 24 hours)
             console.print()
             console.print(colorize("Recent Activity (Last 24 Hours):", Colors.BOLD))
 
             recent_cutoff = datetime.now() - timedelta(hours=24)
-            total_recent_runs = 0
+            cutoff_ms = int(recent_cutoff.timestamp() * 1000)
+            total_recent_traces = 0
 
             for exp in experiments[:5]:  # Limit to first 5 experiments
                 try:
-                    runs = client.search_runs(
-                        experiment_ids=[exp.experiment_id],
-                        filter_string="attributes.start_time > '{}'".format(recent_cutoff.isoformat()),
-                        max_results=1000
+                    traces = mlflow.search_traces(
+                        locations=[exp.experiment_id],
+                        filter_string=f"trace.timestamp_ms > {cutoff_ms}",
+                        max_results=1000,
+                        return_type="list",
                     )
-                    total_recent_runs += len(runs)
+                    total_recent_traces += len(traces)
 
-                    if runs:
-                        console.print(f"  {colorize(exp.name, Colors.CYAN)}: {len(runs)} run(s)")
+                    if traces:
+                        console.print(f"  {colorize(exp.name, Colors.CYAN)}: {len(traces)} trace(s)")
 
                 except Exception:
                     # Skip experiments with query errors
                     pass
 
-            if total_recent_runs == 0:
-                print_info("No runs in the last 24 hours")
+            if total_recent_traces == 0:
+                print_info("No traces in the last 24 hours")
             else:
-                print_success(f"Total recent runs: {total_recent_runs}")
+                print_success(f"Total recent traces: {total_recent_traces}")
 
         console.print()
         return 0
@@ -1218,9 +1224,9 @@ def cmd_observability_status(args: argparse.Namespace) -> int:
         return 1
 
 
-def cmd_agent_registry_start(args: argparse.Namespace) -> int:
+def cmd_workflow_registry_start(args: argparse.Namespace) -> int:
     """
-    Start the agent registry server.
+    Start the workflow registry server.
 
     Args:
         args: Parsed command-line arguments
@@ -1230,12 +1236,12 @@ def cmd_agent_registry_start(args: argparse.Namespace) -> int:
     """
     db_url = args.db_url
 
-    print_info(f"Starting agent registry server on {colorize(f'{args.host}:{args.port}', Colors.CYAN)}")
+    print_info(f"Starting workflow registry server on {colorize(f'{args.host}:{args.port}', Colors.CYAN)}")
     print_info(f"Database: {colorize(db_url, Colors.GRAY)}")
 
     try:
         # Create registry server
-        server = AgentRegistryServer(registry_url=db_url)
+        server = WorkflowRegistryServer(registry_url=db_url)
         app = server.create_app()
 
         # Import uvicorn for running the server
@@ -1265,9 +1271,9 @@ def cmd_agent_registry_start(args: argparse.Namespace) -> int:
         return 1
 
 
-def cmd_agent_registry_list(args: argparse.Namespace) -> int:
+def cmd_workflow_registry_list(args: argparse.Namespace) -> int:
     """
-    List registered agents from the registry database.
+    List registered workflows from the registry database.
 
     Args:
         args: Parsed command-line arguments
@@ -1333,7 +1339,7 @@ def cmd_agent_registry_list(args: argparse.Namespace) -> int:
     return 0
 
 
-def cmd_agent_registry_cleanup(args: argparse.Namespace) -> int:
+def cmd_workflow_registry_cleanup(args: argparse.Namespace) -> int:
     """
     Manually trigger cleanup of expired agents.
 
@@ -2080,239 +2086,6 @@ def cmd_webhooks(args: argparse.Namespace) -> int:
     return 0
 
 
-def cmd_optimization_evaluate(args: argparse.Namespace) -> int:
-    """
-    Evaluate MLFlow experiment and compare variants.
-
-    Args:
-        args: Parsed command-line arguments
-
-    Returns:
-        Exit code (0 for success, 1 for error)
-    """
-    if not RICH_AVAILABLE:
-        print_error("Rich library is required for evaluate command")
-        print_info("Install with: pip install rich>=13.0.0")
-        return 1
-
-    try:
-        from configurable_agents.optimization import ExperimentEvaluator, format_comparison_table
-
-        evaluator = ExperimentEvaluator(mlflow_tracking_uri=args.mlflow_uri)
-
-        console = Console()
-
-        # Display title
-        console.print()
-        title = Text(f"Experiment Evaluation: {args.experiment}", style="bold cyan")
-        console.print(Panel(title, expand=False))
-        console.print()
-
-        # Get comparison
-        comparison = evaluator.compare_variants(args.experiment, args.metric)
-
-        # Display comparison table
-        table_str = format_comparison_table(comparison)
-        console.print(table_str)
-        console.print()
-
-        # Highlight best variant
-        if comparison.best_variant:
-            print_success(f"Best variant: {comparison.best_variant}")
-
-        return 0
-
-    except RuntimeError as e:
-        print_error(f"MLFlow not available: {e}")
-        print_info("Install MLFlow with: pip install mlflow>=3.9.0")
-        return 1
-
-    except Exception as e:
-        print_error(f"Unexpected error: {e}")
-        if args.verbose:
-            import traceback
-
-            print(traceback.format_exc(), file=sys.stderr)
-        return 1
-
-
-def cmd_optimization_apply(args: argparse.Namespace) -> int:
-    """
-    Apply optimized prompt from experiment to workflow.
-
-    Args:
-        args: Parsed command-line arguments
-
-    Returns:
-        Exit code (0 for success, 1 for error)
-    """
-    try:
-        from configurable_agents.optimization import find_best_variant, apply_prompt_to_workflow
-
-        # Find best variant
-        print_info(f"Finding best variant in experiment: {args.experiment}")
-
-        best = find_best_variant(
-            args.experiment,
-            primary_metric="cost_usd_avg",
-            mlflow_tracking_uri=args.mlflow_uri,
-        )
-
-        if not best:
-            print_error(f"No variants found in experiment: {args.experiment}")
-            return 1
-
-        variant_name = args.variant or best["variant_name"]
-        prompt = best.get("prompt")
-
-        if not prompt:
-            print_error(f"Could not retrieve prompt for variant: {variant_name}")
-            return 1
-
-        print_info(f"Best variant: {variant_name}")
-        print_info(f"Experiment: {args.experiment}")
-        print_info(f"Metric: cost_usd_avg")
-        print_info(f"Prompt length: {len(prompt)} characters")
-
-        # Show preview of changes
-        print()
-        print(f"{colorize('New prompt:', Colors.BOLD)}")
-        print(prompt[:200] + "..." if len(prompt) > 200 else prompt)
-        print()
-
-        if args.dry_run:
-            print_info("Dry run - no changes made (omit --dry-run to apply)")
-            return 0
-
-        # Apply the prompt
-        backup_path = apply_prompt_to_workflow(
-            args.workflow,
-            prompt,
-            backup=True,
-        )
-
-        print_success(f"Prompt applied successfully!")
-        print_info(f"Backup saved to: {backup_path}")
-
-        return 0
-
-    except FileNotFoundError as e:
-        print_error(f"Workflow file not found: {e}")
-        return 1
-
-    except Exception as e:
-        print_error(f"Failed to apply prompt: {e}")
-        if args.verbose:
-            import traceback
-
-            print(traceback.format_exc(), file=sys.stderr)
-        return 1
-
-
-def cmd_optimization_ab_test(args: argparse.Namespace) -> int:
-    """
-    Run A/B test for prompt variants.
-
-    Args:
-        args: Parsed command-line arguments
-
-    Returns:
-        Exit code (0 for success, 1 for error)
-    """
-    config_path = args.config_file
-
-    # Validate file exists
-    if not Path(config_path).exists():
-        print_error(f"Config file not found: {config_path}")
-        return 1
-
-    # Parse inputs
-    try:
-        inputs = parse_input_args(args.input) if args.input else {}
-    except ValueError as e:
-        print_error(f"Invalid input format: {e}")
-        return 1
-
-    print_info(f"Running A/B test from: {colorize(config_path, Colors.CYAN)}")
-
-    try:
-        from configurable_agents.config import WorkflowConfig, parse_config_file
-        from configurable_agents.optimization import ABTestConfig, VariantConfig, ABTestRunner
-
-        # Load config
-        config_dict = parse_config_file(config_path)
-        config = WorkflowConfig(**config_dict)
-
-        # Check if A/B test is configured
-        if not config.config or not config.config.ab_test:
-            print_error("A/B testing not configured in this workflow")
-            print_info("Add 'ab_test' section to workflow config:")
-            print_info("""
-ab_test:
-  enabled: true
-  experiment: "my_test"
-  variants:
-    - name: "variant_a"
-      prompt: "Prompt A"
-    -  run_count: 3
-""")
-            return 1
-
-        ab_config = config.config.ab_test
-
-        if not ab_config.enabled:
-            print_error("A/B testing is disabled in config (set enabled: true)")
-            return 1
-
-        # Convert schema to internal format
-        variants = [
-            VariantConfig(
-                name=v.name,
-                prompt=v.prompt,
-                config_overrides=v.config_overrides,
-                node_id=v.node_id,
-            )
-            for v in ab_config.variants
-        ]
-
-        test_config = ABTestConfig(
-            experiment_name=ab_config.experiment,
-            variants=variants,
-            run_count=ab_config.run_count,
-            inputs=inputs,
-        )
-
-        runner = ABTestRunner()
-
-        print_info(
-            f"Running {len(variants)} variants x {ab_config.run_count} runs = "
-            f"{len(variants) * ab_config.run_count} total runs"
-        )
-
-        result = runner.run(test_config, config_path, inputs=inputs)
-
-        # Display summary
-        print()
-        print(result.summary)
-
-        if result.best_variant:
-            print_success(f"Best variant: {result.best_variant}")
-
-        return 0
-
-    except ConfigLoadError as e:
-        print_error(f"Failed to load config: {e}")
-        return 1
-
-    except Exception as e:
-        print_error(f"A/B test failed: {e}")
-        if args.verbose:
-            import traceback
-
-            print(traceback.format_exc(), file=sys.stderr)
-        return 1
-
-
 def create_parser() -> argparse.ArgumentParser:
     """
     Create CLI argument parser.
@@ -2640,11 +2413,11 @@ For more information, visit: https://github.com/yourusername/configurable-agents
     )
     obs_profile_parser.set_defaults(func=cmd_profile_report)
 
-    # Agent registry command group
+    # Workflow registry command group
     registry_parser = subparsers.add_parser(
-        "agent-registry",
-        help="Agent registry management commands",
-        description="Manage the agent registry server for distributed agent coordination",
+        "workflow-registry",
+        help="Workflow registry management commands",
+        description="Manage the workflow registry server for distributed workflow coordination",
     )
     registry_subparsers = registry_parser.add_subparsers(
         dest="registry_command", help="Registry subcommands"
@@ -2653,8 +2426,8 @@ For more information, visit: https://github.com/yourusername/configurable-agents
     # Registry start subcommand
     registry_start_parser = registry_subparsers.add_parser(
         "start",
-        help="Start the agent registry server",
-        description="Start the agent registry server using uvicorn",
+        help="Start the workflow registry server",
+        description="Start the workflow registry server using uvicorn",
     )
     registry_start_parser.add_argument(
         "--host",
@@ -2675,13 +2448,13 @@ For more information, visit: https://github.com/yourusername/configurable-agents
     registry_start_parser.add_argument(
         "-v", "--verbose", action="store_true", help="Enable verbose output"
     )
-    registry_start_parser.set_defaults(func=cmd_agent_registry_start)
+    registry_start_parser.set_defaults(func=cmd_workflow_registry_start)
 
     # Registry list subcommand
     registry_list_parser = registry_subparsers.add_parser(
         "list",
-        help="List registered agents",
-        description="List all agents in the registry database",
+        help="List registered workflows",
+        description="List all workflows in the registry database",
     )
     registry_list_parser.add_argument(
         "--db-url",
@@ -2696,13 +2469,13 @@ For more information, visit: https://github.com/yourusername/configurable-agents
     registry_list_parser.add_argument(
         "-v", "--verbose", action="store_true", help="Enable verbose output"
     )
-    registry_list_parser.set_defaults(func=cmd_agent_registry_list)
+    registry_list_parser.set_defaults(func=cmd_workflow_registry_list)
 
     # Registry cleanup subcommand
     registry_cleanup_parser = registry_subparsers.add_parser(
         "cleanup",
-        help="Clean up expired agents",
-        description="Manually trigger cleanup of expired agents from the registry",
+        help="Clean up expired workflows",
+        description="Manually trigger cleanup of expired workflows from the registry",
     )
     registry_cleanup_parser.add_argument(
         "--db-url",
@@ -2712,7 +2485,7 @@ For more information, visit: https://github.com/yourusername/configurable-agents
     registry_cleanup_parser.add_argument(
         "-v", "--verbose", action="store_true", help="Enable verbose output"
     )
-    registry_cleanup_parser.set_defaults(func=cmd_agent_registry_cleanup)
+    registry_cleanup_parser.set_defaults(func=cmd_workflow_registry_cleanup)
 
     # Dashboard command
     dashboard_parser = subparsers.add_parser(
@@ -2851,99 +2624,6 @@ For more information, visit: https://github.com/yourusername/configurable-agents
     )
     ui_parser.set_defaults(func=cmd_ui)
 
-    # Optimization command group
-    optimization_parser = subparsers.add_parser(
-        "optimization",
-        help="Prompt optimization and A/B testing commands",
-        description="Manage prompt optimization experiments",
-    )
-    optimization_subparsers = optimization_parser.add_subparsers(
-        dest="optimization_command", help="Optimization subcommands"
-    )
-
-    # Evaluate subcommand
-    eval_parser = optimization_subparsers.add_parser(
-        "evaluate",
-        help="Evaluate experiment and compare variants",
-        description="Compare prompt variants in an MLFlow experiment",
-    )
-    eval_parser.add_argument(
-        "--experiment",
-        required=True,
-        help="MLFlow experiment name (required)",
-    )
-    eval_parser.add_argument(
-        "--metric",
-        default="cost_usd_avg",
-        help="Metric for comparison (default: cost_usd_avg)",
-    )
-    eval_parser.add_argument(
-        "--mlflow-uri",
-        default=None,
-        help="MLFlow tracking URI (default: from config or sqlite:///mlflow.db)",
-    )
-    eval_parser.add_argument(
-        "-v", "--verbose", action="store_true", help="Enable verbose output"
-    )
-    eval_parser.set_defaults(func=cmd_optimization_evaluate)
-
-    # Apply-optimized subcommand
-    apply_parser = optimization_subparsers.add_parser(
-        "apply-optimized",
-        help="Apply optimized prompt to workflow",
-        description="Apply best performing prompt from experiment to workflow YAML",
-    )
-    apply_parser.add_argument(
-        "--experiment",
-        required=True,
-        help="MLFlow experiment name (required)",
-    )
-    apply_parser.add_argument(
-        "--variant",
-        default=None,
-        help="Specific variant to apply (default: best variant)",
-    )
-    apply_parser.add_argument(
-        "--workflow",
-        required=True,
-        help="Path to workflow YAML file to update",
-    )
-    apply_parser.add_argument(
-        "--dry-run",
-        action="store_true",
-        help="Show diff without applying changes",
-    )
-    apply_parser.add_argument(
-        "--mlflow-uri",
-        default=None,
-        help="MLFlow tracking URI",
-    )
-    apply_parser.add_argument(
-        "-v", "--verbose", action="store_true", help="Enable verbose output"
-    )
-    apply_parser.set_defaults(func=cmd_optimization_apply)
-
-    # A/B-test subcommand
-    ab_test_parser = optimization_subparsers.add_parser(
-        "ab-test",
-        help="Run A/B test for prompt variants",
-        description="Execute A/B test using variants from workflow config",
-    )
-    ab_test_parser.add_argument(
-        "config_file",
-        help="Path to workflow YAML config with A/B test configuration",
-    )
-    ab_test_parser.add_argument(
-        "-i",
-        "--input",
-        action="append",
-        help="Workflow inputs in key=value format",
-    )
-    ab_test_parser.add_argument(
-        "-v", "--verbose", action="store_true", help="Enable verbose output"
-    )
-    ab_test_parser.set_defaults(func=cmd_optimization_ab_test)
-
     return parser
 
 
@@ -2966,6 +2646,16 @@ def main() -> int:
     if not args.command:
         parser.print_help()
         return 1
+
+    # VF-006: Parent commands with subparsers crash when no subcommand given
+    if not hasattr(args, 'func'):
+        parser.parse_args([args.command, '--help'])
+        return 1
+
+    # VF-001: Initialize logging so DEBUG output is visible with --verbose
+    from configurable_agents.logging_config import setup_logging
+    verbose = getattr(args, 'verbose', False)
+    setup_logging("DEBUG" if verbose else "WARNING")
 
     # Execute command
     return args.func(args)

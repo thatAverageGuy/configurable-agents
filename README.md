@@ -127,12 +127,12 @@ configurable-agents chat
 - **Multi-provider cost tracking**: Unified cost reporting
 - **Performance profiling**: Bottleneck detection
 - **Execution traces**: Per-node latency, tokens, cost
-- **Optimization**: A/B testing, quality gates, prompt optimization
+- **Quality gates**: Automated deployment safety checks
 
 ### 🎛️ User Interfaces
 - **Chat UI** (Gradio): Config generation through conversation
 - **Orchestration Dashboard** (FastAPI + HTMX): Runtime management
-- **Agent Registry**: Service discovery and health monitoring
+- **Workflow Registry**: Service discovery and health monitoring
 - **MLFlow UI**: Embedded observability dashboard
 - **Real-time updates**: SSE streaming for live monitoring
 
@@ -196,8 +196,7 @@ configurable-agents chat
 - ✅ Code execution sandboxes (RestrictedPython + Docker)
 - ✅ Persistent memory (namespaced, per-agent)
 - ✅ 15 pre-built tools (web, file, data, system)
-- ✅ A/B testing and optimization
-- ✅ Quality gates and prompt optimization
+- ✅ Quality gates for deployment safety
 
 **Current capabilities:**
 ```bash
@@ -221,8 +220,8 @@ curl -X POST http://localhost:8000/webhooks/generic \
 configurable-agents report costs --period last_7_days
 configurable-agents report profile --workflow research
 
-# List agents
-configurable-agents agents list
+# List registered workflows
+configurable-agents workflow-registry list
 
 # Deploy workflows
 configurable-agents deploy workflow.yaml
@@ -369,7 +368,7 @@ See [ARCHITECTURE.md](docs/ARCHITECTURE.md) for detailed system design.
 - Code execution sandboxes (RestrictedPython + Docker)
 - Persistent memory backend
 - 15 pre-built tools
-- A/B testing and optimization
+- Quality gates
 
 **Full details**: `.planning/milestones/v1.0-ROADMAP.md`
 
