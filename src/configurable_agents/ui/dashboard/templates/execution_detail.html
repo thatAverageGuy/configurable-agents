@@ -1,17 +1,17 @@
 {% extends "base.html" %}
 
-{% block title %}{{ workflow.workflow_name }} - Configurable Agents Dashboard{% endblock %}
+{% block title %}{{ execution.workflow_name }} - Configurable Agents Dashboard{% endblock %}
 
-{% block nav_workflows %}class="active"{% endblock %}
+{% block nav_executions %}class="active"{% endblock %}
 
 {% block content %}
 <div class="dashboard-container">
     <header class="page-header">
         <div>
-            <h1>{{ workflow.workflow_name }}</h1>
-            <p class="subtitle">Run ID: {{ workflow.id }}</p>
+            <h1>{{ execution.workflow_name }}</h1>
+            <p class="subtitle">Run ID: {{ execution.id }}</p>
         </div>
-        <a href="/workflows" class="btn btn-secondary">Back to Workflows</a>
+        <a href="/executions" class="btn btn-secondary">Back to Executions</a>
     </header>
 
     <!-- Status Cards -->
@@ -27,8 +27,8 @@
                         'failed': 'badge-failed',
                         'pending': 'badge-pending',
                         'cancelled': 'badge-cancelled'
-                    }.get(workflow.status, 'badge-pending') %}
-                    <span class="badge {{ status_class }}" style="font-size: 1rem;">{{ workflow.status }}</span>
+                    }.get(execution.status, 'badge-pending') %}
+                    <span class="badge {{ status_class }}" style="font-size: 1rem;">{{ execution.status }}</span>
                 </div>
             </div>
         </div>
@@ -37,7 +37,7 @@
             <div class="card-icon running-icon"></div>
             <div class="card-content">
                 <div class="card-label">Duration</div>
-                <div class="card-value">{{ format_duration(workflow.duration_seconds) }}</div>
+                <div class="card-value">{{ format_duration(execution.duration_seconds) }}</div>
             </div>
         </div>
 
@@ -45,7 +45,7 @@
             <div class="card-icon cost-icon"></div>
             <div class="card-content">
                 <div class="card-label">Cost</div>
-                <div class="card-value">{{ format_cost(workflow.total_cost_usd) }}</div>
+                <div class="card-value">{{ format_cost(execution.total_cost_usd) }}</div>
             </div>
         </div>
 
@@ -53,7 +53,7 @@
             <div class="card-icon agents-icon"></div>
             <div class="card-content">
                 <div class="card-label">Tokens</div>
-                <div class="card-value">{{ workflow.total_tokens or 0 }}</div>
+                <div class="card-value">{{ execution.total_tokens or 0 }}</div>
             </div>
         </div>
     </div>
@@ -61,48 +61,48 @@
     <!-- Details Section -->
     <div class="table-container">
         <div class="table-header">
-            <h2>Workflow Details</h2>
+            <h2>Execution Details</h2>
         </div>
         <div class="details-content">
             <div class="detail-row">
                 <span class="detail-label">Run ID:</span>
-                <span class="detail-value monospace">{{ workflow.id }}</span>
+                <span class="detail-value monospace">{{ execution.id }}</span>
             </div>
             <div class="detail-row">
                 <span class="detail-label">Workflow Name:</span>
-                <span class="detail-value">{{ workflow.workflow_name }}</span>
+                <span class="detail-value">{{ execution.workflow_name }}</span>
             </div>
             <div class="detail-row">
                 <span class="detail-label">Status:</span>
                 <span class="detail-value">
-                    <span class="badge {{ status_class }}">{{ workflow.status }}</span>
+                    <span class="badge {{ status_class }}">{{ execution.status }}</span>
                 </span>
             </div>
             <div class="detail-row">
                 <span class="detail-label">Started At:</span>
-                <span class="detail-value">{{ format_datetime(workflow.started_at) }}</span>
+                <span class="detail-value">{{ format_datetime(execution.started_at) }}</span>
             </div>
             <div class="detail-row">
                 <span class="detail-label">Completed At:</span>
-                <span class="detail-value">{{ format_datetime(workflow.completed_at) }}</span>
+                <span class="detail-value">{{ format_datetime(execution.completed_at) }}</span>
             </div>
             <div class="detail-row">
                 <span class="detail-label">Duration:</span>
-                <span class="detail-value">{{ format_duration(workflow.duration_seconds) }}</span>
+                <span class="detail-value">{{ format_duration(execution.duration_seconds) }}</span>
             </div>
             <div class="detail-row">
                 <span class="detail-label">Total Tokens:</span>
-                <span class="detail-value">{{ workflow.total_tokens or '-' }}</span>
+                <span class="detail-value">{{ execution.total_tokens or '-' }}</span>
             </div>
             <div class="detail-row">
                 <span class="detail-label">Total Cost:</span>
-                <span class="detail-value">{{ format_cost(workflow.total_cost_usd) }}</span>
+                <span class="detail-value">{{ format_cost(execution.total_cost_usd) }}</span>
             </div>
 
-            {% if workflow.error_message %}
+            {% if execution.error_message %}
             <div class="detail-row">
                 <span class="detail-label">Error:</span>
-                <span class="detail-value error-message">{{ workflow.error_message }}</span>
+                <span class="detail-value error-message">{{ execution.error_message }}</span>
             </div>
             {% endif %}
         </div>

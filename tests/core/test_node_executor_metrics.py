@@ -88,7 +88,7 @@ def test_node_saves_execution_state(
     call_args = execution_state_repo.save_state.call_args
 
     # Verify arguments
-    assert call_args[1]["run_id"] == "test-run-123"
+    assert call_args[1]["execution_id"] == "test-run-123"
     assert call_args[1]["node_id"] == "test_node"
 
     # Verify state_data contains metrics

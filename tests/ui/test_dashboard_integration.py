@@ -137,7 +137,7 @@ def seeded_agent_repo(agent_repo):
             port=8001,
             last_heartbeat=now - timedelta(seconds=30),
             ttl_seconds=60,
-            agent_metadata='{"capabilities": ["chat", "search"]}',
+            deployment_metadata='{"capabilities": ["chat", "search"]}',
         ),
         Deployment(
             deployment_id="agent-002",
@@ -146,7 +146,7 @@ def seeded_agent_repo(agent_repo):
             port=8002,
             last_heartbeat=now - timedelta(seconds=10),
             ttl_seconds=60,
-            agent_metadata='{"capabilities": ["summarize", "write"]}',
+            deployment_metadata='{"capabilities": ["summarize", "write"]}',
         ),
         Deployment(
             deployment_id="agent-003",
@@ -155,7 +155,7 @@ def seeded_agent_repo(agent_repo):
             port=8003,
             last_heartbeat=now - timedelta(minutes=10),
             ttl_seconds=60,
-            agent_metadata='{"capabilities": ["chat"]}',
+            deployment_metadata='{"capabilities": ["chat"]}',
         ),
     ]
 
@@ -170,6 +170,7 @@ def dashboard_app(seeded_execution_repo, seeded_agent_repo):
     """Create a dashboard app with seeded repositories."""
     return DashboardApp(
         execution_repo=seeded_execution_repo,
+        state_repo=None,
         deployment_repo=seeded_agent_repo,
     )
 
@@ -179,6 +180,7 @@ def dashboard_app_no_mlflow(seeded_execution_repo, seeded_agent_repo):
     """Create a dashboard app without MLFlow mounted."""
     return DashboardApp(
         execution_repo=seeded_execution_repo,
+        state_repo=None,
         deployment_repo=seeded_agent_repo,
         mlflow_tracking_uri=None,
     )
@@ -229,7 +231,7 @@ class TestTemplateRendering:
         assert response.status_code == 200
         text = response.text
         # Should have workflows page elements
-        assert "Workflow" in text or "workflow" in text.lower()
+        assert "Execution" in text or "execution" in text.lower()
 
     async def test_agents_template_renders(self, dashboard_app):
         """Verify agents.html compiles without errors."""
@@ -240,20 +242,7 @@ class TestTemplateRendering:
         assert response.status_code == 200
         text = response.text
         # Should have agents page elements
-        assert "Agent" in text or "agent" in text.lower()
-
-    async def test_experiments_template_renders(self, dashboard_app):
-        """Verify experiments.html compiles without errors."""
-        transport = ASGITransport(app=dashboard_app.app)
-        async with AsyncClient(transport=transport, base_url="http://test") as client:
-            response = await client.get("/optimization/experiments")
-
-        assert response.status_code == 200
-        text = response.text
-        # Should have experiments page elements
-        assert "Experiment" in text or "experiment" in text.lower()
-        # Should handle MLFlow unavailable gracefully
-        assert "MLFlow" in text or "mlflow" in text.lower()
+        assert "Deployment" in text or "deployment" in text.lower()
 
     async def test_mlflow_unavailable_template_renders(self, dashboard_app_no_mlflow):
         """Verify mlflow_unavailable.html renders friendly message."""
@@ -318,27 +307,6 @@ class TestErrorHandling:
         # Should have helpful message
         assert "MLFlow" in text or "mlflow" in text.lower()
 
-    async def test_optimization_without_mlflow_shows_message(self, dashboard_app_no_mlflow):
-        """GET /optimization/compare with bad experiment shows error message."""
-        transport = ASGITransport(app=dashboard_app_no_mlflow.app)
-        async with AsyncClient(transport=transport, base_url="http://test") as client:
-            # MLFlow not configured scenario
-            response = await client.get(
-                "/optimization/compare",
-                params={"experiment": "nonexistent_experiment", "metric": "cost_usd_avg"}
-            )
-
-        assert response.status_code == 200
-        text = response.text
-        # Should show unavailable message or error
-        # Either MLFlow unavailable or experiment not found
-        assert (
-            "MLFlow" in text or
-            "not available" in text.lower() or
-            "not found" in text.lower() or
-            "error" in text.lower()
-        )
-
     async def test_workflow_cancel_nonexistent(self, dashboard_app):
         """POST /executions/{nonexistent}/cancel returns 404."""
         transport = ASGITransport(app=dashboard_app.app)
@@ -397,35 +365,6 @@ class TestRouteParameters:
         # Should return HTML partial (table fragment)
         assert "text/html" in response.headers.get("content-type", "")
 
-    async def test_experiments_metric_param(self, dashboard_app):
-        """GET /optimization/experiments with metric param works."""
-        transport = ASGITransport(app=dashboard_app.app)
-        async with AsyncClient(transport=transport, base_url="http://test") as client:
-            response = await client.get(
-                "/optimization/experiments",
-                params={"metric": "cost_usd_avg"}
-            )
-
-        assert response.status_code == 200
-        # Should render even without MLFlow data
-        assert "text/html" in response.headers.get("content-type", "")
-
-    async def test_optimization_compare_params(self, dashboard_app):
-        """GET /optimization/compare with experiment and metric params."""
-        transport = ASGITransport(app=dashboard_app.app)
-        async with AsyncClient(transport=transport, base_url="http://test") as client:
-            response = await client.get(
-                "/optimization/compare",
-                params={
-                    "experiment": "test_experiment",
-                    "metric": "cost_usd_avg"
-                }
-            )
-
-        # Should render (may have error message for nonexistent experiment)
-        assert response.status_code == 200
-        assert "text/html" in response.headers.get("content-type", "")
-
 
 @pytest.mark.asyncio
 class TestFormSubmission:
@@ -469,7 +408,7 @@ class TestFormSubmission:
         assert "text/html" in response.headers.get("content-type", "")
         # Should be a table partial (for HTMX refresh)
         text = response.text
-        assert "agent" in text.lower() or "Agent" in text
+        assert "deployment" in text.lower() or "Deployment" in text
 
     async def test_agents_refresh_returns_data(self, dashboard_app, agent_repo):
         """POST /deployments/refresh returns current agent data."""
@@ -481,7 +420,7 @@ class TestFormSubmission:
         text = response.text
         # Should contain agent names from seeded data
         # (At least the alive ones)
-        assert "Test Agent" in text or "agent" in text.lower()
+        assert "Test Agent" in text or "deployment" in text.lower()
 
     async def test_workflow_restart_nonexistent(self, dashboard_app):
         """POST /executions/{id}/restart for nonexistent workflow returns 404."""
@@ -554,9 +493,9 @@ class TestMetricsEndpoints:
 
         assert response.status_code == 200
         data = response.json()
-        assert "total_workflows" in data
-        assert "running_workflows" in data
-        assert "registered_agents" in data
+        assert "total_executions" in data
+        assert "running_executions" in data
+        assert "registered_deployments" in data
         assert "total_cost_usd" in data
         assert "timestamp" in data
 
@@ -574,7 +513,7 @@ class TestAgentsEndpoints:
         assert response.status_code == 200
         text = response.text
         # Should show all agents including the dead one
-        assert "Dead Agent" in text or "agent" in text.lower()
+        assert "Dead Agent" in text or "deployment" in text.lower()
 
     async def test_agents_table_partial(self, dashboard_app):
         """GET /deployments/table returns table partial for HTMX."""
@@ -586,54 +525,8 @@ class TestAgentsEndpoints:
         assert "text/html" in response.headers.get("content-type", "")
         text = response.text
         # Should contain agent data
-        assert "Test Agent" in text or "agent" in text.lower()
+        assert "Test Agent" in text or "deployment" in text.lower()
 
 
-@pytest.mark.asyncio
-class TestOptimizationEndpoints:
-    """Tests for optimization and MLFlow-related endpoints."""
-
-    async def test_experiments_json(self, dashboard_app):
-        """GET /optimization/experiments.json returns JSON."""
-        transport = ASGITransport(app=dashboard_app.app)
-        async with AsyncClient(transport=transport, base_url="http://test") as client:
-            response = await client.get("/optimization/experiments.json")
-
-        assert response.status_code == 200
-        # Should return JSON
-        assert "application/json" in response.headers.get("content-type", "")
-        data = response.json()
-        assert "experiments" in data
-        assert "mlflow_available" in data
-
-    async def test_compare_json_nonexistent(self, dashboard_app):
-        """GET /optimization/compare.json with nonexistent experiment returns error."""
-        transport = ASGITransport(app=dashboard_app.app)
-        async with AsyncClient(transport=transport, base_url="http://test") as client:
-            response = await client.get(
-                "/optimization/compare.json",
-                params={"experiment": "nonexistent", "metric": "cost_usd_avg"}
-            )
-
-        # Should return JSON with error info
-        assert response.status_code == 200
-        data = response.json()
-        # Either has experiments list or error message
-        assert "mlflow_available" in data or "error" in data
 
 
-@pytest.mark.asyncio
-class TestOrchestratorPage:
-    """Tests for orchestrator view page."""
-
-    async def test_orchestrator_page_renders(self, dashboard_app):
-        """GET /orchestrator renders the orchestrator page."""
-        transport = ASGITransport(app=dashboard_app.app)
-        async with AsyncClient(transport=transport, base_url="http://test") as client:
-            response = await client.get("/orchestrator")
-
-        assert response.status_code == 200
-        assert "text/html" in response.headers.get("content-type", "")
-        text = response.text
-        # Should have orchestrator-related content
-        assert "Orchestrator" in text or "orchestrator" in text.lower()

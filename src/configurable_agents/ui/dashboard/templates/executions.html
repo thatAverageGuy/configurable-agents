@@ -1,25 +1,25 @@
 {% extends "base.html" %}
 
-{% block title %}Workflows - Configurable Agents Dashboard{% endblock %}
+{% block title %}Executions - Configurable Agents Dashboard{% endblock %}
 
-{% block nav_workflows %}class="active"{% endblock %}
+{% block nav_executions %}class="active"{% endblock %}
 
 {% block content %}
 <div class="dashboard-container">
     <header class="page-header">
-        <h1>Workflows</h1>
+        <h1>Executions</h1>
         <p class="subtitle">Monitor workflow executions and metrics</p>
     </header>
 
     <!-- Filters -->
     <div class="table-container">
         <div class="table-header">
-            <h2>Workflow Runs</h2>
+            <h2>Executions</h2>
             <div class="filters">
                 <div class="filter-group">
                     <label for="status-filter">Status:</label>
                     <select id="status-filter" name="status"
-                            onchange="window.location.href='/workflows?status=' + this.value">
+                            onchange="window.location.href='/executions?status=' + this.value">
                         <option value="">All</option>
                         <option value="running" {% if status_filter == 'running' %}selected{% endif %}>Running</option>
                         <option value="completed" {% if status_filter == 'completed' %}selected{% endif %}>Completed</option>
@@ -28,37 +28,28 @@
                         <option value="cancelled" {% if status_filter == 'cancelled' %}selected{% endif %}>Cancelled</option>
                     </select>
                 </div>
-                <div class="filter-group">
-                    <label for="agent-filter">Agent:</label>
-                    <select id="agent-filter" name="agent"
-                            onchange="window.location.href='/workflows?agent=' + this.value">
-                        <option value="">All</option>
-                        <option value="orchestrator" {% if agent_filter == 'orchestrator' %}selected{% endif %}>Orchestrator Agents</option>
-                    </select>
-                    <small style="color: #666;">Filter by agent ID</small>
-                </div>
             </div>
         </div>
 
-        <!-- Workflows Table with HTMX auto-refresh -->
-        <div id="workflows-table"
-             hx-get="/workflows/table"
+        <!-- Executions Table with HTMX auto-refresh -->
+        <div id="executions-table"
+             hx-get="/executions/table"
              hx-swap="outerHTML"
              hx-trigger="every 5s">
-            {% include "workflows_table.html" %}
+            {% include "executions_table.html" %}
         </div>
     </div>
 </div>
 
 <!-- SSE Connection for Real-time Updates -->
-<div hx-ext="sse" sse-connect="/metrics/workflows/stream" sse-swap="workflow_update" style="display: none;">
+<div hx-ext="sse" sse-connect="/metrics/executions/stream" sse-swap="execution_update" style="display: none;">
     <!-- SSE events will trigger table refresh automatically -->
 </div>
 
 <script>
     // Listen for SSE messages and refresh table on update
-    document.body.addEventListener('workflow_update', function(evt) {
-        console.log('Workflow update received');
+    document.body.addEventListener('execution_update', function(evt) {
+        console.log('Execution update received');
         // HTMX SSE extension handles the swap automatically
     });
 </script>

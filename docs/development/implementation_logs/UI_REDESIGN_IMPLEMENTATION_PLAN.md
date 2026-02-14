@@ -1,8 +1,8 @@
 # UI Redesign Implementation Plan
 
-**Status**: ✅ COMPLETE (All 6 Phases)
+**Status**: ✅ COMPLETE (All 6 Phases + Template Fix)
 **Created**: 2026-02-13
-**Completed**: 2026-02-13
+**Completed**: 2026-02-13 (template fix: 2026-02-17)
 **Related**: UI_DESIGN_SPEC.md, UI_REDESIGN_ANALYSIS.md, UI_PAGES_DESIGN.md
 
 ---
@@ -22,7 +22,30 @@ This document provides a detailed implementation plan for the UI redesign. The w
 | 5 | Tests | 10 | Medium | ✅ COMPLETE |
 | 6 | Documentation | 6 | Low | ✅ COMPLETE |
 
-**Total Files Modified**: ~45 files
+**Total Files Modified**: ~45 files (+ 8 template/test files fixed 2026-02-17)
+
+---
+
+## Post-Implementation Fix: Template Alignment (2026-02-17)
+
+Phase 4 renamed Python route files but missed Jinja2 HTML templates. All templates still used old variable names and model fields.
+
+**Files Fixed**:
+| File | Issue | Fix |
+|------|-------|-----|
+| `deployments_table.html` | Used `agents`/`agent.*` variables | Rewrote for `deployments`/`deployment.*` |
+| `executions_table.html` | `{% if workflows %}` but route passes `executions` | Fixed variable name |
+| `workflow_detail.html` → `execution_detail.html` | Wrong filename + all `workflow.*` refs | Renamed file, updated all refs |
+| `dashboard.html` | Old `/workflows`/`/agents` quick links | Updated to `/executions`/`/deployments` |
+| `status_panel.html` | `active_workflows`/`agent_healthy` variables | Updated to `active_executions`/`deployment_healthy` |
+| `orchestrator.html` | Dead template (no route) | Deleted |
+| `base.html` | Dead Optimization nav link | Removed |
+
+**Test Fixes**:
+- Fixed `agent_metadata=` → `deployment_metadata=` in test fixtures (32 errors)
+- Updated all text assertions (workflow→execution, agent→deployment)
+- Removed 6 stale optimization tests (module removed in CL-003)
+- **Result**: 85 passed, 0 failed
 
 ---
 

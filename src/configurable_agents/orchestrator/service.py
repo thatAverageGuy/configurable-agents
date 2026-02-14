@@ -13,8 +13,6 @@ from configurable_agents.orchestrator.models import (
     AgentConnection,
     OrchestratorConfig,
 )
-from configurable_agents.storage.base import AgentRegistryRepository
-
 logger = logging.getLogger(__name__)
 
 

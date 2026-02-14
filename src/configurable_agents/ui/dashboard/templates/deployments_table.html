@@ -1,7 +1,7 @@
 <table>
     <thead>
         <tr>
-            <th>Agent ID</th>
+            <th>Deployment ID</th>
             <th>Name</th>
             <th>Host:Port</th>
             <th>Capabilities</th>
@@ -11,14 +11,14 @@
         </tr>
     </thead>
     <tbody>
-        {% if agents %}
-            {% for agent in agents[:50] %}
+        {% if deployments %}
+            {% for deployment in deployments[:50] %}
             <tr>
-                <td class="monospace">{{ agent.agent_id[:12] }}...</td>
-                <td>{{ agent.agent_name }}</td>
-                <td class="monospace">{{ agent.host }}:{{ agent.port }}</td>
+                <td class="monospace">{{ deployment.deployment_id[:12] }}...</td>
+                <td>{{ deployment.deployment_name }}</td>
+                <td class="monospace">{{ deployment.host }}:{{ deployment.port }}</td>
                 <td>
-                    {% set capabilities = parse_capabilities(agent.agent_metadata) %}
+                    {% set capabilities = parse_capabilities(deployment.deployment_metadata) %}
                     {% if capabilities %}
                         {% for cap in capabilities[:3] %}
                         <span class="capability-badge">{{ cap }}</span>
@@ -30,9 +30,9 @@
                         <span style="color: #9ca3af;">-</span>
                     {% endif %}
                 </td>
-                <td>{{ time_ago(agent.last_heartbeat) }}</td>
+                <td>{{ time_ago(deployment.last_heartbeat) }}</td>
                 <td>
-                    {% if agent.is_alive() %}
+                    {% if deployment.is_alive() %}
                     <span class="status-dot alive"></span> Alive
                     {% else %}
                     <span class="status-dot dead"></span> Expired
@@ -40,14 +40,14 @@
                 </td>
                 <td>
                     <div class="action-buttons">
-                        <a href="http://{{ agent.host }}:{{ agent.port }}/docs"
+                        <a href="http://{{ deployment.host }}:{{ deployment.port }}/docs"
                            target="_blank"
                            class="btn btn-sm btn-secondary">API Docs</a>
                         <button class="btn btn-sm btn-danger"
-                                hx-delete="/agents/{{ agent.agent_id }}"
-                                hx-confirm="Deregister this agent?"
+                                hx-delete="/deployments/{{ deployment.deployment_id }}"
+                                hx-confirm="Deregister this deployment?"
                                 hx-swap="outerHTML"
-                                hx-target="#agents-table">
+                                hx-target="#deployments-table">
                             Deregister
                         </button>
                     </div>
@@ -57,8 +57,8 @@
         {% else %}
             <tr>
                 <td colspan="7" class="empty-state">
-                    <div class="empty-state-icon">No agents found</div>
-                    <p>No agents are currently registered.</p>
+                    <div class="empty-state-icon">No deployments found</div>
+                    <p>No deployments are currently registered.</p>
                 </td>
             </tr>
         {% endif %}

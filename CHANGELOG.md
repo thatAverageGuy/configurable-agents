@@ -19,13 +19,25 @@ the project to a verifiable state.
 
 ### Fixed
 
-**BF-009: Remove vestigial `--enable-profiling` CLI flag** (2026-02-14)
+**BF-009: Documentation, CLI verification report, and cleanup** (2026-02-14)
 - Removed `--enable-profiling` flag from `run` command — flag was defined but never passed to `run_workflow()`, making it non-functional
 - Removed backwards-compatibility comment that referenced the vestigial flag
 - Removed `TestEnableProfilingFlag` test class from test suite
 - Updated CLI guide to remove `--enable-profiling` references
 - Created bug report documenting redundant `node_*_duration_ms` metrics (fix deferred to ADR-018)
 - Profiling is always enabled via MLflow 3.9 `autolog()` — no flag needed
+
+**Template alignment with UI-REDESIGN** (2026-02-17)
+- Fixed all Jinja2 HTML templates that were missed during UI-REDESIGN Phase 4
+- `deployments_table.html`: Rewrote to use `deployments` variable and `Deployment` model fields (`deployment_id`, `deployment_name`, `deployment_metadata`)
+- `executions_table.html`: Fixed `{% if workflows %}` → `{% if executions %}` variable mismatch
+- `execution_detail.html`: Renamed from `workflow_detail.html`, all `workflow.*` → `execution.*`
+- `dashboard.html`: Updated quick links from old `/workflows`/`/agents` routes to `/executions`/`/deployments`
+- `status_panel.html`: Fixed variable names (`active_workflows` → `active_executions`, `agent_healthy` → `deployment_healthy`)
+- Removed dead `orchestrator.html` template (no route references it)
+- Removed dead Optimization nav link from `base.html`
+- Removed 6 stale optimization tests from E2E and integration test suites (module was removed in CL-003)
+- Updated all test assertions to match new terminology (`agent_metadata` → `deployment_metadata`, workflow→execution, agent→deployment)
 
 ### Changed
 

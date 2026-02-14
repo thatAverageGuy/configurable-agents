@@ -123,7 +123,7 @@ def test_run_persisted_before_execution(
     from configurable_agents.storage import create_storage_backend
     from configurable_agents.storage.models import Execution
 
-    workflow_run_repo, _, _, _, _, _, _, _ = create_storage_backend(storage_config)
+    workflow_run_repo, _, _, _, _, _, _ = create_storage_backend(storage_config)
     runs = workflow_run_repo.list_by_workflow("test_flow")
 
     assert len(runs) == 1
@@ -173,7 +173,7 @@ def test_run_updated_on_completion(
     # Verify run record has completion metrics
     from configurable_agents.storage import create_storage_backend
 
-    workflow_run_repo, _, _, _, _, _, _, _ = create_storage_backend(storage_config)
+    workflow_run_repo, _, _, _, _, _, _ = create_storage_backend(storage_config)
     runs = workflow_run_repo.list_by_workflow("test_flow")
 
     assert len(runs) == 1
@@ -226,7 +226,7 @@ def test_run_updated_on_failure(
     # Verify run record has failed status
     from configurable_agents.storage import create_storage_backend
 
-    workflow_run_repo, _, _, _, _, _, _, _ = create_storage_backend(storage_config)
+    workflow_run_repo, _, _, _, _, _, _ = create_storage_backend(storage_config)
     runs = workflow_run_repo.list_by_workflow("test_flow")
 
     assert len(runs) == 1

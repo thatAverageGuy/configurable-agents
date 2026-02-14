@@ -7,10 +7,64 @@
 
 ## Active Tasks
 
-### CL-003: Codebase Cleanup, Testing, and Verification
+### UI-REDESIGN: Unified UI Architecture Implementation ✅ COMPLETE
 
-**Status**: IN PROGRESS
+**Status**: COMPLETE
+**Started**: 2026-02-13
+**Completed**: 2026-02-13 (template fix: 2026-02-17)
+**Priority**: HIGH
+
+**Summary**: Implemented unified 4-page UI architecture (Chat UI, Executions, Deployments, MLflow). All terminology renamed for consistency.
+
+**Design Documents**:
+- [UI_DESIGN_SPEC.md](UI_DESIGN_SPEC.md) — Complete specification (approved)
+- [UI_PAGES_DESIGN.md](UI_PAGES_DESIGN.md) — ASCII mockups, user flows
+- [UI_REDESIGN_ANALYSIS.md](UI_REDESIGN_ANALYSIS.md) — Impact analysis (~45 files)
+
+**Implementation Phases**:
+
+| Phase | Focus | Files | Status |
+|-------|-------|-------|--------|
+| 1 | Storage Layer | 5 | ✅ COMPLETE |
+| 2 | CLI Updates | 2 | ✅ COMPLETE |
+| 3 | Registry Module | 4 | ✅ COMPLETE |
+| 4 | Dashboard/UI | 10 | ✅ COMPLETE |
+| 5 | Tests | 10 | ✅ COMPLETE |
+| 6 | Documentation | 6 | ✅ COMPLETE |
+
+**Key Changes Summary**:
+- `WorkflowRunRecord` → `Execution` (table: `executions`)
+- `AgentRecord` → `Deployment` (table: `deployments`)
+- `OrchestratorRecord` → REMOVED (absorbed into deployments)
+- CLI command: `workflow-registry` → `deployments`
+- Routes: `/workflows/*` → `/executions/*`, `/agents/*` → `/deployments/*`
+- Storage factory: 8 → 7 return values
+
+**Template Alignment** (2026-02-17):
+- Fixed all Jinja2 HTML templates missed during Phase 4 (variable names, model fields, file renames)
+- Removed dead `orchestrator.html` template and Optimization nav link
+- Removed 6 stale optimization tests from UI test suites
+- Test results: 85 passed, 0 failed
+
+**Breaking Changes**:
+- Requires fresh database (tables renamed)
+- API routes changed
+- CLI commands changed
+
+**Details**:
+- [Implementation Plan](implementation_logs/UI_REDESIGN_IMPLEMENTATION_PLAN.md)
+- [ADR-026](adr/ADR-026-ui-redesign-terminology.md) — Architecture decision
+
+---
+
+### CL-003: Codebase Cleanup, Testing, and Verification — SUPERSEDED
+
+**Status**: SUPERSEDED by UI-REDESIGN
 **Started**: 2026-02-07
+**Completed**: 2026-02-13 (superseded)
+
+**Note**: The "workflow-registry" → "deployments" rename from CL-003 has been superseded by the comprehensive UI-REDESIGN task which renamed all terminology consistently across the codebase.
+
 **Priority**: HIGH
 
 **Summary**: Systematic testing of all 12 test configs, fixing bugs discovered during testing.
@@ -34,6 +88,7 @@
 | BF-006 | ChatLiteLLM deprecation migration (`langchain-litellm`) | LOW | ✅ DONE |
 | BF-007 | Webhooks CLI — wrong router import | MEDIUM | ✅ DONE |
 | BF-008 | Docker deploy — build failure + port mismatch | HIGH | ✅ DONE |
+| BF-009 | Vestigial `--enable-profiling` CLI flag | LOW | ✅ DONE |
 
 **CLI Verification** (2026-02-09):
 - All 20 CLI commands discovered and documented in `docs/user/cli_guide.md`

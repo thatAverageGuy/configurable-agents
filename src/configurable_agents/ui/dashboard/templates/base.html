@@ -25,11 +25,9 @@
             </div>
             <ul class="nav-links">
                 <li><a href="/" {% block nav_dashboard %}{% endblock %}>Dashboard</a></li>
-                <li><a href="/workflows" {% block nav_workflows %}{% endblock %}>Workflows</a></li>
-                <li><a href="/agents" {% block nav_agents %}{% endblock %}>Agents</a></li>
-                <li><a href="/orchestrator" {% block nav_orchestrator %}{% endblock %}>Orchestrator</a></li>
+                <li><a href="/executions" {% block nav_executions %}{% endblock %}>Executions</a></li>
+                <li><a href="/deployments" {% block nav_deployments %}{% endblock %}>Deployments</a></li>
                 <li><a href="/mlflow" {% block nav_mlflow %}{% endblock %}>MLFlow</a></li>
-                <li><a href="/optimization/experiments" {% block nav_optimization %}{% endblock %}>Optimization</a></li>
             </ul>
         </div>
     </nav>

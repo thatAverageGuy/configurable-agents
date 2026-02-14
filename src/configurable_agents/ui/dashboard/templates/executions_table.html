@@ -14,11 +14,11 @@
         </tr>
     </thead>
     <tbody>
-        {% if workflows %}
-            {% for workflow in workflows[:50] %}
+        {% if executions %}
+            {% for workflow in executions[:50] %}
             <tr>
                 <td class="monospace">
-                    <a href="/workflows/{{ workflow.id }}" class="workflow-link">
+                    <a href="/executions/{{ workflow.id }}" class="workflow-link">
                         {{ workflow.id[:8] }}...
                     </a>
                 </td>
@@ -38,10 +38,10 @@
                 <td>{{ macros.format_cost(workflow.total_cost_usd) }}</td>
                 <td>
                     <div class="action-buttons">
-                        <a href="/workflows/{{ workflow.id }}" class="btn btn-sm btn-primary">View</a>
+                        <a href="/executions/{{ workflow.id }}" class="btn btn-sm btn-primary">View</a>
                         {% if workflow.status == 'running' %}
                         <button class="btn btn-sm btn-danger"
-                                hx-post="/workflows/{{ workflow.id }}/cancel"
+                                hx-post="/executions/{{ workflow.id }}/cancel"
                                 hx-confirm="Cancel this workflow?"
                                 hx-swap="none">
                             Cancel
@@ -54,8 +54,8 @@
         {% else %}
             <tr>
                 <td colspan="9" class="empty-state">
-                    <div class="empty-state-icon">No workflows found</div>
-                    <p>No workflow runs match the current filters.</p>
+                    <div class="empty-state-icon">No executions found</div>
+                    <p>No execution runs match the current filters.</p>
                 </td>
             </tr>
         {% endif %}

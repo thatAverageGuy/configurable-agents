@@ -9,17 +9,17 @@ from unittest.mock import Mock, MagicMock, AsyncMock
 
 from configurable_agents.ui.dashboard import create_dashboard_app, DashboardApp
 from configurable_agents.storage.models import Execution, Deployment
-from configurable_agents.ui.dashboard.routes.workflows import (
+from configurable_agents.ui.dashboard.routes.executions import (
     _format_duration,
     _format_cost,
     _format_datetime,
     _format_datetime_relative,
     _get_status_badge_class,
 )
-from configurable_agents.ui.dashboard.routes.agents import (
-    _time_ago,
-    _format_datetime as _format_datetime_agents,
-    _parse_capabilities,
+from configurable_agents.ui.dashboard.routes.deployments import (
+    time_ago as _time_ago,
+    format_datetime as _format_datetime_agents,
+    parse_capabilities as _parse_capabilities,
 )
 
 
@@ -35,6 +35,7 @@ class TestDashboardAppCreation:
         # Create dashboard app
         dashboard = DashboardApp(
             execution_repo=execution_repo,
+            state_repo=None,
             deployment_repo=agent_repo,
         )
 
@@ -52,6 +53,7 @@ class TestDashboardAppCreation:
         # Create dashboard app
         dashboard = DashboardApp(
             execution_repo=execution_repo,
+            state_repo=None,
             deployment_repo=agent_repo,
         )
 
@@ -64,10 +66,10 @@ class TestDashboardAppCreation:
         assert "/static" in routes
 
         # Verify workflow routes
-        assert any("/workflows" in r for r in routes)
+        assert any("/executions" in r for r in routes)
 
-        # Verify agent routes
-        assert any("/agents" in r for r in routes)
+        # Verify deployment routes
+        assert any("/deployments" in r for r in routes)
 
         # Verify metrics routes
         assert any("/metrics" in r for r in routes)
@@ -253,6 +255,7 @@ class TestDashboardEndpoints:
         # Create dashboard app
         dashboard = DashboardApp(
             execution_repo=execution_repo,
+            state_repo=None,
             deployment_repo=agent_repo,
         )
 
@@ -280,6 +283,7 @@ class TestDashboardEndpoints:
         # Create dashboard app
         dashboard = DashboardApp(
             execution_repo=execution_repo,
+            state_repo=None,
             deployment_repo=agent_repo,
         )
 
@@ -311,6 +315,7 @@ class TestWorkflowEndpoints:
         # Create dashboard app
         dashboard = DashboardApp(
             execution_repo=execution_repo,
+            state_repo=None,
             deployment_repo=agent_repo,
         )
 
@@ -319,7 +324,7 @@ class TestWorkflowEndpoints:
 
         transport = ASGITransport(app=dashboard.app)
         async with AsyncClient(transport=transport, base_url="http://test") as client:
-            response = await client.get("/workflows/")
+            response = await client.get("/executions/")
 
         # Verify response
         assert response.status_code == 200
@@ -333,6 +338,7 @@ class TestWorkflowEndpoints:
         # Create dashboard app
         dashboard = DashboardApp(
             execution_repo=execution_repo,
+            state_repo=None,
             deployment_repo=agent_repo,
         )
 
@@ -362,6 +368,7 @@ class TestAgentEndpoints:
         # Create dashboard app
         dashboard = DashboardApp(
             execution_repo=execution_repo,
+            state_repo=None,
             deployment_repo=agent_repo,
         )
 
@@ -370,7 +377,7 @@ class TestAgentEndpoints:
 
         transport = ASGITransport(app=dashboard.app)
         async with AsyncClient(transport=transport, base_url="http://test") as client:
-            response = await client.get("/agents/")
+            response = await client.get("/deployments/")
 
         # Verify response
         assert response.status_code == 200
@@ -385,6 +392,7 @@ class TestAgentEndpoints:
         # Create dashboard app
         dashboard = DashboardApp(
             execution_repo=execution_repo,
+            state_repo=None,
             deployment_repo=agent_repo,
         )
 
@@ -406,15 +414,22 @@ class TestMetricsEndpoints:
 
     async def test_metrics_summary(self):
         """Test GET /metrics/summary returns metrics summary."""
-        # Create mock repositories
-        execution_repo = Mock()
-        agent_repo = Mock()
-        agent_repo.list_all = Mock(return_value=[])
+        from sqlalchemy import create_engine
+        from configurable_agents.storage.models import Base
+
+        # Create in-memory database with proper schema
+        engine = create_engine("sqlite:///:memory:")
+        Base.metadata.create_all(engine)
+
+        from configurable_agents.storage.sqlite import SQLiteExecutionRepository, SqliteDeploymentRepository
+        execution_repo = SQLiteExecutionRepository(engine)
+        deployment_repo = SqliteDeploymentRepository(engine)
 
         # Create dashboard app
         dashboard = DashboardApp(
             execution_repo=execution_repo,
-            deployment_repo=agent_repo,
+            state_repo=None,
+            deployment_repo=deployment_repo,
         )
 
         # Create a test client
@@ -427,8 +442,8 @@ class TestMetricsEndpoints:
         # Verify response
         assert response.status_code == 200
         data = response.json()
-        assert "total_workflows" in data
-        assert "running_workflows" in data
-        assert "registered_agents" in data
+        assert "total_executions" in data
+        assert "running_executions" in data
+        assert "registered_deployments" in data
         assert "total_cost_usd" in data
         assert "timestamp" in data

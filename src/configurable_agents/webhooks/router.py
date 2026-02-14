@@ -41,7 +41,7 @@ def get_webhook_repository() -> WebhookEventRepository:
     global _webhook_repo
     if _webhook_repo is None:
         # Get repository from storage backend
-        _, _, _, _, _webhook_repo, _, _, _ = create_storage_backend()
+        _, _, _, _, _webhook_repo, _, _ = create_storage_backend()
     return _webhook_repo
 
 
@@ -54,7 +54,7 @@ def get_workflow_registration_repository() -> WorkflowRegistrationRepository:
     global _workflow_reg_repo
     if _workflow_reg_repo is None:
         # Get repository from storage backend
-        _, _, _, _, _, _, _workflow_reg_repo, _ = create_storage_backend()
+        _, _, _, _, _, _, _workflow_reg_repo = create_storage_backend()
     return _workflow_reg_repo
 
 

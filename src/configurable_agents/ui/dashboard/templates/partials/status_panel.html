@@ -1,21 +1,21 @@
 <div class="status-panel" hx-get="/api/status" hx-trigger="every 10s" hx-swap="outerHTML">
   <div class="status-grid">
-    <!-- Active Workflows -->
-    <div class="status-card {{ 'status-ok' if active_workflows == 0 else 'status-active' }}">
+    <!-- Active Executions -->
+    <div class="status-card {{ 'status-ok' if active_executions == 0 else 'status-active' }}">
       <div class="status-icon workflow-icon"></div>
       <div class="status-content">
-        <h4>Active Workflows</h4>
-        <p class="status-value">{{ active_workflows }} / {{ total_workflows }}</p>
+        <h4>Active Executions</h4>
+        <p class="status-value">{{ active_executions }} / {{ total_executions }}</p>
         <span class="status-label">running / total</span>
       </div>
     </div>
 
-    <!-- Agent Health -->
-    <div class="status-card {{ 'status-ok' if agent_healthy == agent_total else 'status-warning' }}">
+    <!-- Deployment Health -->
+    <div class="status-card {{ 'status-ok' if deployment_healthy == deployment_total else 'status-warning' }}">
       <div class="status-icon agent-icon"></div>
       <div class="status-content">
-        <h4>Agent Health</h4>
-        <p class="status-value">{{ agent_healthy }} / {{ agent_total }}</p>
+        <h4>Deployment Health</h4>
+        <p class="status-value">{{ deployment_healthy }} / {{ deployment_total }}</p>
         <span class="status-label">healthy / total</span>
       </div>
     </div>

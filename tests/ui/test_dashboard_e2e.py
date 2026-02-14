@@ -54,6 +54,7 @@ def _create_test_dashboard():
     # Create dashboard app
     dashboard = DashboardApp(
         execution_repo=execution_repo,
+        state_repo=None,
         deployment_repo=agent_repo,
     )
 
@@ -124,7 +125,7 @@ def populated_db() -> Generator:
             host="localhost",
             port=8001,
             last_heartbeat=datetime.utcnow() - timedelta(seconds=30),
-            agent_metadata='{"capabilities": ["chat", "search"]}',
+            deployment_metadata='{"capabilities": ["chat", "search"]}',
         )
 
         agent2 = Deployment(
@@ -133,7 +134,7 @@ def populated_db() -> Generator:
             host="localhost",
             port=8002,
             last_heartbeat=datetime.utcnow() - timedelta(minutes=15),
-            agent_metadata='{"capabilities": ["summarize"]}',
+            deployment_metadata='{"capabilities": ["summarize"]}',
         )
 
         session.add_all([agent1, agent2])
@@ -175,7 +176,7 @@ class TestDashboardPageLoads:
             content_type = response.headers.get("content-type", "")
             assert "text/html" in content_type
             text = response.text
-            assert "Workflow" in text
+            assert "Execution" in text
 
     async def test_workflows_page_without_trailing_slash(self):
         """Test GET /executions (no trailing slash) works."""
@@ -196,7 +197,7 @@ class TestDashboardPageLoads:
             content_type = response.headers.get("content-type", "")
             assert "text/html" in content_type
             text = response.text
-            assert "Agent" in text
+            assert "Deployment" in text
 
     async def test_agents_page_without_trailing_slash(self):
         """Test GET /deployments (no trailing slash) works."""
@@ -206,35 +207,6 @@ class TestDashboardPageLoads:
             response = await client.get("/deployments")
             # Should either 200 or redirect to /deployments/
             assert response.status_code in (200, 307, 308)
-
-    async def test_experiments_page_200(self):
-        """Test GET /optimization/experiments returns 200 status."""
-        dashboard = _create_test_dashboard()
-        transport = ASGITransport(app=dashboard.app)
-        async with AsyncClient(transport=transport, base_url="http://test") as client:
-            response = await client.get("/optimization/experiments")
-            assert response.status_code == 200
-            content_type = response.headers.get("content-type", "")
-            assert "text/html" in content_type
-            text = response.text
-            # Should show experiments page even if MLFlow unavailable
-            assert "experiment" in text.lower() or "optimization" in text.lower()
-
-    async def test_optimization_compare_without_mlflow(self):
-        """Test GET /optimization/compare shows friendly message when MLFlow unavailable."""
-        dashboard = _create_test_dashboard()
-        transport = ASGITransport(app=dashboard.app)
-        async with AsyncClient(transport=transport, base_url="http://test") as client:
-            # Without MLFlow, this should still return a friendly error page
-            response = await client.get(
-                "/optimization/compare",
-                params={"experiment": "test-experiment"}
-            )
-            # Should return 200 with error message, not 404 or 500
-            assert response.status_code == 200
-            text = response.text
-            # Should contain some indication of MLFlow issue or comparison page
-            assert "MLFlow" in text or "optimization" in text.lower() or "compare" in text.lower()
 
     async def test_mlflow_unavailable_page_200(self):
         """Test GET /mlflow returns friendly page (not JSON 404) when unavailable."""
@@ -249,16 +221,6 @@ class TestDashboardPageLoads:
             text = response.text
             # Should show MLFlow unavailable message
             assert "MLFlow" in text or "unavailable" in text.lower() or "not available" in text.lower()
-
-    async def test_orchestrator_page_200(self):
-        """Test GET /orchestrator returns 200 status."""
-        dashboard = _create_test_dashboard()
-        transport = ASGITransport(app=dashboard.app)
-        async with AsyncClient(transport=transport, base_url="http://test") as client:
-            response = await client.get("/orchestrator")
-            # Orchestrator page may return 200 or show error if service unavailable
-            # Either way should not crash
-            assert response.status_code == 200
 
     async def test_health_endpoint(self):
         """Test GET /health returns JSON with status."""
@@ -297,11 +259,9 @@ class TestNavigationLinks:
             # Expected nav links from base.html
             expected_links = [
                 ("/", "Dashboard"),
-                ("/executions", "Workflows"),
-                ("/deployments", "Agents"),
-                ("/orchestrator", "Orchestrator"),
+                ("/executions", "Executions"),
+                ("/deployments", "Deployments"),
                 ("/mlflow", "MLFlow"),
-                ("/optimization/experiments", "Optimization"),
             ]
 
             for href, label in expected_links:
@@ -320,9 +280,7 @@ class TestNavigationLinks:
                 "/",
                 "/executions/",
                 "/deployments/",
-                "/orchestrator",
                 "/mlflow",
-                "/optimization/experiments",
             ]
 
             for path in nav_paths:
@@ -368,7 +326,7 @@ class TestHTMXInteractions:
             text = response.text
             assert "<table" in text or "<tbody" in text
             # Empty state should be shown when no workflows
-            assert "No workflows found" in text or "workflow" in text.lower()
+            assert "No executions found" in text or "execution" in text.lower()
 
     async def test_workflows_table_htmx_with_filter(self):
         """Test GET /executions/table with status filter works."""
@@ -392,7 +350,7 @@ class TestHTMXInteractions:
             text = response.text
             assert "<table" in text or "<tbody" in text
             # Empty state should be shown when no agents
-            assert "No agents found" in text or "agent" in text.lower()
+            assert "No deployments found" in text or "deployment" in text.lower()
 
     async def test_workflows_stream_sse(self):
         """Test GET /metrics/executions/stream returns text/event-stream."""
@@ -430,29 +388,14 @@ class TestHTMXInteractions:
             assert "application/json" in content_type
             data = response.json()
             # Check expected fields
-            assert "total_workflows" in data
-            assert "running_workflows" in data
-            assert "registered_agents" in data
+            assert "total_executions" in data
+            assert "running_executions" in data
+            assert "registered_deployments" in data
             assert "total_cost_usd" in data
             assert "timestamp" in data
             # Values should be numeric or zero
-            assert isinstance(data["total_workflows"], int)
-            assert isinstance(data["running_workflows"], int)
-
-    async def test_experiments_json_endpoint(self):
-        """Test GET /optimization/experiments.json returns JSON."""
-        dashboard = _create_test_dashboard()
-        transport = ASGITransport(app=dashboard.app)
-        async with AsyncClient(transport=transport, base_url="http://test") as client:
-            response = await client.get("/optimization/experiments.json")
-            assert response.status_code == 200
-            content_type = response.headers.get("content-type", "")
-            assert "application/json" in content_type
-            data = response.json()
-            # Should have experiments list and availability flag
-            assert "experiments" in data
-            assert "mlflow_available" in data
-            assert isinstance(data["experiments"], list)
+            assert isinstance(data["total_executions"], int)
+            assert isinstance(data["running_executions"], int)
 
 
 # =============================================================================
@@ -485,7 +428,7 @@ class TestEmptyStates:
             assert response.status_code == 200
             text = response.text
             # Should show empty state message
-            assert "No agents found" in text or ("agent" in text.lower() and "no" in text.lower())
+            assert "No deployments found" in text or ("deployment" in text.lower() and "no" in text.lower())
 
     async def test_dashboard_home_empty_state(self):
         """Test dashboard home with no data still renders correctly."""
@@ -497,17 +440,6 @@ class TestEmptyStates:
             text = response.text
             # Should show zero counts
             assert "0" in text or "active" in text.lower()
-
-    async def test_experiments_empty_state(self):
-        """Test experiments page with no experiments still renders."""
-        dashboard = _create_test_dashboard()
-        transport = ASGITransport(app=dashboard.app)
-        async with AsyncClient(transport=transport, base_url="http://test") as client:
-            response = await client.get("/optimization/experiments")
-            assert response.status_code == 200
-            text = response.text
-            # Should show page even with no experiments
-            assert "experiment" in text.lower() or "optimization" in text.lower()
 
 
 # =============================================================================
@@ -584,7 +516,7 @@ class TestPopulatedData:
             assert response.status_code == 200
             text = response.text
             # Should show agent data
-            assert "agent" in text.lower()
+            assert "deployment" in text.lower() or "agent" in text.lower()
 
     async def test_metrics_summary_with_data(self, populated_db):
         """Test metrics summary reflects sample data."""
@@ -617,8 +549,8 @@ class TestPopulatedData:
             assert response.status_code == 200
             data = response.json()
             # Should have counts matching our sample data
-            assert data["total_workflows"] >= 0
-            assert data["registered_agents"] >= 0
+            assert data["total_executions"] >= 0
+            assert data["registered_deployments"] >= 0
 
     async def test_workflow_detail_page(self, populated_db):
         """Test workflow detail page for existing run."""
@@ -691,21 +623,6 @@ class TestAPIEndpoints:
             assert response.status_code == 200
             content_type = response.headers.get("content-type", "")
             assert "text/html" in content_type
-
-    async def test_compare_json_without_mlflow(self):
-        """Test GET /optimization/compare.json handles MLFlow unavailable."""
-        dashboard = _create_test_dashboard()
-        transport = ASGITransport(app=dashboard.app)
-        async with AsyncClient(transport=transport, base_url="http://test") as client:
-            response = await client.get(
-                "/optimization/compare.json",
-                params={"experiment": "nonexistent-experiment"}
-            )
-            # Should return JSON, not crash
-            assert response.status_code == 200
-            data = response.json()
-            # Should have mlflow_available flag
-            assert "mlflow_available" in data
 
 
 # =============================================================================
@@ -819,11 +736,3 @@ class TestEdgeCases:
             # Should return 404
             assert response.status_code == 404
 
-    async def test_orchestrator_status_unavailable(self):
-        """Test orchestrator status when service is unavailable."""
-        dashboard = _create_test_dashboard()
-        transport = ASGITransport(app=dashboard.app)
-        async with AsyncClient(transport=transport, base_url="http://test") as client:
-            response = await client.get("/orchestrator/status")
-            # May return 500 if service not configured, but should not crash
-            assert response.status_code in (200, 500, 503)

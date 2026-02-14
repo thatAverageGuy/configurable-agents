@@ -1,48 +1,48 @@
 {% extends "base.html" %}
 
-{% block title %}Agents - Configurable Agents Dashboard{% endblock %}
+{% block title %}Deployments - Configurable Agents Dashboard{% endblock %}
 
-{% block nav_agents %}class="active"{% endblock %}
+{% block nav_deployments %}class="active"{% endblock %}
 
 {% block content %}
 <div class="dashboard-container">
     <header class="page-header">
-        <h1>Registered Agents</h1>
-        <p class="subtitle">View and manage registered agents</p>
+        <h1>Registered Deployments</h1>
+        <p class="subtitle">View and manage registered deployments</p>
     </header>
 
     <!-- Actions -->
     <div class="table-container">
         <div class="table-header">
-            <h2>Agent Registry</h2>
+            <h2>Deployment Registry</h2>
             <div class="filters">
                 <button class="btn btn-secondary"
                         onclick="window.location.reload()">
                     Refresh
                 </button>
-                <a href="/agents/all" class="btn btn-secondary">Show All</a>
+                <a href="/deployments/all" class="btn btn-secondary">Show All</a>
             </div>
         </div>
 
-        <!-- Agents Table with HTMX auto-refresh -->
-        <div id="agents-table"
-             hx-get="/agents/table"
+        <!-- Deployments Table with HTMX auto-refresh -->
+        <div id="deployments-table"
+             hx-get="/deployments/table"
              hx-swap="outerHTML"
              hx-trigger="every 10s">
-            {% include "agents_table.html" %}
+            {% include "deployments_table.html" %}
         </div>
     </div>
 </div>
 
 <!-- SSE Connection for Real-time Updates -->
-<div hx-ext="sse" sse-connect="/metrics/agents/stream" sse-swap="agent_update" style="display: none;">
+<div hx-ext="sse" sse-connect="/metrics/deployments/stream" sse-swap="deployment_update" style="display: none;">
     <!-- SSE events will trigger table refresh automatically -->
 </div>
 
 <script>
     // Listen for SSE messages and refresh table on update
-    document.body.addEventListener('agent_update', function(evt) {
-        console.log('Agent update received');
+    document.body.addEventListener('deployment_update', function(evt) {
+        console.log('Deployment update received');
         // HTMX SSE extension handles the swap automatically
     });
 </script>
