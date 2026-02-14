@@ -20,8 +20,8 @@ from sqlalchemy.orm import Session
 
 from configurable_agents.ui.dashboard import DashboardApp
 from configurable_agents.storage.models import (
-    WorkflowRunRecord,
-    AgentRecord,
+    Execution,
+    Deployment,
     Base,
 )
 
@@ -38,13 +38,13 @@ def _create_test_dashboard():
         DashboardApp: Dashboard app instance with mock repos
     """
     # Create mock repositories with proper return values
-    workflow_repo = Mock()
-    workflow_repo.list_all = Mock(return_value=[])
+    execution_repo = Mock()
+    execution_repo.list_all = Mock(return_value=[])
     # Make get() return None for non-existent workflows
-    workflow_repo.get = Mock(return_value=None)
+    execution_repo.get = Mock(return_value=None)
     # Don't set engine attribute so _get_all_runs falls back to list_all
     # (or explicitly set to None to bypass hasattr check)
-    del workflow_repo.engine
+    del execution_repo.engine
 
     agent_repo = Mock()
     agent_repo.list_all = Mock(return_value=[])
@@ -53,8 +53,8 @@ def _create_test_dashboard():
 
     # Create dashboard app
     dashboard = DashboardApp(
-        workflow_repo=workflow_repo,
-        agent_registry_repo=agent_repo,
+        execution_repo=execution_repo,
+        deployment_repo=agent_repo,
     )
 
     return dashboard
@@ -80,7 +80,7 @@ def populated_db() -> Generator:
     # Add sample workflow records
     with Session(engine) as session:
         # Completed workflow
-        workflow1 = WorkflowRunRecord(
+        workflow1 = Execution(
             id="test-workflow-001",
             workflow_name="test_workflow",
             status="completed",
@@ -93,7 +93,7 @@ def populated_db() -> Generator:
         )
 
         # Running workflow
-        workflow2 = WorkflowRunRecord(
+        workflow2 = Execution(
             id="test-workflow-002",
             workflow_name="running_workflow",
             status="running",
@@ -104,7 +104,7 @@ def populated_db() -> Generator:
         )
 
         # Failed workflow
-        workflow3 = WorkflowRunRecord(
+        workflow3 = Execution(
             id="test-workflow-003",
             workflow_name="failed_workflow",
             status="failed",
@@ -118,18 +118,18 @@ def populated_db() -> Generator:
         session.add_all([workflow1, workflow2, workflow3])
 
         # Add sample agent records
-        agent1 = AgentRecord(
-            agent_id="agent-001",
-            agent_name="TestAgent1",
+        agent1 = Deployment(
+            deployment_id="agent-001",
+            deployment_name="TestAgent1",
             host="localhost",
             port=8001,
             last_heartbeat=datetime.utcnow() - timedelta(seconds=30),
             agent_metadata='{"capabilities": ["chat", "search"]}',
         )
 
-        agent2 = AgentRecord(
-            agent_id="agent-002",
-            agent_name="TestAgent2",
+        agent2 = Deployment(
+            deployment_id="agent-002",
+            deployment_name="TestAgent2",
             host="localhost",
             port=8002,
             last_heartbeat=datetime.utcnow() - timedelta(minutes=15),
@@ -166,11 +166,11 @@ class TestDashboardPageLoads:
             assert "Dashboard" in text or "Configurable Agents" in text
 
     async def test_workflows_page_200(self):
-        """Test GET /workflows returns 200 status with HTML content."""
+        """Test GET /executions returns 200 status with HTML content."""
         dashboard = _create_test_dashboard()
         transport = ASGITransport(app=dashboard.app)
         async with AsyncClient(transport=transport, base_url="http://test") as client:
-            response = await client.get("/workflows/")
+            response = await client.get("/executions/")
             assert response.status_code == 200
             content_type = response.headers.get("content-type", "")
             assert "text/html" in content_type
@@ -178,20 +178,20 @@ class TestDashboardPageLoads:
             assert "Workflow" in text
 
     async def test_workflows_page_without_trailing_slash(self):
-        """Test GET /workflows (no trailing slash) works."""
+        """Test GET /executions (no trailing slash) works."""
         dashboard = _create_test_dashboard()
         transport = ASGITransport(app=dashboard.app)
         async with AsyncClient(transport=transport, base_url="http://test") as client:
-            response = await client.get("/workflows")
-            # Should either 200 or redirect to /workflows/
+            response = await client.get("/executions")
+            # Should either 200 or redirect to /executions/
             assert response.status_code in (200, 307, 308)
 
     async def test_agents_page_200(self):
-        """Test GET /agents returns 200 status with HTML content."""
+        """Test GET /deployments returns 200 status with HTML content."""
         dashboard = _create_test_dashboard()
         transport = ASGITransport(app=dashboard.app)
         async with AsyncClient(transport=transport, base_url="http://test") as client:
-            response = await client.get("/agents/")
+            response = await client.get("/deployments/")
             assert response.status_code == 200
             content_type = response.headers.get("content-type", "")
             assert "text/html" in content_type
@@ -199,12 +199,12 @@ class TestDashboardPageLoads:
             assert "Agent" in text
 
     async def test_agents_page_without_trailing_slash(self):
-        """Test GET /agents (no trailing slash) works."""
+        """Test GET /deployments (no trailing slash) works."""
         dashboard = _create_test_dashboard()
         transport = ASGITransport(app=dashboard.app)
         async with AsyncClient(transport=transport, base_url="http://test") as client:
-            response = await client.get("/agents")
-            # Should either 200 or redirect to /agents/
+            response = await client.get("/deployments")
+            # Should either 200 or redirect to /deployments/
             assert response.status_code in (200, 307, 308)
 
     async def test_experiments_page_200(self):
@@ -297,8 +297,8 @@ class TestNavigationLinks:
             # Expected nav links from base.html
             expected_links = [
                 ("/", "Dashboard"),
-                ("/workflows", "Workflows"),
-                ("/agents", "Agents"),
+                ("/executions", "Workflows"),
+                ("/deployments", "Agents"),
                 ("/orchestrator", "Orchestrator"),
                 ("/mlflow", "MLFlow"),
                 ("/optimization/experiments", "Optimization"),
@@ -318,8 +318,8 @@ class TestNavigationLinks:
         async with AsyncClient(transport=transport, base_url="http://test") as client:
             nav_paths = [
                 "/",
-                "/workflows/",
-                "/agents/",
+                "/executions/",
+                "/deployments/",
                 "/orchestrator",
                 "/mlflow",
                 "/optimization/experiments",
@@ -337,7 +337,7 @@ class TestNavigationLinks:
         dashboard = _create_test_dashboard()
         transport = ASGITransport(app=dashboard.app)
         async with AsyncClient(transport=transport, base_url="http://test") as client:
-            response = await client.get("/workflows/nonexistent-id")
+            response = await client.get("/executions/nonexistent-id")
             # Should handle gracefully - either 404 page or return to list with error
             assert response.status_code == 200
             text = response.text
@@ -356,11 +356,11 @@ class TestHTMXInteractions:
     """Tests for HTMX-powered endpoints that return HTML partials."""
 
     async def test_workflows_table_htmx(self):
-        """Test GET /workflows/table returns HTML partial for HTMX swap."""
+        """Test GET /executions/table returns HTML partial for HTMX swap."""
         dashboard = _create_test_dashboard()
         transport = ASGITransport(app=dashboard.app)
         async with AsyncClient(transport=transport, base_url="http://test") as client:
-            response = await client.get("/workflows/table")
+            response = await client.get("/executions/table")
             assert response.status_code == 200
             content_type = response.headers.get("content-type", "")
             assert "text/html" in content_type
@@ -371,20 +371,20 @@ class TestHTMXInteractions:
             assert "No workflows found" in text or "workflow" in text.lower()
 
     async def test_workflows_table_htmx_with_filter(self):
-        """Test GET /workflows/table with status filter works."""
+        """Test GET /executions/table with status filter works."""
         dashboard = _create_test_dashboard()
         transport = ASGITransport(app=dashboard.app)
         async with AsyncClient(transport=transport, base_url="http://test") as client:
-            response = await client.get("/workflows/table?status_filter=running")
+            response = await client.get("/executions/table?status_filter=running")
             assert response.status_code == 200
             assert "text/html" in response.headers.get("content-type", "")
 
     async def test_agents_table_htmx(self):
-        """Test GET /agents/table returns HTML partial for HTMX swap."""
+        """Test GET /deployments/table returns HTML partial for HTMX swap."""
         dashboard = _create_test_dashboard()
         transport = ASGITransport(app=dashboard.app)
         async with AsyncClient(transport=transport, base_url="http://test") as client:
-            response = await client.get("/agents/table")
+            response = await client.get("/deployments/table")
             assert response.status_code == 200
             content_type = response.headers.get("content-type", "")
             assert "text/html" in content_type
@@ -395,11 +395,11 @@ class TestHTMXInteractions:
             assert "No agents found" in text or "agent" in text.lower()
 
     async def test_workflows_stream_sse(self):
-        """Test GET /metrics/workflows/stream returns text/event-stream."""
+        """Test GET /metrics/executions/stream returns text/event-stream."""
         dashboard = _create_test_dashboard()
         transport = ASGITransport(app=dashboard.app)
         async with AsyncClient(transport=transport, base_url="http://test") as client:
-            response = await client.get("/metrics/workflows/stream")
+            response = await client.get("/metrics/executions/stream")
             assert response.status_code == 200
             content_type = response.headers.get("content-type", "")
             assert "text/event-stream" in content_type
@@ -408,11 +408,11 @@ class TestHTMXInteractions:
             # Response should be a streaming response (httpx may buffer but content type is correct)
 
     async def test_agents_stream_sse(self):
-        """Test GET /metrics/agents/stream returns text/event-stream."""
+        """Test GET /metrics/deployments/stream returns text/event-stream."""
         dashboard = _create_test_dashboard()
         transport = ASGITransport(app=dashboard.app)
         async with AsyncClient(transport=transport, base_url="http://test") as client:
-            response = await client.get("/metrics/agents/stream")
+            response = await client.get("/metrics/deployments/stream")
             assert response.status_code == 200
             content_type = response.headers.get("content-type", "")
             assert "text/event-stream" in content_type
@@ -470,7 +470,7 @@ class TestEmptyStates:
         dashboard = _create_test_dashboard()
         transport = ASGITransport(app=dashboard.app)
         async with AsyncClient(transport=transport, base_url="http://test") as client:
-            response = await client.get("/workflows/table")
+            response = await client.get("/executions/table")
             assert response.status_code == 200
             text = response.text
             # Should show empty state message
@@ -481,7 +481,7 @@ class TestEmptyStates:
         dashboard = _create_test_dashboard()
         transport = ASGITransport(app=dashboard.app)
         async with AsyncClient(transport=transport, base_url="http://test") as client:
-            response = await client.get("/agents/table")
+            response = await client.get("/deployments/table")
             assert response.status_code == 200
             text = response.text
             # Should show empty state message
@@ -533,12 +533,12 @@ class TestPopulatedData:
 
         # Get records from source
         with Session(source_engine) as source_session:
-            workflows = source_session.query(WorkflowRunRecord).all()
-            agents = source_session.query(AgentRecord).all()
+            workflows = source_session.query(Execution).all()
+            agents = source_session.query(Deployment).all()
 
         # Insert into test app database
-        if hasattr(dashboard.workflow_repo, 'engine'):
-            with Session(dashboard.workflow_repo.engine) as target_session:
+        if hasattr(dashboard.execution_repo, 'engine'):
+            with Session(dashboard.execution_repo.engine) as target_session:
                 for wf in workflows:
                     target_session.merge(wf)
                 for agent in agents:
@@ -547,7 +547,7 @@ class TestPopulatedData:
 
         transport = ASGITransport(app=dashboard.app)
         async with AsyncClient(transport=transport, base_url="http://test") as client:
-            response = await client.get("/workflows/table")
+            response = await client.get("/executions/table")
             assert response.status_code == 200
             text = response.text
             # Should show workflow data
@@ -566,12 +566,12 @@ class TestPopulatedData:
 
         # Get records from source
         with Session(source_engine) as source_session:
-            workflows = source_session.query(WorkflowRunRecord).all()
-            agents = source_session.query(AgentRecord).all()
+            workflows = source_session.query(Execution).all()
+            agents = source_session.query(Deployment).all()
 
         # Insert into test app database
-        if hasattr(dashboard.workflow_repo, 'engine'):
-            with Session(dashboard.workflow_repo.engine) as target_session:
+        if hasattr(dashboard.execution_repo, 'engine'):
+            with Session(dashboard.execution_repo.engine) as target_session:
                 for wf in workflows:
                     target_session.merge(wf)
                 for agent in agents:
@@ -580,7 +580,7 @@ class TestPopulatedData:
 
         transport = ASGITransport(app=dashboard.app)
         async with AsyncClient(transport=transport, base_url="http://test") as client:
-            response = await client.get("/agents/table")
+            response = await client.get("/deployments/table")
             assert response.status_code == 200
             text = response.text
             # Should show agent data
@@ -599,12 +599,12 @@ class TestPopulatedData:
 
         # Get records from source
         with Session(source_engine) as source_session:
-            workflows = source_session.query(WorkflowRunRecord).all()
-            agents = source_session.query(AgentRecord).all()
+            workflows = source_session.query(Execution).all()
+            agents = source_session.query(Deployment).all()
 
         # Insert into test app database
-        if hasattr(dashboard.workflow_repo, 'engine'):
-            with Session(dashboard.workflow_repo.engine) as target_session:
+        if hasattr(dashboard.execution_repo, 'engine'):
+            with Session(dashboard.execution_repo.engine) as target_session:
                 for wf in workflows:
                     target_session.merge(wf)
                 for agent in agents:
@@ -633,12 +633,12 @@ class TestPopulatedData:
 
         # Get records from source
         with Session(source_engine) as source_session:
-            workflows = source_session.query(WorkflowRunRecord).all()
-            agents = source_session.query(AgentRecord).all()
+            workflows = source_session.query(Execution).all()
+            agents = source_session.query(Deployment).all()
 
         # Insert into test app database
-        if hasattr(dashboard.workflow_repo, 'engine'):
-            with Session(dashboard.workflow_repo.engine) as target_session:
+        if hasattr(dashboard.execution_repo, 'engine'):
+            with Session(dashboard.execution_repo.engine) as target_session:
                 for wf in workflows:
                     target_session.merge(wf)
                 for agent in agents:
@@ -648,7 +648,7 @@ class TestPopulatedData:
         transport = ASGITransport(app=dashboard.app)
         async with AsyncClient(transport=transport, base_url="http://test") as client:
             # First get a workflow ID from the list
-            response = await client.get("/workflows/table")
+            response = await client.get("/executions/table")
             text = response.text
 
             # If we have workflows, try to access the first one
@@ -656,7 +656,7 @@ class TestPopulatedData:
                 # Extract workflow ID from the response
                 # The table shows truncated IDs like "test-wor..."
                 # For this test we'll use a known ID from our fixture
-                response = await client.get("/workflows/test-workflow-001")
+                response = await client.get("/executions/test-workflow-001")
                 assert response.status_code == 200
                 assert "test_workflow" in response.text or "workflow" in response.text.lower()
 
@@ -683,11 +683,11 @@ class TestAPIEndpoints:
             assert "timestamp" in data
 
     async def test_agents_refresh_endpoint(self):
-        """Test POST /agents/refresh returns HTML."""
+        """Test POST /deployments/refresh returns HTML."""
         dashboard = _create_test_dashboard()
         transport = ASGITransport(app=dashboard.app)
         async with AsyncClient(transport=transport, base_url="http://test") as client:
-            response = await client.post("/agents/refresh")
+            response = await client.post("/deployments/refresh")
             assert response.status_code == 200
             content_type = response.headers.get("content-type", "")
             assert "text/html" in content_type
@@ -751,7 +751,7 @@ class TestHTMXAttributes:
         dashboard = _create_test_dashboard()
         transport = ASGITransport(app=dashboard.app)
         async with AsyncClient(transport=transport, base_url="http://test") as client:
-            response = await client.get("/workflows/")
+            response = await client.get("/executions/")
             assert response.status_code == 200
             text = response.text
             # Should have HTMX attributes for table refresh
@@ -764,7 +764,7 @@ class TestHTMXAttributes:
         dashboard = _create_test_dashboard()
         transport = ASGITransport(app=dashboard.app)
         async with AsyncClient(transport=transport, base_url="http://test") as client:
-            response = await client.get("/agents/")
+            response = await client.get("/deployments/")
             assert response.status_code == 200
             text = response.text
             # Should have HTMX attributes for table refresh
@@ -806,7 +806,7 @@ class TestEdgeCases:
         dashboard = _create_test_dashboard()
         transport = ASGITransport(app=dashboard.app)
         async with AsyncClient(transport=transport, base_url="http://test") as client:
-            response = await client.post("/workflows/nonexistent-id/cancel")
+            response = await client.post("/executions/nonexistent-id/cancel")
             # Should return 404
             assert response.status_code == 404
 
@@ -815,7 +815,7 @@ class TestEdgeCases:
         dashboard = _create_test_dashboard()
         transport = ASGITransport(app=dashboard.app)
         async with AsyncClient(transport=transport, base_url="http://test") as client:
-            response = await client.delete("/agents/nonexistent-agent-id")
+            response = await client.delete("/deployments/nonexistent-agent-id")
             # Should return 404
             assert response.status_code == 404
 

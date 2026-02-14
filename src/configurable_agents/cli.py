@@ -28,7 +28,7 @@ from configurable_agents.observability import (
 from configurable_agents.observability.multi_provider_tracker import (
     generate_cost_report,
 )
-from configurable_agents.registry import WorkflowRegistryServer
+from configurable_agents.registry import DeploymentRegistryServer
 from configurable_agents.runtime import (
     ConfigLoadError,
     ConfigValidationError,
@@ -225,9 +225,6 @@ def cmd_run(args: argparse.Namespace) -> int:
     except ValueError as e:
         print_error(f"Invalid input format: {e}")
         return 1
-
-    # Note: --enable-profiling is accepted for backwards compatibility but profiling
-    # data is always captured via MLflow trace spans. Use profile-report to view it.
 
     # Print execution info
     print_info(f"Loading workflow: {colorize(config_path, Colors.CYAN)}")
@@ -1224,9 +1221,9 @@ def cmd_observability_status(args: argparse.Namespace) -> int:
         return 1
 
 
-def cmd_workflow_registry_start(args: argparse.Namespace) -> int:
+def cmd_deployments_start(args: argparse.Namespace) -> int:
     """
-    Start the workflow registry server.
+    Start the deployment registry server.
 
     Args:
         args: Parsed command-line arguments
@@ -1236,12 +1233,12 @@ def cmd_workflow_registry_start(args: argparse.Namespace) -> int:
     """
     db_url = args.db_url
 
-    print_info(f"Starting workflow registry server on {colorize(f'{args.host}:{args.port}', Colors.CYAN)}")
+    print_info(f"Starting deployment registry server on {colorize(f'{args.host}:{args.port}', Colors.CYAN)}")
     print_info(f"Database: {colorize(db_url, Colors.GRAY)}")
 
     try:
         # Create registry server
-        server = WorkflowRegistryServer(registry_url=db_url)
+        server = DeploymentRegistryServer(registry_url=db_url)
         app = server.create_app()
 
         # Import uvicorn for running the server
@@ -1271,9 +1268,9 @@ def cmd_workflow_registry_start(args: argparse.Namespace) -> int:
         return 1
 
 
-def cmd_workflow_registry_list(args: argparse.Namespace) -> int:
+def cmd_deployments_list(args: argparse.Namespace) -> int:
     """
-    List registered workflows from the registry database.
+    List registered deployments from the registry database.
 
     Args:
         args: Parsed command-line arguments
@@ -1290,37 +1287,37 @@ def cmd_workflow_registry_list(args: argparse.Namespace) -> int:
         from configurable_agents.storage.factory import create_storage_backend
 
         config = StorageConfig(backend="sqlite", path=db_path)
-        _, _, repo, _, _, _, _, _ = create_storage_backend(config)
+        _, _, repo, _, _, _, _ = create_storage_backend(config)
     else:
         print_error(f"Unsupported database URL: {db_url}")
         return 1
 
-    # Query agents
-    agents = repo.list_all(include_dead=args.include_dead)
+    # Query deployments
+    deployments = repo.list_all(include_dead=args.include_dead)
 
-    if not agents:
-        print_warning("No agents found in registry")
+    if not deployments:
+        print_warning("No deployments found in registry")
         return 0
 
-    print_success(f"Found {len(agents)} agent(s)")
+    print_success(f"Found {len(deployments)} deployment(s)")
 
-    # Display agents
+    # Display deployments
     if RICH_AVAILABLE:
         console = Console()
         table = Table(title=None)
-        table.add_column("Agent ID", style="cyan", no_wrap=False)
+        table.add_column("Deployment ID", style="cyan", no_wrap=False)
         table.add_column("Name", style="green", no_wrap=False)
         table.add_column("Host:Port", style="blue", no_wrap=False)
         table.add_column("Last Heartbeat", style="magenta")
         table.add_column("Status", style="yellow")
 
-        for agent in agents:
-            status = colorize("Alive", Colors.GREEN) if agent.is_alive() else colorize("Dead", Colors.RED)
-            heartbeat_str = agent.last_heartbeat.strftime("%Y-%m-%d %H:%M:%S") if agent.last_heartbeat else "N/A"
+        for deployment in deployments:
+            status = colorize("Alive", Colors.GREEN) if deployment.is_alive() else colorize("Dead", Colors.RED)
+            heartbeat_str = deployment.last_heartbeat.strftime("%Y-%m-%d %H:%M:%S") if deployment.last_heartbeat else "N/A"
             table.add_row(
-                agent.agent_id,
-                agent.agent_name,
-                f"{agent.host}:{agent.port}",
+                deployment.deployment_id,
+                deployment.deployment_name,
+                f"{deployment.host}:{deployment.port}",
                 heartbeat_str,
                 status,
             )
@@ -1329,19 +1326,19 @@ def cmd_workflow_registry_list(args: argparse.Namespace) -> int:
         console.print()
     else:
         # Fallback to plain text
-        print(f"\n{'Agent ID':<30} {'Name':<25} {'Host:Port':<20} {'Last Heartbeat':<20} {'Status'}")
+        print(f"\n{'Deployment ID':<30} {'Name':<25} {'Host:Port':<20} {'Last Heartbeat':<20} {'Status'}")
         print("-" * 110)
-        for agent in agents:
-            status = "Alive" if agent.is_alive() else "Dead"
-            heartbeat_str = agent.last_heartbeat.strftime("%Y-%m-%d %H:%M:%S") if agent.last_heartbeat else "N/A"
-            print(f"{agent.agent_id:<30} {agent.agent_name:<25} {agent.host}:{agent.port:<14} {heartbeat_str:<20} {status}")
+        for deployment in deployments:
+            status = "Alive" if deployment.is_alive() else "Dead"
+            heartbeat_str = deployment.last_heartbeat.strftime("%Y-%m-%d %H:%M:%S") if deployment.last_heartbeat else "N/A"
+            print(f"{deployment.deployment_id:<30} {deployment.deployment_name:<25} {deployment.host}:{deployment.port:<14} {heartbeat_str:<20} {status}")
 
     return 0
 
 
-def cmd_workflow_registry_cleanup(args: argparse.Namespace) -> int:
+def cmd_deployments_cleanup(args: argparse.Namespace) -> int:
     """
-    Manually trigger cleanup of expired agents.
+    Manually trigger cleanup of expired deployments.
 
     Args:
         args: Parsed command-line arguments
@@ -1358,20 +1355,20 @@ def cmd_workflow_registry_cleanup(args: argparse.Namespace) -> int:
         from configurable_agents.storage.factory import create_storage_backend
 
         config = StorageConfig(backend="sqlite", path=db_path)
-        _, _, repo, _, _, _, _, _ = create_storage_backend(config)
+        _, _, repo, _, _, _, _ = create_storage_backend(config)
     else:
         print_error(f"Unsupported database URL: {db_url}")
         return 1
 
-    print_info("Cleaning up expired agents...")
+    print_info("Cleaning up expired deployments...")
 
-    # Delete expired agents
+    # Delete expired deployments
     deleted_count = repo.delete_expired()
 
     if deleted_count > 0:
-        print_success(f"Deleted {colorize(str(deleted_count), Colors.BOLD)} expired agent(s)")
+        print_success(f"Deleted {colorize(str(deleted_count), Colors.BOLD)} expired deployment(s)")
     else:
-        print_info("No expired agents found")
+        print_info("No expired deployments found")
 
     return 0
 
@@ -2145,11 +2142,6 @@ For more information, visit: https://github.com/yourusername/configurable-agents
     run_parser.add_argument(
         "-v", "--verbose", action="store_true", help="Enable verbose logging (DEBUG level)"
     )
-    run_parser.add_argument(
-        "--enable-profiling",
-        action="store_true",
-        help="Enable performance profiling for this run (captures node timing data)",
-    )
     run_parser.set_defaults(func=cmd_run)
 
     # Validate command
@@ -2413,79 +2405,79 @@ For more information, visit: https://github.com/yourusername/configurable-agents
     )
     obs_profile_parser.set_defaults(func=cmd_profile_report)
 
-    # Workflow registry command group
-    registry_parser = subparsers.add_parser(
-        "workflow-registry",
-        help="Workflow registry management commands",
-        description="Manage the workflow registry server for distributed workflow coordination",
+    # Deployments command group
+    deployments_parser = subparsers.add_parser(
+        "deployments",
+        help="Deployment registry management commands",
+        description="Manage the deployment registry server for distributed workflow coordination",
     )
-    registry_subparsers = registry_parser.add_subparsers(
-        dest="registry_command", help="Registry subcommands"
+    deployments_subparsers = deployments_parser.add_subparsers(
+        dest="deployments_command", help="Deployments subcommands"
     )
 
-    # Registry start subcommand
-    registry_start_parser = registry_subparsers.add_parser(
+    # Deployments start subcommand
+    deployments_start_parser = deployments_subparsers.add_parser(
         "start",
-        help="Start the workflow registry server",
-        description="Start the workflow registry server using uvicorn",
+        help="Start the deployment registry server",
+        description="Start the deployment registry server using uvicorn",
     )
-    registry_start_parser.add_argument(
+    deployments_start_parser.add_argument(
         "--host",
         default="0.0.0.0",
         help="Host to bind to (default: 0.0.0.0)",
     )
-    registry_start_parser.add_argument(
+    deployments_start_parser.add_argument(
         "--port",
         type=int,
         default=9000,
         help="Port to listen on (default: 9000)",
     )
-    registry_start_parser.add_argument(
+    deployments_start_parser.add_argument(
         "--db-url",
-        default="sqlite:///agent_registry.db",
-        help="Database URL for registry storage (default: sqlite:///agent_registry.db)",
+        default="sqlite:///configurable_agents.db",
+        help="Database URL for registry storage (default: sqlite:///configurable_agents.db)",
     )
-    registry_start_parser.add_argument(
+    deployments_start_parser.add_argument(
         "-v", "--verbose", action="store_true", help="Enable verbose output"
     )
-    registry_start_parser.set_defaults(func=cmd_workflow_registry_start)
+    deployments_start_parser.set_defaults(func=cmd_deployments_start)
 
-    # Registry list subcommand
-    registry_list_parser = registry_subparsers.add_parser(
+    # Deployments list subcommand
+    deployments_list_parser = deployments_subparsers.add_parser(
         "list",
-        help="List registered workflows",
-        description="List all workflows in the registry database",
+        help="List registered deployments",
+        description="List all deployments in the registry database",
     )
-    registry_list_parser.add_argument(
+    deployments_list_parser.add_argument(
         "--db-url",
-        default="sqlite:///agent_registry.db",
-        help="Database URL for registry storage (default: sqlite:///agent_registry.db)",
+        default="sqlite:///configurable_agents.db",
+        help="Database URL for registry storage (default: sqlite:///configurable_agents.db)",
     )
-    registry_list_parser.add_argument(
+    deployments_list_parser.add_argument(
         "--include-dead",
         action="store_true",
-        help="Include expired/dead agents in the list",
+        help="Include expired/dead deployments in the list",
     )
-    registry_list_parser.add_argument(
+    deployments_list_parser.add_argument(
         "-v", "--verbose", action="store_true", help="Enable verbose output"
     )
-    registry_list_parser.set_defaults(func=cmd_workflow_registry_list)
+    deployments_list_parser.set_defaults(func=cmd_deployments_list)
 
-    # Registry cleanup subcommand
-    registry_cleanup_parser = registry_subparsers.add_parser(
+    # Deployments cleanup subcommand
+    deployments_cleanup_parser = deployments_subparsers.add_parser(
         "cleanup",
-        help="Clean up expired workflows",
-        description="Manually trigger cleanup of expired workflows from the registry",
+        help="Clean up expired deployments",
+        description="Manually trigger cleanup of expired deployments from the registry",
     )
-    registry_cleanup_parser.add_argument(
+    deployments_cleanup_parser.add_argument(
         "--db-url",
-        default="sqlite:///agent_registry.db",
-        help="Database URL for registry storage (default: sqlite:///agent_registry.db)",
+        default="sqlite:///configurable_agents.db",
+        help="Database URL for registry storage (default: sqlite:///configurable_agents.db)",
     )
-    registry_cleanup_parser.add_argument(
+    deployments_cleanup_parser.add_argument(
         "-v", "--verbose", action="store_true", help="Enable verbose output"
     )
-    registry_cleanup_parser.set_defaults(func=cmd_workflow_registry_cleanup)
+    deployments_cleanup_parser.set_defaults(func=cmd_deployments_cleanup)
 
     # Dashboard command
     dashboard_parser = subparsers.add_parser(

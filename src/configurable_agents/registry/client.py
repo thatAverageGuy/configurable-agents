@@ -1,17 +1,22 @@
-"""Agent registry client for self-registration and heartbeat.
+"""Deployment registry client for self-registration and heartbeat.
 
-Provides the client-side component that agents use to register themselves
+Provides the client-side component that deployments use to register themselves
 and send heartbeats to the registry server.
 
+Renamed in UI Redesign (2026-02-13):
+- AgentRegistryClient → DeploymentClient
+- Field names: agent_id → deployment_id, agent_name → deployment_name
+- Routes: /agents/* → /deployments/*
+
 Example:
-    >>> from configurable_agents.registry import AgentRegistryClient
-    >>> client = AgentRegistryClient(
+    >>> from configurable_agents.registry import DeploymentClient
+    >>> client = DeploymentClient(
     ...     registry_url="http://localhost:9000",
-    ...     agent_id="my-agent"
+    ...     deployment_id="my-deployment"
     ... )
     >>> await client.register({"host": "localhost", "port": 8000})
     >>> await client.start_heartbeat_loop()
-    >>> # ... agent runs ...
+    >>> # ... deployment runs ...
     >>> await client.deregister()
 """
 
@@ -22,19 +27,19 @@ from typing import Optional
 import httpx
 
 
-class AgentRegistryClient:
-    """Client for agent self-registration and heartbeat.
+class DeploymentClient:
+    """Client for deployment self-registration and heartbeat.
 
-    Agents use this client to register themselves with the registry server
+    Deployments use this client to register themselves with the registry server
     and maintain their registration via periodic heartbeats.
 
     The heartbeat loop runs in the background, retrying on HTTP errors
-    instead of crashing. This ensures agents stay registered even during
+    instead of crashing. This ensures deployments stay registered even during
     transient network issues.
 
     Attributes:
         registry_url: URL of the registry server (e.g., "http://localhost:9000")
-        agent_id: Unique identifier for this agent
+        deployment_id: Unique identifier for this deployment
         ttl_seconds: Time-to-live for registration (default: 60)
         heartbeat_interval: Seconds between heartbeat sends (default: 20)
         _http_client: Async HTTP client for registry requests
@@ -44,16 +49,16 @@ class AgentRegistryClient:
     def __init__(
         self,
         registry_url: str,
-        agent_id: str,
+        deployment_id: str,
         ttl_seconds: int = 60,
         heartbeat_interval: int = 20,
     ):
-        """Initialize the agent registry client.
+        """Initialize the deployment registry client.
 
         Args:
             registry_url: URL of the registry server
                 (e.g., "http://localhost:9000")
-            agent_id: Unique identifier for this agent
+            deployment_id: Unique identifier for this deployment
             ttl_seconds: Time-to-live in seconds (default: 60)
             heartbeat_interval: Seconds between heartbeats (default: 20)
                 Should be ~1/3 of TTL to ensure reliable refresh
@@ -68,7 +73,7 @@ class AgentRegistryClient:
             )
 
         self.registry_url = registry_url.rstrip("/")
-        self.agent_id = agent_id
+        self.deployment_id = deployment_id
         self.ttl_seconds = ttl_seconds
         self.heartbeat_interval = heartbeat_interval
 
@@ -85,7 +90,7 @@ class AgentRegistryClient:
     def _get_host_port(self, metadata: dict) -> tuple[str, int]:
         """Get host and port from environment, metadata, or defaults.
 
-        Checks environment variables AGENT_HOST and AGENT_PORT first,
+        Checks environment variables DEPLOYMENT_HOST and DEPLOYMENT_PORT first,
         then looks in provided metadata, falls back to defaults.
 
         Args:
@@ -97,8 +102,8 @@ class AgentRegistryClient:
         import os
 
         # Try environment variables first
-        host = os.getenv("AGENT_HOST")
-        port_str = os.getenv("AGENT_PORT")
+        host = os.getenv("DEPLOYMENT_HOST") or os.getenv("AGENT_HOST")
+        port_str = os.getenv("DEPLOYMENT_PORT") or os.getenv("AGENT_PORT")
 
         # Try metadata next
         if not host:
@@ -125,14 +130,14 @@ class AgentRegistryClient:
         self,
         metadata: Optional[dict] = None,
     ) -> None:
-        """Register this agent with the registry server.
+        """Register this deployment with the registry server.
 
-        Sends a POST request to /agents/register with agent information.
+        Sends a POST request to /deployments/register with deployment information.
         Registration is idempotent - re-registering updates the existing record.
 
         Args:
-            metadata: Optional dict with additional agent information.
-                May include 'host' and 'port' (auto-detected if not provided)
+            metadata: Optional dict with additional deployment information.
+                May include 'host', 'port', 'deployment_name', 'workflow_name'
 
         Raises:
             httpx.HTTPStatusError: If registration fails
@@ -146,17 +151,18 @@ class AgentRegistryClient:
 
         # Build registration payload
         payload = {
-            "agent_id": self.agent_id,
-            "agent_name": metadata.get("agent_name", self.agent_id),
+            "deployment_id": self.deployment_id,
+            "deployment_name": metadata.get("deployment_name", metadata.get("agent_name", self.deployment_id)),
             "host": host,
             "port": port,
             "ttl_seconds": self.ttl_seconds,
+            "workflow_name": metadata.get("workflow_name"),
             "metadata": metadata.get("metadata"),
         }
 
         # Send registration request
         response = await self._http_client.post(
-            f"{self.registry_url}/agents/register",
+            f"{self.registry_url}/deployments/register",
             json=payload,
         )
         response.raise_for_status()
@@ -181,7 +187,7 @@ class AgentRegistryClient:
     async def _heartbeat(self) -> None:
         """Background heartbeat loop.
 
-        Sends heartbeat POST requests to /agents/{agent_id}/heartbeat
+        Sends heartbeat POST requests to /deployments/{deployment_id}/heartbeat
         every heartbeat_interval seconds.
 
         Handles:
@@ -189,7 +195,7 @@ class AgentRegistryClient:
         - HTTP errors: sleeps 5 seconds and retries
 
         This loop is designed to be resilient - transient network issues
-        don't crash the agent.
+        don't crash the deployment.
         """
         retry_delay = 5  # seconds
 
@@ -197,7 +203,7 @@ class AgentRegistryClient:
             while True:
                 try:
                     response = await self._http_client.post(
-                        f"{self.registry_url}/agents/{self.agent_id}/heartbeat"
+                        f"{self.registry_url}/deployments/{self.deployment_id}/heartbeat"
                     )
                     response.raise_for_status()
 
@@ -220,12 +226,12 @@ class AgentRegistryClient:
             pass
 
     async def deregister(self) -> None:
-        """Deregister this agent from the registry.
+        """Deregister this deployment from the registry.
 
         Cancels the heartbeat task (if running) and sends a DELETE
-        request to /agents/{agent_id}.
+        request to /deployments/{deployment_id}.
 
-        Call this during agent shutdown to clean up the registry entry.
+        Call this during deployment shutdown to clean up the registry entry.
         """
         # Cancel heartbeat task if running
         if self._heartbeat_task is not None:
@@ -239,7 +245,7 @@ class AgentRegistryClient:
         # Send deregistration request
         try:
             response = await self._http_client.delete(
-                f"{self.registry_url}/agents/{self.agent_id}"
+                f"{self.registry_url}/deployments/{self.deployment_id}"
             )
             response.raise_for_status()
         except httpx.HTTPError:
@@ -249,7 +255,7 @@ class AgentRegistryClient:
     async def close(self) -> None:
         """Close the HTTP client.
 
-        Call this when shutting down the agent to clean up resources.
+        Call this when shutting down the deployment to clean up resources.
         """
         await self._http_client.aclose()
 
@@ -261,3 +267,7 @@ class AgentRegistryClient:
         """Async context manager exit - deregisters and closes client."""
         await self.deregister()
         await self.close()
+
+
+# Backward-compatible alias
+AgentRegistryClient = DeploymentClient

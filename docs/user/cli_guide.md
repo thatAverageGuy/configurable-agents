@@ -6,7 +6,11 @@
 > - `configurable-agents` (installed via `pip install -e .`)
 > - `python -m configurable_agents` (module invocation)
 >
-> **Last verified**: 2026-02-09
+> **Last verified**: 2026-02-14
+>
+> **Note**: Updated for UI Redesign (2026-02-13). Commands renamed:
+> - `workflow-registry` → `deployments`
+> - Dashboard routes: `/workflows` → `/executions`, `/agents` → `/deployments`
 
 ---
 
@@ -27,9 +31,9 @@
 | `observability status` | Show MLFlow connection & recent activity | Observability |
 | `observability cost-report` | Alias for `cost-report` | Observability |
 | `observability profile-report` | Alias for `profile-report` | Observability |
-| `workflow-registry start` | Start the workflow registry server | Registry |
-| `workflow-registry list` | List registered workflows | Registry |
-| `workflow-registry cleanup` | Clean up expired workflows | Registry |
+| `deployments start` | Start the deployment registry server | Registry |
+| `deployments list` | List registered deployments | Registry |
+| `deployments cleanup` | Clean up expired deployments | Registry |
 
 ---
 
@@ -57,7 +61,6 @@ configurable-agents run <config_file> [OPTIONS]
 | `config_file` | (positional) | *required* | Path to workflow config file (YAML/JSON) |
 | `--input` | `-i` | none | Workflow inputs as `key=value` (repeatable) |
 | `--verbose` | `-v` | off | Enable DEBUG-level logging |
-| `--enable-profiling` | | off | Capture node timing data in MLFlow |
 
 **Input parsing rules**:
 - Strings: `--input topic="AI Safety"` or `--input topic=AI Safety`
@@ -71,7 +74,7 @@ configurable-agents run <config_file> [OPTIONS]
 ```bash
 configurable-agents run workflow.yaml
 configurable-agents run workflow.yaml -i topic="AI Safety" -i count=5
-configurable-agents run workflow.yaml --verbose --enable-profiling
+configurable-agents run workflow.yaml --verbose
 ```
 
 ---
@@ -203,8 +206,8 @@ configurable-agents dashboard [OPTIONS]
 
 **Endpoints served**:
 - `/` - Dashboard home
-- `/workflows` - Workflow listing
-- `/agents` - Agent listing
+- `/executions` - Execution listing
+- `/deployments` - Deployment listing
 - `/mlflow` - Embedded MLFlow UI (if `--mlflow-uri` set)
 
 **Examples**:
@@ -353,7 +356,7 @@ configurable-agents profile-report [OPTIONS]
 
 **Requires**: `rich>=13.0.0`, `mlflow>=3.9.0`
 
-**Note**: Workflow must have been run with `--enable-profiling` to capture timing data.
+**Note**: Timing data is automatically captured via MLflow 3.9 autolog for all runs.
 
 **Examples**:
 ```bash
@@ -392,54 +395,54 @@ These are **aliases** to the top-level `cost-report` and `profile-report` comman
 
 ---
 
-## Workflow Registry Commands
+## Deployment Registry Commands
 
-### `workflow-registry start` - Start Registry Server
+### `deployments start` - Start Registry Server
 
-Starts the workflow registry FastAPI server for distributed workflow coordination.
+Starts the deployment registry FastAPI server for distributed deployment coordination.
 
 ```
-configurable-agents workflow-registry start [OPTIONS]
+configurable-agents deployments start [OPTIONS]
 ```
 
 | Flag | Short | Default | Description |
 |------|-------|---------|-------------|
 | `--host` | | `0.0.0.0` | Host to bind to |
 | `--port` | | `9000` | Port to listen on |
-| `--db-url` | | `sqlite:///agent_registry.db` | Database URL |
+| `--db-url` | | `sqlite:///configurable_agents.db` | Database URL |
 | `--verbose` | `-v` | off | Enable verbose output |
 
 ---
 
-### `workflow-registry list` - List Workflows
+### `deployments list` - List Deployments
 
-Lists all registered workflows from the registry database.
+Lists all registered deployments from the registry database.
 
 ```
-configurable-agents workflow-registry list [OPTIONS]
+configurable-agents deployments list [OPTIONS]
 ```
 
 | Flag | Short | Default | Description |
 |------|-------|---------|-------------|
-| `--db-url` | | `sqlite:///agent_registry.db` | Database URL |
-| `--include-dead` | | off | Include expired/dead workflows |
+| `--db-url` | | `sqlite:///configurable_agents.db` | Database URL |
+| `--include-dead` | | off | Include expired/dead deployments |
 | `--verbose` | `-v` | off | Enable verbose output |
 
-**Output columns**: Workflow ID, Name, Host:Port, Last Heartbeat, Status (Alive/Dead)
+**Output columns**: Deployment ID, Name, Host:Port, Last Heartbeat, Status (Alive/Dead)
 
 ---
 
-### `workflow-registry cleanup` - Remove Expired Workflows
+### `deployments cleanup` - Remove Expired Deployments
 
-Manually triggers deletion of expired workflows from the registry.
+Manually triggers deletion of expired deployments from the registry.
 
 ```
-configurable-agents workflow-registry cleanup [OPTIONS]
+configurable-agents deployments cleanup [OPTIONS]
 ```
 
 | Flag | Short | Default | Description |
 |------|-------|---------|-------------|
-| `--db-url` | | `sqlite:///agent_registry.db` | Database URL |
+| `--db-url` | | `sqlite:///configurable_agents.db` | Database URL |
 | `--verbose` | `-v` | off | Enable verbose output |
 
 ---
@@ -453,40 +456,109 @@ configurable-agents workflow-registry cleanup [OPTIONS]
 | Webhooks (FastAPI) | 7862 | `webhooks` |
 | MLFlow UI | 5000 | `ui`, `deploy` |
 | Deploy API (FastAPI) | 8000 | `deploy` |
-| Workflow Registry | 9000 | `workflow-registry start` |
+| Deployment Registry | 9000 | `deployments start` |
 
 ---
 
 ## CLI Verification Status
 
-> Manually tested on 2026-02-09 (Windows, Python 3.x, dev branch @ `3ce357c`).
+> **Last comprehensive test**: 2026-02-14 (Windows, Python 3.12, UI Redesign branch)
+>
+> All 12 test configs in `test_configs/` validated and tested.
+
+### Core Commands
 
 | Command | Tested | Works | Notes |
 |---------|--------|-------|-------|
-| `--version` | 2026-02-09 | YES | Shows `0.1.0-dev` |
-| `--help` | 2026-02-09 | YES | Lists all 13 commands with examples |
-| `run` | 2026-02-09 | YES | Tested: basic, multi-node, conditional, parallel, loop. All pass. Error handling correct for missing files, bad inputs, missing required fields |
-| `validate` | 2026-02-09 | YES | Valid configs pass, missing file caught, malformed YAML gives clear error with fix guidance |
-| `deploy --generate` | 2026-02-09 | YES | Generates 10 artifacts. `--no-mlflow`, `--name` flags work. Missing file caught |
-| `deploy` (full Docker) | 2026-02-09 | YES | Full Docker build+run works. Container health, /docs, /schema, /run all respond correctly. See BF-008 below |
-| `ui` | - | SKIP | UI phase — requires long-running server |
-| `dashboard` | - | SKIP | UI phase — requires long-running server |
-| `chat` | - | SKIP | UI phase — requires Gradio + long-running server |
-| `webhooks` | 2026-02-09 | YES | Fixed (was BF-007). Server starts, `/` and `/webhooks/health` respond correctly |
-| `report costs` | 2026-02-09 | YES | Works with filters, empty result handled gracefully |
-| `cost-report` | 2026-02-09 | YES | Rich table renders correctly, shows $0 when no cost data |
-| `profile-report` | 2026-02-09 | YES | Correctly reports "No runs found" when no profiling data |
-| `observability status` | 2026-02-09 | YES | Shows connection status, experiment count, recent activity |
-| `observability cost-report` | 2026-02-09 | YES | Alias works, identical output to `cost-report` |
-| `observability profile-report` | 2026-02-09 | YES | Alias works, identical output to `profile-report` |
-| `workflow-registry start` | 2026-02-09 | YES | Server starts, listens on configured port (renamed from agent-registry) |
-| `workflow-registry list` | 2026-02-09 | YES | Shows "No workflows found" on empty DB |
-| `workflow-registry cleanup` | 2026-02-09 | YES | Shows "No expired workflows found" on empty DB |
-| ~~`optimization *`~~ | 2026-02-10 | REMOVED | Optimization module removed — redesign planned with MLflow 3.9 GenAI + DSPy |
+| `--version` | 2026-02-14 | YES | Shows `0.1.0-dev` |
+| `--help` | 2026-02-14 | YES | Lists all 13 commands with examples |
+| `run` | 2026-02-14 | YES | All test configs work. Flags tested: `--input`, `--verbose`. Data persisted to database verified. |
+| `run --verbose` | 2026-02-14 | YES | DEBUG-level logging enabled |
+| `run --input key=value` | 2026-02-14 | YES | Multiple inputs supported |
+| `validate` | 2026-02-14 | YES | All 12 test configs validate successfully |
+| `validate --verbose` | 2026-02-14 | YES | Verbose output shows validation steps |
+
+### Deploy Commands
+
+| Command | Tested | Works | Notes |
+|---------|--------|-------|-------|
+| `deploy --generate` | 2026-02-14 | YES | Generates 10 artifacts (Dockerfile, server.py, requirements.txt, docker-compose.yml, .env.example, README.md, .dockerignore, workflow.yaml, src/, pyproject.toml) |
+| `deploy --output-dir` | 2026-02-14 | YES | Custom output directory works |
+| `deploy --name` | 2026-02-14 | YES | Custom container name works |
+| `deploy --no-mlflow` | 2026-02-14 | YES | MLFlow disabled in generated artifacts |
+| `deploy --no-env-file` | 2026-02-14 | YES | Skips .env file handling |
+| `deploy --verbose` | 2026-02-14 | YES | Verbose output during generation |
+| `deploy` (full Docker) | 2026-02-09 | YES | Full Docker build+run works. See BF-008 below |
+
+### Deployment Registry Commands
+
+| Command | Tested | Works | Notes |
+|---------|--------|-------|-------|
+| `deployments start` | 2026-02-14 | YES | Server starts on configurable port (default 9000) |
+| `deployments start --port` | 2026-02-14 | YES | Custom port works |
+| `deployments list` | 2026-02-14 | YES | Shows "No deployments found" on empty DB |
+| `deployments list --include-dead` | 2026-02-14 | YES | Flag recognized |
+| `deployments cleanup` | 2026-02-14 | YES | Shows "No expired deployments found" on empty DB |
+
+### Observability Commands
+
+| Command | Tested | Works | Notes |
+|---------|--------|-------|-------|
+| `observability status` | 2026-02-14 | YES | Shows MLFlow connection, experiment count, recent activity |
+| `cost-report --experiment` | 2026-02-14 | YES | Validates experiment name |
+| `profile-report` | 2026-02-14 | YES | Shows "No traces found" when no data |
+| `profile-report --run-id` | 2026-02-14 | YES | Custom run ID supported |
+| `report costs` | 2026-02-14 | YES | Query MLFlow for cost data |
+| `report costs --period` | 2026-02-14 | YES | Periods: today, yesterday, last_7_days, last_30_days, this_month |
+| `report costs --breakdown` | 2026-02-14 | YES | Cost breakdown by workflow and model |
+| `report costs --output` | 2026-02-14 | YES | Export to JSON/CSV (when data exists) |
+
+### Server Commands
+
+| Command | Tested | Works | Notes |
+|---------|--------|-------|-------|
+| `dashboard --help` | 2026-02-14 | YES | Shows all flags |
+| `webhooks` | 2026-02-14 | YES | Server starts on configurable port (default 7862) |
+| `webhooks --port` | 2026-02-14 | YES | Custom port works |
+| `chat --help` | 2026-02-14 | YES | Shows all flags including --share |
+| `ui --help` | 2026-02-14 | YES | Shows all flags including --no-chat |
+| `ui --no-chat` | 2026-02-14 | YES | Skip chat UI flag recognized |
+
+### Test Configs Verified
+
+All 12 test configs in `test_configs/` validated and executed:
+
+| Config | Description | Status |
+|--------|-------------|--------|
+| `01_basic_linear.yaml` | Minimal single-node workflow | PASS |
+| `02_with_observability.yaml` | MLFlow tracking enabled | PASS |
+| `03_multi_node_linear.yaml` | Multi-node linear flow | PASS |
+| `04_with_tools.yaml` | Tool integration | PASS |
+| `05_conditional_branching.yaml` | Conditional edge routing | PASS |
+| `06_loop_iteration.yaml` | Loop with max iterations | PASS |
+| `07_parallel_execution.yaml` | Fork-join parallel execution | PASS |
+| `08_multi_llm.yaml` | Multi-LLM provider support | PASS |
+| `09_with_memory.yaml` | Memory backend integration | PASS |
+| `10_with_sandbox.yaml` | Sandbox execution | PASS |
+| `11_with_storage.yaml` | Storage backend integration | PASS |
+| `12_full_featured.yaml` | All features combined | PASS |
+
+### Database Verification
+
+Execution records are properly persisted to SQLite database:
+- Executions table: Records created with workflow_name, status, duration
+- Execution states table: Node-level state tracking
+- Verified: 4+ execution records from test runs
 
 ### All `--help` subcommands verified
 
-All 13 top-level commands and their subcommands produce correct `--help` output (2026-02-09).
+All 13 top-level commands and their subcommands produce correct `--help` output (2026-02-14).
+
+### Removed Commands
+
+| Command | Status | Notes |
+|---------|--------|-------|
+| ~~`optimization *`~~ | REMOVED | Optimization module removed — redesign planned with MLflow 3.9 GenAI + DSPy |
 
 ---
 

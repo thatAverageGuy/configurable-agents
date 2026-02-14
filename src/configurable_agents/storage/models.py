@@ -1,7 +1,13 @@
 """SQLAlchemy ORM models for storage layer.
 
-Defines the database schema for workflow runs and execution state tracking.
+Defines the database schema for executions, deployments, and execution state tracking.
 Uses SQLAlchemy 2.0 DeclarativeBase pattern with Mapped/mapped_column syntax.
+
+Renamed in UI Redesign (2026-02-13):
+- WorkflowRunRecord → Execution (table: workflow_runs → executions)
+- AgentRecord → Deployment (table: agents → deployments)
+- OrchestratorRecord → REMOVED (absorbed into deployments)
+- ExecutionStateRecord.run_id → execution_id
 """
 
 import json
@@ -22,29 +28,32 @@ class Base(DeclarativeBase):
     pass
 
 
-class WorkflowRunRecord(Base):
+class Execution(Base):
     """ORM model for workflow execution records.
 
     Tracks metadata and results of workflow executions including status,
     timestamps, inputs/outputs, errors, token usage, and cost tracking.
 
+    Renamed from WorkflowRunRecord in UI Redesign.
+
     Attributes:
-        id: UUID primary key for the run
+        id: UUID primary key for the execution
         workflow_name: Name of the workflow being executed
         status: Current status ("pending", "running", "completed", "failed")
         config_snapshot: JSON-serialized workflow configuration
         inputs: JSON-serialized input data
         outputs: JSON-serialized output data
         error_message: Error message if status is "failed"
-        started_at: When the run started
-        completed_at: When the run completed (null if running)
+        started_at: When the execution started
+        completed_at: When the execution completed (null if running)
         duration_seconds: Execution time in seconds
         total_tokens: Total tokens used across all LLM calls
         total_cost_usd: Total estimated cost in USD
         bottleneck_info: JSON-serialized bottleneck analysis data
+        deployment_id: FK to deployments table (NULL for runtime executions)
     """
 
-    __tablename__ = "workflow_runs"
+    __tablename__ = "executions"
 
     id: Mapped[str] = mapped_column(String(36), primary_key=True)
     workflow_name: Mapped[str] = mapped_column(String(256))
@@ -59,17 +68,23 @@ class WorkflowRunRecord(Base):
     total_tokens: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
     total_cost_usd: Mapped[Optional[float]] = mapped_column(Float, nullable=True)
     bottleneck_info: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    deployment_id: Mapped[Optional[str]] = mapped_column(
+        String(255), ForeignKey("deployments.deployment_id"), nullable=True
+    )
 
 
-class ExecutionStateRecord(Base):
+class ExecutionState(Base):
     """ORM model for execution state checkpoints.
 
     Stores workflow state after each node execution, enabling resume
     functionality and debugging.
 
+    Renamed from ExecutionStateRecord in UI Redesign.
+    Field run_id renamed to execution_id.
+
     Attributes:
         id: Auto-increment primary key
-        run_id: Foreign key to workflow_runs.id
+        execution_id: Foreign key to executions.id
         node_id: Which node produced this state
         state_data: JSON-serialized state dictionary
         created_at: When this checkpoint was created
@@ -78,46 +93,54 @@ class ExecutionStateRecord(Base):
     __tablename__ = "execution_states"
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
-    run_id: Mapped[str] = mapped_column(
-        String(36), ForeignKey("workflow_runs.id"), nullable=False
+    execution_id: Mapped[str] = mapped_column(
+        String(36), ForeignKey("executions.id"), nullable=False
     )
     node_id: Mapped[str] = mapped_column(String(128))
     state_data: Mapped[str] = mapped_column(Text)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
 
 
-class AgentRecord(Base):
-    """ORM model for agent registry records.
+class Deployment(Base):
+    """ORM model for deployment registry records.
 
-    Tracks registered agents in the system including their network location,
-    heartbeat status for TTL-based expiration, and metadata.
+    Tracks registered deployments (Docker containers running workflows) in the system
+    including their network location, heartbeat status for TTL-based expiration,
+    and metadata.
+
+    Renamed from AgentRecord in UI Redesign.
+    Field names updated: agent_id → deployment_id, agent_name → deployment_name, etc.
 
     Attributes:
-        agent_id: Unique identifier for the agent (primary key)
-        agent_name: Human-readable name for the agent
-        host: Host address where the agent is running
-        port: Port number where the agent is listening
-        last_heartbeat: Timestamp of the last heartbeat from this agent
+        deployment_id: Unique identifier for the deployment (primary key)
+        deployment_name: Human-readable name for the deployment
+        workflow_name: Name of the workflow this deployment runs
+        host: Host address where the deployment is running
+        port: Port number where the deployment is listening
+        last_heartbeat: Timestamp of the last heartbeat from this deployment
         ttl_seconds: Time-to-live in seconds (default: 60)
-        agent_metadata: JSON blob with additional agent information
-        registered_at: When the agent first registered
+        capabilities: JSON blob with capabilities (tools, features supported)
+        deployment_metadata: JSON blob with additional deployment information
+        registered_at: When the deployment first registered
     """
 
-    __tablename__ = "agents"
+    __tablename__ = "deployments"
 
-    agent_id: Mapped[str] = mapped_column(String(255), primary_key=True)
-    agent_name: Mapped[str] = mapped_column(String(256))
+    deployment_id: Mapped[str] = mapped_column(String(255), primary_key=True)
+    deployment_name: Mapped[str] = mapped_column(String(256))
+    workflow_name: Mapped[Optional[str]] = mapped_column(String(256), nullable=True)
     host: Mapped[str] = mapped_column(String(256))
     port: Mapped[int] = mapped_column(Integer)
     last_heartbeat: Mapped[datetime] = mapped_column(
         DateTime, default=datetime.utcnow, index=True
     )
     ttl_seconds: Mapped[int] = mapped_column(Integer, default=60)
-    agent_metadata: Mapped[Optional[str]] = mapped_column(String(4000), nullable=True)
+    capabilities: Mapped[Optional[str]] = mapped_column(String(4000), nullable=True)
+    deployment_metadata: Mapped[Optional[str]] = mapped_column(String(4000), nullable=True)
     registered_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
 
     def __init__(self, **kwargs: object) -> None:
-        """Initialize AgentRecord with default TTL and heartbeat if not provided."""
+        """Initialize Deployment with default TTL and heartbeat if not provided."""
         ttl_seconds = kwargs.pop("ttl_seconds", 60)
         kwargs["ttl_seconds"] = ttl_seconds
         if "last_heartbeat" not in kwargs:
@@ -127,13 +150,13 @@ class AgentRecord(Base):
         super().__init__(**kwargs)
 
     def is_alive(self) -> bool:
-        """Check if this agent is still alive based on TTL.
+        """Check if this deployment is still alive based on TTL.
 
-        An agent is considered alive if the current time is before
+        A deployment is considered alive if the current time is before
         the expiration time (last_heartbeat + ttl_seconds).
 
         Returns:
-            True if agent is alive, False if expired
+            True if deployment is alive, False if expired
         """
         ttl = self.ttl_seconds if self.ttl_seconds is not None else 60
         expiration_time = self.last_heartbeat + timedelta(seconds=ttl)
@@ -324,75 +347,6 @@ class WorkflowRegistrationRecord(Base):
             "rate_limit": self.rate_limit,
             "enabled": bool(self.enabled),
             "created_at": self.created_at.isoformat() if self.created_at else None,
-        }
-
-
-class OrchestratorRecord(Base):
-    """ORM model for orchestrator registration records.
-
-    Tracks orchestrators that have registered with the agent registry.
-    Orchestrators can discover and coordinate agents bidirectionally.
-
-    Attributes:
-        orchestrator_id: Unique identifier for the orchestrator (primary key)
-        orchestrator_name: Human-readable name for the orchestrator
-        orchestrator_type: Type of orchestrator (e.g., "central", "distributed")
-        api_endpoint: URL where the orchestrator exposes its API
-        last_heartbeat: Timestamp of the last heartbeat from this orchestrator
-        ttl_seconds: Time-to-live in seconds (default: 300 - 5 minutes)
-        registered_at: When the orchestrator first registered
-    """
-
-    __tablename__ = "orchestrators"
-
-    orchestrator_id: Mapped[str] = mapped_column(String(255), primary_key=True)
-    orchestrator_name: Mapped[str] = mapped_column(String(256))
-    orchestrator_type: Mapped[str] = mapped_column(String(64))  # e.g., "central", "distributed"
-    api_endpoint: Mapped[str] = mapped_column(String(500))  # URL for orchestrator API
-    last_heartbeat: Mapped[datetime] = mapped_column(
-        DateTime, default=datetime.utcnow, index=True
-    )
-    ttl_seconds: Mapped[int] = mapped_column(Integer, default=300)  # 5 minutes default
-    registered_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
-
-    def __init__(self, **kwargs: object) -> None:
-        """Initialize OrchestratorRecord with defaults."""
-        ttl_seconds = kwargs.pop("ttl_seconds", 300)
-        kwargs["ttl_seconds"] = ttl_seconds
-        if "last_heartbeat" not in kwargs:
-            kwargs["last_heartbeat"] = datetime.utcnow()
-        if "registered_at" not in kwargs:
-            kwargs["registered_at"] = datetime.utcnow()
-        super().__init__(**kwargs)
-
-    def is_alive(self) -> bool:
-        """Check if this orchestrator is still alive based on TTL.
-
-        An orchestrator is considered alive if the current time is before
-        the expiration time (last_heartbeat + ttl_seconds).
-
-        Returns:
-            True if orchestrator is alive, False if expired
-        """
-        ttl = self.ttl_seconds if self.ttl_seconds is not None else 300
-        expiration_time = self.last_heartbeat + timedelta(seconds=ttl)
-        return datetime.utcnow() < expiration_time
-
-    def to_dict(self) -> Dict[str, Any]:
-        """Convert orchestrator to dictionary representation.
-
-        Returns:
-            Dictionary with orchestrator data
-        """
-        return {
-            "orchestrator_id": self.orchestrator_id,
-            "orchestrator_name": self.orchestrator_name,
-            "orchestrator_type": self.orchestrator_type,
-            "api_endpoint": self.api_endpoint,
-            "last_heartbeat": self.last_heartbeat.isoformat() if self.last_heartbeat else None,
-            "ttl_seconds": self.ttl_seconds,
-            "registered_at": self.registered_at.isoformat() if self.registered_at else None,
-            "is_alive": self.is_alive(),
         }
 
 

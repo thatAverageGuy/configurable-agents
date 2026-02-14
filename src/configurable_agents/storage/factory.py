@@ -6,11 +6,16 @@ Redis, and other backends.
 
 Example:
     >>> from configurable_agents.storage import create_storage_backend
-    >>> runs_repo, states_repo, memory_repo = create_storage_backend()
+    >>> exec_repo, states_repo, memory_repo = create_storage_backend()
     >>> # Or with explicit config
     >>> from configurable_agents.config import StorageConfig
-    >>> config = StorageConfig(backend="sqlite", path="./workflows.db")
-    >>> runs_repo, states_repo, memory_repo = create_storage_backend(config)
+    >>> config = StorageConfig(backend="sqlite", path="./configurable_agents.db")
+    >>> exec_repo, states_repo, memory_repo = create_storage_backend(config)
+
+Updated in UI Redesign (2026-02-13):
+- Renamed classes: Execution, Deployment, ExecutionState
+- Removed OrchestratorRepository from return tuple
+- Updated expected table names
 """
 
 import logging
@@ -24,24 +29,22 @@ from configurable_agents.config.schema import StorageConfig
 logger = logging.getLogger(__name__)
 from configurable_agents.storage.base import (
     AbstractExecutionStateRepository,
-    AbstractWorkflowRunRepository,
-    AgentRegistryRepository,
+    AbstractExecutionRepository,
+    DeploymentRepository,
     ChatSessionRepository,
     WebhookEventRepository,
     MemoryRepository,
     WorkflowRegistrationRepository,
-    OrchestratorRepository,
 )
 from configurable_agents.storage.models import Base
 from configurable_agents.storage.sqlite import (
     SQLiteExecutionStateRepository,
-    SQLiteWorkflowRunRepository,
-    SqliteAgentRegistryRepository,
+    SQLiteExecutionRepository,
+    SqliteDeploymentRepository,
     SQLiteChatSessionRepository,
     SqliteWebhookEventRepository,
     SQLiteMemoryRepository,
     SqliteWorkflowRegistrationRepository,
-    SqliteOrchestratorRepository,
 )
 
 
@@ -57,17 +60,17 @@ def _check_tables_exist(engine) -> bool:
     inspector = inspect(engine)
     existing_tables = inspector.get_table_names()
 
-    # Expected tables from models.py
+    # Expected tables from models.py (updated names)
     expected_tables = [
-        "workflow_runs",  # WorkflowRunRecord
-        "execution_states",  # ExecutionStateRecord
-        "agents",  # AgentRecord
-        "chat_sessions",  # ChatSessionRecord
+        "executions",  # Execution (was workflow_runs)
+        "execution_states",  # ExecutionState
+        "deployments",  # Deployment (was agents)
+        "chat_sessions",  # ChatSession
         "chat_messages",  # ChatMessage
         "webhook_events",  # WebhookEventRecord
         "memory_records",  # MemoryRecord
         "workflow_registrations",  # WorkflowRegistrationRecord
-        "orchestrators",  # OrchestratorRecord
+        "session_state",  # SessionState
     ]
 
     return all(table in existing_tables for table in expected_tables)
@@ -176,35 +179,34 @@ def create_storage_backend(
     config: Optional[StorageConfig] = None,
     auto_init: bool = True,
 ) -> Tuple[
-    AbstractWorkflowRunRepository,
+    AbstractExecutionRepository,
     AbstractExecutionStateRepository,
-    AgentRegistryRepository,
+    DeploymentRepository,
     ChatSessionRepository,
     WebhookEventRepository,
     MemoryRepository,
     WorkflowRegistrationRepository,
-    OrchestratorRepository,
 ]:
     """Create storage backend repositories from configuration.
 
     Args:
-        config: StorageConfig instance. If None, uses defaults (sqlite, ./workflows.db)
+        config: StorageConfig instance. If None, uses defaults (sqlite, ./configurable_agents.db)
         auto_init: Automatically initialize database if tables missing (default: True)
 
     Returns:
-        Tuple of (workflow_run_repository, execution_state_repository,
-                  agent_registry_repository, chat_session_repository,
+        Tuple of (execution_repository, execution_state_repository,
+                  deployment_repository, chat_session_repository,
                   webhook_event_repository, memory_repository,
-                  workflow_registration_repository, orchestrator_repository)
+                  workflow_registration_repository)
 
     Raises:
         ValueError: If backend type is not supported
 
     Example:
         >>> from configurable_agents.storage import create_storage_backend
-        >>> runs_repo, states_repo, agents_repo, chat_repo, webhook_repo, memory_repo, workflow_reg_repo, orchestrator_repo = create_storage_backend()
-        >>> run = WorkflowRunRecord(id="123", workflow_name="test", status="running")
-        >>> runs_repo.add(run)
+        >>> exec_repo, states_repo, deploy_repo, chat_repo, webhook_repo, memory_repo, workflow_reg_repo = create_storage_backend()
+        >>> execution = Execution(id="123", workflow_name="test", status="running")
+        >>> exec_repo.add(execution)
     """
     # Use defaults if no config provided
     if config is None:
@@ -224,16 +226,15 @@ def create_storage_backend(
         engine = create_engine(db_url)
 
         # Create repositories
-        runs_repo = SQLiteWorkflowRunRepository(engine)
+        exec_repo = SQLiteExecutionRepository(engine)
         states_repo = SQLiteExecutionStateRepository(engine)
-        agents_repo = SqliteAgentRegistryRepository(engine)
+        deploy_repo = SqliteDeploymentRepository(engine)
         chat_repo = SQLiteChatSessionRepository(engine)
         webhook_repo = SqliteWebhookEventRepository(engine)
         memory_repo = SQLiteMemoryRepository(engine)
         workflow_reg_repo = SqliteWorkflowRegistrationRepository(engine)
-        orchestrator_repo = SqliteOrchestratorRepository(engine)
 
-        return runs_repo, states_repo, agents_repo, chat_repo, webhook_repo, memory_repo, workflow_reg_repo, orchestrator_repo
+        return exec_repo, states_repo, deploy_repo, chat_repo, webhook_repo, memory_repo, workflow_reg_repo
 
     # Unsupported backend
     raise ValueError(

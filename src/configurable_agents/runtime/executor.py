@@ -30,7 +30,7 @@ from configurable_agents.runtime.profiler import (
     set_profiler,
 )
 from configurable_agents.storage import create_storage_backend
-from configurable_agents.storage.models import WorkflowRunRecord
+from configurable_agents.storage.models import Execution
 
 logger = logging.getLogger(__name__)
 
@@ -202,14 +202,14 @@ def run_workflow_from_config(
         )
 
     # Phase 2.5: Initialize storage backend (optional, graceful degradation)
-    workflow_run_repo = None
+    execution_repo = None
     execution_state_repo = None
     memory_repo = None
     storage_config = None
     if config.config and config.config.storage:
         storage_config = config.config.storage
     try:
-        workflow_run_repo, execution_state_repo, _, _, _, memory_repo, _, _ = create_storage_backend(storage_config)
+        execution_repo, execution_state_repo, _, _, _, memory_repo, _ = create_storage_backend(storage_config)
         logger.debug("Storage backend initialized")
     except Exception as e:
         logger.warning(f"Storage backend initialization failed, continuing without persistence: {e}")
@@ -246,12 +246,12 @@ def run_workflow_from_config(
             original_error=e,
         )
 
-    # Phase 4.5: Create workflow run record (if storage available)
+    # Phase 4.5: Create execution record (if storage available)
     run_id = None
-    if workflow_run_repo:
+    if execution_repo:
         try:
             run_id = str(uuid.uuid4())
-            run_record = WorkflowRunRecord(
+            run_record = Execution(
                 id=run_id,
                 workflow_name=workflow_name,
                 status="running",
@@ -259,10 +259,10 @@ def run_workflow_from_config(
                 inputs=json.dumps(inputs, default=str),
                 started_at=datetime.now(timezone.utc),
             )
-            workflow_run_repo.add(run_record)
-            logger.debug(f"Persisted workflow run: {run_id}")
+            execution_repo.add(run_record)
+            logger.debug(f"Persisted execution: {run_id}")
         except Exception as e:
-            logger.warning(f"Failed to persist workflow run record: {e}")
+            logger.warning(f"Failed to persist execution record: {e}")
             run_id = None  # Disable further storage ops for this run
 
     # Phase 5: Initialize MLFlow tracker
@@ -450,10 +450,10 @@ def run_workflow_from_config(
                 # Gate check failed with FAIL action
                 logger.error(f"Quality gate check failed: {gate_error}")
                 # Still update run record with failure status
-                if workflow_run_repo and run_id:
+                if execution_repo and run_id:
                     try:
-                        workflow_run_repo.update_run_completion(
-                            run_id=run_id,
+                        execution_repo.update_execution_completion(
+                            execution_id=run_id,
                             status="failed",
                             duration_seconds=execution_time,
                             total_tokens=0,
@@ -464,8 +464,8 @@ def run_workflow_from_config(
                         pass
                 raise
 
-        # Update workflow run record with completion metrics (including bottleneck info)
-        if workflow_run_repo and run_id:
+        # Update execution record with completion metrics (including bottleneck info)
+        if execution_repo and run_id:
             try:
                 # Get cost summary from tracker if available
                 total_tokens = 0
@@ -482,8 +482,8 @@ def run_workflow_from_config(
                 # Serialize bottleneck summary to JSON for storage
                 bottleneck_json = json.dumps(bottleneck_summary, default=str) if bottleneck_summary["node_count"] > 0 else None
 
-                workflow_run_repo.update_run_completion(
-                    run_id=run_id,
+                execution_repo.update_execution_completion(
+                    execution_id=run_id,
                     status="completed",
                     duration_seconds=execution_time,
                     total_tokens=total_tokens,
@@ -491,9 +491,9 @@ def run_workflow_from_config(
                     outputs=outputs_json,
                     bottleneck_info=bottleneck_json,
                 )
-                logger.debug(f"Updated workflow run record: {run_id} -> completed")
+                logger.debug(f"Updated execution record: {run_id} -> completed")
             except Exception as e:
-                logger.warning(f"Failed to update workflow run record on completion: {e}")
+                logger.warning(f"Failed to update execution record on completion: {e}")
 
         return final_state
 
@@ -507,20 +507,20 @@ def run_workflow_from_config(
         # Clear profiler from thread-local context (even on failure)
         clear_profiler()
 
-        # Update workflow run record with failure status
-        if workflow_run_repo and run_id:
+        # Update execution record with failure status
+        if execution_repo and run_id:
             try:
-                workflow_run_repo.update_run_completion(
-                    run_id=run_id,
+                execution_repo.update_execution_completion(
+                    execution_id=run_id,
                     status="failed",
                     duration_seconds=execution_time,
                     total_tokens=0,
                     total_cost_usd=0.0,
                     error_message=str(e)[:500],  # Truncate long error messages
                 )
-                logger.debug(f"Updated workflow run record: {run_id} -> failed")
+                logger.debug(f"Updated execution record: {run_id} -> failed")
             except Exception as exc:
-                logger.warning(f"Failed to update workflow run record on failure: {exc}")
+                logger.warning(f"Failed to update execution record on failure: {exc}")
 
         raise WorkflowExecutionError(
             f"Workflow execution failed: {e}",

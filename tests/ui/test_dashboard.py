@@ -8,7 +8,7 @@ from datetime import datetime, timedelta
 from unittest.mock import Mock, MagicMock, AsyncMock
 
 from configurable_agents.ui.dashboard import create_dashboard_app, DashboardApp
-from configurable_agents.storage.models import WorkflowRunRecord, AgentRecord
+from configurable_agents.storage.models import Execution, Deployment
 from configurable_agents.ui.dashboard.routes.workflows import (
     _format_duration,
     _format_cost,
@@ -29,30 +29,30 @@ class TestDashboardAppCreation:
     def test_dashboard_app_creation(self):
         """Verify dashboard app initializes with repositories."""
         # Create mock repositories
-        workflow_repo = Mock()
+        execution_repo = Mock()
         agent_repo = Mock()
 
         # Create dashboard app
         dashboard = DashboardApp(
-            workflow_repo=workflow_repo,
-            agent_registry_repo=agent_repo,
+            execution_repo=execution_repo,
+            deployment_repo=agent_repo,
         )
 
         # Verify app was created
         assert dashboard.app is not None
-        assert dashboard.workflow_repo == workflow_repo
-        assert dashboard.agent_registry_repo == agent_repo
+        assert dashboard.execution_repo == execution_repo
+        assert dashboard.deployment_repo == agent_repo
 
     def test_dashboard_routes_registered(self):
         """Verify all dashboard routes are registered."""
         # Create mock repositories
-        workflow_repo = Mock()
+        execution_repo = Mock()
         agent_repo = Mock()
 
         # Create dashboard app
         dashboard = DashboardApp(
-            workflow_repo=workflow_repo,
-            agent_registry_repo=agent_repo,
+            execution_repo=execution_repo,
+            deployment_repo=agent_repo,
         )
 
         # Get routes
@@ -245,15 +245,15 @@ class TestDashboardEndpoints:
     async def test_dashboard_home_page(self, httpx_mock_client):
         """Test GET / returns HTML dashboard."""
         # Create mock repositories
-        workflow_repo = Mock()
-        workflow_repo.engine = Mock()
+        execution_repo = Mock()
+        execution_repo.engine = Mock()
         agent_repo = Mock()
         agent_repo.list_all = Mock(return_value=[])
 
         # Create dashboard app
         dashboard = DashboardApp(
-            workflow_repo=workflow_repo,
-            agent_registry_repo=agent_repo,
+            execution_repo=execution_repo,
+            deployment_repo=agent_repo,
         )
 
         # Mock the session query
@@ -274,13 +274,13 @@ class TestDashboardEndpoints:
     async def test_health_endpoint(self):
         """Test GET /health returns health status."""
         # Create mock repositories
-        workflow_repo = Mock()
+        execution_repo = Mock()
         agent_repo = Mock()
 
         # Create dashboard app
         dashboard = DashboardApp(
-            workflow_repo=workflow_repo,
-            agent_registry_repo=agent_repo,
+            execution_repo=execution_repo,
+            deployment_repo=agent_repo,
         )
 
         # Create a test client
@@ -304,14 +304,14 @@ class TestWorkflowEndpoints:
     async def test_workflows_list_empty(self):
         """Test GET /workflows with no workflows."""
         # Create mock repositories
-        workflow_repo = Mock()
-        workflow_repo.list_all = Mock(return_value=[])
+        execution_repo = Mock()
+        execution_repo.list_all = Mock(return_value=[])
         agent_repo = Mock()
 
         # Create dashboard app
         dashboard = DashboardApp(
-            workflow_repo=workflow_repo,
-            agent_registry_repo=agent_repo,
+            execution_repo=execution_repo,
+            deployment_repo=agent_repo,
         )
 
         # Create a test client
@@ -327,13 +327,13 @@ class TestWorkflowEndpoints:
     async def test_workflows_stream_sse(self):
         """Test GET /metrics/workflows/stream returns SSE."""
         # Create mock repositories
-        workflow_repo = Mock()
+        execution_repo = Mock()
         agent_repo = Mock()
 
         # Create dashboard app
         dashboard = DashboardApp(
-            workflow_repo=workflow_repo,
-            agent_registry_repo=agent_repo,
+            execution_repo=execution_repo,
+            deployment_repo=agent_repo,
         )
 
         # Create a test client
@@ -355,14 +355,14 @@ class TestAgentEndpoints:
     async def test_agents_list_empty(self):
         """Test GET /agents with no agents."""
         # Create mock repositories
-        workflow_repo = Mock()
+        execution_repo = Mock()
         agent_repo = Mock()
         agent_repo.list_all = Mock(return_value=[])
 
         # Create dashboard app
         dashboard = DashboardApp(
-            workflow_repo=workflow_repo,
-            agent_registry_repo=agent_repo,
+            execution_repo=execution_repo,
+            deployment_repo=agent_repo,
         )
 
         # Create a test client
@@ -378,14 +378,14 @@ class TestAgentEndpoints:
     async def test_agents_stream_sse(self):
         """Test GET /metrics/agents/stream returns SSE."""
         # Create mock repositories
-        workflow_repo = Mock()
+        execution_repo = Mock()
         agent_repo = Mock()
         agent_repo.list_all = Mock(return_value=[])
 
         # Create dashboard app
         dashboard = DashboardApp(
-            workflow_repo=workflow_repo,
-            agent_registry_repo=agent_repo,
+            execution_repo=execution_repo,
+            deployment_repo=agent_repo,
         )
 
         # Create a test client
@@ -407,14 +407,14 @@ class TestMetricsEndpoints:
     async def test_metrics_summary(self):
         """Test GET /metrics/summary returns metrics summary."""
         # Create mock repositories
-        workflow_repo = Mock()
+        execution_repo = Mock()
         agent_repo = Mock()
         agent_repo.list_all = Mock(return_value=[])
 
         # Create dashboard app
         dashboard = DashboardApp(
-            workflow_repo=workflow_repo,
-            agent_registry_repo=agent_repo,
+            execution_repo=execution_repo,
+            deployment_repo=agent_repo,
         )
 
         # Create a test client

@@ -4,7 +4,6 @@ Tests for:
 - cost-report command
 - profile-report command
 - observability command group (status, cost-report, profile-report)
-- --enable-profiling flag on run command
 """
 
 import pytest
@@ -475,56 +474,6 @@ class TestObservabilityAliases:
         assert args.command == "observability"
         assert args.observability_command == "profile-report"
         assert args.run_id == "abc123"
-
-
-class TestEnableProfilingFlag:
-    """Test --enable-profiling flag on run command."""
-
-    def test_enable_profiling_flag_exists(self):
-        """Verify --enable-profiling flag is available on run command."""
-        from configurable_agents.cli import create_parser
-
-        parser = create_parser()
-        args = parser.parse_args(["run", "workflow.yaml", "--enable-profiling"])
-
-        assert args.command == "run"
-        assert args.enable_profiling is True
-
-    def test_enable_profiling_flag_default_false(self):
-        """Verify --enable-profiling defaults to False."""
-        from configurable_agents.cli import create_parser
-
-        parser = create_parser()
-        args = parser.parse_args(["run", "workflow.yaml"])
-
-        assert args.enable_profiling is False
-
-    def test_enable_profiling_accepted_but_no_env_var(self):
-        """Verify --enable-profiling is accepted (backward compat) but no longer sets env var.
-
-        VF-002: The env var was dead code — profiling data is captured via MLflow trace spans.
-        """
-        from configurable_agents.cli import cmd_run
-        from argparse import Namespace
-        import os
-
-        with patch("pathlib.Path.exists", return_value=True):
-            with patch("configurable_agents.cli.run_workflow", return_value={"result": "success"}):
-                # Clean environment before test
-                if "CONFIGURABLE_AGENTS_PROFILING" in os.environ:
-                    del os.environ["CONFIGURABLE_AGENTS_PROFILING"]
-
-                args = Namespace(
-                    config_file="test.yaml",
-                    input=None,
-                    enable_profiling=True,
-                    verbose=False
-                )
-
-                cmd_run(args)
-
-                # Env var is no longer set (dead code removed)
-                assert "CONFIGURABLE_AGENTS_PROFILING" not in os.environ
 
 
 @pytest.mark.skipif(not RICH_AVAILABLE, reason="Rich library not available")

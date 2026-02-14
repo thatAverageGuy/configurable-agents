@@ -2,7 +2,11 @@
 
 **Purpose**: High-level system design, patterns, and architecture
 **Audience**: Developers wanting to understand how the system works
-**Last Updated**: 2026-02-04 (v1.0)
+**Last Updated**: 2026-02-13 (UI Redesign)
+
+> **Note**: This document reflects the UI Redesign terminology changes (2026-02-13).
+> Models renamed: `WorkflowRunRecord` → `Execution`, `AgentRecord` → `Deployment`.
+> Routes changed: `/workflows/*` → `/executions/*`, `/agents/*` → `/deployments/*`.
 
 **For detailed decisions**: See [Architecture Decision Records](adr/)
 **For implementation tasks**: See [TASKS.md](TASKS.md)
@@ -84,51 +88,52 @@ The system transforms YAML configuration into executable agent workflows through
 
 ---
 
-### 2. Agent Registry Architecture
+### 2. Deployment Registry Architecture
 
 **Location**: `src/configurable_agents/registry/`
 
-**Purpose**: Dynamic agent discovery, registration, and health monitoring
+**Purpose**: Dynamic deployment discovery, registration, and health monitoring
 
 **Components**:
-- `models.py` - AgentRecord ORM model (SQLAlchemy 2.0)
-- `repository.py` - AgentRegistryRepository for storage operations
-- `server.py` - AgentRegistryServer (FastAPI, heartbeat endpoint)
-- `client.py` - AgentRegistryClient (auto-registration, heartbeat loop)
+- `models.py` - Deployment ORM model (SQLAlchemy 2.0), DeploymentRegistrationRequest
+- `repository.py` - DeploymentRepository for storage operations
+- `server.py` - DeploymentRegistryServer (FastAPI, heartbeat endpoint)
+- `client.py` - DeploymentClient (auto-registration, heartbeat loop)
 
 **Key Features**:
-- **Agent-Initiated Registration**: Agents self-register on startup
+- **Deployment-Initiated Registration**: Deployments self-register on startup
 - **Heartbeat/TTL Pattern**: 60s TTL, 20s heartbeat interval (~1/3 for reliability)
-- **Graceful Expiration**: Background cleanup removes stale agents
+- **Graceful Expiration**: Background cleanup removes stale deployments
 - **Idempotent Registration**: Re-registering updates existing records
 - **FastAPI Integration**: Session management, async endpoints
 - **Docker Integration**: Auto-detect host/port from env vars
+- **Workflow Tracking**: Each deployment tracks which workflow it runs via `workflow_name`
 
 **Storage Backend**:
 - Pluggable via Repository Pattern
 - SQLite default (development), PostgreSQL (production)
 - Context manager pattern prevents transaction leaks
 
-**Related ADRs**: [ADR-020](adr/ADR-020-agent-registry.md)
+**Related ADRs**: [ADR-020](adr/ADR-020-agent-registry.md) (historical)
 
 ---
 
 ### 3. Dashboard (FastAPI + HTMX + SSE)
 
-**Location**: `src/configurable_agents/dashboard/`
+**Location**: `src/configurable_agents/ui/dashboard/`
 
-**Purpose**: Orchestration dashboard for workflow management, agent discovery, and real-time monitoring
+**Purpose**: Orchestration dashboard for execution management, deployment discovery, and real-time monitoring
 
 **Components**:
-- `server.py` - FastAPI application with HTMX endpoints
+- `app.py` - FastAPI application with HTMX endpoints
 - `templates/` - Jinja2 templates with HTMX attributes
-- `routes/` - Dashboard routes, agent discovery, workflow execution
+- `routes/` - Dashboard routes (executions, deployments, metrics, status)
 
 **Key Features**:
 - **HTMX for Dynamic Updates**: No JavaScript framework needed
 - **Server-Sent Events (SSE)**: Real-time streaming to clients
-- **Agent Discovery UI**: View registered agents, capabilities, health status
-- **Workflow Management**: Start, stop, restart workflows with progress tracking
+- **Deployment Discovery UI**: View registered deployments, capabilities, health status
+- **Execution Management**: Start, stop, restart executions with progress tracking
 - **MLFlow Integration**: iframe embed for observability UI
 - **Repository Injection**: Dependency injection via app.state
 
@@ -137,6 +142,11 @@ The system transforms YAML configuration into executable agent workflows through
 - HTMX: Dynamic HTML without JS
 - SSE: One-way real-time data pushing
 - Jinja2: Server-side templating
+
+**Routes**:
+- `/executions/*` - Execution management (formerly `/workflows/*`)
+- `/deployments/*` - Deployment management (formerly `/agents/*`)
+- `/metrics/*` - Real-time metrics via SSE
 
 **Related ADRs**: [ADR-021](adr/ADR-021-htmx-dashboard.md)
 
@@ -506,25 +516,32 @@ def create_llm(config: LLMConfig) -> BaseChatModel:
 
 **Code**:
 ```python
-class WorkflowRunRepository(ABC):
+class AbstractExecutionRepository(ABC):
     @abstractmethod
-    def create_run(self, run_data: WorkflowRunRecord) -> int: ...
+    def add(self, execution: Execution) -> None: ...
 
     @abstractmethod
-    def get_run(self, run_id: int) -> Optional[WorkflowRunRecord]: ...
+    def get(self, execution_id: str) -> Optional[Execution]: ...
 
-class SQLWorkflowRunRepository(WorkflowRunRepository):
-    def __init__(self, session_factory):
-        self.session_factory = session_factory
+    @abstractmethod
+    def list_by_workflow(self, workflow_name: str, limit: int = 100) -> List[Execution]: ...
 
-    def create_run(self, run_data: WorkflowRunRecord) -> int:
-        with Session(self.session_factory) as session:
-            session.add(run_data)
+class SQLiteExecutionRepository(AbstractExecutionRepository):
+    def __init__(self, engine):
+        self.engine = engine
+
+    def add(self, execution: Execution) -> None:
+        with Session(self.engine) as session:
+            session.add(execution)
             session.commit()
-            return run_data.id
 ```
 
-**Code**: [`storage/repository.py`](../src/configurable_agents/storage/repository.py)
+**Repositories**:
+- `AbstractExecutionRepository` → `SQLiteExecutionRepository` (table: `executions`)
+- `DeploymentRepository` → `SqliteDeploymentRepository` (table: `deployments`)
+- `ExecutionStateRepository` → `SQLiteExecutionStateRepository` (table: `execution_states`)
+
+**Code**: [`storage/base.py`](../src/configurable_agents/storage/base.py), [`storage/sqlite.py`](../src/configurable_agents/storage/sqlite.py)
 
 ---
 
@@ -596,7 +613,7 @@ class SQLWorkflowRunRepository(WorkflowRunRepository):
 - `llm/google.py` - Google Gemini direct implementation
 - `llm/litellm.py` - LiteLLM wrapper for OpenAI/Anthropic/Ollama
 - `tools/registry.py` - Tool registry with lazy loading
-- `storage/repository.py` - Storage repositories (workflow runs, agents, memory, webhooks)
+- `storage/sqlite.py` - Storage repositories (executions, deployments, memory, webhooks)
 
 **Related ADRs**: [ADR-005](adr/ADR-005-multi-llm-provider-v10.md), [ADR-007](adr/ADR-007-tools-as-named-registry.md), [ADR-019](adr/ADR-019-litellm-integration.md)
 
@@ -629,7 +646,7 @@ class SQLWorkflowRunRepository(WorkflowRunRepository):
 **Key Pattern**: FastAPI + HTMX + SSE for dashboard, async webhook handling
 
 **Files**:
-- `dashboard/server.py` - Orchestration dashboard (FastAPI + HTMX)
+- `ui/dashboard/app.py` - Orchestration dashboard (FastAPI + HTMX)
 - `webhooks/server.py` - Generic webhook infrastructure
 - `deploy/generator.py` - Artifact generation (Dockerfile, docker-compose, server.py)
 
@@ -854,8 +871,8 @@ configurable-agents dashboard
       ↓
 FastAPI Server (port 8000)
   - Dashboard UI (HTMX + SSE)
-  - Agent registry endpoints
-  - Workflow management (start/stop/restart)
+  - Deployment registry endpoints (/deployments/*)
+  - Execution management (/executions/*)
   - MLFlow iframe embed (port 5000)
       ↓
 Webhook Server (port 8000/webhooks)
@@ -864,8 +881,8 @@ Webhook Server (port 8000/webhooks)
   - HMAC signature verification
       ↓
 Storage Backend (SQLite/PostgreSQL)
-  - Workflow runs
-  - Agent registry
+  - Executions (execution records with metrics)
+  - Deployments (deployment registry with heartbeats)
   - Memory entries
   - Webhook executions
 ```

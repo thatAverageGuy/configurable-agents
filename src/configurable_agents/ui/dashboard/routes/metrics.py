@@ -1,7 +1,14 @@
 """Server-Sent Events (SSE) endpoints for real-time metrics streaming.
 
-Provides SSE endpoints for workflow and agent updates that
+Provides SSE endpoints for execution and deployment updates that
 push data to connected clients for dynamic dashboard updates.
+
+Updated in UI Redesign (2026-02-13):
+- WorkflowRunRecord → Execution
+- AgentRecord → Deployment
+- AbstractWorkflowRunRepository → AbstractExecutionRepository
+- AgentRegistryRepository → DeploymentRepository
+- Routes: /workflows/* → /executions/*, /agents/* → /deployments/*
 """
 
 import asyncio
@@ -15,47 +22,48 @@ from sqlalchemy import Select, select
 from sqlalchemy.orm import Session
 
 from configurable_agents.storage.base import (
-    AbstractWorkflowRunRepository,
-    AgentRegistryRepository,
+    AbstractExecutionRepository,
+    DeploymentRepository,
 )
-from configurable_agents.storage.models import WorkflowRunRecord, AgentRecord
+from configurable_agents.storage.models import Execution, Deployment
 
 
 router = APIRouter(prefix="/metrics")
 
 
-async def _workflow_event_stream(
-    workflow_repo: AbstractWorkflowRunRepository,
+async def _execution_event_stream(
+    execution_repo: AbstractExecutionRepository,
 ) -> AsyncGenerator[str, None]:
-    """Generate SSE events for workflow updates.
+    """Generate SSE events for execution updates.
 
     Args:
-        workflow_repo: Workflow repository for querying runs
+        execution_repo: Execution repository for querying executions
 
     Yields:
         SSE-formatted event strings
     """
     try:
         while True:
-            # Get active runs
-            active_runs = _get_active_runs(workflow_repo)
+            # Get active executions
+            active_executions = _get_active_executions(execution_repo)
 
             # Format as JSON
             data = [
                 {
-                    "id": run.id,
-                    "name": run.workflow_name,
-                    "status": run.status,
-                    "started_at": run.started_at.isoformat() if run.started_at else None,
-                    "duration_seconds": run.duration_seconds,
-                    "total_tokens": run.total_tokens,
-                    "total_cost_usd": run.total_cost_usd,
+                    "id": execution.id,
+                    "name": execution.workflow_name,
+                    "deployment_id": execution.deployment_id,
+                    "status": execution.status,
+                    "started_at": execution.started_at.isoformat() if execution.started_at else None,
+                    "duration_seconds": execution.duration_seconds,
+                    "total_tokens": execution.total_tokens,
+                    "total_cost_usd": execution.total_cost_usd,
                 }
-                for run in active_runs
+                for execution in active_executions
             ]
 
             # Send SSE event
-            event = f"event: workflow_update\n"
+            event = f"event: execution_update\n"
             event += f"data: {json.dumps(data)}\n\n"
             yield event
 
@@ -74,37 +82,38 @@ async def _workflow_event_stream(
         await asyncio.sleep(5)
 
 
-async def _agent_event_stream(
-    agent_repo: AgentRegistryRepository,
+async def _deployment_event_stream(
+    deployment_repo: DeploymentRepository,
 ) -> AsyncGenerator[str, None]:
-    """Generate SSE events for agent updates.
+    """Generate SSE events for deployment updates.
 
     Args:
-        agent_repo: Agent repository for querying agents
+        deployment_repo: Deployment repository for querying deployments
 
     Yields:
         SSE-formatted event strings
     """
     try:
         while True:
-            # Get all alive agents
-            agents = agent_repo.list_all(include_dead=False)
+            # Get all alive deployments
+            deployments = deployment_repo.list_all(include_dead=False)
 
             # Format as JSON
             data = [
                 {
-                    "id": agent.agent_id,
-                    "name": agent.agent_name,
-                    "host": agent.host,
-                    "port": agent.port,
-                    "is_alive": agent.is_alive(),
-                    "last_heartbeat": agent.last_heartbeat.isoformat() if agent.last_heartbeat else None,
+                    "id": deployment.deployment_id,
+                    "name": deployment.deployment_name,
+                    "workflow_name": deployment.workflow_name,
+                    "host": deployment.host,
+                    "port": deployment.port,
+                    "is_alive": deployment.is_alive(),
+                    "last_heartbeat": deployment.last_heartbeat.isoformat() if deployment.last_heartbeat else None,
                 }
-                for agent in agents
+                for deployment in deployments
             ]
 
             # Send SSE event
-            event = f"event: agent_update\n"
+            event = f"event: deployment_update\n"
             event += f"data: {json.dumps(data)}\n\n"
             yield event
 
@@ -123,15 +132,15 @@ async def _agent_event_stream(
         await asyncio.sleep(10)
 
 
-def _get_active_runs(repo: AbstractWorkflowRunRepository, limit: int = 100) -> list:
-    """Get active workflow runs from repository.
+def _get_active_executions(repo: AbstractExecutionRepository, limit: int = 100) -> list:
+    """Get active executions from repository.
 
     Args:
-        repo: Workflow repository
-        limit: Maximum number of runs to return
+        repo: Execution repository
+        limit: Maximum number of executions to return
 
     Returns:
-        List of active WorkflowRunRecord instances
+        List of active Execution instances
     """
     # Try different methods based on repository implementation
     try:
@@ -139,12 +148,12 @@ def _get_active_runs(repo: AbstractWorkflowRunRepository, limit: int = 100) -> l
         if hasattr(repo, 'engine'):
             engine = repo.engine
             with Session(engine) as session:
-                stmt: Select[WorkflowRunRecord] = (
-                    select(WorkflowRunRecord)
+                stmt: Select[Execution] = (
+                    select(Execution)
                     .where(
-                        WorkflowRunRecord.status.in_(["running", "pending"])
+                        Execution.status.in_(["running", "pending"])
                     )
-                    .order_by(WorkflowRunRecord.started_at.desc())
+                    .order_by(Execution.started_at.desc())
                     .limit(limit)
                 )
                 return list(session.scalars(stmt).all())
@@ -154,20 +163,20 @@ def _get_active_runs(repo: AbstractWorkflowRunRepository, limit: int = 100) -> l
     # Fall back to trying list_all if it exists
     if hasattr(repo, 'list_all'):
         try:
-            all_runs = repo.list_all(limit=limit)
-            return [r for r in all_runs if r.status in ("running", "pending")]
+            all_executions = repo.list_all(limit=limit)
+            return [e for e in all_executions if e.status in ("running", "pending")]
         except Exception:
             pass
 
     return []
 
 
-@router.get("/workflows/stream")
-async def workflows_stream(request: Request):
-    """SSE endpoint for workflow updates.
+@router.get("/executions/stream")
+async def executions_stream(request: Request):
+    """SSE endpoint for execution updates.
 
-    Returns a streaming response with workflow update events every 5 seconds.
-    Clients can listen for 'workflow_update' events to receive real-time data.
+    Returns a streaming response with execution update events every 5 seconds.
+    Clients can listen for 'execution_update' events to receive real-time data.
 
     Headers:
         Cache-Control: no-cache
@@ -175,14 +184,14 @@ async def workflows_stream(request: Request):
         X-Accel-Buffering: no (disable nginx buffering)
 
     Example client-side usage (with HTMX SSE extension):
-        <div hx-ext="sse" sse-connect="/metrics/workflows/stream"
-             sse-swap="workflow_update">
+        <div hx-ext="sse" sse-connect="/metrics/executions/stream"
+             sse-swap="execution_update">
         </div>
     """
-    workflow_repo = request.app.state.workflow_repo
+    execution_repo = request.app.state.execution_repo
 
     return StreamingResponse(
-        _workflow_event_stream(workflow_repo),
+        _execution_event_stream(execution_repo),
         media_type="text/event-stream",
         headers={
             "Cache-Control": "no-cache",
@@ -192,12 +201,12 @@ async def workflows_stream(request: Request):
     )
 
 
-@router.get("/agents/stream")
-async def agents_stream(request: Request):
-    """SSE endpoint for agent updates.
+@router.get("/deployments/stream")
+async def deployments_stream(request: Request):
+    """SSE endpoint for deployment updates.
 
-    Returns a streaming response with agent update events every 10 seconds.
-    Clients can listen for 'agent_update' events to receive real-time data.
+    Returns a streaming response with deployment update events every 10 seconds.
+    Clients can listen for 'deployment_update' events to receive real-time data.
 
     Headers:
         Cache-Control: no-cache
@@ -205,14 +214,14 @@ async def agents_stream(request: Request):
         X-Accel-Buffering: no (disable nginx buffering)
 
     Example client-side usage (with HTMX SSE extension):
-        <div hx-ext="sse" sse-connect="/metrics/agents/stream"
-             sse-swap="agent_update">
+        <div hx-ext="sse" sse-connect="/metrics/deployments/stream"
+             sse-swap="deployment_update">
         </div>
     """
-    agent_repo = request.app.state.agent_registry_repo
+    deployment_repo = request.app.state.deployment_repo
 
     return StreamingResponse(
-        _agent_event_stream(agent_repo),
+        _deployment_event_stream(deployment_repo),
         media_type="text/event-stream",
         headers={
             "Cache-Control": "no-cache",
@@ -227,39 +236,39 @@ async def metrics_summary(request: Request):
     """Get summary metrics for the dashboard.
 
     Returns a JSON summary of current system metrics including
-    workflow counts, agent counts, and cost totals.
+    execution counts, deployment counts, and cost totals.
     """
-    workflow_repo = request.app.state.workflow_repo
-    agent_repo = request.app.state.agent_registry_repo
+    execution_repo = request.app.state.execution_repo
+    deployment_repo = request.app.state.deployment_repo
 
-    # Get workflow stats
-    all_runs = _get_all_runs_limit(workflow_repo, limit=1000)
-    total_workflows = len(all_runs)
-    running_workflows = sum(1 for r in all_runs if r.status == "running")
-    total_cost = sum(r.total_cost_usd or 0 for r in all_runs)
+    # Get execution stats
+    all_executions = _get_all_executions_limit(execution_repo, limit=1000)
+    total_executions = len(all_executions)
+    running_executions = sum(1 for e in all_executions if e.status == "running")
+    total_cost = sum(e.total_cost_usd or 0 for e in all_executions)
 
-    # Get agent stats
-    agents = agent_repo.list_all(include_dead=False)
-    registered_agents = len(agents)
+    # Get deployment stats
+    deployments = deployment_repo.list_all(include_dead=False)
+    registered_deployments = len(deployments)
 
     return {
-        "total_workflows": total_workflows,
-        "running_workflows": running_workflows,
-        "registered_agents": registered_agents,
+        "total_executions": total_executions,
+        "running_executions": running_executions,
+        "registered_deployments": registered_deployments,
         "total_cost_usd": total_cost,
         "timestamp": datetime.utcnow().isoformat(),
     }
 
 
-def _get_all_runs_limit(repo: AbstractWorkflowRunRepository, limit: int = 1000) -> list:
-    """Get all workflow runs from repository.
+def _get_all_executions_limit(repo: AbstractExecutionRepository, limit: int = 1000) -> list:
+    """Get all executions from repository.
 
     Args:
-        repo: Workflow repository
-        limit: Maximum number of runs to return
+        repo: Execution repository
+        limit: Maximum number of executions to return
 
     Returns:
-        List of WorkflowRunRecord instances
+        List of Execution instances
     """
     # Try different methods based on repository implementation
     try:
@@ -267,9 +276,9 @@ def _get_all_runs_limit(repo: AbstractWorkflowRunRepository, limit: int = 1000) 
         if hasattr(repo, 'engine'):
             engine = repo.engine
             with Session(engine) as session:
-                stmt: Select[WorkflowRunRecord] = (
-                    select(WorkflowRunRecord)
-                    .order_by(WorkflowRunRecord.started_at.desc())
+                stmt: Select[Execution] = (
+                    select(Execution)
+                    .order_by(Execution.started_at.desc())
                     .limit(limit)
                 )
                 return list(session.scalars(stmt).all())
@@ -284,6 +293,19 @@ def _get_all_runs_limit(repo: AbstractWorkflowRunRepository, limit: int = 1000) 
             pass
 
     return []
+
+
+# Backward-compatible route aliases (deprecated)
+@router.get("/workflows/stream")
+async def workflows_stream_legacy(request: Request):
+    """Legacy SSE endpoint - redirects to executions/stream."""
+    return await executions_stream(request)
+
+
+@router.get("/agents/stream")
+async def agents_stream_legacy(request: Request):
+    """Legacy SSE endpoint - redirects to deployments/stream."""
+    return await deployments_stream(request)
 
 
 # Export for templates

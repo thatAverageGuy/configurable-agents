@@ -563,7 +563,7 @@ def execute_node(
                         "error": str(e)[:500],  # Truncate long error messages
                     }
                     execution_state_repo.save_state(
-                        run_id=run_id,
+                        execution_id=run_id,
                         state_data=error_state,
                         node_id=node_id,
                     )
@@ -702,7 +702,7 @@ def execute_node(
                 state_snapshot["outputs"] = output_values
 
                 execution_state_repo.save_state(
-                    run_id=run_id,
+                    execution_id=run_id,
                     state_data=state_snapshot,
                     node_id=node_id,
                 )

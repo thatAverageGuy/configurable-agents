@@ -19,6 +19,74 @@ the project to a verifiable state.
 
 ### Fixed
 
+**BF-009: Remove vestigial `--enable-profiling` CLI flag** (2026-02-14)
+- Removed `--enable-profiling` flag from `run` command — flag was defined but never passed to `run_workflow()`, making it non-functional
+- Removed backwards-compatibility comment that referenced the vestigial flag
+- Removed `TestEnableProfilingFlag` test class from test suite
+- Updated CLI guide to remove `--enable-profiling` references
+- Created bug report documenting redundant `node_*_duration_ms` metrics (fix deferred to ADR-018)
+- Profiling is always enabled via MLflow 3.9 `autolog()` — no flag needed
+
+### Changed
+
+**UI Redesign - Complete Implementation** (2026-02-13)
+
+A comprehensive rename and restructuring to align terminology with the new 4-page UI design (Chat UI, Executions, Deployments, MLflow). All 6 phases implemented.
+
+**Phase 1: Storage Layer**
+- `WorkflowRunRecord` → `Execution` (table: `workflow_runs` → `executions`)
+- `AgentRecord` → `Deployment` (table: `agents` → `deployments`)
+- `ExecutionStateRecord` → `ExecutionState` (field: `run_id` → `execution_id`)
+- `OrchestratorRecord` → REMOVED (absorbed into deployments)
+- Added `Execution.deployment_id` FK to link executions to deployments
+- Added `Deployment.workflow_name` to track which workflow a deployment runs
+- `AbstractWorkflowRunRepository` → `AbstractExecutionRepository`
+- `AgentRegistryRepository` → `DeploymentRepository`
+- `OrchestratorRepository` → REMOVED
+- Storage factory return tuple: 8 values → 7 values (removed orchestrator)
+
+**Phase 2: CLI Updates**
+- Command renamed: `workflow-registry` → `deployments`
+- Functions renamed: `cmd_workflow_registry_*` → `cmd_deployments_*`
+- Import renamed: `WorkflowRegistryServer` → `DeploymentRegistryServer`
+- Default DB path: `workflows.db` → `configurable_agents.db`
+
+**Phase 3: Registry Module**
+- `AgentRegistryServer` → `DeploymentRegistryServer`
+- `AgentRegistryClient` → `DeploymentClient`
+- Pydantic models renamed: `AgentRegistrationRequest` → `DeploymentRegistrationRequest`
+- Routes: `/agents/*` → `/deployments/*`
+- Backward-compatible aliases provided for all renamed classes
+
+**Phase 4: Dashboard/UI**
+- Routes: `/workflows/*` → `/executions/*`
+- Routes: `/agents/*` → `/deployments/*`
+- Orchestrator routes (`/orchestrator/*`) merged into `/deployments/*`
+- Files renamed: `workflows.py` → `executions.py`, `agents.py` → `deployments.py`
+- Files deleted: `orchestrator.py` (functionality merged)
+- App state: `workflow_repo` → `execution_repo`, `agent_registry_repo` → `deployment_repo`
+
+**Phase 5: Tests**
+- Updated 10 test files with new model/class names
+- Renamed `test_agent_registry_repository.py` → `test_deployment_repository.py`
+- All storage tuple unpacking updated (8 → 7 values)
+
+**Phase 6: Documentation**
+- Created ADR for terminology changes
+- Updated architecture documentation
+- Updated implementation plan with completion status
+
+**Files Modified**: ~45 files across all phases
+
+**BREAKING CHANGES**:
+- Requires fresh database (tables renamed: `workflow_runs` → `executions`, `agents` → `deployments`)
+- API routes changed: `/workflows` → `/executions`, `/agents` → `/deployments`, `/orchestrator/*` removed
+- CLI command changed: `workflow-registry` → `deployments`
+- Storage factory returns 7 values instead of 8 (removed orchestrator repository)
+- All class imports changed (backward-compatible aliases provided in `__init__.py` files)
+
+### Fixed
+
 **CL-003: Fix VF-001–VF-006, remove optimization module, rename workflow registry** (2026-02-10)
 
 - **VF-001**: Fixed `--verbose` producing no DEBUG output — added `setup_logging()` call in `main()` so all commands get proper logging handlers

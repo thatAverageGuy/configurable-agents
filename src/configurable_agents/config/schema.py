@@ -579,7 +579,7 @@ class StorageConfig(BaseModel):
     """Storage backend configuration."""
 
     backend: str = Field("sqlite", description="Storage backend type: 'sqlite' or connection URI")
-    path: str = Field("./workflows.db", description="SQLite database path (only for sqlite backend)")
+    path: str = Field("./configurable_agents.db", description="SQLite database path (only for sqlite backend)")
 
 
 class GlobalConfig(BaseModel):

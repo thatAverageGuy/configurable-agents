@@ -20,10 +20,10 @@ from sqlalchemy.orm import Session
 from httpx import AsyncClient, ASGITransport
 
 from configurable_agents.ui.dashboard import create_dashboard_app, DashboardApp
-from configurable_agents.storage.models import WorkflowRunRecord, AgentRecord
+from configurable_agents.storage.models import Execution, Deployment
 from configurable_agents.storage.sqlite import (
-    SQLiteWorkflowRunRepository,
-    SqliteAgentRegistryRepository,
+    SQLiteExecutionRepository,
+    SqliteDeploymentRepository,
 )
 
 
@@ -40,25 +40,25 @@ def in_memory_db():
 
 
 @pytest.fixture
-def workflow_repo(in_memory_db):
+def execution_repo(in_memory_db):
     """Create a workflow repository with in-memory database."""
-    return SQLiteWorkflowRunRepository(in_memory_db)
+    return SQLiteExecutionRepository(in_memory_db)
 
 
 @pytest.fixture
 def agent_repo(in_memory_db):
     """Create an agent repository with in-memory database."""
-    return SqliteAgentRegistryRepository(in_memory_db)
+    return SqliteDeploymentRepository(in_memory_db)
 
 
 @pytest.fixture
-def seeded_workflow_repo(workflow_repo):
+def seeded_execution_repo(execution_repo):
     """Create a workflow repository seeded with test data."""
     # Create test workflow runs with various statuses
     now = datetime.utcnow()
 
     test_runs = [
-        WorkflowRunRecord(
+        Execution(
             id=str(uuid.uuid4()),
             workflow_name="test_workflow_1",
             status="running",
@@ -70,7 +70,7 @@ def seeded_workflow_repo(workflow_repo):
             total_tokens=100,
             total_cost_usd=0.001,
         ),
-        WorkflowRunRecord(
+        Execution(
             id=str(uuid.uuid4()),
             workflow_name="test_workflow_2",
             status="completed",
@@ -83,7 +83,7 @@ def seeded_workflow_repo(workflow_repo):
             total_tokens=500,
             total_cost_usd=0.005,
         ),
-        WorkflowRunRecord(
+        Execution(
             id=str(uuid.uuid4()),
             workflow_name="test_workflow_3",
             status="failed",
@@ -96,7 +96,7 @@ def seeded_workflow_repo(workflow_repo):
             total_tokens=200,
             total_cost_usd=0.002,
         ),
-        WorkflowRunRecord(
+        Execution(
             id=str(uuid.uuid4()),
             workflow_name="test_workflow_4",
             status="pending",
@@ -106,7 +106,7 @@ def seeded_workflow_repo(workflow_repo):
             completed_at=None,
             duration_seconds=None,
         ),
-        WorkflowRunRecord(
+        Execution(
             id=str(uuid.uuid4()),
             workflow_name="test_workflow_5",
             status="cancelled",
@@ -119,9 +119,9 @@ def seeded_workflow_repo(workflow_repo):
     ]
 
     for run in test_runs:
-        workflow_repo.add(run)
+        execution_repo.add(run)
 
-    return workflow_repo
+    return execution_repo
 
 
 @pytest.fixture
@@ -130,27 +130,27 @@ def seeded_agent_repo(agent_repo):
     now = datetime.utcnow()
 
     test_agents = [
-        AgentRecord(
-            agent_id="agent-001",
-            agent_name="Test Agent 1",
+        Deployment(
+            deployment_id="agent-001",
+            deployment_name="Test Agent 1",
             host="localhost",
             port=8001,
             last_heartbeat=now - timedelta(seconds=30),
             ttl_seconds=60,
             agent_metadata='{"capabilities": ["chat", "search"]}',
         ),
-        AgentRecord(
-            agent_id="agent-002",
-            agent_name="Test Agent 2",
+        Deployment(
+            deployment_id="agent-002",
+            deployment_name="Test Agent 2",
             host="localhost",
             port=8002,
             last_heartbeat=now - timedelta(seconds=10),
             ttl_seconds=60,
             agent_metadata='{"capabilities": ["summarize", "write"]}',
         ),
-        AgentRecord(
-            agent_id="agent-003",
-            agent_name="Dead Agent",
+        Deployment(
+            deployment_id="agent-003",
+            deployment_name="Dead Agent",
             host="localhost",
             port=8003,
             last_heartbeat=now - timedelta(minutes=10),
@@ -166,20 +166,20 @@ def seeded_agent_repo(agent_repo):
 
 
 @pytest.fixture
-def dashboard_app(seeded_workflow_repo, seeded_agent_repo):
+def dashboard_app(seeded_execution_repo, seeded_agent_repo):
     """Create a dashboard app with seeded repositories."""
     return DashboardApp(
-        workflow_repo=seeded_workflow_repo,
-        agent_registry_repo=seeded_agent_repo,
+        execution_repo=seeded_execution_repo,
+        deployment_repo=seeded_agent_repo,
     )
 
 
 @pytest.fixture
-def dashboard_app_no_mlflow(seeded_workflow_repo, seeded_agent_repo):
+def dashboard_app_no_mlflow(seeded_execution_repo, seeded_agent_repo):
     """Create a dashboard app without MLFlow mounted."""
     return DashboardApp(
-        workflow_repo=seeded_workflow_repo,
-        agent_registry_repo=seeded_agent_repo,
+        execution_repo=seeded_execution_repo,
+        deployment_repo=seeded_agent_repo,
         mlflow_tracking_uri=None,
     )
 
@@ -224,7 +224,7 @@ class TestTemplateRendering:
         """Verify workflows.html compiles without errors."""
         transport = ASGITransport(app=dashboard_app.app)
         async with AsyncClient(transport=transport, base_url="http://test") as client:
-            response = await client.get("/workflows/")
+            response = await client.get("/executions/")
 
         assert response.status_code == 200
         text = response.text
@@ -235,7 +235,7 @@ class TestTemplateRendering:
         """Verify agents.html compiles without errors."""
         transport = ASGITransport(app=dashboard_app.app)
         async with AsyncClient(transport=transport, base_url="http://test") as client:
-            response = await client.get("/agents/")
+            response = await client.get("/deployments/")
 
         assert response.status_code == 200
         text = response.text
@@ -276,7 +276,7 @@ class TestTemplateRendering:
         transport = ASGITransport(app=dashboard_app.app)
         async with AsyncClient(transport=transport, base_url="http://test") as client:
             # The workflows_table uses macros from macros.html
-            response = await client.get("/workflows/table")
+            response = await client.get("/executions/table")
 
         assert response.status_code == 200
         # If macros.html had syntax errors, this would fail
@@ -287,10 +287,10 @@ class TestErrorHandling:
     """Tests for error handling scenarios (404, 500, MLFlow unavailable)."""
 
     async def test_workflow_not_found_returns_error(self, dashboard_app):
-        """GET /workflows/{nonexistent} returns error page."""
+        """GET /executions/{nonexistent} returns error page."""
         transport = ASGITransport(app=dashboard_app.app)
         async with AsyncClient(transport=transport, base_url="http://test") as client:
-            response = await client.get(f"/workflows/{uuid.uuid4()}")
+            response = await client.get(f"/executions/{uuid.uuid4()}")
 
         # Should return 200 with error message in page
         assert response.status_code == 200
@@ -299,10 +299,10 @@ class TestErrorHandling:
         assert "not found" in text.lower() or "Workflow run not found" in text or "error" in text.lower()
 
     async def test_agent_not_found_returns_404(self, dashboard_app):
-        """DELETE /agents/{nonexistent} returns 404."""
+        """DELETE /deployments/{nonexistent} returns 404."""
         transport = ASGITransport(app=dashboard_app.app)
         async with AsyncClient(transport=transport, base_url="http://test") as client:
-            response = await client.delete(f"/agents/nonexistent-{uuid.uuid4()}")
+            response = await client.delete(f"/deployments/nonexistent-{uuid.uuid4()}")
 
         assert response.status_code == 404
 
@@ -340,18 +340,18 @@ class TestErrorHandling:
         )
 
     async def test_workflow_cancel_nonexistent(self, dashboard_app):
-        """POST /workflows/{nonexistent}/cancel returns 404."""
+        """POST /executions/{nonexistent}/cancel returns 404."""
         transport = ASGITransport(app=dashboard_app.app)
         async with AsyncClient(transport=transport, base_url="http://test") as client:
-            response = await client.post(f"/workflows/{uuid.uuid4()}/cancel")
+            response = await client.post(f"/executions/{uuid.uuid4()}/cancel")
 
         assert response.status_code == 404
 
     async def test_agent_delete_nonexistent(self, dashboard_app):
-        """DELETE /agents/{nonexistent} returns 404."""
+        """DELETE /deployments/{nonexistent} returns 404."""
         transport = ASGITransport(app=dashboard_app.app)
         async with AsyncClient(transport=transport, base_url="http://test") as client:
-            response = await client.delete(f"/agents/nonexistent-{uuid.uuid4()}")
+            response = await client.delete(f"/deployments/nonexistent-{uuid.uuid4()}")
 
         assert response.status_code == 404
 
@@ -361,10 +361,10 @@ class TestRouteParameters:
     """Tests for route parameters (status filters, query params)."""
 
     async def test_workflows_status_filter(self, dashboard_app):
-        """GET /workflows?status=running filters correctly."""
+        """GET /executions?status=running filters correctly."""
         transport = ASGITransport(app=dashboard_app.app)
         async with AsyncClient(transport=transport, base_url="http://test") as client:
-            response = await client.get("/workflows/?status=running")
+            response = await client.get("/executions/?status=running")
 
         assert response.status_code == 200
         text = response.text
@@ -372,26 +372,26 @@ class TestRouteParameters:
         assert "running" in text.lower()
 
     async def test_workflows_status_filter_completed(self, dashboard_app):
-        """GET /workflows?status=completed filters to completed workflows."""
+        """GET /executions?status=completed filters to completed workflows."""
         transport = ASGITransport(app=dashboard_app.app)
         async with AsyncClient(transport=transport, base_url="http://test") as client:
-            response = await client.get("/workflows/?status=completed")
+            response = await client.get("/executions/?status=completed")
 
         assert response.status_code == 200
 
     async def test_workflows_status_filter_failed(self, dashboard_app):
-        """GET /workflows?status=failed filters to failed workflows."""
+        """GET /executions?status=failed filters to failed workflows."""
         transport = ASGITransport(app=dashboard_app.app)
         async with AsyncClient(transport=transport, base_url="http://test") as client:
-            response = await client.get("/workflows/?status=failed")
+            response = await client.get("/executions/?status=failed")
 
         assert response.status_code == 200
 
     async def test_workflows_table_status_filter(self, dashboard_app):
-        """GET /workflows/table?status=completed filters correctly."""
+        """GET /executions/table?status=completed filters correctly."""
         transport = ASGITransport(app=dashboard_app.app)
         async with AsyncClient(transport=transport, base_url="http://test") as client:
-            response = await client.get("/workflows/table?status=completed")
+            response = await client.get("/executions/table?status=completed")
 
         assert response.status_code == 200
         # Should return HTML partial (table fragment)
@@ -431,39 +431,39 @@ class TestRouteParameters:
 class TestFormSubmission:
     """Tests for form submission endpoints (POST, DELETE, etc.)."""
 
-    async def test_workflow_cancel_completed(self, dashboard_app, workflow_repo):
-        """POST /workflows/{id}/cancel on completed workflow returns 400."""
+    async def test_workflow_cancel_completed(self, dashboard_app, execution_repo):
+        """POST /executions/{id}/cancel on completed workflow returns 400."""
         # Get a completed workflow ID
-        runs = workflow_repo.list_by_workflow("test_workflow_2", limit=1)
+        runs = execution_repo.list_by_workflow("test_workflow_2", limit=1)
         if runs:
             run_id = runs[0].id
             transport = ASGITransport(app=dashboard_app.app)
             async with AsyncClient(transport=transport, base_url="http://test") as client:
-                response = await client.post(f"/workflows/{run_id}/cancel")
+                response = await client.post(f"/executions/{run_id}/cancel")
 
             # Cannot cancel completed workflow
             assert response.status_code == 400
 
     async def test_agents_delete_valid(self, dashboard_app, agent_repo):
-        """DELETE /agents/{id} for valid agent succeeds."""
+        """DELETE /deployments/{id} for valid agent succeeds."""
         # Get a valid agent ID
         agents = agent_repo.list_all(include_dead=False)
         if agents:
-            agent_id = agents[0].agent_id
+            deployment_id = agents[0].deployment_id
             transport = ASGITransport(app=dashboard_app.app)
             async with AsyncClient(transport=transport, base_url="http://test") as client:
-                response = await client.delete(f"/agents/{agent_id}")
+                response = await client.delete(f"/deployments/{deployment_id}")
 
             # Should succeed
             assert response.status_code == 200
             # Verify agent was deleted
-            assert agent_repo.get(agent_id) is None
+            assert agent_repo.get(deployment_id) is None
 
     async def test_agents_refresh(self, dashboard_app):
-        """POST /agents/refresh returns table HTML."""
+        """POST /deployments/refresh returns table HTML."""
         transport = ASGITransport(app=dashboard_app.app)
         async with AsyncClient(transport=transport, base_url="http://test") as client:
-            response = await client.post("/agents/refresh")
+            response = await client.post("/deployments/refresh")
 
         assert response.status_code == 200
         assert "text/html" in response.headers.get("content-type", "")
@@ -472,10 +472,10 @@ class TestFormSubmission:
         assert "agent" in text.lower() or "Agent" in text
 
     async def test_agents_refresh_returns_data(self, dashboard_app, agent_repo):
-        """POST /agents/refresh returns current agent data."""
+        """POST /deployments/refresh returns current agent data."""
         transport = ASGITransport(app=dashboard_app.app)
         async with AsyncClient(transport=transport, base_url="http://test") as client:
-            response = await client.post("/agents/refresh")
+            response = await client.post("/deployments/refresh")
 
         assert response.status_code == 200
         text = response.text
@@ -484,10 +484,10 @@ class TestFormSubmission:
         assert "Test Agent" in text or "agent" in text.lower()
 
     async def test_workflow_restart_nonexistent(self, dashboard_app):
-        """POST /workflows/{id}/restart for nonexistent workflow returns 404."""
+        """POST /executions/{id}/restart for nonexistent workflow returns 404."""
         transport = ASGITransport(app=dashboard_app.app)
         async with AsyncClient(transport=transport, base_url="http://test") as client:
-            response = await client.post(f"/workflows/{uuid.uuid4()}/restart")
+            response = await client.post(f"/executions/{uuid.uuid4()}/restart")
 
         assert response.status_code == 404
 
@@ -496,15 +496,15 @@ class TestFormSubmission:
 class TestWorkflowDetail:
     """Tests for workflow detail page and related functionality."""
 
-    async def test_workflow_detail_renders(self, dashboard_app, workflow_repo):
-        """GET /workflows/{id} renders detail page."""
+    async def test_workflow_detail_renders(self, dashboard_app, execution_repo):
+        """GET /executions/{id} renders detail page."""
         # Get a valid workflow ID
-        runs = workflow_repo.list_by_workflow("test_workflow_1", limit=1)
+        runs = execution_repo.list_by_workflow("test_workflow_1", limit=1)
         if runs:
             run_id = runs[0].id
             transport = ASGITransport(app=dashboard_app.app)
             async with AsyncClient(transport=transport, base_url="http://test") as client:
-                response = await client.get(f"/workflows/{run_id}")
+                response = await client.get(f"/executions/{run_id}")
 
             assert response.status_code == 200
             assert "text/html" in response.headers.get("content-type", "")
@@ -515,11 +515,11 @@ class TestWorkflowDetail:
         transport = ASGITransport(app=dashboard_app.app)
         async with AsyncClient(transport=transport, base_url="http://test") as client:
             # First get the list to find a completed workflow
-            list_response = await client.get("/workflows/")
+            list_response = await client.get("/executions/")
             assert list_response.status_code == 200
 
             # Try to get detail for a workflow (ID from list or use UUID)
-            response = await client.get(f"/workflows/{uuid.uuid4()}")
+            response = await client.get(f"/executions/{uuid.uuid4()}")
 
         # Will show "not found" but should still render
         assert response.status_code == 200
@@ -566,10 +566,10 @@ class TestAgentsEndpoints:
     """Tests for agents listing endpoints."""
 
     async def test_agents_list_all_includes_dead(self, dashboard_app, agent_repo):
-        """GET /agents/all includes dead agents."""
+        """GET /deployments/all includes dead agents."""
         transport = ASGITransport(app=dashboard_app.app)
         async with AsyncClient(transport=transport, base_url="http://test") as client:
-            response = await client.get("/agents/all")
+            response = await client.get("/deployments/all")
 
         assert response.status_code == 200
         text = response.text
@@ -577,10 +577,10 @@ class TestAgentsEndpoints:
         assert "Dead Agent" in text or "agent" in text.lower()
 
     async def test_agents_table_partial(self, dashboard_app):
-        """GET /agents/table returns table partial for HTMX."""
+        """GET /deployments/table returns table partial for HTMX."""
         transport = ASGITransport(app=dashboard_app.app)
         async with AsyncClient(transport=transport, base_url="http://test") as client:
-            response = await client.get("/agents/table")
+            response = await client.get("/deployments/table")
 
         assert response.status_code == 200
         assert "text/html" in response.headers.get("content-type", "")

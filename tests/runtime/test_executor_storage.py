@@ -91,7 +91,7 @@ def temp_config_file(tmp_path):
 def test_run_persisted_before_execution(
     mock_build_graph, mock_state_model, mock_runtime, mock_validate, minimal_config, tmp_path
 ):
-    """Test that WorkflowRunRecord is persisted before execution begins."""
+    """Test that Execution is persisted before execution begins."""
     # Setup mocks
     mock_validate.return_value = None
     mock_runtime.return_value = None
@@ -121,7 +121,7 @@ def test_run_persisted_before_execution(
 
     # Verify run record was persisted
     from configurable_agents.storage import create_storage_backend
-    from configurable_agents.storage.models import WorkflowRunRecord
+    from configurable_agents.storage.models import Execution
 
     workflow_run_repo, _, _, _, _, _, _, _ = create_storage_backend(storage_config)
     runs = workflow_run_repo.list_by_workflow("test_flow")

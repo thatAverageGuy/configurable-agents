@@ -4,6 +4,11 @@ Defines the pluggable storage abstraction layer following the Repository Pattern
 Implementations can be SQLite, PostgreSQL, Redis, or any other backend that
 implements these interfaces.
 
+Renamed in UI Redesign (2026-02-13):
+- AbstractWorkflowRunRepository → AbstractExecutionRepository
+- AgentRegistryRepository → DeploymentRepository
+- OrchestratorRepository → REMOVED (absorbed into deployments)
+
 See https://www.cosmicpython.com/book/chapter_02_repository.html for pattern
 reference.
 """
@@ -13,106 +18,108 @@ from datetime import datetime
 from typing import Any, Dict, List, Optional
 
 # Forward declarations for ORM models (avoiding circular import)
-# WorkflowRunRecord, ExecutionStateRecord, AgentRecord, ChatSession, and ChatMessage
+# Execution, ExecutionState, Deployment, ChatSession, and ChatMessage
 # are defined in models.py
 
 
-class AgentRegistryRepository(ABC):
-    """Abstract repository for agent registry persistence.
+class DeploymentRepository(ABC):
+    """Abstract repository for deployment registry persistence.
 
-    Provides CRUD operations for agent registration records with support
+    Provides CRUD operations for deployment registration records with support
     for TTL-based expiration tracking via heartbeat updates.
 
+    Renamed from AgentRegistryRepository in UI Redesign.
+
     Methods:
-        add: Register a new agent
-        get: Retrieve a single agent by ID
-        list_all: List all agents (optionally including expired ones)
-        update_heartbeat: Refresh an agent's last_heartbeat timestamp
-        delete: Remove an agent from the registry
-        delete_expired: Remove all expired agents from the registry
+        add: Register a new deployment
+        get: Retrieve a single deployment by ID
+        list_all: List all deployments (optionally including expired ones)
+        update_heartbeat: Refresh a deployment's last_heartbeat timestamp
+        delete: Remove a deployment from the registry
+        delete_expired: Remove all expired deployments from the registry
     """
 
     @abstractmethod
-    def add(self, agent: Any) -> None:
-        """Register a new agent.
+    def add(self, deployment: Any) -> None:
+        """Register a new deployment.
 
         Args:
-            agent: AgentRecord instance to persist
+            deployment: Deployment instance to persist
 
         Raises:
-            IntegrityError: If agent_id already exists
+            IntegrityError: If deployment_id already exists
         """
         raise NotImplementedError
 
     @abstractmethod
-    def get(self, agent_id: str) -> Optional[Any]:
-        """Get an agent by ID.
+    def get(self, deployment_id: str) -> Optional[Any]:
+        """Get a deployment by ID.
 
         Args:
-            agent_id: Unique identifier for the agent
+            deployment_id: Unique identifier for the deployment
 
         Returns:
-            AgentRecord if found, None otherwise
+            Deployment if found, None otherwise
         """
         raise NotImplementedError
 
     @abstractmethod
     def list_all(self, include_dead: bool = False) -> List[Any]:
-        """List all registered agents.
+        """List all registered deployments.
 
         Args:
-            include_dead: If False, only return agents where is_alive() is True.
-                         If True, return all agents regardless of TTL status.
+            include_dead: If False, only return deployments where is_alive() is True.
+                         If True, return all deployments regardless of TTL status.
 
         Returns:
-            List of AgentRecord instances
+            List of Deployment instances
         """
         raise NotImplementedError
 
     @abstractmethod
-    def update_heartbeat(self, agent_id: str) -> None:
-        """Update an agent's heartbeat timestamp.
+    def update_heartbeat(self, deployment_id: str) -> None:
+        """Update a deployment's heartbeat timestamp.
 
         Sets last_heartbeat to the current time, effectively refreshing
-        the agent's TTL.
+        the deployment's TTL.
 
         Args:
-            agent_id: Unique identifier for the agent
+            deployment_id: Unique identifier for the deployment
 
         Raises:
-            ValueError: If agent_id not found
+            ValueError: If deployment_id not found
         """
         raise NotImplementedError
 
     @abstractmethod
-    def delete(self, agent_id: str) -> None:
-        """Delete an agent from the registry.
+    def delete(self, deployment_id: str) -> None:
+        """Delete a deployment from the registry.
 
         Args:
-            agent_id: Unique identifier for the agent
+            deployment_id: Unique identifier for the deployment
 
         Raises:
-            ValueError: If agent_id not found
+            ValueError: If deployment_id not found
         """
         raise NotImplementedError
 
     @abstractmethod
     def delete_expired(self) -> int:
-        """Delete all expired agents from the registry.
+        """Delete all expired deployments from the registry.
 
-        An agent is considered expired if the current time is after
+        A deployment is considered expired if the current time is after
         its expiration time (last_heartbeat + ttl_seconds).
 
         Returns:
-            Number of agents deleted
+            Number of deployments deleted
         """
         raise NotImplementedError
 
     @abstractmethod
     def query_by_metadata(self, metadata_filter: Dict[str, Any]) -> List[Any]:
-        """Query agents by metadata/capabilities.
+        """Query deployments by metadata/capabilities.
 
-        Allows filtering agents by their metadata JSON blob using
+        Allows filtering deployments by their metadata JSON blob using
         key-value matching.
 
         Args:
@@ -121,69 +128,71 @@ class AgentRegistryRepository(ABC):
                 - Nested keys use dot notation (e.g., {"capabilities.llm": true})
 
         Returns:
-            List of AgentRecord instances matching the criteria
+            List of Deployment instances matching the criteria
 
         Example:
-            >>> # Find all LLM agents
-            >>> llm_agents = repo.query_by_metadata({"type": "llm"})
+            >>> # Find all LLM deployments
+            >>> llm_deployments = repo.query_by_metadata({"type": "llm"})
         """
         raise NotImplementedError
 
     @abstractmethod
-    def get_active_agents(self, cutoff_seconds: int = 60) -> List[Any]:
-        """Get only active (recently heartbeating) agents.
+    def get_active_deployments(self, cutoff_seconds: int = 60) -> List[Any]:
+        """Get only active (recently heartbeating) deployments.
 
-        An agent is considered active if its last heartbeat was within
+        A deployment is considered active if its last heartbeat was within
         the specified cutoff period.
 
         Args:
             cutoff_seconds: Seconds since last heartbeat (default: 60)
 
         Returns:
-            List of active AgentRecord instances
+            List of active Deployment instances
 
         Example:
-            >>> # Get agents that heartbeat within last 30 seconds
-            >>> active = repo.get_active_agents(cutoff_seconds=30)
+            >>> # Get deployments that heartbeat within last 30 seconds
+            >>> active = repo.get_active_deployments(cutoff_seconds=30)
         """
         raise NotImplementedError
 
 
-class AbstractWorkflowRunRepository(ABC):
-    """Abstract repository for workflow run persistence.
+class AbstractExecutionRepository(ABC):
+    """Abstract repository for workflow execution persistence.
 
     Provides CRUD operations for workflow execution records. Implementations
-    must handle persistence, retrieval, and querying of workflow runs.
+    must handle persistence, retrieval, and querying of executions.
+
+    Renamed from AbstractWorkflowRunRepository in UI Redesign.
 
     Methods:
-        add: Persist a new workflow run
-        get: Retrieve a single run by ID
-        list_by_workflow: List runs for a specific workflow
-        update_status: Change the status of a run
-        delete: Remove a run from storage
+        add: Persist a new execution
+        get: Retrieve a single execution by ID
+        list_by_workflow: List executions for a specific workflow
+        update_status: Change the status of an execution
+        delete: Remove an execution from storage
     """
 
     @abstractmethod
-    def add(self, run: Any) -> None:
-        """Persist a new workflow run.
+    def add(self, execution: Any) -> None:
+        """Persist a new execution.
 
         Args:
-            run: WorkflowRunRecord instance to persist
+            execution: Execution instance to persist
 
         Raises:
-            IntegrityError: If run ID already exists
+            IntegrityError: If execution ID already exists
         """
         raise NotImplementedError
 
     @abstractmethod
-    def get(self, run_id: str) -> Optional[Any]:
-        """Get a workflow run by ID.
+    def get(self, execution_id: str) -> Optional[Any]:
+        """Get an execution by ID.
 
         Args:
-            run_id: Unique identifier for the workflow run
+            execution_id: Unique identifier for the execution
 
         Returns:
-            WorkflowRunRecord if found, None otherwise
+            Execution if found, None otherwise
         """
         raise NotImplementedError
 
@@ -191,48 +200,48 @@ class AbstractWorkflowRunRepository(ABC):
     def list_by_workflow(
         self, workflow_name: str, limit: int = 100
     ) -> List[Any]:
-        """List runs for a specific workflow.
+        """List executions for a specific workflow.
 
         Args:
             workflow_name: Name of the workflow to filter by
-            limit: Maximum number of runs to return (default: 100)
+            limit: Maximum number of executions to return (default: 100)
 
         Returns:
-            List of WorkflowRunRecord instances, ordered by started_at DESC
+            List of Execution instances, ordered by started_at DESC
         """
         raise NotImplementedError
 
     @abstractmethod
-    def update_status(self, run_id: str, status: str) -> None:
-        """Update the status of a workflow run.
+    def update_status(self, execution_id: str, status: str) -> None:
+        """Update the status of an execution.
 
         Also sets completed_at timestamp when status is "completed" or "failed".
 
         Args:
-            run_id: Unique identifier for the workflow run
+            execution_id: Unique identifier for the execution
             status: New status value ("pending", "running", "completed", "failed")
 
         Raises:
-            ValueError: If run_id not found
+            ValueError: If execution_id not found
         """
         raise NotImplementedError
 
     @abstractmethod
-    def delete(self, run_id: str) -> None:
-        """Delete a workflow run.
+    def delete(self, execution_id: str) -> None:
+        """Delete an execution.
 
         Args:
-            run_id: Unique identifier for the workflow run
+            execution_id: Unique identifier for the execution
 
         Raises:
-            ValueError: If run_id not found
+            ValueError: If execution_id not found
         """
         raise NotImplementedError
 
     @abstractmethod
-    def update_run_completion(
+    def update_execution_completion(
         self,
-        run_id: str,
+        execution_id: str,
         status: str,
         duration_seconds: float,
         total_tokens: int,
@@ -241,10 +250,10 @@ class AbstractWorkflowRunRepository(ABC):
         error_message: Optional[str] = None,
         bottleneck_info: Optional[str] = None,
     ) -> None:
-        """Update a workflow run with completion metrics.
+        """Update an execution with completion metrics.
 
         Args:
-            run_id: Unique identifier for the workflow run
+            execution_id: Unique identifier for the execution
             status: New status value ("completed" or "failed")
             duration_seconds: Execution time in seconds
             total_tokens: Total tokens used across all LLM calls
@@ -254,7 +263,7 @@ class AbstractWorkflowRunRepository(ABC):
             bottleneck_info: JSON-serialized bottleneck analysis (optional)
 
         Raises:
-            ValueError: If run_id not found
+            ValueError: If execution_id not found
         """
         raise NotImplementedError
 
@@ -268,32 +277,32 @@ class AbstractExecutionStateRepository(ABC):
 
     Methods:
         save_state: Save a state checkpoint after node execution
-        get_latest_state: Get the most recent state for a run
-        get_state_history: Get all state checkpoints for a run
+        get_latest_state: Get the most recent state for an execution
+        get_state_history: Get all state checkpoints for an execution
     """
 
     @abstractmethod
     def save_state(
-        self, run_id: str, state_data: Dict[str, Any], node_id: str
+        self, execution_id: str, state_data: Dict[str, Any], node_id: str
     ) -> None:
         """Save execution state checkpoint after a node.
 
         Args:
-            run_id: Unique identifier for the workflow run
+            execution_id: Unique identifier for the execution
             state_data: Current workflow state as a dictionary
             node_id: ID of the node that produced this state
 
         Raises:
-            ValueError: If run_id not found in workflow_runs
+            ValueError: If execution_id not found in executions
         """
         raise NotImplementedError
 
     @abstractmethod
-    def get_latest_state(self, run_id: str) -> Optional[Dict[str, Any]]:
-        """Get the latest state checkpoint for a run.
+    def get_latest_state(self, execution_id: str) -> Optional[Dict[str, Any]]:
+        """Get the latest state checkpoint for an execution.
 
         Args:
-            run_id: Unique identifier for the workflow run
+            execution_id: Unique identifier for the execution
 
         Returns:
             State dictionary if found, None otherwise
@@ -301,11 +310,11 @@ class AbstractExecutionStateRepository(ABC):
         raise NotImplementedError
 
     @abstractmethod
-    def get_state_history(self, run_id: str) -> List[Dict[str, Any]]:
-        """Get all state checkpoints for a run.
+    def get_state_history(self, execution_id: str) -> List[Dict[str, Any]]:
+        """Get all state checkpoints for an execution.
 
         Args:
-            run_id: Unique identifier for the workflow run
+            execution_id: Unique identifier for the execution
 
         Returns:
             List of state checkpoints, each containing:
@@ -654,97 +663,5 @@ class WorkflowRegistrationRepository(ABC):
 
         Returns:
             List of registration dictionaries that allow this method
-        """
-        raise NotImplementedError
-
-
-class OrchestratorRepository(ABC):
-    """Abstract repository for orchestrator registry persistence.
-
-    Provides CRUD operations for orchestrator registration records with support
-    for TTL-based expiration tracking via heartbeat updates.
-
-    Methods:
-        add: Register a new orchestrator
-        get: Retrieve a single orchestrator by ID
-        list_all: List all orchestrators (optionally including expired ones)
-        update_heartbeat: Refresh an orchestrator's last_heartbeat timestamp
-        delete: Remove an orchestrator from the registry
-        delete_expired: Remove all expired orchestrators from the registry
-    """
-
-    @abstractmethod
-    def add(self, orchestrator: Any) -> None:
-        """Register a new orchestrator.
-
-        Args:
-            orchestrator: OrchestratorRecord instance to persist
-
-        Raises:
-            IntegrityError: If orchestrator_id already exists
-        """
-        raise NotImplementedError
-
-    @abstractmethod
-    def get(self, orchestrator_id: str) -> Optional[Any]:
-        """Get an orchestrator by ID.
-
-        Args:
-            orchestrator_id: Unique identifier for the orchestrator
-
-        Returns:
-            OrchestratorRecord if found, None otherwise
-        """
-        raise NotImplementedError
-
-    @abstractmethod
-    def list_all(self, include_dead: bool = False) -> List[Any]:
-        """List all registered orchestrators.
-
-        Args:
-            include_dead: If False, only return orchestrators where is_alive() is True.
-                         If True, return all orchestrators regardless of TTL status.
-
-        Returns:
-            List of OrchestratorRecord instances
-        """
-        raise NotImplementedError
-
-    @abstractmethod
-    def update_heartbeat(self, orchestrator_id: str) -> None:
-        """Update an orchestrator's heartbeat timestamp.
-
-        Sets last_heartbeat to the current time, effectively refreshing
-        the orchestrator's TTL.
-
-        Args:
-            orchestrator_id: Unique identifier for the orchestrator
-
-        Raises:
-            ValueError: If orchestrator_id not found
-        """
-        raise NotImplementedError
-
-    @abstractmethod
-    def delete(self, orchestrator_id: str) -> None:
-        """Delete an orchestrator from the registry.
-
-        Args:
-            orchestrator_id: Unique identifier for the orchestrator
-
-        Raises:
-            ValueError: If orchestrator_id not found
-        """
-        raise NotImplementedError
-
-    @abstractmethod
-    def delete_expired(self) -> int:
-        """Delete all expired orchestrators from the registry.
-
-        An orchestrator is considered expired if the current time is after
-        its expiration time (last_heartbeat + ttl_seconds).
-
-        Returns:
-            Number of orchestrators deleted
         """
         raise NotImplementedError

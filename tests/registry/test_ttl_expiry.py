@@ -1,6 +1,6 @@
 """Tests for TTL expiry logic.
 
-Tests AgentRecord.is_alive() and delete_expired() behavior including
+Tests Deployment.is_alive() and delete_expired() behavior including
 edge cases for TTL calculation.
 """
 
@@ -10,7 +10,7 @@ import pytest
 
 from configurable_agents.config.schema import StorageConfig
 from configurable_agents.storage.factory import create_storage_backend
-from configurable_agents.storage.models import AgentRecord
+from configurable_agents.storage.models import Deployment
 
 
 @pytest.fixture
@@ -18,18 +18,18 @@ def test_repo(tmp_path):
     """Create a test repository for TTL expiry tests."""
     db_path = str(tmp_path / "test_ttl_expiry.db")
     config = StorageConfig(backend="sqlite", path=db_path)
-    _, _, repo, _, _, _, _, _ = create_storage_backend(config)
+    _, _, repo, _, _, _, _ = create_storage_backend(config)
     return repo
 
 
 class TestIsAlive:
-    """Test AgentRecord.is_alive() method."""
+    """Test Deployment.is_alive() method."""
 
     def test_is_alive_with_valid_heartbeat(self):
         """Test that is_alive returns True when heartbeat is recent."""
-        agent = AgentRecord(
-            agent_id="test-agent",
-            agent_name="Test Agent",
+        agent = Deployment(
+            deployment_id="test-agent",
+            deployment_name="Test Agent",
             host="localhost",
             port=8000,
             last_heartbeat=datetime.utcnow(),
@@ -41,9 +41,9 @@ class TestIsAlive:
     def test_is_alive_with_heartbeat_at_boundary(self):
         """Test is_alive at the exact boundary of TTL expiration."""
         # Heartbeat exactly TTL seconds ago should be expired
-        agent = AgentRecord(
-            agent_id="boundary-agent",
-            agent_name="Boundary Agent",
+        agent = Deployment(
+            deployment_id="boundary-agent",
+            deployment_name="Boundary Agent",
             host="localhost",
             port=8000,
             last_heartbeat=datetime.utcnow() - timedelta(seconds=60),
@@ -55,9 +55,9 @@ class TestIsAlive:
 
     def test_is_alive_with_expired_heartbeat(self):
         """Test that is_alive returns False when heartbeat + TTL < now."""
-        agent = AgentRecord(
-            agent_id="expired-agent",
-            agent_name="Expired Agent",
+        agent = Deployment(
+            deployment_id="expired-agent",
+            deployment_name="Expired Agent",
             host="localhost",
             port=8000,
             last_heartbeat=datetime.utcnow() - timedelta(seconds=120),
@@ -69,9 +69,9 @@ class TestIsAlive:
     def test_is_alive_with_different_ttl_values(self):
         """Test is_alive with various TTL values."""
         # Short TTL (10 seconds)
-        agent_short = AgentRecord(
-            agent_id="short-ttl",
-            agent_name="Short TTL",
+        agent_short = Deployment(
+            deployment_id="short-ttl",
+            deployment_name="Short TTL",
             host="localhost",
             port=8000,
             last_heartbeat=datetime.utcnow() - timedelta(seconds=5),
@@ -80,9 +80,9 @@ class TestIsAlive:
         assert agent_short.is_alive() is True
 
         # Long TTL (3600 seconds)
-        agent_long = AgentRecord(
-            agent_id="long-ttl",
-            agent_name="Long TTL",
+        agent_long = Deployment(
+            deployment_id="long-ttl",
+            deployment_name="Long TTL",
             host="localhost",
             port=8000,
             last_heartbeat=datetime.utcnow() - timedelta(seconds=100),
@@ -92,9 +92,9 @@ class TestIsAlive:
 
     def test_is_alive_with_zero_ttl(self):
         """Test edge case: TTL of 0 means agent is always expired."""
-        agent = AgentRecord(
-            agent_id="zero-ttl",
-            agent_name="Zero TTL",
+        agent = Deployment(
+            deployment_id="zero-ttl",
+            deployment_name="Zero TTL",
             host="localhost",
             port=8000,
             last_heartbeat=datetime.utcnow(),
@@ -106,9 +106,9 @@ class TestIsAlive:
 
     def test_is_alive_with_negative_ttl(self):
         """Test edge case: negative TTL is handled (treated as 0)."""
-        agent = AgentRecord(
-            agent_id="negative-ttl",
-            agent_name="Negative TTL",
+        agent = Deployment(
+            deployment_id="negative-ttl",
+            deployment_name="Negative TTL",
             host="localhost",
             port=8000,
             last_heartbeat=datetime.utcnow(),
@@ -120,9 +120,9 @@ class TestIsAlive:
 
     def test_is_alive_with_none_ttl(self):
         """Test that None TTL defaults to 60 seconds."""
-        agent = AgentRecord(
-            agent_id="none-ttl",
-            agent_name="None TTL",
+        agent = Deployment(
+            deployment_id="none-ttl",
+            deployment_name="None TTL",
             host="localhost",
             port=8000,
             last_heartbeat=datetime.utcnow(),
@@ -139,9 +139,9 @@ class TestDeleteExpired:
     def test_delete_expired_removes_only_expired(self, test_repo, tmp_path):
         """Test that delete_expired only removes expired agents."""
         # Create alive agent
-        alive_agent = AgentRecord(
-            agent_id="alive-agent",
-            agent_name="Alive Agent",
+        alive_agent = Deployment(
+            deployment_id="alive-agent",
+            deployment_name="Alive Agent",
             host="localhost",
             port=8000,
             last_heartbeat=datetime.utcnow(),
@@ -150,9 +150,9 @@ class TestDeleteExpired:
         test_repo.add(alive_agent)
 
         # Create expired agent
-        expired_agent = AgentRecord(
-            agent_id="expired-agent",
-            agent_name="Expired Agent",
+        expired_agent = Deployment(
+            deployment_id="expired-agent",
+            deployment_name="Expired Agent",
             host="localhost",
             port=8001,
             last_heartbeat=datetime.utcnow() - timedelta(seconds=120),
@@ -171,9 +171,9 @@ class TestDeleteExpired:
         """Test delete_expired with multiple expired agents."""
         # Add mix of alive and expired agents
         for i in range(3):
-            alive = AgentRecord(
-                agent_id=f"alive-{i}",
-                agent_name=f"Alive {i}",
+            alive = Deployment(
+                deployment_id=f"alive-{i}",
+                deployment_name=f"Alive {i}",
                 host="localhost",
                 port=8000 + i,
                 last_heartbeat=datetime.utcnow(),
@@ -182,9 +182,9 @@ class TestDeleteExpired:
             test_repo.add(alive)
 
         for i in range(5):
-            expired = AgentRecord(
-                agent_id=f"expired-{i}",
-                agent_name=f"Expired {i}",
+            expired = Deployment(
+                deployment_id=f"expired-{i}",
+                deployment_name=f"Expired {i}",
                 host="localhost",
                 port=8010 + i,
                 last_heartbeat=datetime.utcnow() - timedelta(seconds=120),
@@ -206,9 +206,9 @@ class TestDeleteExpired:
 
     def test_delete_expired_returns_zero_when_none_expired(self, test_repo, tmp_path):
         """Test delete_expired when no agents are expired."""
-        agent = AgentRecord(
-            agent_id="all-alive",
-            agent_name="All Alive",
+        agent = Deployment(
+            deployment_id="all-alive",
+            deployment_name="All Alive",
             host="localhost",
             port=8000,
             last_heartbeat=datetime.utcnow(),
@@ -229,9 +229,9 @@ class TestDeleteExpired:
     def test_delete_expired_with_boundary_cases(self, test_repo, tmp_path):
         """Test delete_expired with TTL boundary conditions."""
         # Agent at exact boundary (heartbeat + TTL = now)
-        boundary_agent = AgentRecord(
-            agent_id="boundary",
-            agent_name="Boundary",
+        boundary_agent = Deployment(
+            deployment_id="boundary",
+            deployment_name="Boundary",
             host="localhost",
             port=8000,
             last_heartbeat=datetime.utcnow() - timedelta(seconds=60),
@@ -240,9 +240,9 @@ class TestDeleteExpired:
         test_repo.add(boundary_agent)
 
         # Agent just before boundary
-        almost_expired = AgentRecord(
-            agent_id="almost",
-            agent_name="Almost",
+        almost_expired = Deployment(
+            deployment_id="almost",
+            deployment_name="Almost",
             host="localhost",
             port=8001,
             last_heartbeat=datetime.utcnow() - timedelta(seconds=59),
@@ -263,9 +263,9 @@ class TestTTLCalculation:
 
     def test_expiration_time_calculation(self):
         """Test that expiration time = heartbeat + TTL."""
-        agent = AgentRecord(
-            agent_id="calc-test",
-            agent_name="Calc Test",
+        agent = Deployment(
+            deployment_id="calc-test",
+            deployment_name="Calc Test",
             host="localhost",
             port=8000,
             last_heartbeat=datetime(2025, 1, 1, 12, 0, 0),
@@ -288,9 +288,9 @@ class TestTTLCalculation:
 
     def test_very_long_ttl(self):
         """Test behavior with very large TTL values."""
-        agent = AgentRecord(
-            agent_id="long-ttl-test",
-            agent_name="Long TTL Test",
+        agent = Deployment(
+            deployment_id="long-ttl-test",
+            deployment_name="Long TTL Test",
             host="localhost",
             port=8000,
             last_heartbeat=datetime.utcnow(),
@@ -302,11 +302,11 @@ class TestTTLCalculation:
 
     def test_fractional_ttl_not_supported(self):
         """Test that TTL is stored as integer (not fractional)."""
-        # AgentRecord uses Integer type for ttl_seconds
+        # Deployment uses Integer type for ttl_seconds
         # This test documents the expected behavior
-        agent = AgentRecord(
-            agent_id="int-ttl",
-            agent_name="Int TTL",
+        agent = Deployment(
+            deployment_id="int-ttl",
+            deployment_name="Int TTL",
             host="localhost",
             port=8000,
             last_heartbeat=datetime.utcnow(),
@@ -317,14 +317,14 @@ class TestTTLCalculation:
         assert isinstance(agent.ttl_seconds, int)
 
 
-class TestAgentRecordDefaults:
-    """Test AgentRecord __init__ default values."""
+class TestDeploymentDefaults:
+    """Test Deployment __init__ default values."""
 
     def test_default_ttl_is_60_seconds(self):
         """Test that default TTL is 60 seconds when not specified."""
-        agent = AgentRecord(
-            agent_id="default-ttl",
-            agent_name="Default TTL",
+        agent = Deployment(
+            deployment_id="default-ttl",
+            deployment_name="Default TTL",
             host="localhost",
             port=8000,
         )
@@ -334,9 +334,9 @@ class TestAgentRecordDefaults:
     def test_default_last_heartbeat_is_now(self):
         """Test that default last_heartbeat is current time."""
         before = datetime.utcnow()
-        agent = AgentRecord(
-            agent_id="default-heartbeat",
-            agent_name="Default Heartbeat",
+        agent = Deployment(
+            deployment_id="default-heartbeat",
+            deployment_name="Default Heartbeat",
             host="localhost",
             port=8000,
         )
@@ -347,9 +347,9 @@ class TestAgentRecordDefaults:
     def test_default_registered_at_is_now(self):
         """Test that default registered_at is current time."""
         before = datetime.utcnow()
-        agent = AgentRecord(
-            agent_id="default-registered",
-            agent_name="Default Registered",
+        agent = Deployment(
+            deployment_id="default-registered",
+            deployment_name="Default Registered",
             host="localhost",
             port=8000,
         )
@@ -361,9 +361,9 @@ class TestAgentRecordDefaults:
         """Test that custom values override defaults."""
         custom_time = datetime(2025, 1, 1, 12, 0, 0)
 
-        agent = AgentRecord(
-            agent_id="custom-values",
-            agent_name="Custom Values",
+        agent = Deployment(
+            deployment_id="custom-values",
+            deployment_name="Custom Values",
             host="localhost",
             port=8000,
             ttl_seconds=120,

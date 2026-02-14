@@ -1,7 +1,13 @@
 """Status dashboard routes for HTMX polling.
 
 Provides periodic status updates for the dashboard showing
-active workflows, agent health, recent errors, and system resources.
+active executions, deployment health, recent errors, and system resources.
+
+Updated in UI Redesign (2026-02-13):
+- WorkflowRunRecord → Execution
+- AbstractWorkflowRunRepository → AbstractExecutionRepository
+- AgentRegistryRepository → DeploymentRepository
+- Variable names: workflow → execution, agent → deployment
 """
 
 import logging
@@ -14,10 +20,10 @@ from sqlalchemy import select, desc
 from sqlalchemy.orm import Session
 
 from configurable_agents.storage.base import (
-    AbstractWorkflowRunRepository,
-    AgentRegistryRepository,
+    AbstractExecutionRepository,
+    DeploymentRepository,
 )
-from configurable_agents.storage.models import WorkflowRunRecord
+from configurable_agents.storage.models import Execution
 
 router = APIRouter()
 
@@ -35,49 +41,49 @@ except ImportError:
 class StatusMetrics:
     """Container for status dashboard metrics."""
 
-    active_workflows: int
-    total_workflows: int
-    agent_healthy: int
-    agent_total: int
+    active_executions: int
+    total_executions: int
+    deployment_healthy: int
+    deployment_total: int
     recent_errors: List[Dict[str, str]]
     cpu_percent: float
     memory_percent: float
 
     def __init__(
         self,
-        active_workflows: int = 0,
-        total_workflows: int = 0,
-        agent_healthy: int = 0,
-        agent_total: int = 0,
+        active_executions: int = 0,
+        total_executions: int = 0,
+        deployment_healthy: int = 0,
+        deployment_total: int = 0,
         recent_errors: Optional[List[Dict[str, str]]] = None,
         cpu_percent: float = 0.0,
         memory_percent: float = 0.0,
     ):
-        self.active_workflows = active_workflows
-        self.total_workflows = total_workflows
-        self.agent_healthy = agent_healthy
-        self.agent_total = agent_total
+        self.active_executions = active_executions
+        self.total_executions = total_executions
+        self.deployment_healthy = deployment_healthy
+        self.deployment_total = deployment_total
         self.recent_errors = recent_errors or []
         self.cpu_percent = cpu_percent
         self.memory_percent = memory_percent
 
 
-async def get_active_workflow_count(repo: AbstractWorkflowRunRepository) -> Tuple[int, int]:
-    """Get count of active and total workflows.
+async def get_active_execution_count(repo: AbstractExecutionRepository) -> Tuple[int, int]:
+    """Get count of active and total executions.
 
     Args:
-        repo: Workflow run repository
+        repo: Execution repository
 
     Returns:
         Tuple of (active_count, total_count)
     """
     try:
-        # Try to get all runs
+        # Try to get all executions
         if hasattr(repo, 'engine'):
             with Session(repo.engine) as session:
-                total_stmt = select(WorkflowRunRecord)
-                active_stmt = select(WorkflowRunRecord).where(
-                    WorkflowRunRecord.status == "running"
+                total_stmt = select(Execution)
+                active_stmt = select(Execution).where(
+                    Execution.status == "running"
                 )
 
                 total_count = len(list(session.scalars(total_stmt).all()))
@@ -86,40 +92,40 @@ async def get_active_workflow_count(repo: AbstractWorkflowRunRepository) -> Tupl
                 return active_count, total_count
         else:
             # Fallback: try list_all method
-            runs = repo.list_all(limit=1000)
-            active_count = sum(1 for r in runs if r.status == "running")
-            return active_count, len(runs)
+            executions = repo.list_all(limit=1000)
+            active_count = sum(1 for e in executions if e.status == "running")
+            return active_count, len(executions)
     except Exception as e:
-        logger.warning(f"Failed to get workflow count: {e}")
+        logger.warning(f"Failed to get execution count: {e}")
         return 0, 0
 
 
-async def get_agent_health_status(repo: AgentRegistryRepository) -> Tuple[int, int]:
-    """Get agent health status.
+async def get_deployment_health_status(repo: DeploymentRepository) -> Tuple[int, int]:
+    """Get deployment health status.
 
     Args:
-        repo: Agent registry repository
+        repo: Deployment repository
 
     Returns:
         Tuple of (healthy_count, total_count)
     """
     try:
-        agents = repo.list_all(include_dead=False)
-        healthy_count = sum(1 for a in agents if a.is_alive())
-        return healthy_count, len(agents)
+        deployments = repo.list_all(include_dead=False)
+        healthy_count = sum(1 for d in deployments if d.is_alive())
+        return healthy_count, len(deployments)
     except Exception as e:
-        logger.warning(f"Failed to get agent health: {e}")
+        logger.warning(f"Failed to get deployment health: {e}")
         return 0, 0
 
 
 async def get_recent_errors(
-    repo: AbstractWorkflowRunRepository,
+    repo: AbstractExecutionRepository,
     count: int = 5,
 ) -> List[Dict[str, str]]:
-    """Get recent workflow errors.
+    """Get recent execution errors.
 
     Args:
-        repo: Workflow run repository
+        repo: Execution repository
         count: Maximum number of errors to return
 
     Returns:
@@ -130,24 +136,24 @@ async def get_recent_errors(
             with Session(repo.engine) as session:
                 cutoff = datetime.utcnow() - timedelta(hours=24)
                 stmt = (
-                    select(WorkflowRunRecord)
+                    select(Execution)
                     .where(
-                        WorkflowRunRecord.status == "failed",
-                        WorkflowRunRecord.started_at >= cutoff
+                        Execution.status == "failed",
+                        Execution.started_at >= cutoff
                     )
-                    .order_by(desc(WorkflowRunRecord.started_at))
+                    .order_by(desc(Execution.started_at))
                     .limit(count)
                 )
 
-                failed_runs = list(session.scalars(stmt).all())
+                failed_executions = list(session.scalars(stmt).all())
 
                 return [
                     {
-                        "message": run.error_message or "Unknown error",
-                        "workflow": run.workflow_name,
-                        "timestamp": run.started_at.strftime("%H:%M") if run.started_at else "??:??",
+                        "message": execution.error_message or "Unknown error",
+                        "workflow": execution.workflow_name,
+                        "timestamp": execution.started_at.strftime("%H:%M") if execution.started_at else "??:??",
                     }
-                    for run in failed_runs
+                    for execution in failed_executions
                 ]
         return []
     except Exception as e:
@@ -182,14 +188,14 @@ async def status_dashboard(request: Request):
     The fragment auto-refreshes every 10 seconds via hx-trigger.
     """
     # Get repositories from app state
-    workflow_repo: AbstractWorkflowRunRepository = request.app.state.workflow_repo
-    agent_repo: AgentRegistryRepository = request.app.state.agent_registry_repo
+    execution_repo: AbstractExecutionRepository = request.app.state.execution_repo
+    deployment_repo: DeploymentRepository = request.app.state.deployment_repo
     templates = request.app.state.templates
 
     # Gather metrics
-    active_workflows, total_workflows = await get_active_workflow_count(workflow_repo)
-    agent_healthy, agent_total = await get_agent_health_status(agent_repo)
-    recent_errors = await get_recent_errors(workflow_repo, count=5)
+    active_executions, total_executions = await get_active_execution_count(execution_repo)
+    deployment_healthy, deployment_total = await get_deployment_health_status(deployment_repo)
+    recent_errors = await get_recent_errors(execution_repo, count=5)
     cpu_percent, memory_percent = await get_system_resources()
 
     # Render status panel fragment
@@ -197,10 +203,10 @@ async def status_dashboard(request: Request):
         "partials/status_panel.html",
         {
             "request": request,
-            "active_workflows": active_workflows,
-            "total_workflows": total_workflows,
-            "agent_healthy": agent_healthy,
-            "agent_total": agent_total,
+            "active_executions": active_executions,
+            "total_executions": total_executions,
+            "deployment_healthy": deployment_healthy,
+            "deployment_total": deployment_total,
             "recent_errors": recent_errors,
             "cpu_percent": cpu_percent,
             "memory_percent": memory_percent,
@@ -215,15 +221,15 @@ async def health_check(request: Request):
 
     Returns JSON with overall system health status.
     """
-    workflow_repo: AbstractWorkflowRunRepository = request.app.state.workflow_repo
-    agent_repo: AgentRegistryRepository = request.app.state.agent_registry_repo
+    execution_repo: AbstractExecutionRepository = request.app.state.execution_repo
+    deployment_repo: DeploymentRepository = request.app.state.deployment_repo
 
-    active_workflows, _ = await get_active_workflow_count(workflow_repo)
-    agent_healthy, _ = await get_agent_health_status(agent_repo)
+    active_executions, _ = await get_active_execution_count(execution_repo)
+    deployment_healthy, _ = await get_deployment_health_status(deployment_repo)
 
     return {
         "status": "healthy",
         "timestamp": datetime.utcnow().isoformat(),
-        "active_workflows": active_workflows,
-        "healthy_agents": agent_healthy,
+        "active_executions": active_executions,
+        "healthy_deployments": deployment_healthy,
     }

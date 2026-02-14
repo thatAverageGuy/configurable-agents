@@ -1,6 +1,6 @@
-"""Tests for AgentRegistryClient.
+"""Tests for DeploymentClient.
 
-Tests the client-side component that agents use to register themselves
+Tests the client-side component that deployments use to register themselves
 and send heartbeats to the registry server.
 """
 
@@ -11,7 +11,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 import pytest
 import httpx
 
-from configurable_agents.registry.client import AgentRegistryClient
+from configurable_agents.registry.client import DeploymentClient
 
 
 class TestClientInitialization:
@@ -19,23 +19,23 @@ class TestClientInitialization:
 
     def test_stores_parameters_correctly(self):
         """Test that client stores initialization parameters."""
-        client = AgentRegistryClient(
+        client = DeploymentClient(
             registry_url="http://localhost:9000",
-            agent_id="test-agent",
+            deployment_id="test-deployment",
             ttl_seconds=120,
             heartbeat_interval=30,
         )
 
         assert client.registry_url == "http://localhost:9000"
-        assert client.agent_id == "test-agent"
+        assert client.deployment_id == "test-deployment"
         assert client.ttl_seconds == 120
         assert client.heartbeat_interval == 30
 
     def test_default_values(self):
         """Test that default values are set correctly."""
-        client = AgentRegistryClient(
+        client = DeploymentClient(
             registry_url="http://localhost:9000",
-            agent_id="test-agent",
+            deployment_id="test-deployment",
         )
 
         assert client.ttl_seconds == 60
@@ -43,9 +43,9 @@ class TestClientInitialization:
 
     def test_removes_trailing_slash_from_url(self):
         """Test that trailing slash is removed from registry URL."""
-        client = AgentRegistryClient(
+        client = DeploymentClient(
             registry_url="http://localhost:9000/",
-            agent_id="test-agent",
+            deployment_id="test-deployment",
         )
 
         assert client.registry_url == "http://localhost:9000"
@@ -53,17 +53,17 @@ class TestClientInitialization:
     def test_raises_error_if_heartbeat_interval_ge_ttl(self):
         """Test that ValueError is raised if heartbeat_interval >= ttl_seconds."""
         with pytest.raises(ValueError, match="heartbeat_interval.*must be less than"):
-            AgentRegistryClient(
+            DeploymentClient(
                 registry_url="http://localhost:9000",
-                agent_id="test-agent",
+                deployment_id="test-deployment",
                 ttl_seconds=60,
                 heartbeat_interval=60,
             )
 
         with pytest.raises(ValueError, match="heartbeat_interval.*must be less than"):
-            AgentRegistryClient(
+            DeploymentClient(
                 registry_url="http://localhost:9000",
-                agent_id="test-agent",
+                deployment_id="test-deployment",
                 ttl_seconds=30,
                 heartbeat_interval=60,
             )
@@ -73,22 +73,22 @@ class TestGetHostPort:
     """Test host/port detection logic."""
 
     def test_uses_env_vars_when_set(self):
-        """Test that AGENT_HOST and AGENT_PORT env vars are used."""
-        client = AgentRegistryClient(
+        """Test that DEPLOYMENT_HOST and DEPLOYMENT_PORT env vars are used."""
+        client = DeploymentClient(
             registry_url="http://localhost:9000",
-            agent_id="test-agent",
+            deployment_id="test-deployment",
         )
 
-        with patch.dict("os.environ", {"AGENT_HOST": "agent-host", "AGENT_PORT": "8080"}):
+        with patch.dict("os.environ", {"DEPLOYMENT_HOST": "agent-host", "DEPLOYMENT_PORT": "8080"}):
             host, port = client._get_host_port({})
             assert host == "agent-host"
             assert port == 8080
 
     def test_uses_metadata_when_env_not_set(self):
         """Test that metadata host/port are used when env vars not set."""
-        client = AgentRegistryClient(
+        client = DeploymentClient(
             registry_url="http://localhost:9000",
-            agent_id="test-agent",
+            deployment_id="test-agent",
         )
 
         with patch.dict("os.environ", {}, clear=True):
@@ -98,9 +98,9 @@ class TestGetHostPort:
 
     def test_falls_back_to_detected_hostname(self):
         """Test that hostname is detected when not provided."""
-        client = AgentRegistryClient(
+        client = DeploymentClient(
             registry_url="http://localhost:9000",
-            agent_id="test-agent",
+            deployment_id="test-agent",
         )
 
         with patch.dict("os.environ", {}, clear=True):
@@ -111,9 +111,9 @@ class TestGetHostPort:
 
     def test_default_port_8000(self):
         """Test that port defaults to 8000."""
-        client = AgentRegistryClient(
+        client = DeploymentClient(
             registry_url="http://localhost:9000",
-            agent_id="test-agent",
+            deployment_id="test-agent",
         )
 
         with patch.dict("os.environ", {}, clear=True):
@@ -122,12 +122,12 @@ class TestGetHostPort:
 
     def test_invalid_port_defaults_to_8000(self):
         """Test that invalid port string falls back to 8000."""
-        client = AgentRegistryClient(
+        client = DeploymentClient(
             registry_url="http://localhost:9000",
-            agent_id="test-agent",
+            deployment_id="test-agent",
         )
 
-        with patch.dict("os.environ", {"AGENT_PORT": "invalid"}):
+        with patch.dict("os.environ", {"DEPLOYMENT_PORT": "invalid"}):
             host, port = client._get_host_port({})
             assert port == 8000
 
@@ -138,9 +138,9 @@ class TestRegister:
     @pytest.mark.asyncio
     async def test_register_sends_correct_payload(self):
         """Test that register sends correct POST request."""
-        client = AgentRegistryClient(
+        client = DeploymentClient(
             registry_url="http://localhost:9000",
-            agent_id="test-agent",
+            deployment_id="test-agent",
             ttl_seconds=90,
         )
 
@@ -151,16 +151,16 @@ class TestRegister:
 
         # Mock host/port detection
         with patch.object(client, "_get_host_port", return_value=("test-host", 8888)):
-            await client.register({"agent_name": "Test Agent", "metadata": '{"key": "value"}'})
+            await client.register({"deployment_name": "Test Agent", "metadata": '{"key": "value"}'})
 
         # Verify the POST request
         client._http_client.post.assert_called_once()
         call_args = client._http_client.post.call_args
-        assert call_args[0][0] == "http://localhost:9000/agents/register"
+        assert call_args[0][0] == "http://localhost:9000/deployments/register"
 
         payload = call_args[1]["json"]
-        assert payload["agent_id"] == "test-agent"
-        assert payload["agent_name"] == "Test Agent"
+        assert payload["deployment_id"] == "test-agent"
+        assert payload["deployment_name"] == "Test Agent"
         assert payload["host"] == "test-host"
         assert payload["port"] == 8888
         assert payload["ttl_seconds"] == 90
@@ -169,9 +169,9 @@ class TestRegister:
     @pytest.mark.asyncio
     async def test_register_stores_host_port(self):
         """Test that register stores detected host and port."""
-        client = AgentRegistryClient(
+        client = DeploymentClient(
             registry_url="http://localhost:9000",
-            agent_id="test-agent",
+            deployment_id="test-agent",
         )
 
         mock_response = AsyncMock()
@@ -187,9 +187,9 @@ class TestRegister:
     @pytest.mark.asyncio
     async def test_register_with_empty_metadata(self):
         """Test register with empty metadata."""
-        client = AgentRegistryClient(
+        client = DeploymentClient(
             registry_url="http://localhost:9000",
-            agent_id="test-agent",
+            deployment_id="test-agent",
         )
 
         mock_response = AsyncMock()
@@ -200,15 +200,15 @@ class TestRegister:
             await client.register()
 
         payload = client._http_client.post.call_args[1]["json"]
-        assert payload["agent_name"] == "test-agent"  # defaults to agent_id
+        assert payload["deployment_name"] == "test-agent"  # defaults to deployment_id
         assert payload["metadata"] is None
 
     @pytest.mark.asyncio
     async def test_register_raises_on_http_error(self):
         """Test that register raises HTTPStatusError on failure."""
-        client = AgentRegistryClient(
+        client = DeploymentClient(
             registry_url="http://localhost:9000",
-            agent_id="test-agent",
+            deployment_id="test-agent",
         )
 
         mock_response = AsyncMock()
@@ -230,9 +230,9 @@ class TestHeartbeatLoop:
     @pytest.mark.asyncio
     async def test_start_heartbeat_loop_creates_task(self):
         """Test that start_heartbeat_loop creates a background task."""
-        client = AgentRegistryClient(
+        client = DeploymentClient(
             registry_url="http://localhost:9000",
-            agent_id="test-agent",
+            deployment_id="test-agent",
             heartbeat_interval=1,
         )
 
@@ -260,9 +260,9 @@ class TestHeartbeatLoop:
     @pytest.mark.asyncio
     async def test_heartbeat_loop_cancellation(self):
         """Test that heartbeat loop exits cleanly on CancelledError."""
-        client = AgentRegistryClient(
+        client = DeploymentClient(
             registry_url="http://localhost:9000",
-            agent_id="test-agent",
+            deployment_id="test-agent",
             heartbeat_interval=0.5,  # Shorter interval
         )
 
@@ -286,9 +286,9 @@ class TestHeartbeatLoop:
     @pytest.mark.asyncio
     async def test_heartbeat_retry_on_error(self):
         """Test that heartbeat loop retries on HTTP errors."""
-        client = AgentRegistryClient(
+        client = DeploymentClient(
             registry_url="http://localhost:9000",
-            agent_id="test-agent",
+            deployment_id="test-agent",
             heartbeat_interval=0.1,  # Short interval for testing
         )
 
@@ -322,9 +322,9 @@ class TestHeartbeatLoop:
     @pytest.mark.asyncio
     async def test_heartbeat_sends_correct_request(self):
         """Test that heartbeat sends correct POST request."""
-        client = AgentRegistryClient(
+        client = DeploymentClient(
             registry_url="http://localhost:9000",
-            agent_id="test-agent",
+            deployment_id="test-agent",
             heartbeat_interval=0.1,
         )
 
@@ -346,7 +346,7 @@ class TestHeartbeatLoop:
 
         # Verify request
         assert len(calls) >= 1
-        assert calls[0] == "http://localhost:9000/agents/test-agent/heartbeat"
+        assert calls[0] == "http://localhost:9000/deployments/test-agent/heartbeat"
 
         # Clean up
         client._heartbeat_task.cancel()
@@ -362,9 +362,9 @@ class TestDeregister:
     @pytest.mark.asyncio
     async def test_deregister_cancels_heartbeat_task(self):
         """Test that deregister cancels heartbeat task."""
-        client = AgentRegistryClient(
+        client = DeploymentClient(
             registry_url="http://localhost:9000",
-            agent_id="test-agent",
+            deployment_id="test-agent",
             heartbeat_interval=0.1,
         )
 
@@ -393,9 +393,9 @@ class TestDeregister:
     @pytest.mark.asyncio
     async def test_deregister_sends_delete_request(self):
         """Test that deregister sends DELETE request."""
-        client = AgentRegistryClient(
+        client = DeploymentClient(
             registry_url="http://localhost:9000",
-            agent_id="test-agent",
+            deployment_id="test-agent",
         )
 
         mock_response = AsyncMock()
@@ -405,15 +405,15 @@ class TestDeregister:
         await client.deregister()
 
         client._http_client.delete.assert_called_once_with(
-            "http://localhost:9000/agents/test-agent"
+            "http://localhost:9000/deployments/test-agent"
         )
 
     @pytest.mark.asyncio
     async def test_deregister_best_effort_on_error(self):
         """Test that deregister doesn't raise on HTTP errors."""
-        client = AgentRegistryClient(
+        client = DeploymentClient(
             registry_url="http://localhost:9000",
-            agent_id="test-agent",
+            deployment_id="test-agent",
         )
 
         # Make DELETE raise an error
@@ -427,9 +427,9 @@ class TestDeregister:
     @pytest.mark.asyncio
     async def test_deregister_without_heartbeat_task(self):
         """Test deregister when no heartbeat task is running."""
-        client = AgentRegistryClient(
+        client = DeploymentClient(
             registry_url="http://localhost:9000",
-            agent_id="test-agent",
+            deployment_id="test-agent",
         )
 
         mock_response = AsyncMock()
@@ -448,9 +448,9 @@ class TestClose:
     @pytest.mark.asyncio
     async def test_close_closes_http_client(self):
         """Test that close closes the HTTP client."""
-        client = AgentRegistryClient(
+        client = DeploymentClient(
             registry_url="http://localhost:9000",
-            agent_id="test-agent",
+            deployment_id="test-agent",
         )
 
         client._http_client.aclose = AsyncMock()
@@ -465,9 +465,9 @@ class TestClose:
         mock_response = AsyncMock()
         mock_response.raise_for_status = MagicMock()
 
-        client = AgentRegistryClient(
+        client = DeploymentClient(
             registry_url="http://localhost:9000",
-            agent_id="test-agent",
+            deployment_id="test-agent",
         )
         client._http_client.post = AsyncMock(return_value=mock_response)
         client._http_client.delete = AsyncMock(return_value=mock_response)

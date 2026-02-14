@@ -1,11 +1,16 @@
 """SQLite implementation of storage repository interfaces.
 
-Provides concrete implementations of AbstractWorkflowRunRepository,
-AbstractExecutionStateRepository, AgentRegistryRepository, and
+Provides concrete implementations of AbstractExecutionRepository,
+AbstractExecutionStateRepository, DeploymentRepository, and
 ChatSessionRepository using SQLAlchemy 2.0 with SQLite backend.
 
 All database operations use context manager pattern for automatic
 transaction handling and connection cleanup.
+
+Renamed in UI Redesign (2026-02-13):
+- SQLiteWorkflowRunRepository → SQLiteExecutionRepository
+- SqliteAgentRegistryRepository → SqliteDeploymentRepository
+- SqliteOrchestratorRepository → REMOVED
 """
 
 import json
@@ -21,32 +26,32 @@ logger = logging.getLogger(__name__)
 
 from configurable_agents.storage.base import (
     AbstractExecutionStateRepository,
-    AbstractWorkflowRunRepository,
-    AgentRegistryRepository,
+    AbstractExecutionRepository,
+    DeploymentRepository,
     ChatSessionRepository,
     WebhookEventRepository,
     MemoryRepository,
     WorkflowRegistrationRepository,
-    OrchestratorRepository,
 )
 from configurable_agents.storage.models import (
-    ExecutionStateRecord,
-    WorkflowRunRecord,
-    AgentRecord,
+    ExecutionState,
+    Execution,
+    Deployment,
     ChatSession,
     ChatMessage,
     WebhookEventRecord,
     MemoryRecord,
     WorkflowRegistrationRecord,
-    OrchestratorRecord,
 )
 
 
-class SQLiteWorkflowRunRepository(AbstractWorkflowRunRepository):
-    """SQLite implementation of workflow run repository.
+class SQLiteExecutionRepository(AbstractExecutionRepository):
+    """SQLite implementation of execution repository.
 
-    Provides CRUD operations for WorkflowRunRecord using SQLite backend.
+    Provides CRUD operations for Execution using SQLite backend.
     Uses context managers for automatic transaction handling.
+
+    Renamed from SQLiteWorkflowRunRepository in UI Redesign.
 
     Attributes:
         engine: SQLAlchemy Engine instance for database connections
@@ -60,97 +65,97 @@ class SQLiteWorkflowRunRepository(AbstractWorkflowRunRepository):
         """
         self.engine = engine
 
-    def add(self, run: WorkflowRunRecord) -> None:
-        """Persist a new workflow run.
+    def add(self, execution: Execution) -> None:
+        """Persist a new execution.
 
         Args:
-            run: WorkflowRunRecord instance to persist
+            execution: Execution instance to persist
 
         Raises:
-            IntegrityError: If run ID already exists
+            IntegrityError: If execution ID already exists
         """
         with Session(self.engine) as session:
-            session.add(run)
+            session.add(execution)
             session.commit()
 
-    def get(self, run_id: str) -> Optional[WorkflowRunRecord]:
-        """Get a workflow run by ID.
+    def get(self, execution_id: str) -> Optional[Execution]:
+        """Get an execution by ID.
 
         Args:
-            run_id: Unique identifier for the workflow run
+            execution_id: Unique identifier for the execution
 
         Returns:
-            WorkflowRunRecord if found, None otherwise
+            Execution if found, None otherwise
         """
         with Session(self.engine) as session:
-            return session.get(WorkflowRunRecord, run_id)
+            return session.get(Execution, execution_id)
 
     def list_by_workflow(
         self, workflow_name: str, limit: int = 100
-    ) -> List[WorkflowRunRecord]:
-        """List runs for a specific workflow.
+    ) -> List[Execution]:
+        """List executions for a specific workflow.
 
         Args:
             workflow_name: Name of the workflow to filter by
-            limit: Maximum number of runs to return (default: 100)
+            limit: Maximum number of executions to return (default: 100)
 
         Returns:
-            List of WorkflowRunRecord instances, ordered by started_at DESC
+            List of Execution instances, ordered by started_at DESC
         """
         with Session(self.engine) as session:
-            stmt: Select[WorkflowRunRecord] = (
-                select(WorkflowRunRecord)
-                .where(WorkflowRunRecord.workflow_name == workflow_name)
-                .order_by(WorkflowRunRecord.started_at.desc())
+            stmt: Select[Execution] = (
+                select(Execution)
+                .where(Execution.workflow_name == workflow_name)
+                .order_by(Execution.started_at.desc())
                 .limit(limit)
             )
             return list(session.scalars(stmt).all())
 
-    def update_status(self, run_id: str, status: str) -> None:
-        """Update the status of a workflow run.
+    def update_status(self, execution_id: str, status: str) -> None:
+        """Update the status of an execution.
 
         Also sets completed_at timestamp when status is "completed" or "failed".
 
         Args:
-            run_id: Unique identifier for the workflow run
+            execution_id: Unique identifier for the execution
             status: New status value ("pending", "running", "completed", "failed")
 
         Raises:
-            ValueError: If run_id not found
+            ValueError: If execution_id not found
         """
         with Session(self.engine) as session:
-            run = session.get(WorkflowRunRecord, run_id)
-            if run is None:
-                raise ValueError(f"Workflow run not found: {run_id}")
+            execution = session.get(Execution, execution_id)
+            if execution is None:
+                raise ValueError(f"Execution not found: {execution_id}")
 
-            run.status = status
+            execution.status = status
 
             # Set completed_at for terminal states
             if status in ("completed", "failed"):
-                run.completed_at = datetime.utcnow()
+                execution.completed_at = datetime.utcnow()
 
             session.commit()
 
-    def delete(self, run_id: str) -> None:
-        """Delete a workflow run.
+    def delete(self, execution_id: str) -> None:
+        """Delete an execution.
 
         Args:
-            run_id: Unique identifier for the workflow run
+            execution_id: Unique identifier for the execution
 
         Raises:
-            ValueError: If run_id not found
+            ValueError: If execution_id not found
         """
         with Session(self.engine) as session:
-            run = session.get(WorkflowRunRecord, run_id)
-            if run is None:
-                raise ValueError(f"Workflow run not found: {run_id}")
+            execution = session.get(Execution, execution_id)
+            if execution is None:
+                raise ValueError(f"Execution not found: {execution_id}")
 
-            session.delete(run)
+            session.delete(execution)
             session.commit()
 
-    def update_run_completion(
+    def update_execution_completion(
         self,
-        run_id: str,
+        execution_id: str,
         status: str,
         duration_seconds: float,
         total_tokens: int,
@@ -159,10 +164,10 @@ class SQLiteWorkflowRunRepository(AbstractWorkflowRunRepository):
         error_message: Optional[str] = None,
         bottleneck_info: Optional[str] = None,
     ) -> None:
-        """Update a workflow run with completion metrics.
+        """Update an execution with completion metrics.
 
         Args:
-            run_id: Unique identifier for the workflow run
+            execution_id: Unique identifier for the execution
             status: New status value ("completed" or "failed")
             duration_seconds: Execution time in seconds
             total_tokens: Total tokens used across all LLM calls
@@ -172,25 +177,25 @@ class SQLiteWorkflowRunRepository(AbstractWorkflowRunRepository):
             bottleneck_info: JSON-serialized bottleneck analysis (optional)
 
         Raises:
-            ValueError: If run_id not found
+            ValueError: If execution_id not found
         """
         with Session(self.engine) as session:
-            run = session.get(WorkflowRunRecord, run_id)
-            if run is None:
-                raise ValueError(f"Workflow run not found: {run_id}")
+            execution = session.get(Execution, execution_id)
+            if execution is None:
+                raise ValueError(f"Execution not found: {execution_id}")
 
-            run.status = status
-            run.completed_at = datetime.utcnow()
-            run.duration_seconds = duration_seconds
-            run.total_tokens = total_tokens
-            run.total_cost_usd = total_cost_usd
+            execution.status = status
+            execution.completed_at = datetime.utcnow()
+            execution.duration_seconds = duration_seconds
+            execution.total_tokens = total_tokens
+            execution.total_cost_usd = total_cost_usd
 
             if outputs is not None:
-                run.outputs = outputs
+                execution.outputs = outputs
             if error_message is not None:
-                run.error_message = error_message
+                execution.error_message = error_message
             if bottleneck_info is not None:
-                run.bottleneck_info = bottleneck_info
+                execution.bottleneck_info = bottleneck_info
 
             session.commit()
 
@@ -214,47 +219,47 @@ class SQLiteExecutionStateRepository(AbstractExecutionStateRepository):
         self.engine = engine
 
     def save_state(
-        self, run_id: str, state_data: Dict[str, Any], node_id: str
+        self, execution_id: str, state_data: Dict[str, Any], node_id: str
     ) -> None:
         """Save execution state checkpoint after a node.
 
         Args:
-            run_id: Unique identifier for the workflow run
+            execution_id: Unique identifier for the execution
             state_data: Current workflow state as a dictionary
             node_id: ID of the node that produced this state
 
         Raises:
-            ValueError: If run_id not found in workflow_runs
+            ValueError: If execution_id not found in executions
         """
         with Session(self.engine) as session:
-            # Verify run exists
-            run = session.get(WorkflowRunRecord, run_id)
-            if run is None:
-                raise ValueError(f"Workflow run not found: {run_id}")
+            # Verify execution exists
+            execution = session.get(Execution, execution_id)
+            if execution is None:
+                raise ValueError(f"Execution not found: {execution_id}")
 
             # Create state record
-            record = ExecutionStateRecord(
-                run_id=run_id,
+            record = ExecutionState(
+                execution_id=execution_id,
                 node_id=node_id,
                 state_data=json.dumps(state_data),
             )
             session.add(record)
             session.commit()
 
-    def get_latest_state(self, run_id: str) -> Optional[Dict[str, Any]]:
-        """Get the latest state checkpoint for a run.
+    def get_latest_state(self, execution_id: str) -> Optional[Dict[str, Any]]:
+        """Get the latest state checkpoint for an execution.
 
         Args:
-            run_id: Unique identifier for the workflow run
+            execution_id: Unique identifier for the execution
 
         Returns:
             State dictionary if found, None otherwise
         """
         with Session(self.engine) as session:
-            stmt: Select[ExecutionStateRecord] = (
-                select(ExecutionStateRecord)
-                .where(ExecutionStateRecord.run_id == run_id)
-                .order_by(ExecutionStateRecord.created_at.desc())
+            stmt: Select[ExecutionState] = (
+                select(ExecutionState)
+                .where(ExecutionState.execution_id == execution_id)
+                .order_by(ExecutionState.created_at.desc())
                 .limit(1)
             )
             record = session.scalar(stmt)
@@ -264,11 +269,11 @@ class SQLiteExecutionStateRepository(AbstractExecutionStateRepository):
 
             return json.loads(record.state_data)
 
-    def get_state_history(self, run_id: str) -> List[Dict[str, Any]]:
-        """Get all state checkpoints for a run.
+    def get_state_history(self, execution_id: str) -> List[Dict[str, Any]]:
+        """Get all state checkpoints for an execution.
 
         Args:
-            run_id: Unique identifier for the workflow run
+            execution_id: Unique identifier for the execution
 
         Returns:
             List of state checkpoints, each containing:
@@ -278,10 +283,10 @@ class SQLiteExecutionStateRepository(AbstractExecutionStateRepository):
             Ordered by created_at ASC (oldest first)
         """
         with Session(self.engine) as session:
-            stmt: Select[ExecutionStateRecord] = (
-                select(ExecutionStateRecord)
-                .where(ExecutionStateRecord.run_id == run_id)
-                .order_by(ExecutionStateRecord.created_at.asc())
+            stmt: Select[ExecutionState] = (
+                select(ExecutionState)
+                .where(ExecutionState.execution_id == execution_id)
+                .order_by(ExecutionState.created_at.asc())
             )
             records = list(session.scalars(stmt).all())
 
@@ -295,11 +300,13 @@ class SQLiteExecutionStateRepository(AbstractExecutionStateRepository):
             ]
 
 
-class SqliteAgentRegistryRepository(AgentRegistryRepository):
-    """SQLite implementation of agent registry repository.
+class SqliteDeploymentRepository(DeploymentRepository):
+    """SQLite implementation of deployment repository.
 
-    Provides CRUD operations for AgentRecord using SQLite backend.
+    Provides CRUD operations for Deployment using SQLite backend.
     Uses context managers for automatic transaction handling.
+
+    Renamed from SqliteAgentRegistryRepository in UI Redesign.
 
     Attributes:
         engine: SQLAlchemy Engine instance for database connections
@@ -313,123 +320,120 @@ class SqliteAgentRegistryRepository(AgentRegistryRepository):
         """
         self.engine = engine
 
-    def add(self, agent: AgentRecord) -> None:
-        """Register a new agent.
+    def add(self, deployment: Deployment) -> None:
+        """Register a new deployment.
 
         Args:
-            agent: AgentRecord instance to persist
+            deployment: Deployment instance to persist
 
         Raises:
-            IntegrityError: If agent_id already exists
+            IntegrityError: If deployment_id already exists
         """
         with Session(self.engine) as session:
-            session.add(agent)
+            session.add(deployment)
             session.commit()
 
-    def get(self, agent_id: str) -> Optional[AgentRecord]:
-        """Get an agent by ID.
+    def get(self, deployment_id: str) -> Optional[Deployment]:
+        """Get a deployment by ID.
 
         Args:
-            agent_id: Unique identifier for the agent
+            deployment_id: Unique identifier for the deployment
 
         Returns:
-            AgentRecord if found, None otherwise
+            Deployment if found, None otherwise
         """
         with Session(self.engine) as session:
-            return session.get(AgentRecord, agent_id)
+            return session.get(Deployment, deployment_id)
 
-    def list_all(self, include_dead: bool = False) -> List[AgentRecord]:
-        """List all registered agents.
+    def list_all(self, include_dead: bool = False) -> List[Deployment]:
+        """List all registered deployments.
 
         Args:
-            include_dead: If False, only return agents where is_alive() is True.
-                         If True, return all agents regardless of TTL status.
+            include_dead: If False, only return deployments where is_alive() is True.
+                         If True, return all deployments regardless of TTL status.
 
         Returns:
-            List of AgentRecord instances
+            List of Deployment instances
         """
         with Session(self.engine) as session:
-            stmt: Select[AgentRecord] = select(AgentRecord).order_by(
-                AgentRecord.registered_at.desc()
+            stmt: Select[Deployment] = select(Deployment).order_by(
+                Deployment.registered_at.desc()
             )
-            agents = list(session.scalars(stmt).all())
+            deployments = list(session.scalars(stmt).all())
 
             if not include_dead:
-                agents = [a for a in agents if a.is_alive()]
+                deployments = [d for d in deployments if d.is_alive()]
 
-            return agents
+            return deployments
 
-    def update_heartbeat(self, agent_id: str) -> None:
-        """Update an agent's heartbeat timestamp.
+    def update_heartbeat(self, deployment_id: str) -> None:
+        """Update a deployment's heartbeat timestamp.
 
         Sets last_heartbeat to the current time, effectively refreshing
-        the agent's TTL.
+        the deployment's TTL.
 
         Args:
-            agent_id: Unique identifier for the agent
+            deployment_id: Unique identifier for the deployment
 
         Raises:
-            ValueError: If agent_id not found
+            ValueError: If deployment_id not found
         """
         with Session(self.engine) as session:
-            agent = session.get(AgentRecord, agent_id)
-            if agent is None:
-                raise ValueError(f"Agent not found: {agent_id}")
+            deployment = session.get(Deployment, deployment_id)
+            if deployment is None:
+                raise ValueError(f"Deployment not found: {deployment_id}")
 
-            agent.last_heartbeat = datetime.utcnow()
+            deployment.last_heartbeat = datetime.utcnow()
             session.commit()
 
-    def delete(self, agent_id: str) -> None:
-        """Delete an agent from the registry.
+    def delete(self, deployment_id: str) -> None:
+        """Delete a deployment from the registry.
 
         Args:
-            agent_id: Unique identifier for the agent
+            deployment_id: Unique identifier for the deployment
 
         Raises:
-            ValueError: If agent_id not found
+            ValueError: If deployment_id not found
         """
         with Session(self.engine) as session:
-            agent = session.get(AgentRecord, agent_id)
-            if agent is None:
-                raise ValueError(f"Agent not found: {agent_id}")
+            deployment = session.get(Deployment, deployment_id)
+            if deployment is None:
+                raise ValueError(f"Deployment not found: {deployment_id}")
 
-            session.delete(agent)
+            session.delete(deployment)
             session.commit()
 
     def delete_expired(self) -> int:
-        """Delete all expired agents from the registry.
+        """Delete all expired deployments from the registry.
 
-        An agent is considered expired if the current time is after
+        A deployment is considered expired if the current time is after
         its expiration time (last_heartbeat + ttl_seconds).
 
         Returns:
-            Number of agents deleted
+            Number of deployments deleted
         """
         with Session(self.engine) as session:
-            # Calculate the cutoff time for expired agents
-            now = datetime.utcnow()
+            # Query all deployments
+            stmt: Select[Deployment] = select(Deployment)
+            deployments = list(session.scalars(stmt).all())
 
-            # Query all agents
-            stmt: Select[AgentRecord] = select(AgentRecord)
-            agents = list(session.scalars(stmt).all())
-
-            # Filter and delete expired agents
-            expired_agents = [
-                a for a in agents if not a.is_alive()
+            # Filter and delete expired deployments
+            expired_deployments = [
+                d for d in deployments if not d.is_alive()
             ]
 
             count = 0
-            for agent in expired_agents:
-                session.delete(agent)
+            for deployment in expired_deployments:
+                session.delete(deployment)
                 count += 1
 
             session.commit()
             return count
 
-    def query_by_metadata(self, metadata_filter: Dict[str, Any]) -> List[AgentRecord]:
-        """Query agents by metadata/capabilities.
+    def query_by_metadata(self, metadata_filter: Dict[str, Any]) -> List[Deployment]:
+        """Query deployments by metadata/capabilities.
 
-        Allows filtering agents by their metadata JSON blob using
+        Allows filtering deployments by their metadata JSON blob using
         key-value matching with wildcard support.
 
         Args:
@@ -438,63 +442,63 @@ class SqliteAgentRegistryRepository(AgentRegistryRepository):
                 - Nested keys use dot notation (e.g., {"capabilities.llm": true})
 
         Returns:
-            List of AgentRecord instances matching the criteria
+            List of Deployment instances matching the criteria
         """
-        # Get all agents first
-        agents = self.list_all(include_dead=False)
+        # Get all deployments first
+        deployments = self.list_all(include_dead=False)
 
         # Filter by metadata
         filtered = []
-        for agent in agents:
-            metadata_str = agent.agent_metadata
+        for deployment in deployments:
+            metadata_str = deployment.deployment_metadata
             if not metadata_str:
                 continue
 
             try:
                 metadata = json.loads(metadata_str) if isinstance(metadata_str, str) else metadata_str
 
-                # Check if agent matches all filters
+                # Check if deployment matches all filters
                 if self._matches_filters(metadata, metadata_filter):
-                    filtered.append(agent)
+                    filtered.append(deployment)
 
             except (json.JSONDecodeError, TypeError):
-                logger.warning(f"Failed to parse metadata for agent {agent.agent_id}")
+                logger.warning(f"Failed to parse metadata for deployment {deployment.deployment_id}")
                 continue
 
         return filtered
 
-    def get_active_agents(self, cutoff_seconds: int = 60) -> List[AgentRecord]:
-        """Get only active (recently heartbeating) agents.
+    def get_active_deployments(self, cutoff_seconds: int = 60) -> List[Deployment]:
+        """Get only active (recently heartbeating) deployments.
 
-        An agent is considered active if its last heartbeat was within
+        A deployment is considered active if its last heartbeat was within
         the specified cutoff period.
 
         Args:
             cutoff_seconds: Seconds since last heartbeat (default: 60)
 
         Returns:
-            List of active AgentRecord instances
+            List of active Deployment instances
         """
-        # Get all agents (including dead ones for filtering)
-        all_agents = self.list_all(include_dead=True)
+        # Get all deployments (including dead ones for filtering)
+        all_deployments = self.list_all(include_dead=True)
         cutoff_time = datetime.utcnow() - timedelta(seconds=cutoff_seconds)
 
-        active_agents = []
-        for agent in all_agents:
-            # Skip agents with no heartbeat
-            if agent.last_heartbeat is None:
+        active_deployments = []
+        for deployment in all_deployments:
+            # Skip deployments with no heartbeat
+            if deployment.last_heartbeat is None:
                 continue
             # Check if heartbeat is recent enough
-            if agent.last_heartbeat >= cutoff_time:
-                active_agents.append(agent)
+            if deployment.last_heartbeat >= cutoff_time:
+                active_deployments.append(deployment)
 
-        return active_agents
+        return active_deployments
 
     def _matches_filters(self, metadata: Dict[str, Any], filters: Dict[str, Any]) -> bool:
         """Check if metadata matches all filter criteria.
 
         Args:
-            metadata: Agent metadata dictionary
+            metadata: Deployment metadata dictionary
             filters: Filter criteria
 
         Returns:
@@ -1115,135 +1119,3 @@ class SqliteWorkflowRegistrationRepository(WorkflowRegistrationRepository):
                     result.append(record.to_dict())
 
             return result
-
-
-class SqliteOrchestratorRepository(OrchestratorRepository):
-    """SQLite implementation of orchestrator registry repository.
-
-    Provides CRUD operations for OrchestratorRecord using SQLite backend.
-    Uses context managers for automatic transaction handling.
-
-    Attributes:
-        engine: SQLAlchemy Engine instance for database connections
-    """
-
-    def __init__(self, engine: Engine) -> None:
-        """Initialize repository with database engine.
-
-        Args:
-            engine: SQLAlchemy Engine instance (created by factory)
-        """
-        self.engine = engine
-
-    def add(self, orchestrator: Any) -> None:
-        """Register a new orchestrator.
-
-        Args:
-            orchestrator: OrchestratorRecord instance to persist
-
-        Raises:
-            IntegrityError: If orchestrator_id already exists
-        """
-        with Session(self.engine) as session:
-            session.add(orchestrator)
-            session.commit()
-
-    def get(self, orchestrator_id: str) -> Optional[Any]:
-        """Get an orchestrator by ID.
-
-        Args:
-            orchestrator_id: Unique identifier for the orchestrator
-
-        Returns:
-            OrchestratorRecord if found, None otherwise
-        """
-        with Session(self.engine) as session:
-            return session.get(OrchestratorRecord, orchestrator_id)
-
-    def list_all(self, include_dead: bool = False) -> List[Any]:
-        """List all registered orchestrators.
-
-        Args:
-            include_dead: If False, only return orchestrators where is_alive() is True.
-                         If True, return all orchestrators regardless of TTL status.
-
-        Returns:
-            List of OrchestratorRecord instances
-        """
-        with Session(self.engine) as session:
-            stmt: Select[OrchestratorRecord] = select(OrchestratorRecord).order_by(
-                OrchestratorRecord.registered_at.desc()
-            )
-            orchestrators = list(session.scalars(stmt).all())
-
-            if not include_dead:
-                orchestrators = [o for o in orchestrators if o.is_alive()]
-
-            return orchestrators
-
-    def update_heartbeat(self, orchestrator_id: str) -> None:
-        """Update an orchestrator's heartbeat timestamp.
-
-        Sets last_heartbeat to the current time, effectively refreshing
-        the orchestrator's TTL.
-
-        Args:
-            orchestrator_id: Unique identifier for the orchestrator
-
-        Raises:
-            ValueError: If orchestrator_id not found
-        """
-        with Session(self.engine) as session:
-            orchestrator = session.get(OrchestratorRecord, orchestrator_id)
-            if orchestrator is None:
-                raise ValueError(f"Orchestrator not found: {orchestrator_id}")
-
-            orchestrator.last_heartbeat = datetime.utcnow()
-            session.commit()
-
-    def delete(self, orchestrator_id: str) -> None:
-        """Delete an orchestrator from the registry.
-
-        Args:
-            orchestrator_id: Unique identifier for the orchestrator
-
-        Raises:
-            ValueError: If orchestrator_id not found
-        """
-        with Session(self.engine) as session:
-            orchestrator = session.get(OrchestratorRecord, orchestrator_id)
-            if orchestrator is None:
-                raise ValueError(f"Orchestrator not found: {orchestrator_id}")
-
-            session.delete(orchestrator)
-            session.commit()
-
-    def delete_expired(self) -> int:
-        """Delete all expired orchestrators from the registry.
-
-        An orchestrator is considered expired if the current time is after
-        its expiration time (last_heartbeat + ttl_seconds).
-
-        Returns:
-            Number of orchestrators deleted
-        """
-        with Session(self.engine) as session:
-            # Calculate the cutoff time for expired orchestrators
-            now = datetime.utcnow()
-
-            # Query all orchestrators
-            stmt: Select[OrchestratorRecord] = select(OrchestratorRecord)
-            orchestrators = list(session.scalars(stmt).all())
-
-            # Filter and delete expired orchestrators
-            expired_orchestrators = [
-                o for o in orchestrators if not o.is_alive()
-            ]
-
-            count = 0
-            for orchestrator in expired_orchestrators:
-                session.delete(orchestrator)
-                count += 1
-
-            session.commit()
-            return count

@@ -1,7 +1,13 @@
-"""Workflow monitoring routes with HTMX-powered real-time updates.
+"""Execution monitoring routes with HTMX-powered real-time updates.
 
-Provides endpoints for viewing workflow runs, status, and metrics
+Provides endpoints for viewing workflow executions, status, and metrics
 with dynamic updates via Server-Sent Events (SSE).
+
+Renamed in UI Redesign (2026-02-13):
+- workflows.py → executions.py
+- WorkflowRunRecord → Execution
+- AbstractWorkflowRunRepository → AbstractExecutionRepository
+- Routes: /workflows/* → /executions/*
 """
 
 import asyncio
@@ -19,11 +25,11 @@ from sqlalchemy import Select, create_engine, select
 from sqlalchemy.orm import Session
 
 from configurable_agents.runtime.executor import run_workflow_async
-from configurable_agents.storage.base import AbstractWorkflowRunRepository
-from configurable_agents.storage.models import WorkflowRunRecord
+from configurable_agents.storage.base import AbstractExecutionRepository
+from configurable_agents.storage.models import Execution
 
 
-router = APIRouter(prefix="/workflows")
+router = APIRouter(prefix="/executions")
 
 
 def _format_duration(seconds: Optional[float]) -> str:
@@ -111,7 +117,7 @@ def _get_status_badge_class(status: str) -> str:
     """Get CSS class for status badge.
 
     Args:
-        status: Workflow status string
+        status: Execution status string
 
     Returns:
         CSS class name for the badge
@@ -127,108 +133,105 @@ def _get_status_badge_class(status: str) -> str:
     return status_map.get(status_lower, "badge-pending")
 
 
-# Dependency to get workflow repo from app state
-async def _get_workflow_repo(request: Request) -> AbstractWorkflowRunRepository:
-    """Get workflow repository from app state."""
-    return request.app.state.workflow_repo
+# Dependency to get execution repo from app state
+async def _get_execution_repo(request: Request) -> AbstractExecutionRepository:
+    """Get execution repository from app state."""
+    return request.app.state.execution_repo
 
 
 @router.get("/", response_class=HTMLResponse)
-async def workflows_list(
+async def executions_list(
     request: Request,
     status_filter: Optional[str] = None,
-    workflow_repo: AbstractWorkflowRunRepository = Depends(_get_workflow_repo),
+    execution_repo: AbstractExecutionRepository = Depends(_get_execution_repo),
 ):
-    """Render workflows list page."""
+    """Render executions list page."""
     templates: Jinja2Templates = request.app.state.templates
 
-    # Get all runs
-    runs = _get_all_runs(workflow_repo, limit=100)
+    # Get all executions
+    executions = _get_all_executions(execution_repo, limit=100)
 
     # Filter by status if specified
     if status_filter:
-        runs = [r for r in runs if r.status == status_filter]
+        executions = [e for e in executions if e.status == status_filter]
 
     return templates.TemplateResponse(
-        "workflows.html",
+        "executions.html",
         {
             "request": request,
-            "workflows": runs,
+            "executions": executions,
             "status_filter": status_filter or "all",
         },
     )
 
 
 @router.get("/table", response_class=HTMLResponse)
-async def workflows_table(
+async def executions_table(
     request: Request,
     status_filter: Optional[str] = None,
-    agent: Optional[str] = None,
-    workflow_repo: AbstractWorkflowRunRepository = Depends(_get_workflow_repo),
+    deployment: Optional[str] = None,
+    execution_repo: AbstractExecutionRepository = Depends(_get_execution_repo),
 ):
-    """Render workflows table partial for HTMX refresh."""
+    """Render executions table partial for HTMX refresh."""
     templates: Jinja2Templates = request.app.state.templates
 
-    # Get all runs
-    runs = _get_all_runs(workflow_repo, limit=100)
+    # Get all executions
+    executions = _get_all_executions(execution_repo, limit=100)
 
     # Filter by status if specified
     if status_filter:
-        runs = [r for r in runs if r.status == status_filter]
+        executions = [e for e in executions if e.status == status_filter]
 
-    # Filter by agent if specified
-    if agent == "orchestrator":
-        # Show only orchestrator agent executions (workflow_name contains "-agent" or looks like agent ID)
-        runs = [r for r in runs if r.workflow_name and ("-" in r.workflow_name or r.workflow_name.endswith("-agent"))]
-    elif agent:
-        # Filter by specific agent ID
-        runs = [r for r in runs if r.workflow_name == agent]
+    # Filter by deployment if specified
+    if deployment:
+        # Filter by deployment_id
+        executions = [e for e in executions if e.deployment_id == deployment]
 
     return templates.TemplateResponse(
-        "workflows_table.html",
+        "executions_table.html",
         {
             "request": request,
-            "workflows": runs,
+            "executions": executions,
             "status_filter": status_filter or "all",
-            "agent_filter": agent or "",
+            "deployment_filter": deployment or "",
         },
     )
 
 
-@router.get("/{run_id}", response_class=HTMLResponse)
-async def workflow_detail(
-    run_id: str,
+@router.get("/{execution_id}", response_class=HTMLResponse)
+async def execution_detail(
+    execution_id: str,
     request: Request,
-    workflow_repo: AbstractWorkflowRunRepository = Depends(_get_workflow_repo),
+    execution_repo: AbstractExecutionRepository = Depends(_get_execution_repo),
 ):
-    """Render workflow detail page."""
+    """Render execution detail page."""
     templates: Jinja2Templates = request.app.state.templates
 
-    # Get the run
-    run = workflow_repo.get(run_id)
+    # Get the execution
+    execution = execution_repo.get(execution_id)
 
-    if run is None:
+    if execution is None:
         return templates.TemplateResponse(
-            "workflows.html",
+            "executions.html",
             {
                 "request": request,
-                "error": f"Workflow run not found: {run_id}",
+                "error": f"Execution not found: {execution_id}",
             },
         )
 
     # Parse outputs if available
     outputs = None
-    if run.outputs:
+    if execution.outputs:
         try:
-            outputs = json.loads(run.outputs)
+            outputs = json.loads(execution.outputs)
         except (json.JSONDecodeError, TypeError):
-            outputs = {"raw": run.outputs}
+            outputs = {"raw": execution.outputs}
 
     # Parse bottleneck info if available
     bottleneck_info = None
-    if run.bottleneck_info:
+    if execution.bottleneck_info:
         try:
-            bottleneck_info = json.loads(run.bottleneck_info)
+            bottleneck_info = json.loads(execution.bottleneck_info)
         except (json.JSONDecodeError, TypeError):
             pass
 
@@ -237,15 +240,15 @@ async def workflow_detail(
     state_history = []
     if state_repo:
         try:
-            state_history = state_repo.get_state_history(run_id)
+            state_history = state_repo.get_state_history(execution_id)
         except Exception:
             pass
 
     return templates.TemplateResponse(
-        "workflow_detail.html",
+        "execution_detail.html",
         {
             "request": request,
-            "workflow": run,
+            "execution": execution,
             "outputs": outputs,
             "bottleneck_info": bottleneck_info,
             "state_history": state_history,
@@ -256,68 +259,68 @@ async def workflow_detail(
     )
 
 
-@router.post("/{run_id}/cancel")
-async def workflow_cancel(
-    run_id: str,
-    workflow_repo: AbstractWorkflowRunRepository = Depends(_get_workflow_repo),
+@router.post("/{execution_id}/cancel")
+async def execution_cancel(
+    execution_id: str,
+    execution_repo: AbstractExecutionRepository = Depends(_get_execution_repo),
 ):
-    """Cancel a running workflow (best-effort)."""
-    # Get the run
-    run = workflow_repo.get(run_id)
+    """Cancel a running execution (best-effort)."""
+    # Get the execution
+    execution = execution_repo.get(execution_id)
 
-    if run is None:
-        return Response(content="Workflow run not found", status_code=404)
+    if execution is None:
+        return Response(content="Execution not found", status_code=404)
 
-    if run.status != "running":
+    if execution.status != "running":
         return Response(
-            content=f"Cannot cancel workflow with status: {run.status}",
+            content=f"Cannot cancel execution with status: {execution.status}",
             status_code=400,
         )
 
     # Update status to cancelled
     try:
-        workflow_repo.update_status(run_id, "cancelled")
-        return Response(content="Workflow cancelled", status_code=200)
+        execution_repo.update_status(execution_id, "cancelled")
+        return Response(content="Execution cancelled", status_code=200)
     except Exception as e:
         return Response(
-            content=f"Failed to cancel workflow: {e}",
+            content=f"Failed to cancel execution: {e}",
             status_code=500,
         )
 
 
-@router.post("/{run_id}/restart")
-async def workflow_restart(
-    run_id: str,
+@router.post("/{execution_id}/restart")
+async def execution_restart(
+    execution_id: str,
     background_tasks: BackgroundTasks,
-    workflow_repo: AbstractWorkflowRunRepository = Depends(_get_workflow_repo),
+    execution_repo: AbstractExecutionRepository = Depends(_get_execution_repo),
 ):
-    """Restart a workflow with the same inputs.
+    """Restart an execution with the same inputs.
 
-    Extracts the original config from the workflow run record,
+    Extracts the original config from the execution record,
     creates a temporary config file, and re-executes the workflow
     using the original inputs.
     """
-    # Get the original run
-    run = workflow_repo.get(run_id)
+    # Get the original execution
+    execution = execution_repo.get(execution_id)
 
-    if run is None:
+    if execution is None:
         return JSONResponse(
-            content={"error": "Workflow run not found"},
+            content={"error": "Execution not found"},
             status_code=404
         )
 
-    # Cannot restart running workflows
-    if run.status == "running":
+    # Cannot restart running executions
+    if execution.status == "running":
         return JSONResponse(
-            content={"error": "Cannot restart a running workflow"},
+            content={"error": "Cannot restart a running execution"},
             status_code=400
         )
 
     # Parse original inputs
     inputs: Dict[str, Any] = {}
-    if run.inputs:
+    if execution.inputs:
         try:
-            inputs = json.loads(run.inputs)
+            inputs = json.loads(execution.inputs)
         except (json.JSONDecodeError, TypeError):
             return JSONResponse(
                 content={"error": "Failed to parse original inputs"},
@@ -325,14 +328,14 @@ async def workflow_restart(
             )
 
     # Parse config snapshot
-    if not run.config_snapshot:
+    if not execution.config_snapshot:
         return JSONResponse(
-            content={"error": "No config snapshot available for this run"},
+            content={"error": "No config snapshot available for this execution"},
             status_code=500
         )
 
     try:
-        config_dict = json.loads(run.config_snapshot)
+        config_dict = json.loads(execution.config_snapshot)
     except (json.JSONDecodeError, TypeError) as e:
         return JSONResponse(
             content={"error": f"Failed to parse config snapshot: {e}"},
@@ -357,7 +360,7 @@ async def workflow_restart(
             try:
                 await run_workflow_async(temp_config_path, inputs)
             except Exception as e:
-                # Error is logged by run_workflow_async, workflow record will show failed status
+                # Error is logged by run_workflow_async, execution record will show failed status
                 pass
             finally:
                 # Clean up temporary config file
@@ -372,8 +375,8 @@ async def workflow_restart(
         return JSONResponse(
             content={
                 "status": "restarted",
-                "message": "Workflow restart initiated",
-                "original_run_id": run_id
+                "message": "Execution restart initiated",
+                "original_execution_id": execution_id
             },
             status_code=200
         )
@@ -387,20 +390,20 @@ async def workflow_restart(
                 pass
 
         return JSONResponse(
-            content={"error": f"Failed to restart workflow: {e}"},
+            content={"error": f"Failed to restart execution: {e}"},
             status_code=500
         )
 
 
-def _get_all_runs(repo: AbstractWorkflowRunRepository, limit: int = 100) -> List[WorkflowRunRecord]:
-    """Get all workflow runs from repository.
+def _get_all_executions(repo: AbstractExecutionRepository, limit: int = 100) -> List[Execution]:
+    """Get all executions from repository.
 
     Args:
-        repo: Workflow repository
-        limit: Maximum number of runs to return
+        repo: Execution repository
+        limit: Maximum number of executions to return
 
     Returns:
-        List of WorkflowRunRecord instances
+        List of Execution instances
     """
     # Try different methods based on repository implementation
     try:
@@ -408,9 +411,9 @@ def _get_all_runs(repo: AbstractWorkflowRunRepository, limit: int = 100) -> List
         if hasattr(repo, 'engine'):
             engine = repo.engine
             with Session(engine) as session:
-                stmt: Select[WorkflowRunRecord] = (
-                    select(WorkflowRunRecord)
-                    .order_by(WorkflowRunRecord.started_at.desc())
+                stmt: Select[Execution] = (
+                    select(Execution)
+                    .order_by(Execution.started_at.desc())
                     .limit(limit)
                 )
                 return list(session.scalars(stmt).all())
@@ -425,6 +428,10 @@ def _get_all_runs(repo: AbstractWorkflowRunRepository, limit: int = 100) -> List
             pass
 
     return []
+
+
+# Backward-compatible function alias
+_get_all_runs = _get_all_executions
 
 
 # Export helper functions for use in templates

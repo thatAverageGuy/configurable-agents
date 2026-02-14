@@ -20,7 +20,7 @@ from configurable_agents.storage import create_storage_backend, ChatSessionRepos
 @pytest.fixture
 def chat_repo():
     """Create a fresh ChatSessionRepository for each test."""
-    workflow_repo, state_repo, agent_repo, chat_repo, webhook_repo, memory_repo, workflow_reg_repo, orchestrator_repo = create_storage_backend()
+    execution_repo, state_repo, deployment_repo, chat_repo, webhook_repo, memory_repo, deployment_reg_repo = create_storage_backend()
     return chat_repo
 
 
