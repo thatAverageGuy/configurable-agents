@@ -151,12 +151,6 @@ edges:
   - from: write
     to: END
 
-optimization:
-  enabled: false
-  strategy: BootstrapFewShot
-  metric: semantic_match
-  max_demos: 4
-
 config:
   llm:
     provider: google
@@ -210,10 +204,6 @@ config:
             assert len(config.edges) == 3
             assert config.edges[0].from_ == "START"
             assert config.edges[0].to == "research"
-
-            # Verify optimization
-            assert config.optimization.enabled is False
-            assert config.optimization.strategy == "BootstrapFewShot"
 
             # Verify global config
             assert config.config.llm.provider == "google"

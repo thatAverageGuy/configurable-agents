@@ -40,7 +40,7 @@
 | Document | Description | Link |
 |----------|-------------|------|
 | **Advanced Topics** | Advanced features overview (control flow, memory, etc.) | [user/ADVANCED_TOPICS.md](user/ADVANCED_TOPICS.md) |
-| **Performance Optimization** | A/B testing, quality gates, prompt optimization | [user/PERFORMANCE_OPTIMIZATION.md](user/PERFORMANCE_OPTIMIZATION.md) |
+| **Performance Optimization** | Profiling, cost optimization, model selection | [user/PERFORMANCE_OPTIMIZATION.md](user/PERFORMANCE_OPTIMIZATION.md) |
 | **Production Deployment** | Production patterns and best practices | [user/PRODUCTION_DEPLOYMENT.md](user/PRODUCTION_DEPLOYMENT.md) |
 | **Tool Development** | Creating custom tools | [user/TOOL_DEVELOPMENT.md](user/TOOL_DEVELOPMENT.md) |
 
@@ -88,6 +88,7 @@
 - [CL-001: Cleanup and Documentation Reorganization](development/implementation_logs/phase_5_cleanup_and_verification/CL-001_cleanup_restoration.md)
 - [CL-002: Documentation Index and Dead Link Cleanup](development/implementation_logs/phase_5_cleanup_and_verification/CL-002_doc_index_cleanup.md)
 - [CL-003: Fork-Join Parallel Replacement](development/implementation_logs/phase_5_cleanup_and_verification/CL-003_fork_join_parallel.md)
+- [CL-004: Documentation Truth Audit](development/implementation_logs/phase_5_cleanup_and_verification/CL-004_documentation_truth_audit.md)
 - [CL-003: Test Findings](development/implementation_logs/phase_5_cleanup_and_verification/CL-003_TEST_FINDINGS.md)
 - [CL-003: Deep Flag Verification](development/implementation_logs/phase_5_cleanup_and_verification/CL-003_DEEP_FLAG_VERIFICATION.md)
 
@@ -199,6 +200,7 @@ docs/
 │   │       ├── CL-003_CODEBASE_SNAPSHOT.md
 │   │       ├── CL-003_CONSOLIDATION.md
 │   │       ├── CL-003_MASTER_REFERENCE.md
+│   │       ├── CL-004_documentation_truth_audit.md
 │   │       └── CL-003_DEEP_FLAG_VERIFICATION.md
 │   └── session_context/        # Archived session contexts
 │

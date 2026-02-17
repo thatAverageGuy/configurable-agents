@@ -79,13 +79,8 @@ edges:
   - from: researcher
     to: analyst
 
-orchestration:
-  enable_registry: true
-  agent_discovery:
-    metadata_filter:
-      capability: research
+execution:
   parallel_execution: true
-  max_parallel_agents: 5
   timeout: 300
 
 observability:

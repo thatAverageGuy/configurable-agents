@@ -12,7 +12,7 @@ The UI system consists of three independently-runnable services and one unified 
 
 | Service | Tech Stack | Default Port | CLI Command | Purpose |
 |---------|-----------|-------------|-------------|---------|
-| **Dashboard** | FastAPI + HTMX + Jinja2 | 7861 | `dashboard` | Monitoring: workflows, agents, metrics, orchestrator |
+| **Dashboard** | FastAPI + HTMX + Jinja2 | 7861 | `dashboard` | Monitoring: executions, deployments, metrics |
 | **Chat UI** | Gradio | 7860 | `chat` | Conversational config generation |
 | **MLflow UI** | MLflow built-in | 5000 | _(managed by `ui`)_ | Experiment tracking and traces |
 | **Unified Launcher** | ProcessManager | all above | `ui` | Spawns all services as child processes |
@@ -45,7 +45,7 @@ The UI system consists of three independently-runnable services and one unified 
 
 ### Purpose
 
-Web-based monitoring UI for the entire Configurable Agents system. Shows workflow runs, registered agents (deployed containers), metrics, and allows manual orchestration of remote agents.
+Web-based monitoring UI for the entire Configurable Agents system. Shows executions, deployments, and metrics.
 
 ### Architecture
 
@@ -55,48 +55,36 @@ DashboardApp (FastAPI)
 │   ├── / ........................ Main dashboard (summary stats + status panel)
 │   ├── /health ................. Health check endpoint
 │   ├── /mlflow ................. Redirect to MLflow or show "unavailable" page
-│   ├── /workflows/ ............. Workflow runs list (filterable by status)
-│   │   ├── /workflows/table .... HTMX partial — workflows table refresh
-│   │   ├── /workflows/{id} ..... Workflow detail (outputs, bottleneck, state history)
-│   │   ├── /workflows/{id}/cancel ... Cancel running workflow
-│   │   └── /workflows/{id}/restart .. Restart with same inputs (background)
-│   ├── /agents/ ................ Registered agents (alive only)
-│   │   ├── /agents/table ....... HTMX partial — agents table refresh
-│   │   ├── /agents/all ......... Include dead agents
-│   │   ├── /agents/{id}/docs ... Redirect to agent's /docs endpoint
-│   │   ├── /agents/{id} DELETE . Deregister agent
-│   │   └── /agents/refresh ..... Manual refresh trigger
+│   ├── /executions/ ............ Execution list (filterable by status)
+│   │   ├── /executions/table ... HTMX partial — executions table refresh
+│   │   ├── /executions/{id} .... Execution detail (outputs, bottleneck, state history)
+│   │   ├── /executions/{id}/cancel ... Cancel running execution
+│   │   └── /executions/{id}/restart .. Restart with same inputs (background)
+│   ├── /deployments/ ........... Registered deployments (alive only)
+│   │   ├── /deployments/table .. HTMX partial — deployments table refresh
+│   │   ├── /deployments/all .... Include dead deployments
+│   │   ├── /deployments/register POST . Register new deployment
+│   │   ├── /deployments/refresh POST .. Manual refresh trigger
+│   │   ├── /deployments/health-check .. HTMX partial: health check all deployments
+│   │   ├── /deployments/{id}/docs ..... Get deployment OpenAPI docs
+│   │   ├── /deployments/{id}/schema ... Get deployment schema
+│   │   ├── /deployments/{id}/execute POST . Execute workflow on deployment
+│   │   └── /deployments/{id}/deregister POST . Deregister deployment
 │   ├── /metrics/
-│   │   ├── /metrics/workflows/stream .. SSE: workflow updates every 5s
-│   │   ├── /metrics/agents/stream ..... SSE: agent updates every 10s
+│   │   ├── /metrics/executions/stream . SSE: execution updates every 5s
+│   │   ├── /metrics/deployments/stream  SSE: deployment updates every 10s
 │   │   └── /metrics/summary ........... JSON: summary stats
-│   ├── /optimization/
-│   │   ├── /optimization/experiments ... MLflow experiment list (HTML)
-│   │   ├── /optimization/experiments.json .. Same as JSON
-│   │   ├── /optimization/compare ........ Variant comparison (HTML)
-│   │   ├── /optimization/compare.json ... Same as JSON
-│   │   └── /optimization/apply POST ..... Apply optimized prompt to YAML
-│   ├── /orchestrator
-│   │   ├── /orchestrator ............... Management page (HTML)
-│   │   ├── /orchestrator/register POST . Register agent with health check
-│   │   ├── /orchestrator/health-check .. HTMX partial: health check all agents
-│   │   ├── /orchestrator/{id}/schema ... Get workflow schema from agent
-│   │   ├── /orchestrator/{id}/execute .. Execute workflow on remote agent
-│   │   └── /orchestrator/{id} DELETE ... Deregister agent
 │   └── /api/status
 │       ├── /api/status .............. HTMX partial: status panel (10s poll)
 │       └── /api/status/health ....... JSON health check
 ├── Templates (Jinja2 + HTMX)
 │   ├── base.html .................. Base layout with nav + HTMX script
 │   ├── dashboard.html ............. Main dashboard page
-│   ├── workflows.html ............. Workflows list page
-│   ├── workflows_table.html ....... HTMX partial for workflow table
-│   ├── workflow_detail.html ....... Single workflow detail
-│   ├── agents.html ................ Agents list page
-│   ├── agents_table.html .......... HTMX partial for agents table
-│   ├── experiments.html ........... MLflow experiments list
-│   ├── optimization.html .......... Variant comparison page
-│   ├── orchestrator.html .......... Orchestrator management page
+│   ├── executions.html ............ Executions list page
+│   ├── executions_table.html ...... HTMX partial for executions table
+│   ├── execution_detail.html ...... Single execution detail
+│   ├── deployments.html ........... Deployments list page
+│   ├── deployments_table.html ..... HTMX partial for deployments table
 │   ├── mlflow_unavailable.html .... Shown when MLflow not configured
 │   ├── macros.html ................ Reusable Jinja2 macros
 │   ├── errors/error.html .......... Error page
@@ -162,9 +150,9 @@ DashboardApp.__init__()
 ├── 4. _mount_mlflow() [only if URI is file://, not http://]
 │       └── Create MLflow WSGI app → mount at /mlflow
 ├── 5. Store repos in app.state
-│       ├── app.state.workflow_repo
-│       ├── app.state.workflow_run_repo (alias)
-│       ├── app.state.agent_registry_repo
+│       ├── app.state.execution_repo
+│       ├── app.state.execution_state_repo
+│       ├── app.state.deployment_repo
 │       ├── app.state.templates
 │       └── app.state.mlflow_tracking_uri
 ├── 6. Register startup event (log agent count)
@@ -180,7 +168,7 @@ The dashboard uses three mechanisms for real-time updates:
 
 1. **HTMX Polling** (`hx-trigger="every 10s"`): Status panel polls `/api/status` every 10s
 2. **HTMX SSE** (`sse-connect`): Metrics streams for workflow (5s) and agent (10s) updates
-3. **HTMX Partial Swap**: Table partials (`/workflows/table`, `/agents/table`) for filtered refreshes
+3. **HTMX Partial Swap**: Table partials (`/executions/table`, `/deployments/table`) for filtered refreshes
 
 ```
 Browser                           Dashboard Server
@@ -191,13 +179,13 @@ Browser                           Dashboard Server
   │─── GET /api/status ────────────────►│  (HTMX poll every 10s)
   │◄── status_panel.html (partial) ────│  (hx-swap="outerHTML")
   │                                      │
-  │─── GET /metrics/workflows/stream ──►│  (SSE connection)
-  │◄── event: workflow_update ─────────│  (every 5s)
+  │─── GET /metrics/executions/stream ─►│  (SSE connection)
+  │◄── event: execution_update ────────│  (every 5s)
   │◄── : heartbeat ────────────────────│
-  │◄── event: workflow_update ─────────│
+  │◄── event: execution_update ────────│
   │                                      │
-  │─── GET /workflows/table?status=... ►│  (HTMX on filter change)
-  │◄── workflows_table.html (partial) ─│
+  │─── GET /executions/table?status=.. ►│  (HTMX on filter change)
+  │◄── executions_table.html (partial) │
 ```
 
 ---
@@ -538,13 +526,12 @@ All services share the same SQLite database (default: `configurable_agents.db`):
 
 ```
 configurable_agents.db
-├── workflow_runs ──────── Dashboard reads, Orchestrator writes
-├── execution_states ───── Dashboard reads (state history)
-├── agents ─────────────── Dashboard reads, Registry writes
-├── orchestrators ──────── Dashboard reads, Registry writes
-├── chat_sessions ──────── Chat UI reads/writes
-├── chat_messages ──────── Chat UI reads/writes
-└── session_states ─────── ProcessManager reads/writes (crash detection)
+├── executions ────────── Dashboard reads, Executor writes
+├── execution_states ──── Dashboard reads (state history)
+├── deployments ───────── Dashboard reads/writes, Registry writes
+├── chat_sessions ─────── Chat UI reads/writes
+├── chat_messages ─────── Chat UI reads/writes
+└── session_states ────── ProcessManager reads/writes (crash detection)
 ```
 
 ### Cross-Service Communication
@@ -553,51 +540,51 @@ configurable_agents.db
 Dashboard ◄──reads──► SQLite DB ◄──writes──► Workflow Executor
                 │                                    ▲
                 │                                    │
-                ├──HTTP──► Remote Agent (/run) ──────┘
-                │           (via orchestrator routes)
+                ├──HTTP──► Deployed Agent (/run) ────┘
+                │           (via deployment routes)
                 │
 Chat UI ──writes──► SQLite DB (chat_sessions)
                 │
                 └──HTTP──► LLM Provider (config generation)
 ```
 
-### Orchestrator Flow (Dashboard → Remote Agent)
+### Deployment Execution Flow (Dashboard → Remote Deployment)
 
-The orchestrator routes in the dashboard allow manual execution on remote deployed agents:
+The deployment routes in the dashboard allow registration and execution on remote deployed agents:
 
 ```
   User (Dashboard UI)
     │
-    │ 1. POST /orchestrator/register
-    │    {agent_id, agent_name, agent_url}
+    │ 1. POST /deployments/register
+    │    {deployment_name, url, metadata}
     │
     ▼
-  Dashboard: orchestrator route
+  Dashboard: deployments route
     │
-    │ 2. Health check: GET {agent_url}/health
+    │ 2. Health check: GET {url}/health
     │    └── Must return {"status": "alive"}
     │
-    │ 3. Save to agents table (DB)
+    │ 3. Save to deployments table (DB)
     │
-    │ 4. HTMX polling: GET /orchestrator/health-check (every 10s)
-    │    └── Checks all agents, returns HTML table partial
+    │ 4. HTMX polling: GET /deployments/health-check (every 10s)
+    │    └── Checks all deployments, returns HTML table partial
     │
-    │ 5. POST /orchestrator/{agent_id}/execute
+    │ 5. POST /deployments/{id}/execute
     │    {inputs: {...}}
     │
     ▼
-  Dashboard creates WorkflowRunRecord(status="running")
+  Dashboard creates Execution(status="running")
     │
-    │ 6. POST {agent_url}/run (inputs)
+    │ 6. POST {url}/run (inputs)
     │
     ▼
-  Remote Agent executes workflow
+  Remote deployment executes workflow
     │
     │ 7. Returns {outputs, total_tokens, cost_usd}
     │
     ▼
-  Dashboard updates WorkflowRunRecord(status="completed")
-    └── Returns redirect to /workflows/{run_id}
+  Dashboard updates Execution(status="completed")
+    └── Returns redirect to /executions/{execution_id}
 ```
 
 ---
@@ -609,12 +596,9 @@ The orchestrator routes in the dashboard allow manual execution on remote deploy
 ```
 base.html (layout + nav + HTMX + CSS)
 ├── dashboard.html (main page, includes status_panel.html)
-├── workflows.html (includes workflows_table.html)
-├── workflow_detail.html
-├── agents.html (includes agents_table.html)
-├── experiments.html
-├── optimization.html
-├── orchestrator.html
+├── executions.html (includes executions_table.html)
+├── execution_detail.html
+├── deployments.html (includes deployments_table.html)
 └── mlflow_unavailable.html
 ```
 
@@ -622,36 +606,13 @@ base.html (layout + nav + HTMX + CSS)
 
 ```
 partials/status_panel.html ← /api/status (every 10s)
-workflows_table.html ← /workflows/table
-agents_table.html ← /agents/table
+executions_table.html ← /executions/table
+deployments_table.html ← /deployments/table
 ```
 
 ---
 
-## 7. Optimization Routes (To Be Removed)
-
-The `/optimization/*` routes in the dashboard depend on the `optimization/` module which is scheduled for removal (see [OPTIMIZATION_INVESTIGATION.md](OPTIMIZATION_INVESTIGATION.md)). These routes will be removed along with the module:
-
-- `/optimization/experiments` — Lists MLflow experiments
-- `/optimization/compare` — Compares variants
-- `/optimization/apply` — Applies optimized prompt to YAML
-- Template: `experiments.html`, `optimization.html`
-
-**Note**: The `optimization_router` is imported and mounted in `DashboardApp._include_routers()`. Removing the optimization module will require removing this import and the associated templates.
-
----
-
-## 8. Known Issues and Observations
-
-### Dashboard/Agent Routes Overlap
-
-Both `/agents/*` (agents_router) and `/orchestrator/*` (orchestrator_router) deal with agent management:
-- **agents_router**: Read-only view of registered agents (list, table, deregister)
-- **orchestrator_router**: CRUD operations + execution (register with health check, execute on agent, schema fetch)
-
-The agent deregistration exists in both routers:
-- `DELETE /agents/{id}` (agents_router)
-- `DELETE /orchestrator/{id}` (orchestrator_router)
+## 7. Known Issues and Observations
 
 ### Chat UI Streaming Issue
 
@@ -663,7 +624,7 @@ MLflow is mounted as WSGI middleware at `/mlflow` **only** when `mlflow_tracking
 
 ---
 
-## 9. Dependencies
+## 8. Dependencies
 
 ### Dashboard
 
@@ -674,7 +635,7 @@ MLflow is mounted as WSGI middleware at `/mlflow` **only** when `mlflow_tracking
 | `jinja2` | HTML templating |
 | `sqlalchemy` | Database ORM |
 | `mlflow` (optional) | Experiment tracking mount |
-| `httpx` | HTTP client for agent health checks (orchestrator) |
+| `httpx` | HTTP client for deployment health checks |
 | `psutil` (optional) | System resource monitoring in status panel |
 
 ### Chat UI
@@ -698,7 +659,6 @@ MLflow is mounted as WSGI middleware at `/mlflow` **only** when `mlflow_tracking
 
 - [ADR-021: HTMX Dashboard](adr/ADR-021-htmx-dashboard.md)
 - [ARCHITECTURE.md](ARCHITECTURE.md) — System architecture
-- [OPTIMIZATION_INVESTIGATION.md](OPTIMIZATION_INVESTIGATION.md) — Optimization module removal plan
 - [CL-003 Deep Flag Verification](implementation_logs/phase_5_cleanup_and_verification/CL-003_DEEP_FLAG_VERIFICATION.md) — CLI verification findings
 
 ---

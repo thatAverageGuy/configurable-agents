@@ -20,7 +20,6 @@ flow: FlowMetadata           # Required: Workflow metadata
 state: StateSchema           # Required: State definition
 nodes: list[NodeConfig]      # Required: Execution nodes
 edges: list[EdgeConfig]      # Required: Control flow
-optimization: OptimizationConfig  # Optional: DSPy settings (v0.3+)
 config: GlobalConfig         # Optional: Infrastructure settings
 ```
 
@@ -197,7 +196,6 @@ nodes:
     output_schema: OutputSchema     # Required: Type enforcement
     outputs: list[string]           # Required: State fields to update
     tools: list[string]             # Optional: Tool names
-    optimize: OptimizeConfig        # Optional: Node-level optimization (v0.3+)
     llm: LLMConfig                  # Optional: Node-level LLM override
 ```
 
@@ -341,20 +339,6 @@ tools:
 
 **Validation**: Parser checks all tools exist in registry.
 
-#### `optimize` (optional, v0.3+)
-
-Node-level DSPy optimization config. Overrides global `optimization`.
-
-```yaml
-optimize:
-  enabled: boolean           # Enable optimization for this node
-  metric: string             # Metric name (must be in registry)
-  strategy: string           # DSPy strategy
-  max_demos: int             # Max few-shot examples
-```
-
-**v0.1 behavior**: Validated but ignored (feature gating).
-
 #### `llm` (optional)
 
 Node-level LLM config. Overrides global `config.llm`.
@@ -478,48 +462,9 @@ To run in v0.1, use linear edge:
 
 ---
 
-## 6. Optimization (v0.3+)
+## 6. Optimization
 
-Global DSPy optimization config.
-
-**Schema supported, runtime in v0.3.**
-
-### Structure
-
-```yaml
-optimization:
-  enabled: boolean               # Default: false
-  strategy: string               # Default: "BootstrapFewShot"
-  metric: string                 # Default: "semantic_match"
-  max_demos: int                 # Default: 4
-```
-
-### Fields
-
-| Field | Type | Default | Description |
-|-------|------|---------|-------------|
-| `enabled` | `bool` | `false` | Enable DSPy optimization |
-| `strategy` | `string` | `"BootstrapFewShot"` | DSPy optimizer strategy |
-| `metric` | `string` | `"semantic_match"` | Metric name (must be in registry) |
-| `max_demos` | `int` | `4` | Max few-shot examples |
-
-### Example
-
-```yaml
-optimization:
-  enabled: true
-  strategy: "BootstrapFewShot"
-  metric: "semantic_match"
-  max_demos: 8
-```
-
-**v0.1 behavior**: Validated, warning issued if `enabled: true`, but feature ignored.
-
-```
-Warning: Optimization enabled but not supported in v0.1
-Config validated but optimization will be ignored.
-Coming in v0.3 (12 weeks).
-```
+**Status**: REMOVED (CL-004). The optimization module and its schema classes (`OptimizationConfig`, `OptimizeConfig`, `ABTestConfig`, `VariantConfig`, `QualityGateModel`, `GatesModel`, `MLFlowConfig`) were removed from the codebase. A redesign using MLflow 3.9 GenAI + DSPy is planned for a future phase. See [OPTIMIZATION_INVESTIGATION.md](OPTIMIZATION_INVESTIGATION.md).
 
 ---
 
@@ -581,7 +526,7 @@ config:
 
 ## Config Schema v1.0 Extensions
 
-The following schema extensions were added in v1.0 to support advanced control flow, multi-LLM providers, sandboxing, memory, webhooks, and optimization.
+The following schema extensions were added in v1.0 to support advanced control flow, multi-LLM providers, sandboxing, memory, and webhooks.
 
 ### Conditional Routing Syntax
 
@@ -929,43 +874,7 @@ config:
 
 ### Optimization System Schema
 
-**Schema Extension**:
-```yaml
-optimization:
-  enabled: true
-  strategy: "BootstrapFewShot"
-  metric: "semantic_match"
-  max_demos: 8
-  quality_gates:
-    - metric: "cost_usd"
-      threshold: 0.10
-      action: "WARN"
-    - metric: "duration_seconds"
-      threshold: 30
-      action: "FAIL"
-```
-
-**Fields**:
-- `optimization.enabled` (bool): Enable DSPy optimization
-- `optimization.strategy` (string): DSPy optimizer strategy (BootstrapFewShot, KNN, etc.)
-- `optimization.metric` (string): Metric name for optimization
-- `optimization.max_demos` (int): Max few-shot examples
-- `optimization.quality_gates` (list): Quality gate rules
-  - `metric` (string): Metric to evaluate
-  - `threshold` (number): Threshold value
-  - `action` (string): WARN, FAIL, or BLOCK_DEPLOY
-
-**Optimization CLI Commands**:
-```bash
-# Evaluate optimization experiments
-configurable-agents optimization evaluate article_writer.yaml
-
-# Apply optimized prompts
-configurable-agents optimization apply-optimized article_writer.yaml --experiment-id 123
-
-# Run A/B test
-configurable-agents optimization ab-test article_writer.yaml --variant-a exp1 --variant-b exp2
-```
+**Status**: REMOVED (CL-004). See Section 6 above.
 
 ---
 
@@ -1134,10 +1043,7 @@ All validation happens before execution:
    - All nodes have path to `END`
    - No orphaned nodes
    - (v0.1) No cycles, no multiple outgoing edges per node
-7. **Optimization** (v0.3+):
-   - Strategy is valid
-   - Metric exists in registry
-8. **Config**:
+7. **Config**:
    - LLM provider is valid (v0.1: only "google")
    - Model exists for provider
    - Execution values are positive integers
@@ -1160,13 +1066,7 @@ def validate_runtime_support(config: WorkflowConfig) -> None:
                 f"See: docs/TASKS.md (for detailed progress) or README.md (for version overview)"
             )
 
-    # Check for optimization
-    if config.optimization and config.optimization.enabled:
-        warnings.warn(
-            f"Optimization enabled but not supported in v0.1\n"
-            f"Feature will be ignored\n"
-            f"Coming in v0.3 (12 weeks)"
-        )
+    # Note: Optimization checks removed (CL-004) — module was removed
 
     # Check for observability
     if config.config.observability:
@@ -1325,7 +1225,7 @@ config:
 **log_artifacts** (bool, default: `true`):
 - Save artifacts as downloadable files (prompts, responses, inputs, outputs, etc.)
 - Set to `false` for high-throughput scenarios (reduces I/O and storage)
-- Artifacts enable detailed debugging and can be used for DSPy optimization (v0.3+)
+- Artifacts enable detailed debugging
 - Can be overridden at node level for fine-grained control
 
 **artifact_level** (str, default: `"standard"`):
@@ -1557,7 +1457,7 @@ config:
 - Added memory configuration syntax
 - Added agent registration API
 - Added webhook configuration
-- Added optimization system schema
+- Added webhook system schema
 
 **v1.0.1 (2026-01-30)**:
 - Added observability configuration (MLFlow)
@@ -1566,6 +1466,6 @@ config:
 
 **v1.0 (2026-01-24)**:
 - Initial schema design
-- Full feature support (linear flows to DSPy optimization)
+- Full feature support (linear flows, conditional routing, parallel execution, observability)
 - Type enforcement via Pydantic
 - Forward-compatible structure

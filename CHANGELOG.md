@@ -17,6 +17,31 @@ After introducing an autonomous agent system post-v1.0, the codebase and documen
 became inconsistent and out of sync. Cleanup tasks are in progress to restore
 the project to a verifiable state.
 
+### Removed
+
+**CL-004: Documentation truth audit and dead code removal** (2026-02-17)
+- Removed `orchestrator/` module entirely (src, deploy, tests, examples) — functionality was migrated to deployments routes during UI-REDESIGN
+- Removed `examples/multi_agent_collaboration/orchestrator_config.py` and orchestrator references from multi-agent examples
+- Removed stale optimization/A/B testing references from 7 user-facing docs (QUICKSTART, TROUBLESHOOTING, PERFORMANCE_OPTIMIZATION, PRODUCTION_DEPLOYMENT, OBSERVABILITY, ADVANCED_TOPICS, README)
+- Removed "MLFlow Optimization Issues" section from TROUBLESHOOTING.md
+- Removed A/B Testing and Quality Gates sections from PERFORMANCE_OPTIMIZATION.md
+- Removed optimization schema sections from SPEC.md
+- Removed orchestrator and optimization route sections from UI_ARCHITECTURE.md
+- Replaced "Optimization System" section in ARCHITECTURE.md with REMOVED notice
+
+### Fixed
+
+**CL-004: Documentation alignment fixes** (2026-02-17)
+- Fixed `workflow-registry list` → `deployments list` in root README.md
+- Fixed `agent-registry list` → `deployments list` in QUICKSTART.md
+- Fixed CLI commands in PERFORMANCE_OPTIMIZATION.md (`observability profile-report` → `profile-report`)
+- Fixed agent registry → dashboard references in PRODUCTION_DEPLOYMENT.md
+- Fixed `configurable-agents registry` → `configurable-agents dashboard` in PRODUCTION_DEPLOYMENT.md
+- Fixed orchestration references in ARCHITECTURE.md to use deployment terminology
+- Updated route paths, model names, and table names in UI_ARCHITECTURE.md to match post-UI-REDESIGN state
+- Fixed `test_load_complete_yaml_config` integration test that was asserting on removed `config.optimization`
+- Fixed invalid `orchestration:` config block in multi_agent_collaboration.yaml (replaced with valid `execution:` block)
+
 ### Fixed
 
 **BF-009: Documentation, CLI verification report, and cleanup** (2026-02-14)

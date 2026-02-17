@@ -33,7 +33,7 @@
 LLM-based workflows are expensive, unpredictable, and hard to debug:
 - **Costs**: Each API call costs money (tokens × pricing). Without tracking, budgets spiral.
 - **Debugging**: When workflows fail, you need to see prompts, responses, and retries.
-- **Optimization**: DSPy optimization requires baseline metrics to improve prompts.
+- **Baseline Metrics**: Tracking provides baseline data for future prompt improvement strategies.
 - **Production**: SLA monitoring, error rates, and performance trends are essential.
 
 ### Three-Tier Strategy
@@ -200,7 +200,7 @@ sqlite:///mlflow.db  (default)
 - ✅ Open-source (no vendor lock-in)
 - ✅ Self-hosted (free forever)
 - ✅ Scales (SQLite → PostgreSQL → S3 → Databricks)
-- ✅ DSPy-ready (v0.3 optimization)
+- ✅ Extensible (supports future optimization integrations)
 - ✅ **NEW**: Automatic tracing (no manual instrumentation)
 
 **Alternatives considered** (and why we rejected them):
@@ -771,7 +771,7 @@ print("Exported to mlflow_runs.csv")
 **Always enable**:
 - Production workflows (cost tracking essential)
 - Development/debugging (view prompts, responses)
-- DSPy optimization (need baseline metrics)
+- Performance analysis (baseline metrics for improvement)
 
 **Consider disabling**:
 - High-throughput batch jobs (I/O overhead from artifact logging)

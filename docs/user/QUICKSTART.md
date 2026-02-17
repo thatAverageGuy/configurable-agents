@@ -9,9 +9,9 @@
 - Code execution sandbox
 - Persistent memory across runs
 - Pre-built tool ecosystem (15+ tools)
-- MLFlow optimization and A/B testing
+- MLFlow observability and cost tracking
 - Chat UI for config generation
-- Orchestration dashboard
+- Dashboard for execution monitoring
 - WhatsApp and Telegram integrations
 
 ---
@@ -766,9 +766,9 @@ You: Can you add a node for neutral sentiment too?
 AI: [Updates config to include neutral branch]
 ```
 
-### Orchestration Dashboard
+### Dashboard
 
-Monitor and manage running workflows:
+Monitor and manage executions and deployments:
 
 ```bash
 # Start the dashboard
@@ -778,10 +778,10 @@ configurable-agents dashboard
 Open http://localhost:8000 in your browser.
 
 **Features:**
-- View all running workflows
+- View all executions with status tracking
 - Real-time logs and metrics
-- Start/stop/restart workflows
-- Agent registry (discover registered agents)
+- Start/stop/restart executions
+- Deployment management (register, monitor, health checks)
 - MLFlow integration (view traces)
 
 ---
@@ -832,7 +832,7 @@ configurable-agents webhooks register --platform telegram --workflow my_workflow
 
 ---
 
-## Step 9: Observability and Optimization
+## Step 9: Observability
 
 ### Enable MLFlow Tracking
 
@@ -853,32 +853,19 @@ mlflow ui --backend-store-uri sqlite:///mlflow.db
 # Open http://localhost:5000
 ```
 
-### A/B Testing
-
-Compare prompt variations:
-
-```bash
-# Run A/B test
-configurable-agents optimization ab-test \
-  --workflow my_workflow.yaml \
-  --node my_node \
-  --prompt-variants variant_a.yaml variant_b.yaml \
-  --runs 10
-```
-
 ### Cost Reporting
 
 View costs across all providers:
 
 ```bash
-# Cost breakdown
-configurable-agents observability cost-report --breakdown
+# Cost report with Rich tables
+configurable-agents cost-report
 
-# By provider
-configurable-agents observability cost-report --provider openai
+# Profile report with bottleneck analysis
+configurable-agents profile-report
 
-# Export to CSV
-configurable-agents observability cost-report --output costs.csv --format csv
+# Observability system status
+configurable-agents observability-status
 ```
 
 ---
@@ -905,7 +892,7 @@ This shows detailed execution logs including LLM calls, state updates, timing, a
 Now that you've run your first workflow, explore:
 
 1. **[CONFIG_REFERENCE.md](CONFIG_REFERENCE.md)** - Complete config schema guide
-2. **[OBSERVABILITY.md](OBSERVABILITY.md)** - MLFlow optimization and A/B testing
+2. **[OBSERVABILITY.md](OBSERVABILITY.md)** - MLFlow tracking and cost reporting
 3. **[DEPLOYMENT.md](DEPLOYMENT.md)** - Docker deployment and production setup
 4. **[TROUBLESHOOTING.md](TROUBLESHOOTING.md)** - Common issues and solutions
 5. **[examples/](../examples/)** - Learning path with examples
@@ -933,21 +920,19 @@ configurable-agents run workflow.yaml \
 # Chat UI (generate configs)
 configurable-agents chat
 
-# Orchestration dashboard
+# Dashboard
 configurable-agents dashboard
 
-# Agent registry
-configurable-agents agent-registry list
+# Deployments
+configurable-agents deployments list
 
 # Observability
-configurable-agents observability cost-report
-configurable-agents observability profile-report
+configurable-agents cost-report
+configurable-agents profile-report
+configurable-agents observability-status
 
 # Webhooks
 configurable-agents webhooks register --platform whatsapp --workflow my_workflow.yaml
-
-# Optimization
-configurable-agents optimization ab-test --workflow workflow.yaml --node my_node --runs 10
 
 # Docker deployment
 configurable-agents deploy workflow.yaml

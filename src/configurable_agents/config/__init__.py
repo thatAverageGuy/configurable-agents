@@ -6,31 +6,23 @@ from configurable_agents.config.parser import (
     parse_config_file,
 )
 from configurable_agents.config.schema import (
-    ABTestConfig,
     EdgeConfig,
     ExecutionConfig,
     FlowMetadata,
-    GatesModel,
     GlobalConfig,
     LLMConfig,
     LoopConfig,
-    MLFlowConfig,
     NodeConfig,
     ObservabilityConfig,
     ObservabilityLoggingConfig,
     ObservabilityMLFlowConfig,
-    OptimizationConfig,
-    OptimizeConfig,
     OutputSchema,
     OutputSchemaField,
-
-    QualityGateModel,
     Route,
     RouteCondition,
     StateFieldConfig,
     StateSchema,
     StorageConfig,
-    VariantConfig,
     WorkflowConfig,
 )
 from configurable_agents.config.types import (
@@ -61,9 +53,6 @@ __all__ = [
     "Route",
     "RouteCondition",
     "LoopConfig",
-
-    "OptimizationConfig",
-    "OptimizeConfig",
     "LLMConfig",
     "ExecutionConfig",
     "GlobalConfig",
@@ -71,12 +60,6 @@ __all__ = [
     "ObservabilityMLFlowConfig",
     "ObservabilityLoggingConfig",
     "StorageConfig",
-    # Optimization (v0.4+)
-    "MLFlowConfig",
-    "VariantConfig",
-    "ABTestConfig",
-    "QualityGateModel",
-    "GatesModel",
     # Types
     "TypeParseError",
     "parse_type_string",

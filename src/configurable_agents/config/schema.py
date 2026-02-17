@@ -114,15 +114,6 @@ class OutputSchema(BaseModel):
         return self
 
 
-class OptimizeConfig(BaseModel):
-    """Node-level DSPy optimization config (v0.3+)."""
-
-    enabled: bool = Field(False, description="Enable optimization for this node")
-    metric: Optional[str] = Field(None, description="Metric name (must be in registry)")
-    strategy: Optional[str] = Field(None, description="DSPy strategy")
-    max_demos: Optional[int] = Field(None, description="Max few-shot examples")
-
-
 class LLMConfig(BaseModel):
     """LLM configuration (global or node-level)."""
 
@@ -211,78 +202,6 @@ class SandboxConfig(BaseModel):
         return v
 
 
-# ============================================
-# 4.5. Optimization (v0.4+)
-# ============================================
-
-
-class MLFlowConfig(BaseModel):
-    """MLFlow experiment configuration for optimization (v0.4+)."""
-
-    experiment: Optional[str] = Field(
-        None, description="MLFlow experiment name for grouping runs"
-    )
-    run_name: Optional[str] = Field(
-        None, description="Optional run identifier template"
-    )
-
-
-class VariantConfig(BaseModel):
-    """Prompt variant configuration for A/B testing (v0.4+)."""
-
-    name: str = Field(..., description="Variant name for identification")
-    prompt: str = Field(..., description="Prompt template to test")
-    config_overrides: Optional[Dict[str, Any]] = Field(
-        None, description="Optional config overrides for this variant"
-    )
-    node_id: Optional[str] = Field(
-        None, description="Specific node ID to apply prompt (default: first node)"
-    )
-
-
-class ABTestConfig(BaseModel):
-    """A/B testing configuration (v0.4+)."""
-
-    enabled: bool = Field(False, description="Enable A/B testing for this workflow")
-    experiment: str = Field(..., description="MLFlow experiment name for results")
-    variants: List[VariantConfig] = Field(
-        ..., description="List of prompt variants to test"
-    )
-    run_count: int = Field(3, ge=1, le=10, description="Runs per variant (default: 3)")
-    parallel: bool = Field(True, description="Run variants concurrently")
-
-
-class QualityGateModel(BaseModel):
-    """Quality gate threshold definition (v0.4+)."""
-
-    metric: str = Field(..., description="Metric name to check (e.g., 'cost_usd', 'duration_ms')")
-    max: Optional[float] = Field(None, description="Maximum allowed value (exclusive)")
-    min: Optional[float] = Field(None, description="Minimum allowed value (exclusive)")
-
-
-class GatesModel(BaseModel):
-    """Quality gates configuration (v0.4+)."""
-
-    gates: List[QualityGateModel] = Field(
-        default_factory=list, description="List of quality gate thresholds"
-    )
-    on_fail: str = Field(
-        "warn",
-        description="Action when gates fail: 'warn', 'fail', or 'block_deploy'"
-    )
-
-    @field_validator("on_fail")
-    @classmethod
-    def validate_on_fail(cls, v: str) -> str:
-        """Validate on_fail value."""
-        valid_actions = {"warn", "fail", "block_deploy"}
-        if v not in valid_actions:
-            raise ValueError(
-                f"on_fail must be one of {valid_actions}, got '{v}'"
-            )
-        return v
-
-
 class MemoryConfig(BaseModel):
     """Memory configuration for agent persistent storage (v0.4+)."""
 
@@ -328,9 +247,6 @@ class NodeConfig(BaseModel):
     memory: Optional[MemoryConfig] = Field(
         None, description="Memory configuration for this node (v0.4+)"
     )
-    optimize: Optional[OptimizeConfig] = Field(
-        None, description="Node-level optimization (v0.3+)"
-    )
     llm: Optional[LLMConfig] = Field(None, description="Node-level LLM override")
     sandbox: Optional[SandboxConfig] = Field(
         None, description="Sandbox configuration for code execution (v0.4+)"
@@ -346,11 +262,6 @@ class NodeConfig(BaseModel):
     )
     log_artifacts: Optional[bool] = Field(
         None, description="Override workflow-level log_artifacts for this node"
-    )
-
-    # MLFlow override (v0.4+)
-    mlflow: Optional[MLFlowConfig] = Field(
-        None, description="MLFlow experiment configuration (overrides workflow-level)"
     )
 
     @field_validator("id")
@@ -465,21 +376,7 @@ class EdgeConfig(BaseModel):
 
 
 # ============================================
-# 6. Optimization (v0.3+)
-# ============================================
-
-
-class OptimizationConfig(BaseModel):
-    """Global DSPy optimization config (v0.3+)."""
-
-    enabled: bool = Field(False, description="Enable DSPy optimization")
-    strategy: str = Field("BootstrapFewShot", description="DSPy optimizer strategy")
-    metric: str = Field("semantic_match", description="Metric name (must be in registry)")
-    max_demos: int = Field(4, gt=0, description="Max few-shot examples")
-
-
-# ============================================
-# 7. Global Config
+# 6. Global Config
 # ============================================
 
 
@@ -595,28 +492,6 @@ class GlobalConfig(BaseModel):
         None, description="Memory configuration (v0.4+)"
     )
 
-    # Optimization configuration (v0.4+)
-    mlflow: Optional[MLFlowConfig] = Field(
-        None, description="MLFlow experiment configuration"
-    )
-    ab_test: Optional[ABTestConfig] = Field(
-        None, description="A/B testing configuration"
-    )
-    gates: Optional[GatesModel] = Field(
-        None, description="Quality gates configuration"
-    )
-
-    # Optimization configuration (v0.4+)
-    mlflow: Optional[MLFlowConfig] = Field(
-        None, description="MLFlow experiment configuration"
-    )
-    ab_test: Optional[ABTestConfig] = Field(
-        None, description="A/B testing configuration"
-    )
-    gates: Optional[GatesModel] = Field(
-        None, description="Quality gates configuration"
-    )
-
 
 # ============================================
 # 1. Top-Level Config
@@ -638,9 +513,6 @@ class WorkflowConfig(BaseModel):
     state: StateSchema = Field(..., description="State definition")
     nodes: List[NodeConfig] = Field(..., description="Execution nodes")
     edges: List[EdgeConfig] = Field(..., description="Control flow edges")
-    optimization: Optional[OptimizationConfig] = Field(
-        None, description="DSPy optimization settings (v0.3+)"
-    )
     memory: Optional[MemoryConfig] = Field(
         None, description="Workflow-level memory configuration (v0.4+)"
     )

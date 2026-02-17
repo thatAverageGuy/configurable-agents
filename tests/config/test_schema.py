@@ -14,8 +14,6 @@ from configurable_agents.config.schema import (
     ObservabilityConfig,
     ObservabilityLoggingConfig,
     ObservabilityMLFlowConfig,
-    OptimizationConfig,
-    OptimizeConfig,
     OutputSchema,
     OutputSchemaField,
     Route,
@@ -169,21 +167,6 @@ class TestOutputSchema:
             OutputSchema(type="object", fields=[])
 
 
-class TestOptimizeConfig:
-    """Test OptimizeConfig model."""
-
-    def test_valid_minimal(self):
-        config = OptimizeConfig()
-        assert config.enabled is False
-
-    def test_valid_enabled(self):
-        config = OptimizeConfig(
-            enabled=True, metric="accuracy", strategy="BootstrapFewShot", max_demos=5
-        )
-        assert config.enabled is True
-        assert config.metric == "accuracy"
-
-
 class TestLLMConfig:
     """Test LLMConfig model."""
 
@@ -256,7 +239,6 @@ class TestNodeConfig:
             ),
             outputs=["summary"],
             tools=["serper_search"],
-            optimize=OptimizeConfig(enabled=True),
             llm=LLMConfig(temperature=0.5),
         )
         assert node.id == "research_node"
@@ -482,30 +464,6 @@ class TestEdgeConfigForkJoin:
         assert "multiple edge types" in str(exc_info.value).lower()
 
 
-class TestOptimizationConfig:
-    """Test OptimizationConfig model."""
-
-    def test_valid_defaults(self):
-        config = OptimizationConfig()
-        assert config.enabled is False
-        assert config.strategy == "BootstrapFewShot"
-        assert config.metric == "semantic_match"
-        assert config.max_demos == 4
-
-    def test_valid_custom(self):
-        config = OptimizationConfig(
-            enabled=True, strategy="MIPRO", metric="accuracy", max_demos=8
-        )
-        assert config.enabled is True
-        assert config.strategy == "MIPRO"
-        assert config.metric == "accuracy"
-        assert config.max_demos == 8
-
-    def test_max_demos_positive(self):
-        with pytest.raises(ValidationError):
-            OptimizationConfig(max_demos=0)
-
-
 class TestExecutionConfig:
     """Test ExecutionConfig model."""
 
@@ -647,7 +605,6 @@ class TestWorkflowConfig:
                 EdgeConfig(**{"from": "START", "to": "node1"}),
                 EdgeConfig(**{"from": "node1", "to": "END"}),
             ],
-            optimization=OptimizationConfig(enabled=True),
             config=GlobalConfig(
                 llm=LLMConfig(provider="google", temperature=0.7)
             ),

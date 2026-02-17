@@ -11,7 +11,7 @@ Create and integrate custom tools for your workflows. Learn the tool interface, 
 Secure deployment and code execution. Covers sandbox execution (RestrictedPython and Docker), webhook security (HMAC verification), command whitelisting, environment variable security, and production security checklists.
 
 ### [Performance Optimization](PERFORMANCE_OPTIMIZATION.md)
-Techniques for optimizing workflow performance and resource usage. Includes MLFlow A/B testing, quality gates, profiling and bottleneck detection, cost optimization, and resource management strategies.
+Techniques for optimizing workflow performance and resource usage. Includes profiling and bottleneck detection, cost optimization, model selection, and resource management strategies.
 
 ### [Production Deployment](PRODUCTION_DEPLOYMENT.md)
 Patterns and best practices for deploying in production environments. Covers deployment architectures (single-server, multi-workflow, Kubernetes), storage backends (SQLite, PostgreSQL, Redis), scaling strategies, monitoring, high availability, and security.

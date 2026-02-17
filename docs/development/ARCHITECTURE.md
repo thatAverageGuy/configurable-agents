@@ -241,28 +241,9 @@ The system transforms YAML configuration into executable agent workflows through
 
 ### 7. Optimization System
 
-**Location**: `src/configurable_agents/optimization/`
+**Status**: REMOVED (CL-004)
 
-**Purpose**: MLFlow-based prompt optimization and A/B testing
-
-**Components**:
-- `evaluator.py` - ExperimentEvaluator for MLFlow metric aggregation
-- `ab_testing.py` - ABTestRunner for variant comparison
-- `quality_gates.py` - QualityGateChecker for automated validation
-- `optimizer.py` - PromptOptimizer for applying optimized prompts
-
-**Key Features**:
-- **Percentile Calculation**: p50, p95, p99 using nearest-rank method
-- **Quality Gates**: WARN (logs), FAIL (raises), BLOCK_DEPLOY (sets flag)
-- **A/B Testing**: Config override workflow for variant comparison
-- **Automatic Backup**: YAML backup created before applying optimizations
-- **CLI Integration**: `optimization` command group (evaluate, apply-optimized, ab-test)
-
-**Quality Metrics**:
-- Cost per run
-- Duration
-- Token usage
-- Custom metrics
+The optimization module (`src/configurable_agents/optimization/`) was removed. It included A/B testing, quality gates, and prompt optimization. A redesign using MLflow 3.9 GenAI + DSPy is planned for a future phase. See [OPTIMIZATION_INVESTIGATION.md](OPTIMIZATION_INVESTIGATION.md) for the investigation and redesign plan.
 
 **Related ADRs**: [ADR-025](adr/ADR-025-optimization-architecture.md)
 
@@ -588,7 +569,7 @@ class SQLiteExecutionRepository(AbstractExecutionRepository):
 
 **Components**: Runtime Executor, Feature Gate
 
-**Responsibility**: Orchestrate the full workflow lifecycle: load → validate → build → execute → track
+**Responsibility**: Full workflow lifecycle: load → validate → build → execute → track
 
 **Key Pattern**: Config-driven pipeline with comprehensive error handling
 
@@ -623,7 +604,7 @@ class SQLiteExecutionRepository(AbstractExecutionRepository):
 
 **Components**: MLFlow Tracker, Cost Reporter, Performance Profiler, Multi-Provider Cost Tracker
 
-**Responsibility**: Cost tracking, metrics, workflow profiling, optimization
+**Responsibility**: Cost tracking, metrics, workflow profiling
 
 **Key Pattern**: MLFlow automatic tracing + manual metrics + cost aggregation
 
@@ -646,7 +627,7 @@ class SQLiteExecutionRepository(AbstractExecutionRepository):
 **Key Pattern**: FastAPI + HTMX + SSE for dashboard, async webhook handling
 
 **Files**:
-- `ui/dashboard/app.py` - Orchestration dashboard (FastAPI + HTMX)
+- `ui/dashboard/app.py` - Dashboard (FastAPI + HTMX)
 - `webhooks/server.py` - Generic webhook infrastructure
 - `deploy/generator.py` - Artifact generation (Dockerfile, docker-compose, server.py)
 

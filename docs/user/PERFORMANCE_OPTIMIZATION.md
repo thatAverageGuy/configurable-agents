@@ -4,7 +4,6 @@ This guide covers techniques for optimizing workflow performance, reducing costs
 
 ## Table of Contents
 - [Overview](#overview)
-- [MLFlow Optimization](#mlflow-optimization)
 - [Profiling and Bottleneck Detection](#profiling-and-bottleneck-detection)
 - [Cost Optimization](#cost-optimization)
 - [Resource Management](#resource-management)
@@ -19,121 +18,6 @@ Performance optimization involves:
 - **Throughput**: Increasing parallel execution capacity
 - **Resource Usage**: Optimizing CPU, memory, and storage
 
-## MLFlow Optimization
-
-### A/B Testing
-
-Test multiple prompt variants to find optimal performance:
-
-```yaml
-nodes:
-  - name: optimized_node
-    llm:
-      provider: openai
-      model: gpt-4
-    optimization:
-      ab_test:
-        variants:
-          - name: prompt_v1
-            prompt: "Analyze these results: {search_results}"
-          - name: prompt_v2
-            prompt: |
-            Please provide a comprehensive analysis of the following search results:
-            {search_results}
-
-            Focus on key insights and actionable information.
-        metric: cost_usd
-        direction: minimize
-        sample_size: 50
-```
-
-**Workflow:**
-1. Run workflow 50 times with each variant (100 total executions)
-2. MLFlow collects metrics for each execution
-3. System aggregates metrics by variant
-4. Compare performance (cost, latency, quality)
-5. Apply winning variant to configuration
-
-**View Results:**
-
-```bash
-# Compare variants in MLFlow
-configurable-agents optimization evaluate \
-  --workflow examples/workflow.yaml \
-  --experiment-name "my-experiment"
-```
-
-**Output:**
-
-```
-A/B Test Results
-===============
-
-Variant      | Avg Cost | Avg Latency | Success Rate
--------------+----------+-------------+-------------
-prompt_v1    | $0.018   | 2,950ms     | 98%
-prompt_v2    | $0.022   | 3,200ms     | 99%
-
-Winner: prompt_v1 (18% cheaper, 8% faster)
-```
-
-**Apply Winning Variant:**
-
-```bash
-configurable-agents optimization apply-optimized \
-  --workflow examples/workflow.yaml \
-  --experiment-name "my-experiment"
-```
-
-### Quality Gates
-
-Set performance thresholds with automatic actions:
-
-```yaml
-nodes:
-  - name: checked_node
-    llm:
-      provider: openai
-      model: gpt-4
-    gates:
-      - metric: cost_usd
-        max: 0.50
-        action: WARN
-      - metric: latency_ms
-        max: 5000
-        action: FAIL
-      - metric: error_rate
-        max: 0.05
-        action: BLOCK_DEPLOY
-```
-
-**Gate Actions:**
-
-| Action | Behavior | Use Case |
-|--------|----------|----------|
-| `WARN` | Log warning, continue execution | Soft limits, monitoring |
-| `FAIL` | Raise exception, stop workflow | Hard limits, enforcement |
-| `BLOCK_DEPLOY` | Set flag, manual review required | Production safeguards |
-
-**Example Output:**
-
-```
-Quality Gate Check
-==================
-
-Gate: cost_usd
-  Threshold: $0.50
-  Actual: $0.18
-  Status: ✅ PASSED
-
-Gate: latency_ms
-  Threshold: 5000ms
-  Actual: 3,200ms
-  Status: ✅ PASSED
-
-All gates passed
-```
-
 ## Profiling and Bottleneck Detection
 
 ### Enable Profiling
@@ -146,8 +30,7 @@ configurable-agents run workflow.yaml
 ### View Profile Report
 
 ```bash
-configurable-agents observability profile-report \
-  --run-id <mlflow_run_id>
+configurable-agents profile-report
 ```
 
 **Output:**
@@ -232,7 +115,6 @@ edges:
 
 - Reduce prompt length (fewer tokens = lower cost)
 - Use more specific prompts (fewer retries)
-- A/B test prompt variations
 - Remove redundant instructions
 - Use system prompts wisely
 
@@ -300,9 +182,7 @@ Breakdown by Node:
 
 ```bash
 # View cost report
-configurable-agents observability cost-report \
-  --workflow workflow.yaml \
-  --last 7days
+configurable-agents cost-report
 ```
 
 **Output:**
@@ -415,7 +295,6 @@ nodes:
 - [ ] Set appropriate timeouts
 - [ ] Configure resource presets
 - [ ] Enable profiling for bottlenecks
-- [ ] Set quality gates for SLAs
 - [ ] Configure token budgets
 - [ ] Enable response caching
 
@@ -430,12 +309,11 @@ nodes:
 
 ### Optimization
 
-- [ ] A/B test prompts regularly
-- [ ] Apply winning variants
-- [ ] Optimize bottlenecks
+- [ ] Optimize bottleneck nodes
 - [ ] Cache LLM responses
 - [ ] Use parallel execution
 - [ ] Select cost-effective models
+- [ ] Reduce prompt length
 
 ## Performance Benchmarks
 
@@ -483,7 +361,6 @@ nodes:
 | Model selection | 40-70% | 10-30% | Low |
 | Prompt optimization | 15-30% | 10-20% | Medium |
 | Parallel execution | 0% | 30-60% | Medium |
-| A/B testing | 10-25% | 5-15% | High |
 
 ## Related Documentation
 
@@ -495,6 +372,6 @@ nodes:
 ---
 
 **Level**: Advanced (⭐⭐⭐⭐)
-**Prerequisites**: Familiarity with workflows, MLFlow basics
+**Prerequisites**: Familiarity with workflows, basic observability
 **Time Investment**: 4-8 hours to implement optimization strategies
 **ROI**: High - 50-80% cost reduction, 30-60% latency improvement

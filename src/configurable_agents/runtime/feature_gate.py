@@ -4,7 +4,6 @@ Runtime feature gating for version-specific features.
 Validates that configs only use features available in the current runtime version.
 v0.1: Linear flows only
 v0.2: Conditional routing, observability
-v0.3: DSPy optimization
 """
 
 import warnings
@@ -66,9 +65,6 @@ def validate_runtime_support(config: WorkflowConfig) -> None:
     Warnings:
         UserWarning: For soft blocks (features that will be ignored)
     """
-    # Check for optimization (v0.3+) - SOFT BLOCK
-    _check_optimization(config)
-
     # Check for observability config (v0.2+) - SOFT BLOCK
     _check_observability(config)
 
@@ -82,38 +78,6 @@ def _check_conditional_routing(config: WorkflowConfig) -> None:
     """
     # Feature is now supported - no-op
     pass
-
-
-def _check_optimization(config: WorkflowConfig) -> None:
-    """
-    Check for DSPy optimization config.
-
-    This is a SOFT BLOCK - issues warning but doesn't fail.
-    """
-    # Check global optimization config
-    if config.optimization and config.optimization.enabled:
-        warnings.warn(
-            f"DSPy optimization (optimization.enabled=true) is not supported in v0.1. "
-            f"This setting will be IGNORED. "
-            f"Available in: v0.3 (12-16 weeks from initial release). "
-            f"Your workflow will run without optimization. "
-            f"See docs/PROJECT_VISION.md for roadmap.",
-            UserWarning,
-            stacklevel=3,
-        )
-
-    # Check node-level optimization config
-    for node in config.nodes:
-        if node.optimize and node.optimize.enabled:
-            warnings.warn(
-                f"Node-level optimization (node '{node.id}': optimize.enabled=true) is not supported in v0.1. "
-                f"This setting will be IGNORED. "
-                f"Available in: v0.3 (12-16 weeks from initial release). "
-                f"Node will run without optimization. "
-                f"See docs/PROJECT_VISION.md for roadmap.",
-                UserWarning,
-                stacklevel=3,
-            )
 
 
 def _check_observability(config: WorkflowConfig) -> None:
@@ -190,10 +154,6 @@ def get_supported_features() -> dict:
             "CLI cost reporting",
         ],
         "not_supported": {
-            "v0.3": [
-                "DSPy prompt optimization",
-                "Quality metrics and evaluation",
-            ],
             "v0.4": [
                 "Visual workflow editor",
                 "One-click deployments",

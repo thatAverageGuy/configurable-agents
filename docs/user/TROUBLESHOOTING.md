@@ -1110,53 +1110,6 @@ config:
     ttl: 90  # Increase from 60s
 ```
 
-### MLFlow Optimization Issues
-
-#### "A/B test insufficient data"
-
-**Error:**
-```
-InsufficientDataError: Need at least 5 runs per variant for statistical significance
-```
-
-**Solution:** Increase number of runs:
-```bash
-configurable-agents optimization ab-test \
-  --workflow workflow.yaml \
-  --node my_node \
-  --prompt-variants variant_a.yaml variant_b.yaml \
-  --runs 20  # Increase from default 10
-```
-
-#### "Quality gate failed"
-
-**Error:**
-```
-QualityGateError: Cost per run ($0.50) exceeds threshold ($0.30)
-```
-
-**Solution:** Adjust quality gate or optimize workflow:
-```yaml
-# config/quality_gates.yaml
-gates:
-  - name: cost_threshold
-    metric: cost_per_run
-    condition: "<= 0.50"  # Adjust threshold
-    action: WARN  # or FAIL, BLOCK_DEPLOY
-
-  - name: latency_threshold
-    metric: p95_duration_seconds
-    condition: "<= 10.0"
-    action: FAIL
-```
-
-**Apply quality gates:**
-```bash
-configurable-agents optimization evaluate \
-  --workflow workflow.yaml \
-  --quality-gates config/quality_gates.yaml
-```
-
 ---
 
 ## Getting Help

@@ -267,11 +267,10 @@ print(f"Analysis: {result['analysis']}")
 | article_writer.yaml | ⭐⭐⭐ Intermediate | 2 | ✅ | ❌ | Optional | Multi-step + tools |
 | nested_state.yaml | ⭐⭐ Intermediate | 1 | ❌ | ❌ | ❌ | Nested objects |
 | type_enforcement.yaml | ⭐⭐⭐ Advanced | 1 | ❌ | ❌ | ❌ | Type system |
-| mlflow_optimization.yaml | ⭐⭐⭐ Advanced | 1 | ✅ | ❌ | ✅ | A/B testing & optimization |
 | sandbox_example.yaml | ⭐⭐⭐ Advanced | 1 | ❌ | ✅ | Optional | Code execution sandbox |
 | webhook_integration/ | ⭐⭐⭐⭐ Production | 2 | ✅ | ❌ | Optional | Event-driven automation |
-| multi_agent_collaboration/ | ⭐⭐⭐⭐⭐ Advanced | 3+ | ✅ | ❌ | ✅ | Orchestrated multi-agent |
-| performance_tuning/ | ⭐⭐⭐⭐ Production | 2 | ✅ | ❌ | ✅ | Performance optimization |
+| multi_agent_collaboration/ | ⭐⭐⭐⭐⭐ Advanced | 3+ | ✅ | ❌ | Optional | Multi-agent coordination |
+| performance_tuning/ | ⭐⭐⭐⭐ Production | 2 | ✅ | ❌ | Optional | Performance optimization |
 
 ## Recommended Learning Path
 
@@ -286,8 +285,6 @@ print(f"Analysis: {result['analysis']}")
 ### Level 3: Advanced (⭐⭐⭐)
 5. **[type_enforcement.yaml](type_enforcement/)** - Type system mastery (20 min)
 6. **[tools_example.yaml](tools_example/)** - Tool integrations (15 min)
-7. **[mlflow_optimization.yaml](mlflow_optimization/)** - A/B testing and optimization (30 min)
-
 ### Level 4: Production-Ready (⭐⭐⭐⭐)
 8. **[sandbox_example.yaml](sandbox_example/)** - Code execution sandboxing (20 min)
 9. **[webhook_integration/](webhook_integration/)** - Event-driven automation (30 min)
@@ -334,33 +331,31 @@ curl -X POST http://localhost:8000/webhooks/generic \
 ### 7. multi_agent_collaboration/ ⭐⭐⭐⭐⭐ (Advanced)
 
 **Complexity**: Advanced
-**What it demonstrates**: Orchestrated multi-agent systems
+**What it demonstrates**: Multi-agent coordination
 
-Orchestrate multiple specialist agents working in parallel to accomplish complex tasks.
+Coordinate multiple specialist agents working in parallel to accomplish complex tasks.
 
 **Features:**
-- Agent registration and discovery
+- Deployment-based agent management
 - Metadata-based agent filtering
 - Parallel agent execution
-- Orchestrator pattern
 - Multi-agent coordination
 
 **Prerequisites:**
-- Agent registry running
-- Multiple agent instances registered
+- Dashboard server running
+- Multiple agent instances deployed
 
 **Usage:**
 ```bash
-# Start registry
-configurable-agents registry --port 8000
+# Start dashboard
+configurable-agents dashboard --port 8000
 
-# Register specialist agents
-configurable-agents agent start --name researcher --port 8001
-configurable-agents agent start --name analyst --port 8002
+# Deploy specialist agents
+configurable-agents deployments start --name researcher --port 8001
+configurable-agents deployments start --name analyst --port 8002
 
-# Run orchestrated workflow
-configurable-agents run multi_agent_collaboration.yaml \
-  --orchestrator-url http://localhost:8000
+# Run collaborative workflow
+configurable-agents run multi_agent_collaboration.yaml
 ```
 
 **Learn more**: [multi_agent_collaboration/README.md](multi_agent_collaboration/README.md)
@@ -377,12 +372,10 @@ Demonstrates various performance optimization techniques to reduce cost and late
 **Features:**
 - Model selection (cheaper vs expensive models)
 - Response caching (cache configuration)
-- A/B testing (prompt optimization)
-- Quality gates (cost/latency thresholds)
 - Performance benchmarking
+- Cost tracking and profiling
 
 **Prerequisites:**
-- MLFlow setup
 - Basic performance concepts
 
 **Usage:**
@@ -393,16 +386,7 @@ python benchmark.py
 # Run optimized workflow
 configurable-agents run performance_tuning.yaml \
   --query "performance optimization"
-
-# View A/B test results
-configurable-agents optimization evaluate \
-  --workflow performance_tuning.yaml \
-  --experiment-name "performance_optimization"
 ```
-
-**Expected Results:**
-- 60-80% cost reduction vs baseline
-- 50-60% latency reduction vs baseline
 
 **Learn more**: [performance_tuning/README.md](performance_tuning/README.md)
 

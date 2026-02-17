@@ -95,7 +95,7 @@ docker-compose up -d
        └─────────────┴─────────────┘
                      │
             ┌────────▼────────┐
-            │  Agent Registry │
+            │  Dashboard      │
             │  + MLFlow       │
             └─────────────────┘
 ```
@@ -109,8 +109,8 @@ docker-compose up -d
 **Setup:**
 
 ```bash
-# Start agent registry
-configurable-agents registry --port 8000 &
+# Start dashboard
+configurable-agents dashboard --port 8000 &
 
 # Deploy each agent
 for workflow in workflows/*.yaml; do
@@ -130,7 +130,7 @@ done
 **Cons:**
 - More complex setup
 - Multiple containers to manage
-- Registry is single point of failure
+- Dashboard is single point of failure
 - More infrastructure
 
 ### Kubernetes Deployment
@@ -145,7 +145,7 @@ done
 │  │  Namespace: configurable-agents │ │
 │  │                                  │ │
 │  │  ┌────────────┐  ┌────────────┐ │ │
-│  │  │  Agent Pods │  │  Registry │ │ │
+│  │  │  Agent Pods │  │  Dashboard│ │ │
 │  │  │  (HPA: 3-10)│  │  (Stateful)│ │ │
 │  │  └────────────┘  └────────────┘ │ │
 │  │                                  │ │
@@ -291,9 +291,10 @@ docker run -d \
   -v postgres-data:/var/lib/postgresql/data \
   postgres:15
 
-# Migration
-export DATABASE_URL="postgresql://..."
-configurable-agents migrate --from-sqlite ./workflows.db
+# Configure storage backend in workflow config
+# config:
+#   storage:
+#     backend: "postgresql://user:pass@host:5432/workflows"
 ```
 
 **When to Use:**
@@ -576,7 +577,7 @@ docker stats configurable-agents
 export CONFIGURABLE_AGENTS_PROFILING=true
 
 # View profile report
-configurable-agents observability profile-report --run-id $RUN_ID
+configurable-agents profile-report
 ```
 
 ### Pod Crashing (Kubernetes)

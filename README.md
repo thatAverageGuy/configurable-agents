@@ -220,8 +220,8 @@ curl -X POST http://localhost:8000/webhooks/generic \
 configurable-agents report costs --period last_7_days
 configurable-agents report profile --workflow research
 
-# List registered workflows
-configurable-agents workflow-registry list
+# List deployments
+configurable-agents deployments list
 
 # Deploy workflows
 configurable-agents deploy workflow.yaml
