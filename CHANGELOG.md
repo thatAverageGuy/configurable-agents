@@ -17,6 +17,23 @@ After introducing an autonomous agent system post-v1.0, the codebase and documen
 became inconsistent and out of sync. Cleanup tasks are in progress to restore
 the project to a verifiable state.
 
+### Fixed
+
+**CL-005: UI commands verification and fixes** (2026-02-24)
+- Fixed `chat` command crash — `create_storage_backend()` tuple unpack mismatch (7 vs 8) after UI-REDESIGN removed orchestrator repo (VF-010)
+- Fixed `cmd_dashboard` startup banner printing stale `/workflows` and `/agents` URLs instead of `/executions` and `/deployments` (VF-007)
+- Fixed executions table header `Agent ID` → `Deployment ID` and confirm dialog `Cancel this workflow?` → `Cancel this execution?` (VF-008)
+- Fixed nonexistent execution detail returning HTTP 200 instead of 404 (VF-009)
+- Fixed `ProcessManager.check_restore_session()` SQLAlchemy detached instance warning via `session.expunge()` (VF-011)
+- Fixed `win32job` API misuse in MLflow cleanup — corrected `QueryInformationJobObject`/`SetInformationJobObject` usage and `AssignProcessToJobObject` signature (VF-012)
+
+### Changed
+
+**CL-005: Documentation sync with code** (2026-02-24)
+- Updated UI_ARCHITECTURE.md route tree: `POST /deployments/{id}/deregister` → `DELETE /deployments/{id}`
+- Added undocumented legacy metric routes and backward-compat aliases to UI_ARCHITECTURE.md
+- Fixed `app.state` listing and router count in UI_ARCHITECTURE.md init flow diagram
+
 ### Removed
 
 **CL-004: Documentation truth audit and dead code removal** (2026-02-17)

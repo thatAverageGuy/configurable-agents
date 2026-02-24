@@ -57,6 +57,36 @@
 
 ---
 
+### CL-005: UI Commands Verification and Fixes ✅ COMPLETE
+
+**Status**: COMPLETE
+**Started**: 2026-02-24
+**Completed**: 2026-02-24
+**Priority**: MEDIUM
+
+**Summary**: Deep-tested the 3 remaining UI commands (`dashboard`, `chat`, `ui`) — Round 3 of CLI verification. Found 7 issues (VF-007–VF-013), fixed 6.
+
+**Issues Found and Fixed**:
+
+| ID | Severity | Issue | Fix |
+|----|----------|-------|-----|
+| VF-007 | Low | Dashboard startup prints stale `/workflows`, `/agents` URLs | Updated to `/executions`, `/deployments` |
+| VF-008 | Medium | Template `Agent ID` header, `Cancel this workflow?` dialog | Renamed to `Deployment ID`, `Cancel this execution?` |
+| VF-009 | Low | Nonexistent execution returns HTTP 200 | Added `status_code=404` |
+| VF-010 | **Critical** | `chat` crashes — storage factory tuple unpack (8 vs 7) | Fixed to 7-value unpack |
+| VF-011 | Low | `check_restore_session()` SQLAlchemy detached instance | Added `session.expunge()` |
+| VF-012 | Medium | `win32job` API misuse — job objects non-functional | Rewrote with correct pywin32 API |
+| VF-013 | Low | cli.py imports ~17s on Windows (observation) | No fix — future lazy import opportunity |
+
+**Also completed**:
+- Synced UI_ARCHITECTURE.md with actual code (4 doc discrepancies corrected pre-runtime)
+
+**Test results**: 671 passed, 1 pre-existing failure, 3 skipped
+
+**Details**: [CL-005 UI Commands Verification](implementation_logs/phase_5_cleanup_and_verification/CL-005_UI_COMMANDS_VERIFICATION.md)
+
+---
+
 ### CL-004: Documentation Truth Audit and Dead Code Removal ✅ COMPLETE
 
 **Status**: COMPLETE

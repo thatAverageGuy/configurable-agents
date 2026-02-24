@@ -68,12 +68,14 @@ DashboardApp (FastAPI)
 │   │   ├── /deployments/health-check .. HTMX partial: health check all deployments
 │   │   ├── /deployments/{id}/docs ..... Get deployment OpenAPI docs
 │   │   ├── /deployments/{id}/schema ... Get deployment schema
-│   │   ├── /deployments/{id}/execute POST . Execute workflow on deployment
-│   │   └── /deployments/{id}/deregister POST . Deregister deployment
+│   │   └── /deployments/{id}/execute POST . Execute workflow on deployment
+│   │   [DELETE /deployments/{id} .......... Deregister deployment]
 │   ├── /metrics/
 │   │   ├── /metrics/executions/stream . SSE: execution updates every 5s
 │   │   ├── /metrics/deployments/stream  SSE: deployment updates every 10s
-│   │   └── /metrics/summary ........... JSON: summary stats
+│   │   ├── /metrics/summary ........... JSON: summary stats
+│   │   ├── /metrics/workflows/stream .. (legacy alias → executions/stream)
+│   │   └── /metrics/agents/stream ..... (legacy alias → deployments/stream)
 │   └── /api/status
 │       ├── /api/status .............. HTMX partial: status panel (10s poll)
 │       └── /api/status/health ....... JSON health check
@@ -151,12 +153,15 @@ DashboardApp.__init__()
 │       └── Create MLflow WSGI app → mount at /mlflow
 ├── 5. Store repos in app.state
 │       ├── app.state.execution_repo
-│       ├── app.state.execution_state_repo
+│       ├── app.state.workflow_repo (backward-compat alias → execution_repo)
+│       ├── app.state.workflow_run_repo (backward-compat alias → execution_repo)
+│       ├── app.state.state_repo
 │       ├── app.state.deployment_repo
+│       ├── app.state.agent_registry_repo (backward-compat alias → deployment_repo)
 │       ├── app.state.templates
 │       └── app.state.mlflow_tracking_uri
-├── 6. Register startup event (log agent count)
-├── 7. _include_routers() — all 6 route modules
+├── 6. Register startup event (log deployment count)
+├── 7. _include_routers() — 4 route modules (executions, deployments, metrics, status)
 ├── 8. _register_template_helpers() — replace stubs with real implementations
 ├── 9. _create_main_dashboard_routes() — /, /health, /mlflow
 └── 10. Add HTTP middleware (request context — currently no-op)
@@ -621,6 +626,14 @@ The `generate_config()` method collects the full response synchronously via `loo
 ### MLflow Mounting Logic
 
 MLflow is mounted as WSGI middleware at `/mlflow` **only** when `mlflow_tracking_uri` is a file path (not HTTP). For HTTP URIs, the `/mlflow` route redirects to the external MLflow server. If MLflow is not installed, the route shows `mlflow_unavailable.html`.
+
+### Backward Compatibility Layer
+
+The dashboard maintains backward-compatible aliases for the pre-UI-REDESIGN naming:
+- **App state**: `workflow_repo`, `workflow_run_repo` → `execution_repo`; `agent_registry_repo` → `deployment_repo`
+- **Metric SSE routes**: `/metrics/workflows/stream` → `/metrics/executions/stream`; `/metrics/agents/stream` → `/metrics/deployments/stream`
+
+These exist to prevent breakage if any internal code still references old names. They are not advertised to users.
 
 ---
 

@@ -4,7 +4,7 @@
         <tr>
             <th>ID</th>
             <th>Workflow</th>
-            <th>Agent ID</th>
+            <th>Deployment ID</th>
             <th>Status</th>
             <th>Started</th>
             <th>Duration</th>
@@ -24,7 +24,7 @@
                 </td>
                 <td>{{ workflow.workflow_name }}</td>
                 <td>
-                    {# Show workflow_name as Agent ID if it looks like an agent execution #}
+                    {# Show deployment ID if execution was triggered by a deployment #}
                     {% if workflow.workflow_name and '-' in workflow.workflow_name or workflow.workflow_name.endswith('-agent') %}
                         <code>{{ workflow.workflow_name }}</code>
                     {% else %}
@@ -42,7 +42,7 @@
                         {% if workflow.status == 'running' %}
                         <button class="btn btn-sm btn-danger"
                                 hx-post="/executions/{{ workflow.id }}/cancel"
-                                hx-confirm="Cancel this workflow?"
+                                hx-confirm="Cancel this execution?"
                                 hx-swap="none">
                             Cancel
                         </button>

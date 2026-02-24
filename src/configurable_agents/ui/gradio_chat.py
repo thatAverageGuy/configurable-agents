@@ -596,7 +596,7 @@ def create_gradio_chat_ui(
     # Create session repository if not provided
     if session_repo is None:
         from configurable_agents.storage import create_storage_backend
-        _, _, _, session_repo, _, _, _, _ = create_storage_backend()
+        _, _, _, session_repo, _, _, _ = create_storage_backend()
 
     # Get dashboard URL from parameter, env var, or default
     if dashboard_url is None:

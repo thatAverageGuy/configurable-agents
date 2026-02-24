@@ -217,6 +217,7 @@ async def execution_detail(
                 "request": request,
                 "error": f"Execution not found: {execution_id}",
             },
+            status_code=404,
         )
 
     # Parse outputs if available

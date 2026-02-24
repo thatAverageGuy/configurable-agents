@@ -490,18 +490,21 @@ if not hasattr(args, 'func'):
 
 **Round 1**: 10 items verified — 5 PASS, 2 FAIL, 2 PARTIAL, 1 CRASH → **ALL FIXED** (2026-02-10)
 **Round 2**: 4 commands verified — 2 PASS, 1 REMOVED, 1 PASS + VF-006 → **ALL FIXED** (2026-02-10)
-**Round 3** (pending): 3 commands remaining — `dashboard`, `chat`, `ui`
+**Round 3**: 15 items verified — 9 PASS, 4 FAIL, 1 PARTIAL, 1 OBSERVATION → **7 new issues** (VF-007–VF-013)
 
-**Total issues**: 6 (VF-001 through VF-006) — **ALL 6 FIXED** (2026-02-10)
+**Total issues**: 13 (VF-001 through VF-013)
+- VF-001–VF-006: **ALL 6 FIXED** (2026-02-10)
+- VF-007–VF-013: **Pending fix session** (2026-02-24)
 
 **Additional actions completed** (2026-02-10):
 - Optimization module removed entirely
 - Agent Registry renamed to Workflow Registry
 
-**Reference**: [UI_ARCHITECTURE.md](../../UI_ARCHITECTURE.md) — Read before Round 3 testing.
-
-**Fixing details**: [CL-003_VF_FIXING_SESSION.md](CL-003_VF_FIXING_SESSION.md)
+**References**:
+- [UI_ARCHITECTURE.md](../../UI_ARCHITECTURE.md) — UI architecture reference
+- [CL-003_VF_FIXING_SESSION.md](CL-003_VF_FIXING_SESSION.md) — Round 1+2 fixing details
+- [CL-005_UI_COMMANDS_VERIFICATION.md](CL-005_UI_COMMANDS_VERIFICATION.md) — Round 3 verification details
 
 ---
 
-*This document is the single source of truth for all CLI verification. All Round 1 + 2 issues fixed. Round 3 (UI commands) pending.*
+*This document covers Round 1 + 2. Round 3 details are in CL-005_UI_COMMANDS_VERIFICATION.md.*

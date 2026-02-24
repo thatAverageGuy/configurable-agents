@@ -1423,8 +1423,8 @@ def cmd_dashboard(args: argparse.Namespace) -> int:
     print()
     print(f"{colorize('Endpoints:', Colors.BOLD)}")
     print(f"  Dashboard:    http://localhost:{args.port}/")
-    print(f"  Workflows:    http://localhost:{args.port}/workflows")
-    print(f"  Agents:       http://localhost:{args.port}/agents")
+    print(f"  Executions:   http://localhost:{args.port}/executions")
+    print(f"  Deployments:  http://localhost:{args.port}/deployments")
     if mlflow_uri:
         print(f"  MLFlow UI:    http://localhost:{args.port}/mlflow")
     print()
@@ -1670,11 +1670,9 @@ def _run_mlflow_service(host: str, port: int, verbose: bool) -> None:
         # First try the job object (Windows)
         if job_handle is not None:
             try:
-                import win32job
-                import win32con
                 import win32api
                 # Close the job object which will terminate all processes in the job
-                win32job.CloseHandle(job_handle)
+                win32api.CloseHandle(job_handle)
                 print(f"[MLFlow] Job object closed (MLFlow terminated via job)", flush=True)
                 mlflow_process = None  # Mark as handled
                 return
@@ -1702,15 +1700,14 @@ def _run_mlflow_service(host: str, port: int, verbose: bool) -> None:
     if sys.platform == "win32":
         try:
             import win32job
-            import win32con
             import win32api
 
             # Create a job object
             job_handle = win32job.CreateJobObject(None, "")
 
-            # Set job info to kill all processes when job closes
-            info = win32job.JOBOBJECT_EXTENDED_LIMIT_INFORMATION()
-            info.BasicLimitInformation.LimitFlags = win32job.JOB_OBJECT_LIMIT_KILL_ON_JOB_CLOSE
+            # Query current limits, set KILL_ON_JOB_CLOSE, then apply
+            info = win32job.QueryInformationJobObject(job_handle, win32job.JobObjectExtendedLimitInformation)
+            info['BasicLimitInformation']['LimitFlags'] |= win32job.JOB_OBJECT_LIMIT_KILL_ON_JOB_CLOSE
             win32job.SetInformationJobObject(job_handle, win32job.JobObjectExtendedLimitInformation, info)
 
         except ImportError:
@@ -1734,10 +1731,13 @@ def _run_mlflow_service(host: str, port: int, verbose: bool) -> None:
     if job_handle is not None:
         try:
             import win32job
-            import win32con
-            import win32process
-            # Assign the MLFlow process to the job
-            win32job.AssignProcessToJobObject(job_handle, None, mlflow_process.pid)
+            import win32api
+            # Open process handle from PID, then assign to job
+            PROCESS_SET_QUOTA = 0x0100
+            PROCESS_TERMINATE = 0x0001
+            proc_handle = win32api.OpenProcess(PROCESS_SET_QUOTA | PROCESS_TERMINATE, False, mlflow_process.pid)
+            win32job.AssignProcessToJobObject(job_handle, proc_handle)
+            win32api.CloseHandle(proc_handle)
             if verbose:
                 print(f"[MLFlow] Assigned to job object for reliable cleanup", flush=True)
         except Exception as e:

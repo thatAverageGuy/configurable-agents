@@ -296,12 +296,14 @@ class ProcessManager:
                 result = session.scalar(stmt)
 
                 if result:
+                    session.expunge(result)
                     return result
 
                 # Create new session state (default is dirty=True for crash detection)
                 new_state = SessionState(id="default", dirty_shutdown=1)
                 session.add(new_state)
                 session.commit()
+                session.expunge(new_state)
                 return new_state
 
         except Exception as e:

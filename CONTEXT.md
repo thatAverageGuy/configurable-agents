@@ -7,29 +7,29 @@
 
 ---
 
-**Last Updated**: 2026-02-17
+**Last Updated**: 2026-02-24
 
 ---
 
 ## Current State
 
-**Task**: CL-004 (Documentation Truth Audit) | **Phase**: Complete | **Status**: DONE
+**Task**: CL-005 (UI Commands Verification & Fixes) | **Phase**: Complete | **Status**: DONE
 
 ### What Was Done Last
 
-**CL-004: Documentation truth audit and dead code removal** (2026-02-17):
-- Removed orchestrator module entirely (src, deploy, tests, examples — 12 files deleted)
-- Fixed 38+ stale documentation references across 13 files
-- Removed optimization/A/B testing references from all user-facing and internal docs
-- Fixed UI-REDESIGN terminology mismatches (routes, models, table names)
-- Fixed test_schema_integration.py test referencing removed config.optimization
-- **Test results**: 348 passed, 4 skipped, 0 failed
+**CL-005: Deep-test dashboard/chat/ui commands + fixes** (2026-02-24):
+- Verified all 3 UI commands (dashboard, chat, ui) — 29 total CLI items across 3 rounds
+- Found 7 issues (VF-007 through VF-013), fixed 6 (VF-013 is observation-only)
+- Critical fix: `chat` command was completely broken (storage factory tuple unpack mismatch)
+- Fixed win32job API for MLflow cleanup on Windows
+- Fixed stale UI-REDESIGN terminology in templates and CLI output
+- Synced UI_ARCHITECTURE.md with actual code (4 discrepancies corrected)
+- **Test results**: 671 passed, 1 pre-existing failure (cost_reporter), 3 skipped
 
 ### Next Tasks
 
 | Task | Summary | Priority |
 |------|---------|----------|
-| CL-003 Round 3 | Deep-test dashboard/chat/ui commands (post-redesign) | MEDIUM |
 | Future | Optimization redesign (MLflow 3.9 GenAI + DSPy) | LOW |
 
 ### Blockers
@@ -41,7 +41,6 @@
 
 | Task | Summary | Details |
 |------|---------|---------|
-| CL-003 Round 3 | Deep-test dashboard/chat/ui commands (post-redesign) | [Deep Flag Verification](docs/development/implementation_logs/phase_5_cleanup_and_verification/CL-003_DEEP_FLAG_VERIFICATION.md) |
 | Future | Optimization redesign (MLflow 3.9 GenAI + DSPy) | [OPTIMIZATION_INVESTIGATION.md](docs/development/OPTIMIZATION_INVESTIGATION.md) |
 
 ## Relevant Quick Links
@@ -49,10 +48,10 @@
 - **Documentation Index**: docs/README.md
 - **User Guides**: docs/user/
 - **Architecture**: docs/development/ARCHITECTURE.md
-- **ADR-026 (UI Redesign)**: docs/development/adr/ADR-026-ui-redesign-terminology.md
 - **UI Architecture**: docs/development/UI_ARCHITECTURE.md
-- **CL-004 Implementation Log**: docs/development/implementation_logs/phase_5_cleanup_and_verification/CL-004_documentation_truth_audit.md
+- **CL-005 Verification Log**: docs/development/implementation_logs/phase_5_cleanup_and_verification/CL-005_UI_COMMANDS_VERIFICATION.md
+- **CLI Verification (all rounds)**: docs/development/implementation_logs/phase_5_cleanup_and_verification/CL-003_DEEP_FLAG_VERIFICATION.md
 
 ---
 
-*Last Updated: 2026-02-17 | CL-004 complete. Next: CL-003 Round 3 (dashboard/chat/ui deep testing).*
+*Last Updated: 2026-02-24 | CL-005 complete. All 3 rounds of CLI verification done (29 items, 13 issues found, all fixed).*
