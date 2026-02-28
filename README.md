@@ -132,7 +132,7 @@ configurable-agents chat
 ### 🎛️ User Interfaces
 - **Chat UI** (Gradio): Config generation through conversation
 - **Orchestration Dashboard** (FastAPI + HTMX): Runtime management
-- **Workflow Registry**: Service discovery and health monitoring
+- **Deployment Registry**: Service discovery and health monitoring
 - **MLFlow UI**: Embedded observability dashboard
 - **Real-time updates**: SSE streaming for live monitoring
 
@@ -164,7 +164,7 @@ configurable-agents chat
 | **v1.0** | ✅ Complete | 2026-02-04 | Multi-LLM, Control Flow, Observability, UIs |
 | **v1.1** | 🔮 Planning | TBD | Next milestone goals TBD |
 
-**📋 v1.0 Details**: See `.planning/milestones/v1.0-ROADMAP.md` for complete breakdown
+**📋 v1.0 Details**: See [TASKS.md](docs/development/TASKS.md) for complete breakdown
 
 ---
 
@@ -206,10 +206,9 @@ configurable-agents run workflow.yaml --input topic="AI"
 # Generate configs through chat
 configurable-agents chat
 
-# Manage workflows through dashboard
+# Manage executions through dashboard
 configurable-agents dashboard
-# → http://localhost:8000 (Dashboard)
-# → http://localhost:5000 (MLFlow UI)
+# → http://localhost:7861 (Dashboard)
 
 # Trigger via webhooks
 curl -X POST http://localhost:8000/webhooks/generic \
@@ -312,14 +311,13 @@ Describe your workflow in natural language, get a valid YAML config instantly. S
 
 ```bash
 configurable-agents dashboard
-# → http://localhost:8000 (Dashboard)
-# → http://localhost:5000 (MLFlow UI embedded)
+# → http://localhost:7861 (Dashboard)
 ```
 
-- View running workflows
+- View running executions
 - Inspect state and logs
 - Trigger new executions
-- Monitor agent registry
+- Monitor deployment registry
 - Real-time updates via SSE
 
 ---
@@ -338,7 +336,7 @@ configurable-agents dashboard
 
 **Design philosophy**: Local-first, config-driven, pluggable, observable.
 
-See [ARCHITECTURE.md](docs/ARCHITECTURE.md) for detailed system design.
+See [ARCHITECTURE.md](docs/development/ARCHITECTURE.md) for detailed system design.
 
 ---
 
@@ -370,7 +368,7 @@ See [ARCHITECTURE.md](docs/ARCHITECTURE.md) for detailed system design.
 - 15 pre-built tools
 - Quality gates
 
-**Full details**: `.planning/milestones/v1.0-ROADMAP.md`
+**Full details**: [TASKS.md](docs/development/TASKS.md)
 
 ---
 
@@ -387,7 +385,7 @@ See [ARCHITECTURE.md](docs/ARCHITECTURE.md) for detailed system design.
 - **[TROUBLESHOOTING.md](docs/user/TROUBLESHOOTING.md)** - Common issues and solutions
 - **[SECURITY_GUIDE.md](docs/user/SECURITY_GUIDE.md)** - Security best practices
 - **[TOOL_DEVELOPMENT.md](docs/user/TOOL_DEVELOPMENT.md)** - Custom tool creation
-- **[PERFORMANCE_OPTIMIZATION.md](docs/user/PERFORMANCE_OPTIMIZATION.md)** - A/B testing and quality gates
+- **[PERFORMANCE_OPTIMIZATION.md](docs/user/PERFORMANCE_OPTIMIZATION.md)** - Profiling, cost optimization, and bottleneck detection
 - **[PRODUCTION_DEPLOYMENT.md](docs/user/PRODUCTION_DEPLOYMENT.md)** - Production patterns
 - **[ADVANCED_TOPICS.md](docs/user/ADVANCED_TOPICS.md)** - Advanced features overview
 

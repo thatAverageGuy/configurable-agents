@@ -55,9 +55,9 @@ Production deployment requires consideration of:
 
 ```bash
 # Generate deployment artifacts
-configurable-agents deploy generate \
-  --config workflow.yaml \
-  --output ./deploy
+configurable-agents deploy workflow.yaml \
+  --generate \
+  --output-dir ./deploy
 
 # Deploy with Docker
 cd deploy
@@ -109,14 +109,14 @@ docker-compose up -d
 **Setup:**
 
 ```bash
-# Start dashboard
-configurable-agents dashboard --port 8000 &
+# Start dashboard (default port: 7861)
+configurable-agents dashboard &
 
-# Deploy each agent
+# Deploy each workflow
 for workflow in workflows/*.yaml; do
-  configurable-agents deploy generate \
-    --config "$workflow" \
-    --output "./deploy/$(basename $workflow .yaml)"
+  configurable-agents deploy "$workflow" \
+    --generate \
+    --output-dir "./deploy/$(basename $workflow .yaml)"
   docker-compose -f "./deploy/$(basename $workflow .yaml)/docker-compose.yml" up -d &
 done
 ```

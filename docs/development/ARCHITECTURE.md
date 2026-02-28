@@ -2,7 +2,7 @@
 
 **Purpose**: High-level system design, patterns, and architecture
 **Audience**: Developers wanting to understand how the system works
-**Last Updated**: 2026-02-13 (UI Redesign)
+**Last Updated**: 2026-02-28 (CL-006: doc sync)
 
 > **Note**: This document reflects the UI Redesign terminology changes (2026-02-13).
 > Models renamed: `WorkflowRunRecord` → `Execution`, `AgentRecord` → `Deployment`.
@@ -648,7 +648,7 @@ class SQLiteExecutionRepository(AbstractExecutionRepository):
 | **Dashboard** | FastAPI + HTMX | Async, lightweight, no JS frameworks needed | [ADR-021](adr/ADR-021-htmx-dashboard.md) |
 | **Observability** | MLFlow 3.9+ | Automatic tracing, GenAI features, cost tracking | [ADR-011](adr/ADR-011-mlflow-observability.md) |
 | **Testing** | pytest | Standard Python testing | [ADR-017](adr/ADR-017-testing-strategy-cost-management.md) |
-| **CLI** | Click + Rich | Industry standard, formatted tables | [ADR-015](adr/ADR-015-cli-interface-design.md) |
+| **CLI** | argparse + Rich | Standard library parser, formatted tables | [ADR-015](adr/ADR-015-cli-interface-design.md) |
 | **Deployment** | Docker + FastAPI | Containerized microservices, one-command deploy | [ADR-012](adr/ADR-012-docker-deployment-architecture.md) |
 
 ---
@@ -831,7 +831,6 @@ Manual Metrics
 MLFlow Backend (SQLite/PostgreSQL)
   - Experiment aggregation
   - Cost reporting (CSV/JSON export)
-  - A/B testing support
 ```
 
 **Implementation**: See [ADR-011](adr/ADR-011-mlflow-observability.md), [ADR-014](adr/ADR-014-three-tier-observability-strategy.md)
@@ -850,14 +849,13 @@ MLFlow Backend (SQLite/PostgreSQL)
 ```
 configurable-agents dashboard
       ↓
-FastAPI Server (port 8000)
-  - Dashboard UI (HTMX + SSE)
-  - Deployment registry endpoints (/deployments/*)
+Dashboard Server (port 7861, FastAPI + HTMX)
   - Execution management (/executions/*)
-  - MLFlow iframe embed (port 5000)
+  - Deployment registry UI (/deployments/*)
+  - MLFlow redirect/embed (/mlflow)
       ↓
-Webhook Server (port 8000/webhooks)
-  - Generic webhook endpoint
+configurable-agents webhooks (separate, port 7862)
+  - Generic webhook endpoint (/webhooks/generic)
   - Platform handlers (WhatsApp, Telegram)
   - HMAC signature verification
       ↓
@@ -1019,13 +1017,10 @@ Storage Backend (SQLite/PostgreSQL)
 **Technical Specs**: [SPEC.md](SPEC.md) (Complete config schema reference + v1.0 extensions)
 
 **User Guides**:
-- [QUICKSTART.md](QUICKSTART.md) - Get started in 5 minutes
-- [CONFIG_REFERENCE.md](CONFIG_REFERENCE.md) - Config schema guide
-- [OBSERVABILITY.md](OBSERVABILITY.md) - MLFlow tracking guide
-- [DEPLOYMENT.md](DEPLOYMENT.md) - Docker deployment guide
-- [TROUBLESHOOTING.md](TROUBLESHOOTING.md) - Common issues
+- [QUICKSTART.md](../user/QUICKSTART.md) - Get started in 5 minutes
+- [CONFIG_REFERENCE.md](../user/CONFIG_REFERENCE.md) - Config schema guide
+- [OBSERVABILITY.md](../user/OBSERVABILITY.md) - MLFlow tracking guide
+- [DEPLOYMENT.md](../user/DEPLOYMENT.md) - Docker deployment guide
+- [TROUBLESHOOTING.md](../user/TROUBLESHOOTING.md) - Common issues
 
-**Milestone Archives**:
-- [.planning/milestones/v1.0-ROADMAP.md](../.planning/milestones/v1.0-ROADMAP.md) - v1.0 roadmap
-- [.planning/milestones/v1.0-REQUIREMENTS.md](../.planning/milestones/v1.0-REQUIREMENTS.md) - v1.0 requirements
-- [.planning/milestones/v1.0-MILESTONE-AUDIT.md](../.planning/milestones/v1.0-MILESTONE-AUDIT.md) - v1.0 audit
+**Milestone Archives**: v1.0 planning files were internal-only and are not checked in. See [TASKS.md](TASKS.md) for v1.0 requirements and completion status.

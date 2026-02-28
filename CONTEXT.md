@@ -7,24 +7,24 @@
 
 ---
 
-**Last Updated**: 2026-02-24
+**Last Updated**: 2026-02-28
 
 ---
 
 ## Current State
 
-**Task**: CL-005 (UI Commands Verification & Fixes) | **Phase**: Complete | **Status**: DONE
+**Task**: CL-006 (Documentation Sync) | **Phase**: Complete | **Status**: DONE
 
 ### What Was Done Last
 
-**CL-005: Deep-test dashboard/chat/ui commands + fixes** (2026-02-24):
-- Verified all 3 UI commands (dashboard, chat, ui) — 29 total CLI items across 3 rounds
-- Found 7 issues (VF-007 through VF-013), fixed 6 (VF-013 is observation-only)
-- Critical fix: `chat` command was completely broken (storage factory tuple unpack mismatch)
-- Fixed win32job API for MLflow cleanup on Windows
-- Fixed stale UI-REDESIGN terminology in templates and CLI output
-- Synced UI_ARCHITECTURE.md with actual code (4 discrepancies corrected)
-- **Test results**: 671 passed, 1 pre-existing failure (cost_reporter), 3 skipped
+**CL-006: Full documentation audit and sync** (2026-02-28):
+- Comprehensive audit of all docs vs actual code — 22 discrepancies found across 9 files
+- Fixed port numbers (dashboard 8000 → 7861), stale terminology, broken links
+- Fixed CLI commands in SECURITY_GUIDE (registry → deployments start) and PRODUCTION_DEPLOYMENT (deploy generate → deploy <file> --generate)
+- Fixed ARCHITECTURE.md: argparse (not Click), removed A/B testing, corrected ports
+- Removed all dead `.planning/milestones/` references from README and ARCHITECTURE.md
+- Resolved ARCH-02 contradictory status (Partial vs Complete) in TASKS.md
+- All docs now verified against actual code
 
 ### Next Tasks
 
@@ -54,4 +54,4 @@
 
 ---
 
-*Last Updated: 2026-02-24 | CL-005 complete. All 3 rounds of CLI verification done (29 items, 13 issues found, all fixed).*
+*Last Updated: 2026-02-28 | CL-006 complete. All docs verified against code. 22 discrepancies fixed across 9 files.*

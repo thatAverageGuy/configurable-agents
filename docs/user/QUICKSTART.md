@@ -775,7 +775,7 @@ Monitor and manage executions and deployments:
 configurable-agents dashboard
 ```
 
-Open http://localhost:8000 in your browser.
+Open http://localhost:7861 in your browser.
 
 **Features:**
 - View all executions with status tracking

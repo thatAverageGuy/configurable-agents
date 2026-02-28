@@ -11,11 +11,34 @@ For detailed task-by-task implementation notes, see [implementation logs](docs/d
 
 ## [Unreleased]
 
-### WARNING: PROJECT STATE IS BROKEN
+### Fixed
+
+**CL-006: Documentation sync — all docs aligned with actual code** (2026-02-28)
+- Fixed dashboard port in README, QUICKSTART, PRODUCTION_DEPLOYMENT (8000 → 7861)
+- Fixed "Workflow Registry" → "Deployment Registry" terminology in README
+- Fixed broken `docs/ARCHITECTURE.md` link → `docs/development/ARCHITECTURE.md` in README
+- Fixed `configurable-agents registry` → `configurable-agents deployments start` in SECURITY_GUIDE
+- Fixed `configurable-agents deploy generate --config / --output` → `deploy <file> --generate --output-dir` in PRODUCTION_DEPLOYMENT
+- Fixed "View running workflows" → "View running executions" in README
+- Fixed "Monitor agent registry" → "Monitor deployment registry" in README
+- Fixed "A/B testing and quality gates" PERFORMANCE_OPTIMIZATION.md description in README
+- Fixed "Click + Rich" → "argparse + Rich" in ARCHITECTURE.md tech stack
+- Removed "A/B testing support" from Observability Architecture section (optimization module was removed in CL-003)
+- Fixed dashboard/webhooks port in Deployment Architecture section of ARCHITECTURE.md (8000 → 7861/7862)
+- Fixed broken user guide relative links in ARCHITECTURE.md deep-dive section
+- Removed dead `.planning/milestones/` references from README and ARCHITECTURE.md
+- Fixed CL-002 status: IN PROGRESS → COMPLETE (cleanup finished in CL-003/004/005)
+- Fixed ARCH-02 status: Partial → Complete in traceability matrix (completed 2026-02-06)
+- Fixed CL-003 "Remaining" note to reference CL-005 which handled Round 3
+- Added note to TASKS.md requirements mapping that plan files are internal-only
+- Added CL-005 log and 4 missing UI design docs to docs/README.md index
+- Updated CHANGELOG.md cleanup warning from "BROKEN" to "COMPLETE"
+
+### Cleanup Status: COMPLETE (as of CL-005, 2026-02-24)
 
 After introducing an autonomous agent system post-v1.0, the codebase and documentation
-became inconsistent and out of sync. Cleanup tasks are in progress to restore
-the project to a verifiable state.
+became inconsistent and out of sync. All cleanup tasks (CL-001 through CL-005) are now
+complete. The project has been restored to a verified, testable state (671 tests passing).
 
 ### Fixed
 

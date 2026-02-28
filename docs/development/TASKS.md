@@ -57,6 +57,29 @@
 
 ---
 
+### CL-006: Full Documentation Audit and Sync ✅ COMPLETE
+
+**Status**: COMPLETE
+**Started**: 2026-02-28
+**Completed**: 2026-02-28
+**Priority**: MEDIUM
+
+**Summary**: Comprehensive audit of all docs vs actual code. Found and fixed 22 discrepancies across 9 files.
+
+**Issues Fixed**:
+- Port numbers: dashboard default 8000 → 7861 (README, QUICKSTART, PRODUCTION_DEPLOYMENT, ARCHITECTURE)
+- CLI commands: `registry` → `deployments start`, `deploy generate --config` → `deploy <file> --generate --output-dir`
+- Terminology: "Workflow Registry" → "Deployment Registry", "workflows" → "executions" (README)
+- ARCHITECTURE.md: `Click` → `argparse`, removed A/B testing from observability, fixed ports, fixed user guide links
+- Dead references: Removed all `.planning/milestones/` dead links (README, ARCHITECTURE)
+- TASKS.md: ARCH-02 Partial → Complete, CL-002 IN PROGRESS → COMPLETE, added plan file note
+- CHANGELOG.md: Updated "PROJECT STATE IS BROKEN" → "COMPLETE"
+- docs/README.md: Added CL-005 log + 4 missing UI design docs to index
+
+**Details**: All 22 findings from the post-CL-005 documentation audit
+
+---
+
 ### CL-005: UI Commands Verification and Fixes ✅ COMPLETE
 
 **Status**: COMPLETE
@@ -171,7 +194,7 @@
 
 **Test results after fixes**: 656 passed, 0 failed, 3 skipped
 
-**Remaining**: `dashboard`, `chat`, `ui` (3 commands, Round 3, items #15–#17)
+**Round 3 completed in CL-005**: `dashboard`, `chat`, `ui` — all verified and fixed (VF-007–VF-013)
 
 **Details**:
 - [CL-003 VF Fixing Session](implementation_logs/phase_5_cleanup_and_verification/CL-003_VF_FIXING_SESSION.md)
@@ -185,8 +208,9 @@
 
 ### CL-002: Documentation Index and Dead Link Cleanup
 
-**Status**: IN PROGRESS (Project state still broken, further cleanup needed)
+**Status**: ✅ COMPLETE (Further cleanup completed in CL-003 through CL-005)
 **Started**: 2026-02-06
+**Completed**: 2026-02-06 (final verification via CL-003/CL-004/CL-005)
 
 **Summary**: Created docs/README.md index and updated references to non-existent documentation.
 
@@ -198,8 +222,7 @@
 - ✅ Updated docs/development/TASKS.md to remove .planning/ references
 - ✅ Updated CONTEXT.md with broken state declaration
 
-**IMPORTANT**: Project state remains BROKEN. Further cleanup and verification phase
-needed before this can be marked complete.
+**Note**: All cleanup actions completed in CL-003/CL-004/CL-005. Project state is verified clean.
 
 **Details**: [CL-002 Doc Index Cleanup](implementation_logs/phase_5_cleanup_and_verification/CL-002_doc_index_cleanup.md)
 
@@ -279,8 +302,10 @@ needed before this can be marked complete.
 
 ## Requirements Mapping to Phases
 
-| Requirement | Phase | Status | Plan |
-|-------------|-------|--------|------|
+> **Note**: Plan file references (e.g., `01-03-PLAN.md`) are internal planning documents not checked into the repository. See [implementation_logs/](implementation_logs/) for actual implementation details.
+
+| Requirement | Phase | Status | Plan (internal reference) |
+|-------------|-------|--------|--------------------------|
 | RT-01 | Phase 1 | Complete | 01-03-PLAN.md |
 | RT-02 | Phase 1 | Complete | 01-03-PLAN.md |
 | RT-03 | Phase 1 | Complete | 01-03-PLAN.md |
@@ -501,7 +526,7 @@ The following requirements are tracked but not in v1.0 scope:
 | UI-05 | MLFlow UI integration | 3 | Complete | ADR-021 |
 | UI-06 | Real-time monitoring | 3 | Complete | ADR-021 |
 | ARCH-01 | Minimal agent containers | 2 | Complete | ADR-020 |
-| ARCH-02 | Bidirectional registration | 2 | Partial | ADR-020 |
+| ARCH-02 | Bidirectional registration | 2 | Complete | ADR-020 |
 | ARCH-03 | Agent registry | 2 | Complete | ADR-020 |
 | ARCH-04 | Pluggable storage | 1 | Complete | Phase 1 (01-01) |
 | ARCH-05 | Chat UI storage | 3 | Complete | ADR-021 |

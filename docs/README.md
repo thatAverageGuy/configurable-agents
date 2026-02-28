@@ -61,6 +61,10 @@
 | **CONTEXT** | Development context and current state | [../CONTEXT.md](../CONTEXT.md) |
 | **Observability Reference** | MLflow 3.9 GenAI model — read before fixing observability | [development/OBSERVABILITY_REFERENCE.md](development/OBSERVABILITY_REFERENCE.md) |
 | **UI Architecture** | Dashboard, Chat, Unified Launcher — read before testing/fixing UI | [development/UI_ARCHITECTURE.md](development/UI_ARCHITECTURE.md) |
+| **CLI Verification Report** | Full CLI audit results (Rounds 1-3) | [development/CLI_VERIFICATION_REPORT.md](development/CLI_VERIFICATION_REPORT.md) |
+| **UI Design Spec** | UI redesign specification (approved) | [development/UI_DESIGN_SPEC.md](development/UI_DESIGN_SPEC.md) |
+| **UI Pages Design** | ASCII mockups and user flows for UI redesign | [development/UI_PAGES_DESIGN.md](development/UI_PAGES_DESIGN.md) |
+| **UI Redesign Analysis** | Impact analysis for UI-REDESIGN (~45 files) | [development/UI_REDESIGN_ANALYSIS.md](development/UI_REDESIGN_ANALYSIS.md) |
 
 ### Architecture Decision Records (ADRs)
 
@@ -91,6 +95,7 @@
 - [CL-004: Documentation Truth Audit](development/implementation_logs/phase_5_cleanup_and_verification/CL-004_documentation_truth_audit.md)
 - [CL-003: Test Findings](development/implementation_logs/phase_5_cleanup_and_verification/CL-003_TEST_FINDINGS.md)
 - [CL-003: Deep Flag Verification](development/implementation_logs/phase_5_cleanup_and_verification/CL-003_DEEP_FLAG_VERIFICATION.md)
+- [CL-005: UI Commands Verification](development/implementation_logs/phase_5_cleanup_and_verification/CL-005_UI_COMMANDS_VERIFICATION.md)
 
 **Reference Documents:**
 - [Observability Reference (MLflow 3.9 GenAI)](development/OBSERVABILITY_REFERENCE.md) — Read before fixing any observability code
@@ -235,4 +240,4 @@ docs/
 
 ---
 
-*Last Updated: 2026-02-09*
+*Last Updated: 2026-02-28*

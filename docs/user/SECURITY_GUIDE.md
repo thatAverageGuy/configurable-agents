@@ -389,18 +389,18 @@ logger.info("API_KEY accessed from module X")
 
 ```bash
 # Restrict to localhost
-configurable-agents registry --host 127.0.0.1 --port 8000
+configurable-agents deployments start --host 127.0.0.1 --port 9000
 ```
 
 **2. Use reverse proxy with authentication**
 
 ```bash
 # nginx configuration
-location /registry/ {
+location /deployments/ {
     auth_basic "Restricted";
     auth_basic_user_file /etc/nginx/.htpasswd;
 
-    proxy_pass http://localhost:8000/;
+    proxy_pass http://localhost:9000/;
 }
 ```
 
