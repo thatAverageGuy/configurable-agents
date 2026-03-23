@@ -55,9 +55,11 @@
 | Document | Description | Link |
 |----------|-------------|------|
 | **Project Vision** | Long-term vision, philosophy, and non-goals | [development/PROJECT_VISION.md](development/PROJECT_VISION.md) |
-| **Architecture** | System design, components, and patterns | [development/ARCHITECTURE.md](development/ARCHITECTURE.md) |
+| **Autonomous Vision** | Phase 2 design: autonomous expansion, autonomy levels, structural memory | [development/VISION_AUTONOMOUS.md](development/VISION_AUTONOMOUS.md) |
+| **Roadmap** | Phase roadmap: v1.0 → v1.1 → Phase 2 → Phase 3 | [development/ROADMAP.md](development/ROADMAP.md) |
+| **Architecture** | System design, components, patterns, and known gaps | [development/ARCHITECTURE.md](development/ARCHITECTURE.md) |
 | **Spec** | Technical specification and requirements | [development/SPEC.md](development/SPEC.md) |
-| **TASKS** | Work breakdown and current status | [development/TASKS.md](development/TASKS.md) |
+| **TASKS** | Work breakdown and current status (v1.0 complete + v1.1 active) | [development/TASKS.md](development/TASKS.md) |
 | **CONTEXT** | Development context and current state | [../CONTEXT.md](../CONTEXT.md) |
 | **Observability Reference** | MLflow 3.9 GenAI model — read before fixing observability | [development/OBSERVABILITY_REFERENCE.md](development/OBSERVABILITY_REFERENCE.md) |
 | **UI Architecture** | Dashboard, Chat, Unified Launcher — read before testing/fixing UI | [development/UI_ARCHITECTURE.md](development/UI_ARCHITECTURE.md) |
@@ -70,7 +72,7 @@
 
 | Directory | Description | Link |
 |-----------|-------------|------|
-| **ADRs** | 25+ architecture decision records with rationale | [development/adr/](development/adr/) |
+| **ADRs** | 29 architecture decision records with rationale | [development/adr/](development/adr/) |
 
 **Key ADRs:**
 - [ADR-001: LangGraph Execution Engine](development/adr/ADR-001-langgraph-execution-engine.md)
@@ -80,13 +82,25 @@
 - [ADR-022: RestrictedPython Sandbox](development/adr/ADR-022-restrictedpython-sandbox.md)
 - [ADR-023: Memory Backend](development/adr/ADR-023-memory-backend.md)
 - [ADR-024: Webhook Integration](development/adr/ADR-024-webhook-integration.md)
-- [ADR-025: Optimization Architecture](development/adr/ADR-025-optimization-architecture.md)
+- [ADR-026: UI Redesign Terminology](development/adr/ADR-026-ui-redesign-terminology.md)
+- [ADR-027: Runtime Overrides Layer](development/adr/ADR-027-runtime-overrides-layer.md) *(v1.1)*
+- [ADR-028: Loop Counter State Injection](development/adr/ADR-028-loop-counter-state-injection.md) *(v1.1)*
+- [ADR-029: List Field Reducer Config](development/adr/ADR-029-list-field-reducer-config.md) *(v1.1)*
 
 ### Implementation Logs
 
 | Directory | Description | Link |
 |-----------|-------------|------|
 | **Implementation Logs** | Detailed task-by-task implementation records | [development/implementation_logs/](development/implementation_logs/) |
+
+**Phase 6 (v1.1 Hardening):**
+- [BF-010: Loop max_iterations Fix](development/implementation_logs/phase_6_v1_1_hardening/BF-010_loop_max_iterations.md)
+- [BF-011: List Reducer Fix](development/implementation_logs/phase_6_v1_1_hardening/BF-011_list_reducer.md)
+- [BF-012: CostEstimator Double Call Fix](development/implementation_logs/phase_6_v1_1_hardening/BF-012_cost_estimator_double_call.md)
+- [BF-013: Silent Route Condition Logging](development/implementation_logs/phase_6_v1_1_hardening/BF-013_silent_route_condition_logging.md)
+- [T-014: Runtime Memory Override](development/implementation_logs/phase_6_v1_1_hardening/T-014_runtime_memory_override.md)
+- [T-015: Memory Extraction Opt-In](development/implementation_logs/phase_6_v1_1_hardening/T-015_memory_extraction_opt_in.md)
+- [T-016: Web Search Hardening](development/implementation_logs/phase_6_v1_1_hardening/T-016_web_search_hardening.md)
 
 **Phase 5 (Cleanup and Verification):**
 - [CL-001: Cleanup and Documentation Reorganization](development/implementation_logs/phase_5_cleanup_and_verification/CL-001_cleanup_restoration.md)

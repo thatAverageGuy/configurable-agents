@@ -1010,7 +1010,7 @@ Storage Backend (SQLite/PostgreSQL)
 
 **Detailed Decisions**: [Architecture Decision Records](adr/) (25+ ADRs)
 
-**Implementation Tasks**: [TASKS.md](TASKS.md) (27 requirements, 100% complete)
+**Implementation Tasks**: [TASKS.md](TASKS.md) (27 requirements, 100% complete for v1.0; v1.1 in progress)
 
 **Version Features**: [README.md](../README.md#roadmap--status) (v0.1-v0.4 overview, v1.0 complete)
 
@@ -1022,5 +1022,48 @@ Storage Backend (SQLite/PostgreSQL)
 - [OBSERVABILITY.md](../user/OBSERVABILITY.md) - MLFlow tracking guide
 - [DEPLOYMENT.md](../user/DEPLOYMENT.md) - Docker deployment guide
 - [TROUBLESHOOTING.md](../user/TROUBLESHOOTING.md) - Common issues
+
+---
+
+## Known Architectural Gaps (v1.1 Hardening)
+
+The following issues were identified in a code audit (2026-03-23). Each has a corresponding bug fix or task in v1.1:
+
+| Gap | Severity | Task |
+|-----|----------|------|
+| Loop counter not in state schema — `max_iterations` broken | High | BF-010 |
+| List fields always append — no replace semantics | High | BF-011 |
+| CostEstimator called twice per node | Medium | BF-012 |
+| Route condition failures silently swallowed | Medium | BF-013 |
+| Memory scope fixed in config, not overridable per invocation | High | T-014 |
+| Memory fact extraction always-on, undocumented extra LLM call | High | T-015 |
+| Web search: no retry, no fallback, no cache | Medium | T-016 |
+
+**Note**: State model built via `create_model()` uses `extra = "ignore"` (Pydantic v2 default), silently dropping unknown fields. This is intentional for the Pydantic model itself but was the root cause of the loop counter bug. BF-010 fixes this by explicitly injecting counter fields.
+
+---
+
+## Phase 2 Architectural Evolution (Deferred)
+
+The current architecture is the **Phase 1 deterministic foundation**. Phase 2 will add an autonomous expansion layer on top. Key insertion points:
+
+**Where the expansion engine plugs in**:
+- After graph compilation, before execution — expansion engine can inject new nodes/edges into the compiled graph
+- Requires LangGraph dynamic graph support (already available in the library)
+
+**Where structural memory plugs in**:
+- Alongside content memory (same SQLite backend, separate table)
+- Feeds into the expansion engine as a read source
+- Written by the executor as a post-execution step
+
+**Where autonomy levels plug in**:
+- New `config.autonomy` block in `WorkflowConfig` schema
+- Checked by the expansion engine before generating any new structure
+- Level 0 (default): expansion engine is never invoked — no behavior change
+
+**The key architectural invariant** that makes this safe:
+> Level 0 workflows (no autonomy config) behave identically to the current system. Phase 2 is purely additive.
+
+For full Phase 2 design: [VISION_AUTONOMOUS.md](VISION_AUTONOMOUS.md)
 
 **Milestone Archives**: v1.0 planning files were internal-only and are not checked in. See [TASKS.md](TASKS.md) for v1.0 requirements and completion status.

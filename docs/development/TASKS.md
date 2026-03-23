@@ -1,11 +1,111 @@
 # Requirements: Configurable Agent Orchestration Platform
 
-**Version**: v1.0 Shipped (2026-02-04)
-**Last Updated**: 2026-02-06
+**Version**: v1.1 In Progress | v1.0 Shipped (2026-02-04)
+**Last Updated**: 2026-03-23
 
 ---
 
-## Active Tasks
+## v1.1 Active Tasks — Hardening & Usability
+
+> **Context**: A detailed code audit (2026-03-23) surfaced bugs and design gaps in the v1.0 implementation. This section tracks all v1.1 work. Phase 2 (autonomous vision) is fully deferred — see [VISION_AUTONOMOUS.md](VISION_AUTONOMOUS.md) and the Phase 2 section below.
+
+---
+
+### BF-010: Fix Loop `max_iterations` — Loop Counter State Injection
+
+**Status**: TODO
+**Priority**: HIGH
+**ADR**: [ADR-028](adr/ADR-028-loop-counter-state-injection.md)
+
+**Problem**: Loop counter `_loop_iteration_{node_id}` returned in node output dict but dropped by Pydantic (extra field, not in state schema). Counter is always 0. `max_iterations` guard is dead code. Loops can only exit via `condition_field`.
+
+**Fix**: Auto-inject `__loop_counter_{node_id}: int = 0` fields into state schema at graph build time by scanning loop edges.
+
+**Details**: [BF-010 Implementation Log](implementation_logs/phase_6_v1_1_hardening/BF-010_loop_max_iterations.md)
+
+---
+
+### BF-011: Fix List Field Reducer — Replace Semantics for Loops
+
+**Status**: TODO
+**Priority**: HIGH
+**ADR**: [ADR-029](adr/ADR-029-list-field-reducer-config.md)
+
+**Problem**: All list-type state fields use append reducer. Retry loops accumulate results from every iteration instead of replacing. After N retries, a list field contains N× the expected data.
+
+**Fix**: Add optional `reducer: replace | append` to `StateFieldConfig` schema. Default stays `append` (backward compatible). Users declare `replace` on any list field used as a "current results" buffer in a loop.
+
+**Details**: [BF-011 Implementation Log](implementation_logs/phase_6_v1_1_hardening/BF-011_list_reducer.md)
+
+---
+
+### BF-012: Fix Double CostEstimator Call Per Node
+
+**Status**: TODO
+**Priority**: MEDIUM
+
+**Problem**: `execute_node()` creates and calls `CostEstimator` twice — once at ~line 598 (result unused), once at ~line 685 for storage. Wasted compute, inconsistency risk.
+
+**Fix**: Remove first dead call. Single calculation, reused.
+
+**Details**: [BF-012 Implementation Log](implementation_logs/phase_6_v1_1_hardening/BF-012_cost_estimator_double_call.md)
+
+---
+
+### BF-013: Fix Silent Route Condition Failure
+
+**Status**: TODO
+**Priority**: MEDIUM
+
+**Problem**: Failed condition evaluations silently fall to default route with no log. Broken condition expressions are invisible — workflow appears to work but ignores the intended routing.
+
+**Fix**: Log WARNING with condition text and error reason when a condition evaluation fails.
+
+**Details**: [BF-013 Implementation Log](implementation_logs/phase_6_v1_1_hardening/BF-013_silent_route_condition_logging.md)
+
+---
+
+### T-014: Runtime Memory Override — Per-Invocation Control
+
+**Status**: TODO
+**Priority**: HIGH
+**ADR**: [ADR-027](adr/ADR-027-runtime-overrides-layer.md)
+
+**Problem**: Memory scope is fixed in YAML per node. Changing it requires config edits, defeating the goal of a single reusable config invokable in different modes (e.g., production with no memory vs. development with full memory).
+
+**Fix**: Introduce `runtime_overrides` dict layer applied after config parse, before execution. Initial scope: memory overrides. CLI: `--memory-scope none|workflow|agent`. Webhook: `runtime: {memory: {scope: none}}` in POST body.
+
+**Details**: [T-014 Implementation Log](implementation_logs/phase_6_v1_1_hardening/T-014_runtime_memory_override.md)
+
+---
+
+### T-015: Memory Fact Extraction — Make Opt-In
+
+**Status**: TODO
+**Priority**: HIGH
+
+**Problem**: Every memory-enabled node makes an extra full LLM API call for fact extraction. Always-on, undocumented, doubles cost and latency. No user visibility into these extra calls.
+
+**Fix**: Add `extract_facts: bool = False` to `MemoryConfig`. Extraction is opt-in. Add `extraction_model` for specifying a cheaper model when extraction IS enabled.
+
+**Details**: [T-015 Implementation Log](implementation_logs/phase_6_v1_1_hardening/T-015_memory_extraction_opt_in.md)
+
+---
+
+### T-016: Web Search Enterprise Hardening
+
+**Status**: TODO
+**Priority**: MEDIUM
+
+**Problem**: Single attempt, no retry, no fallback, no caching, no result validation. Transient API failures abort workflows. Same query costs money on every run even if recently fetched.
+
+**Fix**: Add retry with backoff, provider fallback, SQLite-backed query cache (TTL=1h, on by default), minimum result validation.
+
+**Details**: [T-016 Implementation Log](implementation_logs/phase_6_v1_1_hardening/T-016_web_search_hardening.md)
+
+---
+
+## v1.0 Completed Tasks
 
 ### UI-REDESIGN: Unified UI Architecture Implementation ✅ COMPLETE
 
@@ -462,31 +562,59 @@ All v1.0 requirements were successfully implemented and verified through integra
 
 ---
 
-## v2 Requirements (Deferred)
+## Phase 2 Deferred Requirements — Autonomous Expansion
 
-The following requirements are tracked but not in v1.0 scope:
+> **These are fully deferred. No implementation until Phase 2 is explicitly started.**
+> **Vision details**: [VISION_AUTONOMOUS.md](VISION_AUTONOMOUS.md) | **Roadmap**: [ROADMAP.md](ROADMAP.md)
+
+---
+
+### Autonomy Framework
+
+- **AUT-01**: Autonomy level configuration model (0=fixed, 1=selective, 2=composable, 3=generative) — per-workflow setting
+- **AUT-02**: Expansion engine — meta-agent that generates new NodeSpec/EdgeSpec at runtime given task context and structural memory
+- **AUT-03**: Ephemeral expansion — dynamic nodes exist for one run only, fully logged in MLFlow trace
+- **AUT-04**: Persistent expansion — approved ephemeral expansions written back to config as derived child config with parent reference
+- **AUT-05**: Expansion validation — autonomy level constraints enforced on generated structure; expansion engine cannot exceed declared level
+- **AUT-06**: Rule-based expansion triggers (Level 1) — deterministic expansion decisions without LLM (e.g., "if node returns > N items, fan out")
+
+### Structural Memory (distinct from content memory)
+
+- **SMEM-01**: Structural memory schema — stores workflow patterns, expansion paths, routing decisions, and outcome metrics as structured records
+- **SMEM-02**: Structural memory backend — dedicated storage table, separate from content memory KV store
+- **SMEM-03**: Expansion engine reads structural memory to bias toward historically successful patterns
+- **SMEM-04**: Confidence updates — structural memory records updated via Bayesian update based on run outcomes
+- **SMEM-05**: Memory pruning — API to remove stale or invalid structural memory patterns
+
+### Path-Based Traceability
+
+- **TRACE-01**: Canonical execution path format — `{workflow}@{version}/{node}[{context}]/...` stored as MLFlow trace attribute
+- **TRACE-02**: Path replay — given (workflow_version + input + expansion_path), reproduce the exact execution structure
+- **TRACE-03**: Path diff — compare two execution paths from the same workflow to identify divergence points
+- **TRACE-04**: Expansion history — every generated node logged with expansion engine rationale and structural memory citations
 
 ### Self-Optimization
 
-- **SELF-01**: Agents can spawn and organize themselves based on workflow needs (auto-scaling runtime)
-- **SELF-02**: System automatically optimizes agent configurations based on performance history
+- **SELF-01**: MLFlow evaluation framework integration — define quality metrics, run evaluation sweeps, identify underperforming nodes
+- **SELF-02**: Workflow evolution lifecycle — review/approve/reject expansion history; promote ephemeral → persistent
+- **SELF-03** (conditional): DSPy prompt optimization — if MLFlow evaluation proves insufficient for cross-LLM consistency, add DSPy compilation per model. Decision deferred until MLFlow evaluation is tested.
 
-### Enterprise Scale
+### Advanced Memory (Content Tier)
+
+- **MEM-01**: Vector/semantic memory — evaluate Mem0 or LightRAG for semantic search over memory vs. current KV lookup
+- **MEM-02**: Agent Protocol support (A2A, MCP) — cross-platform memory interoperability
+- **MEM-03**: Memory re-use patterns across workflow types (share relevant memories across related workflows)
+
+### Enterprise Scale (Phase 3+)
 
 - **ENT-01**: Kubernetes deployment with auto-scaling, Helm charts, and cloud storage backends
 - **ENT-02**: Multi-tenancy with tenant isolation and RBAC
 - **ENT-03**: OpenTelemetry integration for enterprise observability platforms
 
-### Extended Tools
+### Extended Tools (Phase 3+)
 
 - **TOOL-01**: Full LangChain tool registry (500+ tools) with dynamic discovery
-- **TOOL-02**: Visual workflow builder (drag-and-drop node editor with code export)
-
-### Advanced Memory
-
-- **MEM-01**: Contextual/agentic memory that learns and evolves beyond RAG patterns
-- **MEM-02**: Agent Protocol support (A2A, MCP) for cross-platform interoperability
-- **MEM-03**: Memory persistence revisit — optimize KV store, evaluate vector/semantic memory, add memory re-use patterns across agents, consider Mem0/LightRAG integration, optimize extraction cost (batch, async, selective extraction)
+- **TOOL-02**: Visual workflow builder (drag-and-drop node editor with config export)
 
 ---
 

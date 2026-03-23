@@ -9,7 +9,35 @@ For detailed task-by-task implementation notes, see [implementation logs](docs/d
 
 ---
 
-## [Unreleased]
+## [Unreleased] — v1.1 Hardening & Usability
+
+### Planning (2026-03-23)
+
+**Code audit + v1.1 planning + documentation:**
+- Full codebase audit: identified 4 bugs, 3 design gaps, and long-term architectural gaps
+- Documented Phase 2 autonomous vision: hierarchical deterministic workflow platform
+- Created [ROADMAP.md](docs/development/ROADMAP.md) — phase roadmap (v1.0 → v1.1 → Phase 2 → Phase 3)
+- Created [VISION_AUTONOMOUS.md](docs/development/VISION_AUTONOMOUS.md) — Phase 2 autonomous system design
+- Created ADR-027 (runtime overrides layer), ADR-028 (loop counter), ADR-029 (list reducer)
+- Created 7 implementation logs for v1.1 tasks (BF-010 through T-016)
+- Updated TASKS.md: v1.1 active tasks + expanded Phase 2 deferred requirements
+- Updated ARCHITECTURE.md: known gaps table + Phase 2 insertion point notes
+- Updated CONTEXT.md: current state, next steps
+
+**Bugs identified (to be fixed in v1.1)**:
+- BF-010: Loop `max_iterations` guard silently broken — counter always 0
+- BF-011: List field reducer always appends — retry loops accumulate stale data
+- BF-012: CostEstimator called twice per node — first result unused
+- BF-013: Route condition failures silently swallowed — no log on broken conditions
+
+**Features planned for v1.1**:
+- T-014: Runtime memory override (`--memory-scope` CLI flag, webhook `runtime` block)
+- T-015: Memory fact extraction opt-in (`extract_facts: false` default, `extraction_model` config)
+- T-016: Web search hardening (retry, fallback, SQLite cache, result validation)
+
+---
+
+## [Unreleased] — v1.0 Post-Ship
 
 ### Fixed
 
