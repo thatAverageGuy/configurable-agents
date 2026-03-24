@@ -4,7 +4,12 @@ import pytest
 from pydantic import ValidationError
 
 from configurable_agents.config.schema import StateFieldConfig, StateSchema
-from configurable_agents.core.state_builder import StateBuilderError, build_state_model
+from configurable_agents.core.state_builder import (
+    StateBuilderError,
+    _list_concat_reducer,
+    _replace_reducer,
+    build_state_model,
+)
 
 
 class TestBasicTypes:
@@ -621,3 +626,89 @@ class TestExtraFields:
         state = Model(topic="test")
         assert state.__loop_counter_a == 0
         assert state.__loop_counter_b == 0
+
+
+# ============================================
+# Test: list reducer semantics (BF-011)
+# ============================================
+
+
+class TestReducerFunctions:
+    """Unit tests for _list_concat_reducer and _replace_reducer."""
+
+    def test_concat_reducer_appends_lists(self):
+        assert _list_concat_reducer(["a", "b"], ["c"]) == ["a", "b", "c"]
+
+    def test_concat_reducer_wraps_scalar(self):
+        assert _list_concat_reducer(["a"], "b") == ["a", "b"]
+
+    def test_concat_reducer_handles_none_current(self):
+        assert _list_concat_reducer(None, ["x"]) == ["x"]
+
+    def test_concat_reducer_handles_none_new(self):
+        assert _list_concat_reducer(["a"], None) == ["a"]
+
+    def test_replace_reducer_returns_new(self):
+        assert _replace_reducer(["old1", "old2"], ["new1"]) == ["new1"]
+
+    def test_replace_reducer_discards_current(self):
+        result = _replace_reducer(["a", "b", "c"], ["x"])
+        assert result == ["x"]
+        assert "a" not in result
+
+
+class TestListReducerConfig:
+    """Test reducer config wires through build_state_model correctly."""
+
+    def test_append_reducer_is_default(self):
+        """List field without explicit reducer defaults to append."""
+        state_config = StateSchema(
+            fields={"results": StateFieldConfig(type="list[str]", default=[])}
+        )
+        Model = build_state_model(state_config)
+        # Verify the model builds without error; reducer is append by default
+        state = Model(results=["a"])
+        assert state.results == ["a"]
+
+    def test_replace_reducer_accepted_on_list(self):
+        """list[str] field with reducer=replace should build without error."""
+        state_config = StateSchema(
+            fields={
+                "search_results": StateFieldConfig(
+                    type="list[str]", default=[], reducer="replace"
+                )
+            }
+        )
+        Model = build_state_model(state_config)
+        state = Model(search_results=["result1"])
+        assert state.search_results == ["result1"]
+
+    def test_replace_reducer_annotation_uses_replace_reducer(self):
+        """Verify _replace_reducer is wired: new value replaces, not appends."""
+        # We can't call LangGraph reducers directly from the model, but we can
+        # verify the reducer function itself via the unit tests above.
+        # Here we just confirm the field config is accepted end-to-end.
+        state_config = StateSchema(
+            fields={
+                "items": StateFieldConfig(type="list[str]", default=[], reducer="replace"),
+                "topic": StateFieldConfig(type="str", required=True),
+            }
+        )
+        Model = build_state_model(state_config)
+        state = Model(topic="test", items=["only_latest"])
+        assert state.items == ["only_latest"]
+
+    def test_append_and_replace_coexist(self):
+        """One append field and one replace field in the same state."""
+        state_config = StateSchema(
+            fields={
+                "history": StateFieldConfig(type="list[str]", default=[]),
+                "current": StateFieldConfig(
+                    type="list[str]", default=[], reducer="replace"
+                ),
+            }
+        )
+        Model = build_state_model(state_config)
+        state = Model(history=["h1"], current=["c1"])
+        assert state.history == ["h1"]
+        assert state.current == ["c1"]

@@ -52,22 +52,36 @@ def _list_concat_reducer(current: List, new: Union[List, Any]) -> List:
     return current + [new]
 
 
-def _get_reducer_for_type(python_type: Type) -> Callable:
+def _replace_reducer(current: List, new: Any) -> Any:
     """
-    Get the appropriate reducer function for a Python type.
+    'Replace' reducer — returns the new value, discarding current.
+
+    Use for list fields that represent current state (not accumulated history).
+    Correct for retry loops where each iteration replaces the previous result.
+    """
+    return new
+
+
+def _get_reducer_for_field(python_type: Type, field_config: "StateFieldConfig") -> Callable:
+    """
+    Get the appropriate reducer function based on Python type and field config.
 
     Args:
         python_type: The Python type of the field
+        field_config: The StateFieldConfig (used to check explicit reducer setting)
 
     Returns:
         Reducer function for LangGraph Annotated wrapper
     """
-    # Check if it's a list type
     origin = getattr(python_type, '__origin__', None)
-    if origin is list or python_type is list:
-        return _list_concat_reducer
+    is_list = (origin is list or python_type is list)
 
-    # Default: last writer wins for all other types
+    if is_list:
+        if field_config.reducer == "replace":
+            return _replace_reducer
+        return _list_concat_reducer  # default: append
+
+    # Scalar types: always last writer wins
     return _last_value_reducer
 
 
@@ -168,8 +182,8 @@ def _create_field_definition(
     # Get the Python type for this field
     field_type = _get_field_type(field_name, field_config)
 
-    # Get appropriate reducer for this type
-    reducer = _get_reducer_for_type(field_type)
+    # Get appropriate reducer for this type and explicit field config
+    reducer = _get_reducer_for_field(field_type, field_config)
 
     # Build Pydantic Field with description
     field_kwargs = {}

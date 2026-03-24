@@ -100,6 +100,35 @@ class TestStateFieldConfig:
         field = StateFieldConfig(type="object", **{"schema": {"name": "str"}})
         assert field.schema_ == {"name": "str"}
 
+    # BF-011: reducer field tests
+    def test_reducer_defaults_to_append(self):
+        field = StateFieldConfig(type="list[str]")
+        assert field.reducer == "append"
+
+    def test_reducer_replace_valid_on_list(self):
+        field = StateFieldConfig(type="list[str]", reducer="replace")
+        assert field.reducer == "replace"
+
+    def test_reducer_append_explicit_on_list(self):
+        field = StateFieldConfig(type="list[int]", reducer="append")
+        assert field.reducer == "append"
+
+    def test_reducer_replace_on_scalar_fails(self):
+        with pytest.raises(ValidationError, match="only valid for list types"):
+            StateFieldConfig(type="str", reducer="replace")
+
+    def test_reducer_replace_on_int_fails(self):
+        with pytest.raises(ValidationError, match="only valid for list types"):
+            StateFieldConfig(type="int", reducer="replace")
+
+    def test_reducer_replace_on_dict_fails(self):
+        with pytest.raises(ValidationError, match="only valid for list types"):
+            StateFieldConfig(type="dict[str, int]", reducer="replace")
+
+    def test_reducer_invalid_value_fails(self):
+        with pytest.raises(ValidationError):
+            StateFieldConfig(type="list[str]", reducer="invalid")
+
 
 class TestStateSchema:
     """Test StateSchema model."""

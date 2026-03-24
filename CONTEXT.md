@@ -13,29 +13,35 @@
 
 ## Current State
 
-**Task**: BF-011 | **Phase**: Not Started | **Status**: READY TO IMPLEMENT
+**Task**: BF-012 | **Phase**: Not Started | **Status**: READY TO IMPLEMENT
 
 ### What Was Done This Session
+
+**2026-03-24 — BF-011 implemented:**
+- Added `reducer: Literal["append", "replace"]` field to `StateFieldConfig` (default: `append`, fully backward-compatible)
+- Added `validate_reducer_for_list_only` validator — rejects `replace` on non-list types
+- Added `_replace_reducer` to `state_builder.py`; replaced `_get_reducer_for_type` with `_get_reducer_for_field(python_type, field_config)`
+- Tests: 4 reducer unit tests + 4 model tests + 7 schema validator tests
+- Docs: `CONFIG_REFERENCE.md` updated with `reducer` field docs
 
 **2026-03-24 — BF-010 implemented:**
 - Fixed loop `max_iterations` guard (was always 0 due to Pydantic dropping unknown fields)
 - Added `extra_fields` param to `build_state_model()`; added `get_loop_counter_fields()` helper
-- Updated key prefix `_loop_iteration_` → `__loop_counter_` in control_flow + updated tests
 - Tests written but not executed — `litellm` PyPI package quarantined (supply chain compromise), dev environment cannot be set up until dependency is resolved
 
 ### Next Steps
 
 1. [x] **BF-010**: Fix loop `max_iterations` — DONE
-2. [ ] **BF-011**: Fix list field reducer — add `replace` semantics — HIGH
-3. [ ] **T-014**: Runtime memory override (`--memory-scope` CLI flag) — HIGH
-4. [ ] **T-015**: Memory extraction opt-in (`extract_facts: false` default) — HIGH
-5. [ ] **BF-012**: Fix double CostEstimator call — MEDIUM
-6. [ ] **BF-013**: Fix silent route condition failure logging — MEDIUM
+2. [x] **BF-011**: Fix list field reducer — add `replace` semantics — DONE
+3. [ ] **BF-012**: Fix double CostEstimator call — MEDIUM
+4. [ ] **BF-013**: Fix silent route condition failure logging — MEDIUM
+5. [ ] **T-014**: Runtime memory override (`--memory-scope` CLI flag) — HIGH
+6. [ ] **T-015**: Memory extraction opt-in (`extract_facts: false` default) — HIGH
 7. [ ] **T-016**: Web search hardening (retry, fallback, cache) — MEDIUM
 8. [ ] Dashboard scope definition + tasks (separate session)
 
 ### Blockers
-- None. All planning docs complete. Ready to start BF-010.
+- `litellm` PyPI package quarantined — live test execution blocked until resolved
 
 ---
 

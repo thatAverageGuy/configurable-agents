@@ -163,10 +163,29 @@ state:
 | `required` | Must be provided as input | `required: true` |
 | `default` | Default value if not provided | `default: ""` |
 | `description` | Human-readable description | `description: "User's name"` |
+| `reducer` | List merge strategy: `append` (default) or `replace` | `reducer: replace` |
 
 **Rules:**
 - Can't have both `required: true` and `default`
 - Required fields must be provided when running the workflow
+- `reducer` only applies to `list[...]` fields — using it on scalar types is a config error
+
+**Choosing a reducer:**
+- `append` (default) — each update is concatenated. Correct for parallel branches that each contribute items to a shared list.
+- `replace` — each update overwrites the previous value. Correct for retry loops where each iteration produces a fresh result and you only want the latest.
+
+```yaml
+state:
+  fields:
+    search_results:
+      type: list[str]
+      default: []
+      reducer: replace   # loop iterations replace, not accumulate
+    all_sources:
+      type: list[str]
+      default: []
+      # reducer: append  # (default) parallel branches contribute to a shared list
+```
 
 ---
 

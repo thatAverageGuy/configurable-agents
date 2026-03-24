@@ -48,6 +48,13 @@ class StateFieldConfig(BaseModel):
     schema_: Optional[Dict[str, Any]] = Field(
         None, alias="schema", description="Nested object schema (for type='object')"
     )
+    reducer: Literal["append", "replace"] = Field(
+        "append",
+        description=(
+            "List field reducer: 'append' (default, for parallel branches) or "
+            "'replace' (for retry loops where each iteration replaces the previous result)"
+        ),
+    )
 
     class Config:
         populate_by_name = True  # Allow both 'schema' and 'schema_'
@@ -57,6 +64,16 @@ class StateFieldConfig(BaseModel):
         """Validate that required fields don't have defaults."""
         if self.required and self.default is not None:
             raise ValueError("Cannot have both required=true and a default value")
+        return self
+
+    @model_validator(mode="after")
+    def validate_reducer_for_list_only(self) -> "StateFieldConfig":
+        """Validate that reducer=replace is only used on list types."""
+        if self.reducer == "replace" and not self.type.startswith("list"):
+            raise ValueError(
+                f"'reducer: replace' is only valid for list types, got type='{self.type}'. "
+                "Scalar types always use last-value semantics."
+            )
         return self
 
 

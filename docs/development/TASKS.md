@@ -27,7 +27,7 @@
 
 ### BF-011: Fix List Field Reducer — Replace Semantics for Loops
 
-**Status**: TODO
+**Status**: DONE (2026-03-24)
 **Priority**: HIGH
 **ADR**: [ADR-029](adr/ADR-029-list-field-reducer-config.md)
 

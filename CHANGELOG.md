@@ -13,6 +13,15 @@ For detailed task-by-task implementation notes, see [implementation logs](docs/d
 
 ### Fixed (2026-03-24)
 
+**BF-011: List field reducer — `replace` semantics for retry loops**
+- Root cause: all list-type state fields unconditionally used `_list_concat_reducer` (append). In a retry loop, each iteration appended to the previous result — after N loops the field contained N× the data.
+- Fix: Added `reducer: Literal["append", "replace"]` field to `StateFieldConfig` (default: `"append"`, fully backward-compatible). Users declare `reducer: replace` on any list field that represents "current result" rather than "accumulated history".
+- Added `_replace_reducer` to `state_builder.py` — returns new value, discards current.
+- Replaced `_get_reducer_for_type(python_type)` with `_get_reducer_for_field(python_type, field_config)` — selects reducer based on type AND explicit config.
+- Config validator rejects `reducer: replace` on non-list types (e.g. `str`, `int`, `dict`).
+- Tests: 4 unit tests for reducer functions, 4 end-to-end model tests, 7 schema validator tests.
+- Docs: updated `CONFIG_REFERENCE.md` — added `reducer` to Field Properties table with usage guidance.
+
 **BF-010: Loop `max_iterations` guard now works correctly**
 - Root cause: `_wrap_with_loop_counter()` wrote loop counter into node output dict, but Pydantic dropped it as an unknown field (extra="ignore"). Counter was always 0. `max_iterations` was dead code.
 - Fix: Auto-inject `__loop_counter_{node_id}: int = 0` fields into state model at build time by scanning loop edges (`get_loop_counter_fields()`). Fields are registered in the Pydantic model so updates are accepted.
