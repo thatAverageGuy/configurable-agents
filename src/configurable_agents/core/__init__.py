@@ -28,6 +28,7 @@ from configurable_agents.core.node_executor import (
 from configurable_agents.core.graph_builder import (
     GraphBuilderError,
     build_graph,
+    get_loop_counter_fields,
 )
 
 __all__ = [
@@ -53,4 +54,5 @@ __all__ = [
     # Graph builder
     "build_graph",
     "GraphBuilderError",
+    "get_loop_counter_fields",
 ]

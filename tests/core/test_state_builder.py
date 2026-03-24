@@ -543,3 +543,81 @@ class TestModelReuse:
 
         assert state1.field1 == "value"
         assert state2.field2 == 42
+
+
+# ============================================
+# Test: extra_fields injection (BF-010)
+# ============================================
+
+
+class TestExtraFields:
+    """Test extra_fields injection into build_state_model."""
+
+    def test_extra_field_present_in_model(self):
+        """Extra fields should appear in the built model."""
+        state_config = StateSchema(
+            fields={"topic": StateFieldConfig(type="str", required=True)}
+        )
+        extra = {"__loop_counter_search": StateFieldConfig(type="int", default=0)}
+        Model = build_state_model(state_config, extra_fields=extra)
+
+        state = Model(topic="AI")
+        assert hasattr(state, "__loop_counter_search")
+        assert state.__loop_counter_search == 0
+
+    def test_extra_field_correct_type(self):
+        """Extra int field should accept int values."""
+        state_config = StateSchema(
+            fields={"topic": StateFieldConfig(type="str", required=True)}
+        )
+        extra = {"__loop_counter_x": StateFieldConfig(type="int", default=0)}
+        Model = build_state_model(state_config, extra_fields=extra)
+
+        state = Model(topic="test", **{"__loop_counter_x": 3})
+        assert state.__loop_counter_x == 3
+
+    def test_extra_field_persists_via_reducer(self):
+        """Counter update returned in a dict should be accepted by the model (not dropped)."""
+        state_config = StateSchema(
+            fields={"topic": StateFieldConfig(type="str", required=True)}
+        )
+        extra = {"__loop_counter_node": StateFieldConfig(type="int", default=0)}
+        Model = build_state_model(state_config, extra_fields=extra)
+
+        # Simulate what LangGraph does: start from initial, apply update dict
+        initial = Model(topic="AI")
+        update = {"__loop_counter_node": 1}
+        updated = initial.model_copy(update=update)
+        assert updated.__loop_counter_node == 1
+
+    def test_no_extra_fields_unchanged_behavior(self):
+        """Calling without extra_fields should behave identically to before."""
+        state_config = StateSchema(
+            fields={"topic": StateFieldConfig(type="str", required=True)}
+        )
+        Model = build_state_model(state_config)
+        state = Model(topic="AI")
+        assert state.topic == "AI"
+
+    def test_extra_field_conflict_raises(self):
+        """Extra field name that clashes with user field should raise StateBuilderError."""
+        state_config = StateSchema(
+            fields={"topic": StateFieldConfig(type="str", required=True)}
+        )
+        extra = {"topic": StateFieldConfig(type="int", default=0)}
+        with pytest.raises(StateBuilderError, match="conflicts with an existing state field"):
+            build_state_model(state_config, extra_fields=extra)
+
+    def test_multiple_extra_fields(self):
+        """Multiple extra fields should all be injected."""
+        state_config = StateSchema(
+            fields={"topic": StateFieldConfig(type="str", required=True)}
+        )
+        extra = {
+            "__loop_counter_a": StateFieldConfig(type="int", default=0),
+            "__loop_counter_b": StateFieldConfig(type="int", default=0),
+        }
+        Model = build_state_model(state_config, extra_fields=extra)
+        state = Model(topic="test")
+        assert state.__loop_counter_a == 0
+        assert state.__loop_counter_b == 0

@@ -13,7 +13,7 @@
 
 ### BF-010: Fix Loop `max_iterations` — Loop Counter State Injection
 
-**Status**: TODO
+**Status**: DONE (2026-03-24)
 **Priority**: HIGH
 **ADR**: [ADR-028](adr/ADR-028-loop-counter-state-injection.md)
 

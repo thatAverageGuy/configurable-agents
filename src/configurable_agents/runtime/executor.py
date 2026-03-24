@@ -18,6 +18,7 @@ from configurable_agents.config import (
     ValidationError,
 )
 from configurable_agents.core import build_graph, build_state_model
+from configurable_agents.core.graph_builder import get_loop_counter_fields
 from configurable_agents.observability import MLFlowTracker
 from configurable_agents.runtime.feature_gate import (
     UnsupportedFeatureError,
@@ -217,7 +218,10 @@ def run_workflow_from_config(
     # Phase 3: Build state model
     try:
         logger.debug("Building state model...")
-        state_model = build_state_model(config.state)
+        state_model = build_state_model(
+            config.state,
+            extra_fields=get_loop_counter_fields(config),
+        )
         logger.debug(f"State model built: {state_model.__name__}")
     except Exception as e:
         raise GraphBuildError(

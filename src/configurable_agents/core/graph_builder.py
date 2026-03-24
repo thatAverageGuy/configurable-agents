@@ -28,6 +28,7 @@ from configurable_agents.config.schema import (
     EdgeConfig,
     GlobalConfig,
     NodeConfig,
+    StateFieldConfig,
     WorkflowConfig,
 )
 from configurable_agents.core.control_flow import (
@@ -235,6 +236,35 @@ def _add_edge(
         graph.add_conditional_edges(from_node, loop_fn)
         return
 
+
+
+def get_loop_counter_fields(config: WorkflowConfig) -> Dict[str, StateFieldConfig]:
+    """
+    Build extra state fields for loop counter tracking.
+
+    Returns a dict of {field_name: StateFieldConfig} for every loop edge in the
+    config.  These fields are injected into the state model so that Pydantic does
+    not silently drop the counter updates written by _wrap_with_loop_counter().
+
+    Args:
+        config: Workflow configuration
+
+    Returns:
+        Dict mapping __loop_counter_{node_id} -> StateFieldConfig(int, default=0)
+    """
+    fields: Dict[str, StateFieldConfig] = {}
+    for edge in config.edges:
+        if edge.loop:
+            key = get_loop_iteration_key(edge.from_)
+            fields[key] = StateFieldConfig(
+                type="int",
+                default=0,
+                description=(
+                    f"Internal loop counter for node '{edge.from_}'. "
+                    "Auto-injected by framework."
+                ),
+            )
+    return fields
 
 
 def _collect_loop_targets(config: WorkflowConfig) -> set:

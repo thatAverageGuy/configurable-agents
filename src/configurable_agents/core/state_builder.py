@@ -77,12 +77,18 @@ class StateBuilderError(Exception):
     pass
 
 
-def build_state_model(state_config: StateSchema) -> Type[BaseModel]:
+def build_state_model(
+    state_config: StateSchema,
+    extra_fields: Optional[Dict[str, "StateFieldConfig"]] = None,
+) -> Type[BaseModel]:
     """
     Build dynamic Pydantic model from state config.
 
     Args:
         state_config: State schema configuration
+        extra_fields: Additional fields to inject into the model (e.g. loop counters).
+            Keys are field names, values are StateFieldConfig instances.
+            Extra fields are merged after user-defined fields; duplicates raise StateBuilderError.
 
     Returns:
         Pydantic BaseModel class for the state
@@ -119,6 +125,22 @@ def build_state_model(state_config: StateSchema) -> Type[BaseModel]:
             raise StateBuilderError(
                 f"Failed to create field '{field_name}': {e}"
             ) from e
+
+    # Merge extra fields (e.g. auto-injected loop counters)
+    if extra_fields:
+        for field_name, field_config in extra_fields.items():
+            if field_name in field_definitions:
+                raise StateBuilderError(
+                    f"Extra field '{field_name}' conflicts with an existing state field"
+                )
+            try:
+                field_definitions[field_name] = _create_field_definition(
+                    field_name, field_config
+                )
+            except Exception as e:
+                raise StateBuilderError(
+                    f"Failed to create extra field '{field_name}': {e}"
+                ) from e
 
     # Create Pydantic model
     try:

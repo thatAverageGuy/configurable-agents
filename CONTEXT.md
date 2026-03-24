@@ -7,27 +7,25 @@
 
 ---
 
-**Last Updated**: 2026-03-23
+**Last Updated**: 2026-03-24
 
 ---
 
 ## Current State
 
-**Task**: v1.1 Planning + Documentation | **Phase**: Planning Complete | **Status**: READY TO IMPLEMENT
+**Task**: BF-011 | **Phase**: Not Started | **Status**: READY TO IMPLEMENT
 
 ### What Was Done This Session
 
-**2026-03-23 — Code audit + v1.1 planning + documentation:**
-- Full codebase audit: surfaced bugs, silent failures, and design gaps in v1.0
-- Discussed long-term vision: autonomous workflow platform (hierarchical deterministic agent)
-- Defined v1.1 scope: 4 bug fixes + 3 feature tasks (see below)
-- Documented Phase 2 autonomous vision in full detail
-- Created all planning docs, ADRs, and implementation logs
-- Dashboard work deferred — scope TBD in separate session
+**2026-03-24 — BF-010 implemented:**
+- Fixed loop `max_iterations` guard (was always 0 due to Pydantic dropping unknown fields)
+- Added `extra_fields` param to `build_state_model()`; added `get_loop_counter_fields()` helper
+- Updated key prefix `_loop_iteration_` → `__loop_counter_` in control_flow + updated tests
+- Tests written but not executed — `litellm` PyPI package quarantined (supply chain compromise), dev environment cannot be set up until dependency is resolved
 
 ### Next Steps
 
-1. [ ] **BF-010**: Fix loop `max_iterations` (loop counter auto-injection) — HIGH
+1. [x] **BF-010**: Fix loop `max_iterations` — DONE
 2. [ ] **BF-011**: Fix list field reducer — add `replace` semantics — HIGH
 3. [ ] **T-014**: Runtime memory override (`--memory-scope` CLI flag) — HIGH
 4. [ ] **T-015**: Memory extraction opt-in (`extract_facts: false` default) — HIGH

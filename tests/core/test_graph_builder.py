@@ -26,7 +26,7 @@ from configurable_agents.config.schema import (
     StateSchema,
     WorkflowConfig,
 )
-from configurable_agents.core import GraphBuilderError, build_graph
+from configurable_agents.core import GraphBuilderError, build_graph, get_loop_counter_fields
 from configurable_agents.core.node_executor import NodeExecutionError
 from configurable_agents.llm import LLMUsageMetadata
 
@@ -718,3 +718,118 @@ def test_fork_join_edge_supported(mock_execute):
 
     # Assert - graph compiled successfully
     assert graph is not None
+
+
+# ============================================
+# Test: get_loop_counter_fields (BF-010)
+# ============================================
+
+
+def test_get_loop_counter_fields_returns_counter_for_loop_edge():
+    """Should return one __loop_counter_ field per loop edge."""
+    from configurable_agents.config.schema import LoopConfig
+
+    config = WorkflowConfig(
+        schema_version="1.0",
+        flow=FlowMetadata(name="test"),
+        state=StateSchema(
+            fields={
+                "input": StateFieldConfig(type="str", required=True),
+                "is_done": StateFieldConfig(type="bool", default=False),
+            }
+        ),
+        nodes=[
+            NodeConfig(
+                id="search",
+                prompt="test",
+                outputs=["result"],
+                output_schema=OutputSchema(type="str"),
+            )
+        ],
+        edges=[
+            EdgeConfig(from_="START", to="search"),
+            EdgeConfig(
+                from_="search",
+                loop=LoopConfig(condition_field="is_done", exit_to="END", max_iterations=5),
+            ),
+        ],
+    )
+
+    fields = get_loop_counter_fields(config)
+
+    assert "__loop_counter_search" in fields
+    assert fields["__loop_counter_search"].type == "int"
+    assert fields["__loop_counter_search"].default == 0
+
+
+def test_get_loop_counter_fields_no_loops_returns_empty():
+    """Should return empty dict when no loop edges exist."""
+    config = WorkflowConfig(
+        schema_version="1.0",
+        flow=FlowMetadata(name="test"),
+        state=StateSchema(
+            fields={"input": StateFieldConfig(type="str", required=True)}
+        ),
+        nodes=[
+            NodeConfig(
+                id="step",
+                prompt="test",
+                outputs=["result"],
+                output_schema=OutputSchema(type="str"),
+            )
+        ],
+        edges=[
+            EdgeConfig(from_="START", to="step"),
+            EdgeConfig(from_="step", to="END"),
+        ],
+    )
+
+    fields = get_loop_counter_fields(config)
+    assert fields == {}
+
+
+def test_get_loop_counter_fields_multiple_loops():
+    """Should return one field per loop edge when multiple loops exist."""
+    from configurable_agents.config.schema import LoopConfig
+
+    config = WorkflowConfig(
+        schema_version="1.0",
+        flow=FlowMetadata(name="test"),
+        state=StateSchema(
+            fields={
+                "input": StateFieldConfig(type="str", required=True),
+                "done_a": StateFieldConfig(type="bool", default=False),
+                "done_b": StateFieldConfig(type="bool", default=False),
+            }
+        ),
+        nodes=[
+            NodeConfig(
+                id="node_a",
+                prompt="test",
+                outputs=["result"],
+                output_schema=OutputSchema(type="str"),
+            ),
+            NodeConfig(
+                id="node_b",
+                prompt="test",
+                outputs=["result"],
+                output_schema=OutputSchema(type="str"),
+            ),
+        ],
+        edges=[
+            EdgeConfig(from_="START", to="node_a"),
+            EdgeConfig(
+                from_="node_a",
+                loop=LoopConfig(condition_field="done_a", exit_to="node_b", max_iterations=3),
+            ),
+            EdgeConfig(
+                from_="node_b",
+                loop=LoopConfig(condition_field="done_b", exit_to="END", max_iterations=3),
+            ),
+        ],
+    )
+
+    fields = get_loop_counter_fields(config)
+    assert "__loop_counter_node_a" in fields
+    assert "__loop_counter_node_b" in fields
+    assert len(fields) == 2

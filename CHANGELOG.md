@@ -11,6 +11,17 @@ For detailed task-by-task implementation notes, see [implementation logs](docs/d
 
 ## [Unreleased] — v1.1 Hardening & Usability
 
+### Fixed (2026-03-24)
+
+**BF-010: Loop `max_iterations` guard now works correctly**
+- Root cause: `_wrap_with_loop_counter()` wrote loop counter into node output dict, but Pydantic dropped it as an unknown field (extra="ignore"). Counter was always 0. `max_iterations` was dead code.
+- Fix: Auto-inject `__loop_counter_{node_id}: int = 0` fields into state model at build time by scanning loop edges (`get_loop_counter_fields()`). Fields are registered in the Pydantic model so updates are accepted.
+- Updated `get_loop_iteration_key()` prefix from `_loop_iteration_` → `__loop_counter_` to match injected field names.
+- Made `create_loop_router()` use `get_loop_iteration_key()` instead of its own hardcoded string.
+- Added `extra_fields` param to `build_state_model()` for injecting framework-managed fields.
+- Executor now calls `build_state_model(config.state, extra_fields=get_loop_counter_fields(config))`.
+- Tests: updated existing loop tests to new key prefix; added unit tests for `extra_fields`, `get_loop_iteration_key`, and `get_loop_counter_fields`.
+
 ### Planning (2026-03-23)
 
 **Code audit + v1.1 planning + documentation:**

@@ -240,7 +240,7 @@ class TestCreateLoopRouter:
         loop_config = LoopConfig(condition_field="is_done", exit_to="END", max_iterations=10)
         loop_fn = create_loop_router(loop_config, "process_node")
 
-        state = {"is_done": False, "_loop_iteration_process_node": 0}
+        state = {"is_done": False, "__loop_counter_process_node": 0}
         result = loop_fn(state)
         assert result == "process_node"
 
@@ -251,7 +251,7 @@ class TestCreateLoopRouter:
         loop_config = LoopConfig(condition_field="is_done", exit_to="END", max_iterations=10)
         loop_fn = create_loop_router(loop_config, "process_node")
 
-        state = {"is_done": True, "_loop_iteration_process_node": 0}
+        state = {"is_done": True, "__loop_counter_process_node": 0}
         result = loop_fn(state)
         assert result == END
 
@@ -260,7 +260,7 @@ class TestCreateLoopRouter:
         loop_config = LoopConfig(condition_field="is_done", exit_to="next_node", max_iterations=5)
         loop_fn = create_loop_router(loop_config, "process_node")
 
-        state = {"is_done": False, "_loop_iteration_process_node": 5}
+        state = {"is_done": False, "__loop_counter_process_node": 5}
         result = loop_fn(state)
         assert result == "next_node"
 
@@ -269,7 +269,7 @@ class TestCreateLoopRouter:
         loop_config = LoopConfig(condition_field="is_done", exit_to="next_node", max_iterations=5)
         loop_fn = create_loop_router(loop_config, "process_node")
 
-        state = {"is_done": False, "_loop_iteration_process_node": 3}
+        state = {"is_done": False, "__loop_counter_process_node": 3}
         result = loop_fn(state)
         assert result == "process_node"
 
@@ -288,7 +288,7 @@ class TestCreateLoopRouter:
 
         class LoopState(BaseModel):
             approved: bool = False
-            _loop_iteration_process: int = 0
+            __loop_counter_process: int = 0
 
         loop_fn = create_loop_router(loop_config, "process")
 
@@ -303,21 +303,34 @@ class TestLoopIterationHelpers:
     def test_get_loop_iteration_key(self):
         """Test iteration key generation."""
         key = get_loop_iteration_key("my_node")
-        assert key == "_loop_iteration_my_node"
+        assert key == "__loop_counter_my_node"
 
     def test_increment_loop_iteration(self):
         """Test iteration counter increment."""
         state = {}
         new_count = increment_loop_iteration(state, "my_node")
         assert new_count == 1
-        assert state["_loop_iteration_my_node"] == 1
+        assert state["__loop_counter_my_node"] == 1
 
         new_count = increment_loop_iteration(state, "my_node")
         assert new_count == 2
-        assert state["_loop_iteration_my_node"] == 2
+        assert state["__loop_counter_my_node"] == 2
 
     def test_increment_from_existing_count(self):
         """Test incrementing from existing counter."""
-        state = {"_loop_iteration_my_node": 5}
+        state = {"__loop_counter_my_node": 5}
         new_count = increment_loop_iteration(state, "my_node")
         assert new_count == 6
+
+
+class TestGetLoopIterationKey:
+    """Test get_loop_iteration_key prefix (BF-010)."""
+
+    def test_key_uses_double_underscore_prefix(self):
+        """Key must use __loop_counter_ prefix so it matches the injected state field."""
+        key = get_loop_iteration_key("search")
+        assert key == "__loop_counter_search"
+
+    def test_key_node_name_preserved(self):
+        key = get_loop_iteration_key("my_complex_node_id")
+        assert key == "__loop_counter_my_complex_node_id"
