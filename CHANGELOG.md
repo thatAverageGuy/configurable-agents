@@ -11,6 +11,20 @@ For detailed task-by-task implementation notes, see [implementation logs](docs/d
 
 ## [Unreleased] — v1.1 Hardening & Usability
 
+### Added (2026-03-24)
+
+**T-014: Runtime memory override — per-invocation `--memory-scope` CLI flag**
+- Added `RuntimeOverrides` and `MemoryRuntimeOverride` Pydantic models to `config/schema.py`.
+- Added `_apply_runtime_overrides(config, overrides)` in `runtime/executor.py` — mutates node-level and workflow-level `MemoryConfig` in-place, leaving the YAML file untouched.
+- `scope: none` disables memory on all nodes (and injects `MemoryConfig(enabled=False)` on nodes that had none). `scope: workflow` / `scope: agent` sets `default_scope` without touching `enabled`.
+- `run_workflow()` and `run_workflow_async()` now accept `runtime_overrides: Optional[Dict[str, Any]]` — validated and applied after config parse, before execution.
+- Overrides are persisted to the `executions.runtime_overrides` (TEXT, nullable) column for auditability.
+- `cli.py`: added `--memory-scope {none,workflow,agent}` flag to the `run` command — shown in `--help` with usage guidance.
+- `webhooks/router.py`: generic webhook payload `"runtime": {...}` is extracted and passed through to `run_workflow_async()`.
+- `storage/factory.py`: added `_apply_column_migrations()` — runs `ALTER TABLE executions ADD COLUMN runtime_overrides TEXT` on startup for existing databases (safe no-op if column already exists).
+- Unit tests: 13 tests covering `_apply_runtime_overrides` and `RuntimeOverrides` validation in `tests/runtime/test_runtime_overrides.py`.
+- Integration and live tests blocked pending `litellm` quarantine resolution.
+
 ### Fixed (2026-03-24)
 
 **BF-013: Route condition failure logging**

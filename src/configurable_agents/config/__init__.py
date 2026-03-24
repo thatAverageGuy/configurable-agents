@@ -22,6 +22,8 @@ from configurable_agents.config.schema import (
     RouteCondition,
     StateFieldConfig,
     StateSchema,
+    MemoryRuntimeOverride,
+    RuntimeOverrides,
     StorageConfig,
     WorkflowConfig,
 )
@@ -59,6 +61,8 @@ __all__ = [
     "ObservabilityConfig",
     "ObservabilityMLFlowConfig",
     "ObservabilityLoggingConfig",
+    "MemoryRuntimeOverride",
+    "RuntimeOverrides",
     "StorageConfig",
     # Types
     "TypeParseError",

@@ -241,6 +241,7 @@ async def _process_generic_webhook(data: Dict[str, Any]) -> Dict[str, Any]:
     # Extract workflow trigger parameters
     workflow_name = data.get("workflow_name")
     inputs = data.get("inputs")
+    runtime_overrides = data.get("runtime")  # Optional per-invocation overrides
 
     if not workflow_name:
         raise HTTPException(status_code=400, detail="Missing 'workflow_name' in payload")
@@ -249,10 +250,12 @@ async def _process_generic_webhook(data: Dict[str, Any]) -> Dict[str, Any]:
         raise HTTPException(status_code=400, detail="Missing 'inputs' in payload")
 
     logger.info(f"Triggering workflow '{workflow_name}' from generic webhook")
+    if runtime_overrides:
+        logger.info(f"Webhook runtime overrides: {runtime_overrides}")
 
     try:
         # Run workflow asynchronously
-        result = await run_workflow_async(workflow_name, inputs)
+        result = await run_workflow_async(workflow_name, inputs, runtime_overrides=runtime_overrides)
 
         return {
             "status": "success",

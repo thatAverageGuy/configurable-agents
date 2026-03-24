@@ -496,6 +496,27 @@ class StorageConfig(BaseModel):
     path: str = Field("./configurable_agents.db", description="SQLite database path (only for sqlite backend)")
 
 
+# ============================================
+# Runtime Overrides (T-014)
+# ============================================
+
+
+class MemoryRuntimeOverride(BaseModel):
+    """Per-invocation memory override."""
+
+    scope: Optional[Literal["none", "workflow", "agent"]] = Field(
+        None,
+        description="Override memory scope: 'none' disables memory, 'workflow' scopes to this run, 'agent' enables cross-run persistence",
+    )
+    enabled: Optional[bool] = Field(None, description="Explicitly enable or disable memory")
+
+
+class RuntimeOverrides(BaseModel):
+    """Runtime overrides applied per-invocation without modifying YAML config."""
+
+    memory: Optional[MemoryRuntimeOverride] = Field(None, description="Memory override")
+
+
 class GlobalConfig(BaseModel):
     """Global infrastructure configuration."""
 

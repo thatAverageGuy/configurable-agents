@@ -17,6 +17,7 @@ from configurable_agents.config import (
     validate_config,
     ValidationError,
 )
+from configurable_agents.config.schema import MemoryConfig, RuntimeOverrides
 from configurable_agents.core import build_graph, build_state_model
 from configurable_agents.core.graph_builder import get_loop_counter_fields
 from configurable_agents.observability import MLFlowTracker
@@ -80,10 +81,52 @@ class WorkflowExecutionError(ExecutionError):
     pass
 
 
+def _apply_runtime_overrides(
+    config: WorkflowConfig,
+    overrides: RuntimeOverrides,
+) -> WorkflowConfig:
+    """Apply per-invocation runtime overrides to a WorkflowConfig.
+
+    Mutates node-level memory config in place. Original YAML is not touched.
+    """
+    if overrides.memory is None:
+        return config
+
+    mem_override = overrides.memory
+
+    for node in config.nodes:
+        # Ensure the node has a MemoryConfig object to modify
+        if node.memory is None:
+            if mem_override.enabled is None and mem_override.scope is None:
+                continue
+            node.memory = MemoryConfig()
+
+        if mem_override.scope == "none":
+            node.memory.enabled = False
+        else:
+            if mem_override.enabled is not None:
+                node.memory.enabled = mem_override.enabled
+            if mem_override.scope is not None:
+                node.memory.default_scope = mem_override.scope
+
+    # Also apply to workflow-level memory config if present
+    if config.memory is not None:
+        if mem_override.scope == "none":
+            config.memory.enabled = False
+        else:
+            if mem_override.enabled is not None:
+                config.memory.enabled = mem_override.enabled
+            if mem_override.scope is not None:
+                config.memory.default_scope = mem_override.scope
+
+    return config
+
+
 def run_workflow(
     config_path: str,
     inputs: Dict[str, Any],
     verbose: bool = False,
+    runtime_overrides: Optional[Dict[str, Any]] = None,
 ) -> Dict[str, Any]:
     """
     Execute workflow from config file and return final state.
@@ -139,14 +182,31 @@ def run_workflow(
             original_error=e,
         )
 
-    # Phase 3: Run workflow from config
-    return run_workflow_from_config(config, inputs, verbose=verbose)
+    # Phase 3: Apply runtime overrides (before execution, after parse)
+    validated_overrides = None
+    if runtime_overrides:
+        try:
+            validated_overrides = RuntimeOverrides(**runtime_overrides)
+            config = _apply_runtime_overrides(config, validated_overrides)
+            logger.info(f"Runtime overrides applied: {runtime_overrides}")
+        except Exception as e:
+            raise ConfigValidationError(
+                f"Invalid runtime_overrides: {e}",
+                phase="runtime_overrides",
+                original_error=e,
+            )
+
+    # Phase 4: Run workflow from config
+    return run_workflow_from_config(
+        config, inputs, verbose=verbose, runtime_overrides=runtime_overrides
+    )
 
 
 def run_workflow_from_config(
     config: WorkflowConfig,
     inputs: Dict[str, Any],
     verbose: bool = False,
+    runtime_overrides: Optional[Dict[str, Any]] = None,
 ) -> Dict[str, Any]:
     """
     Execute workflow from pre-loaded config and return final state.
@@ -261,6 +321,7 @@ def run_workflow_from_config(
                 status="running",
                 config_snapshot=json.dumps(config.model_dump(), default=str),
                 inputs=json.dumps(inputs, default=str),
+                runtime_overrides=json.dumps(runtime_overrides, default=str) if runtime_overrides else None,
                 started_at=datetime.now(timezone.utc),
             )
             execution_repo.add(run_record)
@@ -524,6 +585,7 @@ async def run_workflow_async(
     config_path: str,
     inputs: Dict[str, Any],
     verbose: bool = False,
+    runtime_overrides: Optional[Dict[str, Any]] = None,
 ) -> Dict[str, Any]:
     """
     Execute workflow from config file asynchronously.
@@ -556,5 +618,5 @@ async def run_workflow_async(
     loop = asyncio.get_event_loop()
     return await loop.run_in_executor(
         None,  # Use default thread pool executor
-        lambda: run_workflow(config_path, inputs, verbose=verbose),
+        lambda: run_workflow(config_path, inputs, verbose=verbose, runtime_overrides=runtime_overrides),
     )

@@ -226,14 +226,21 @@ def cmd_run(args: argparse.Namespace) -> int:
         print_error(f"Invalid input format: {e}")
         return 1
 
+    # Build runtime overrides from CLI flags
+    runtime_overrides: Optional[Dict[str, Any]] = None
+    if getattr(args, "memory_scope", None):
+        runtime_overrides = {"memory": {"scope": args.memory_scope}}
+
     # Print execution info
     print_info(f"Loading workflow: {colorize(config_path, Colors.CYAN)}")
     if inputs:
         print_info(f"Inputs: {colorize(json.dumps(inputs, indent=2), Colors.GRAY)}")
+    if runtime_overrides:
+        print_info(f"Runtime overrides: {colorize(json.dumps(runtime_overrides), Colors.YELLOW)}")
 
     # Execute workflow
     try:
-        result = run_workflow(config_path, inputs, verbose=args.verbose)
+        result = run_workflow(config_path, inputs, verbose=args.verbose, runtime_overrides=runtime_overrides)
 
         # Print success
         print_success("Workflow executed successfully!")
@@ -2141,6 +2148,17 @@ For more information, visit: https://github.com/yourusername/configurable-agents
     )
     run_parser.add_argument(
         "-v", "--verbose", action="store_true", help="Enable verbose logging (DEBUG level)"
+    )
+    run_parser.add_argument(
+        "--memory-scope",
+        choices=["none", "workflow", "agent"],
+        default=None,
+        help=(
+            "Override memory scope for this run. "
+            "'none' disables memory entirely (recommended for GTM/prod), "
+            "'workflow' scopes memory to this run only, "
+            "'agent' enables cross-run persistence."
+        ),
     )
     run_parser.set_defaults(func=cmd_run)
 

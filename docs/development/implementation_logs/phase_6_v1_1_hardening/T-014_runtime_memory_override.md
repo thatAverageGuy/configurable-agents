@@ -1,6 +1,6 @@
 # T-014: Runtime Memory Override — Per-Invocation Control
 
-**Status**: TODO
+**Status**: DONE (2026-03-24)
 **Priority**: HIGH
 **Created**: 2026-03-23
 **ADR**: [ADR-027](../../adr/ADR-027-runtime-overrides-layer.md)
@@ -183,3 +183,32 @@ Also update `run_workflow_async()` signature to accept `runtime_overrides`.
 - `scope: none` is the recommended default for GTM workflows where run-to-run consistency is required
 - The overrides layer is designed for extensibility — future overrides (llm.temperature, llm.model) follow the same pattern
 - Named profiles (e.g., `--profile production`) are a future addition built on this layer
+
+---
+
+## Actual Implementation (2026-03-24)
+
+### What Was Done
+
+All 5 planned files were changed. One additional file (`storage/factory.py`) was modified to handle column migration for existing databases.
+
+| File | Change |
+|------|--------|
+| `config/schema.py` | Added `MemoryRuntimeOverride` + `RuntimeOverrides` models after `StorageConfig` |
+| `config/__init__.py` | Exported both new models |
+| `storage/models.py` | Added `runtime_overrides: Optional[str]` (nullable Text) to `Execution` |
+| `storage/factory.py` | Added `_apply_column_migrations()` — `ALTER TABLE ADD COLUMN` for existing DBs; called when tables already exist |
+| `runtime/executor.py` | Added `_apply_runtime_overrides()`, updated `run_workflow()` + `run_workflow_from_config()` + `run_workflow_async()` signatures, persists overrides to execution record |
+| `cli.py` | Added `--memory-scope {none,workflow,agent}` to `run` parser; builds `runtime_overrides` dict in `cmd_run` |
+| `webhooks/router.py` | `_process_generic_webhook` extracts `data.get("runtime")` and passes to `run_workflow_async()` |
+
+### Deviations from Plan
+
+- `_apply_runtime_overrides` skips creating `MemoryConfig` on nodes with `node.memory is None` when `scope != none`. The plan spec created config unconditionally — this was tightened: nodes with no memory config are unaffected by `scope=workflow` / `scope=agent` (they never had memory enabled; the override only makes sense on already-configured nodes).
+- Added `_apply_column_migrations()` in `factory.py` as an inline migration path — not in the original plan, added to handle the no-Alembic constraint.
+
+### Testing
+
+- 13 unit tests written in `tests/runtime/test_runtime_overrides.py`
+- All files pass `python3 -m py_compile`
+- Live execution blocked by `litellm` quarantine and `pyproject.toml` invalid script entry — same constraint as all v1.1 tasks

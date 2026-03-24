@@ -22,7 +22,7 @@ import logging
 from pathlib import Path
 from typing import Optional, Tuple
 
-from sqlalchemy import create_engine, inspect
+from sqlalchemy import create_engine, inspect, text
 
 from configurable_agents.config.schema import StorageConfig
 
@@ -76,6 +76,22 @@ def _check_tables_exist(engine) -> bool:
     return all(table in existing_tables for table in expected_tables)
 
 
+def _apply_column_migrations(engine) -> None:
+    """Apply any missing column additions to existing tables.
+
+    Safe to call on every startup — only adds columns that are absent.
+    Uses raw SQL ALTER TABLE to avoid needing Alembic.
+    """
+    inspector = inspect(engine)
+    with engine.connect() as conn:
+        # executions.runtime_overrides (added in T-014)
+        existing_cols = {c["name"] for c in inspector.get_columns("executions")}
+        if "runtime_overrides" not in existing_cols:
+            conn.execute(text("ALTER TABLE executions ADD COLUMN runtime_overrides TEXT"))
+            conn.commit()
+            logger.info("Migration applied: executions.runtime_overrides column added")
+
+
 def ensure_initialized(
     db_url: str,
     verbose: bool = False,
@@ -124,6 +140,8 @@ def ensure_initialized(
     if _check_tables_exist(engine):
         if verbose:
             logger.debug(f"Database already initialized: {db_url}")
+        # Apply any missing column migrations for existing databases
+        _apply_column_migrations(engine)
         return True
 
     # Need to initialize - show progress if requested

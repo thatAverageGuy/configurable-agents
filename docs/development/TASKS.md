@@ -67,7 +67,7 @@
 
 ### T-014: Runtime Memory Override — Per-Invocation Control
 
-**Status**: TODO
+**Status**: DONE (2026-03-24)
 **Priority**: HIGH
 **ADR**: [ADR-027](adr/ADR-027-runtime-overrides-layer.md)
 

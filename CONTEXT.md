@@ -13,9 +13,18 @@
 
 ## Current State
 
-**Task**: T-014 | **Phase**: Not Started | **Status**: READY TO IMPLEMENT
+**Task**: T-015 | **Phase**: Not Started | **Status**: READY TO IMPLEMENT
 
 ### What Was Done This Session
+
+**2026-03-24 — T-014 implemented:**
+- Added `RuntimeOverrides` + `MemoryRuntimeOverride` models to `config/schema.py`
+- Added `_apply_runtime_overrides()` to `runtime/executor.py`; wired into `run_workflow()`, `run_workflow_from_config()`, `run_workflow_async()`
+- `--memory-scope {none,workflow,agent}` flag added to `cli.py run` command
+- Webhook `_process_generic_webhook` extracts `"runtime"` key and threads it through
+- `storage/models.py`: added `runtime_overrides TEXT` (nullable) to `Execution`
+- `storage/factory.py`: `_apply_column_migrations()` runs `ALTER TABLE` on startup for existing DBs
+- 13 unit tests in `tests/runtime/test_runtime_overrides.py` — all pass syntax check; live execution blocked
 
 **2026-03-24 — BF-013 implemented:**
 - Added `import logging` + `logger = getLogger(__name__)` to `control_flow.py`
@@ -41,7 +50,7 @@
 2. [x] **BF-011**: Fix list field reducer — add `replace` semantics — DONE
 3. [x] **BF-012**: Fix double CostEstimator call — DONE
 4. [x] **BF-013**: Fix silent route condition failure logging — DONE
-5. [ ] **T-014**: Runtime memory override (`--memory-scope` CLI flag) — HIGH
+5. [x] **T-014**: Runtime memory override (`--memory-scope` CLI flag) — DONE
 6. [ ] **T-015**: Memory extraction opt-in (`extract_facts: false` default) — HIGH
 7. [ ] **T-016**: Web search hardening (retry, fallback, cache) — MEDIUM
 8. [ ] Dashboard scope definition + tasks (separate session)
@@ -59,7 +68,6 @@
 | BF-011 | Fix list reducer — loops accumulate stale data | [BF-011 Log](docs/development/implementation_logs/phase_6_v1_1_hardening/BF-011_list_reducer.md) |
 | BF-012 | Fix double CostEstimator call per node | [BF-012 Log](docs/development/implementation_logs/phase_6_v1_1_hardening/BF-012_cost_estimator_double_call.md) |
 | BF-013 | Fix silent route condition failure | [BF-013 Log](docs/development/implementation_logs/phase_6_v1_1_hardening/BF-013_silent_route_condition_logging.md) |
-| T-014 | Runtime memory override per invocation | [T-014 Log](docs/development/implementation_logs/phase_6_v1_1_hardening/T-014_runtime_memory_override.md) |
 | T-015 | Memory extraction opt-in | [T-015 Log](docs/development/implementation_logs/phase_6_v1_1_hardening/T-015_memory_extraction_opt_in.md) |
 | T-016 | Web search hardening | [T-016 Log](docs/development/implementation_logs/phase_6_v1_1_hardening/T-016_web_search_hardening.md) |
 | Dashboard | Scope TBD | Separate session |

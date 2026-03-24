@@ -68,6 +68,7 @@ class Execution(Base):
     total_tokens: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
     total_cost_usd: Mapped[Optional[float]] = mapped_column(Float, nullable=True)
     bottleneck_info: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    runtime_overrides: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
     deployment_id: Mapped[Optional[str]] = mapped_column(
         String(255), ForeignKey("deployments.deployment_id"), nullable=True
     )
