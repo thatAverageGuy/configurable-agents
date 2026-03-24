@@ -1,6 +1,6 @@
 # BF-013: Fix Silent Route Condition Failure
 
-**Status**: TODO
+**Status**: DONE (2026-03-24)
 **Priority**: MEDIUM
 **Created**: 2026-03-23
 
@@ -82,6 +82,13 @@ return target
 - Existing conditional routing tests → verify no regression
 
 ---
+
+## Actual Implementation (2026-03-24)
+
+- Added `import logging` and `logger = logging.getLogger(__name__)` to `control_flow.py`
+- `except ControlFlowError as e:` now calls `logger.warning(...)` with condition text, error, and available state fields (using `%s` style, consistent with stdlib logging)
+- Added `logger.debug(...)` before default route return — logs target name and number of evaluated conditions (computed via generator sum, avoids counting the default route itself)
+- All success criteria met. No behavior change.
 
 ## Notes
 

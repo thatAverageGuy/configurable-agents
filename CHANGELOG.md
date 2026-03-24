@@ -13,6 +13,11 @@ For detailed task-by-task implementation notes, see [implementation logs](docs/d
 
 ### Fixed (2026-03-24)
 
+**BF-013: Route condition failure logging**
+- Root cause: `ControlFlowError` raised during condition evaluation was silently caught with `continue` — no indication that a condition was skipped. Broken conditions appeared to "work" by silently taking the default route.
+- Fix: Added `logger.warning(...)` on `ControlFlowError` — logs condition text, error message, and available state field names. Added `logger.debug(...)` when the default route is taken — logs target and number of conditions evaluated.
+- No behavior change. Fallback-to-default is preserved exactly.
+
 **BF-012: Remove double CostEstimator call per node**
 - Root cause: `execute_node()` instantiated `CostEstimator` and called `estimate_cost()` twice — once after the LLM call (result assigned to `cost_usd` but never used), and again inside the storage persistence block to populate `state_snapshot["cost_usd"]`.
 - Fix: Removed the second instantiation. The `cost_usd` value computed in the first block is now reused directly in the storage snapshot.

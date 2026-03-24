@@ -13,9 +13,15 @@
 
 ## Current State
 
-**Task**: BF-013 | **Phase**: Not Started | **Status**: READY TO IMPLEMENT
+**Task**: T-014 | **Phase**: Not Started | **Status**: READY TO IMPLEMENT
 
 ### What Was Done This Session
+
+**2026-03-24 — BF-013 implemented:**
+- Added `import logging` + `logger = getLogger(__name__)` to `control_flow.py`
+- `except ControlFlowError` now calls `logger.warning(...)` with condition text, error, and state field list
+- Added `logger.debug(...)` when no condition matches and default route is taken
+- Pure observability fix — no behavior change
 
 **2026-03-24 — BF-011 implemented:**
 - Added `reducer: Literal["append", "replace"]` field to `StateFieldConfig` (default: `append`, fully backward-compatible)
@@ -34,7 +40,7 @@
 1. [x] **BF-010**: Fix loop `max_iterations` — DONE
 2. [x] **BF-011**: Fix list field reducer — add `replace` semantics — DONE
 3. [x] **BF-012**: Fix double CostEstimator call — DONE
-4. [ ] **BF-013**: Fix silent route condition failure logging — MEDIUM
+4. [x] **BF-013**: Fix silent route condition failure logging — DONE
 5. [ ] **T-014**: Runtime memory override (`--memory-scope` CLI flag) — HIGH
 6. [ ] **T-015**: Memory extraction opt-in (`extract_facts: false` default) — HIGH
 7. [ ] **T-016**: Web search hardening (retry, fallback, cache) — MEDIUM

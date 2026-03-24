@@ -6,6 +6,7 @@ Implements safe condition evaluation without eval/exec.
 """
 
 import ast
+import logging
 import operator
 import re
 from typing import Any, Callable, Dict, List
@@ -13,6 +14,8 @@ from typing import Any, Callable, Dict, List
 from langgraph.graph import END
 
 from configurable_agents.config.schema import LoopConfig, Route
+
+logger = logging.getLogger(__name__)
 
 
 class ControlFlowError(Exception):
@@ -259,11 +262,23 @@ def create_routing_function(
                 if _evaluate_condition(route.condition.logic, state_dict):
                     target = route.to if route.to != "END" else END
                     return target
-            except ControlFlowError:
-                # Skip failed condition evaluation, continue to next
+            except ControlFlowError as e:
+                logger.warning(
+                    "Route condition evaluation failed — skipping to next route. "
+                    "Condition: '%s' | Error: %s | State fields available: %s",
+                    route.condition.logic,
+                    e,
+                    list(state_dict.keys()),
+                )
                 continue
 
         # No condition matched, use default
+        logger.debug(
+            "No route condition matched — using default route to '%s'. "
+            "Evaluated %d condition(s).",
+            default_target,
+            sum(1 for r in routes if r.condition.logic != "default"),
+        )
         target = default_target if default_target != "END" else END
         return target
 

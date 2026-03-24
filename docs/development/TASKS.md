@@ -54,7 +54,7 @@
 
 ### BF-013: Fix Silent Route Condition Failure
 
-**Status**: TODO
+**Status**: DONE (2026-03-24)
 **Priority**: MEDIUM
 
 **Problem**: Failed condition evaluations silently fall to default route with no log. Broken condition expressions are invisible — workflow appears to work but ignores the intended routing.
