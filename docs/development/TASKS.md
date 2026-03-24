@@ -41,7 +41,7 @@
 
 ### BF-012: Fix Double CostEstimator Call Per Node
 
-**Status**: TODO
+**Status**: DONE (2026-03-24)
 **Priority**: MEDIUM
 
 **Problem**: `execute_node()` creates and calls `CostEstimator` twice — once at ~line 598 (result unused), once at ~line 685 for storage. Wasted compute, inconsistency risk.

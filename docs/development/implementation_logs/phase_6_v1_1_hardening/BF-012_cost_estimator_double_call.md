@@ -1,6 +1,6 @@
 # BF-012: Fix Double CostEstimator Call Per Node
 
-**Status**: TODO
+**Status**: DONE (2026-03-24)
 **Priority**: MEDIUM
 **Created**: 2026-03-23
 
@@ -66,3 +66,24 @@ state_snapshot["cost_usd"] = cost_usd  # reuse, no second call
 - Existing tests for node execution — verify no regression in cost values stored
 - Verify cost appears correctly in MLFlow traces after change
 - This is a small, surgical fix — low risk
+
+---
+
+## Actual Implementation (2026-03-24)
+
+### What Was Done
+
+Removed the redundant `CostEstimator` instantiation inside the `if execution_state_repo and run_id:` storage block (lines ~681-692). Replaced the 11-line block with a single assignment:
+
+```python
+# Reuse cost_usd calculated above (single CostEstimator call per node)
+state_snapshot["cost_usd"] = cost_usd
+```
+
+The `cost_usd` variable computed earlier (lines 596-605) is now the single source of truth for both any future use and the storage snapshot.
+
+### Result
+
+- 1 `CostEstimator()` instantiation removed per node execution
+- `cost_usd` value is guaranteed consistent between both use sites
+- No change to observable behavior

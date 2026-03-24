@@ -13,7 +13,7 @@
 
 ## Current State
 
-**Task**: BF-012 | **Phase**: Not Started | **Status**: READY TO IMPLEMENT
+**Task**: BF-013 | **Phase**: Not Started | **Status**: READY TO IMPLEMENT
 
 ### What Was Done This Session
 
@@ -33,7 +33,7 @@
 
 1. [x] **BF-010**: Fix loop `max_iterations` — DONE
 2. [x] **BF-011**: Fix list field reducer — add `replace` semantics — DONE
-3. [ ] **BF-012**: Fix double CostEstimator call — MEDIUM
+3. [x] **BF-012**: Fix double CostEstimator call — DONE
 4. [ ] **BF-013**: Fix silent route condition failure logging — MEDIUM
 5. [ ] **T-014**: Runtime memory override (`--memory-scope` CLI flag) — HIGH
 6. [ ] **T-015**: Memory extraction opt-in (`extract_facts: false` default) — HIGH

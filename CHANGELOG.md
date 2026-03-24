@@ -13,6 +13,11 @@ For detailed task-by-task implementation notes, see [implementation logs](docs/d
 
 ### Fixed (2026-03-24)
 
+**BF-012: Remove double CostEstimator call per node**
+- Root cause: `execute_node()` instantiated `CostEstimator` and called `estimate_cost()` twice — once after the LLM call (result assigned to `cost_usd` but never used), and again inside the storage persistence block to populate `state_snapshot["cost_usd"]`.
+- Fix: Removed the second instantiation. The `cost_usd` value computed in the first block is now reused directly in the storage snapshot.
+- No observable behavior change — cost values and storage records are identical.
+
 **BF-011: List field reducer — `replace` semantics for retry loops**
 - Root cause: all list-type state fields unconditionally used `_list_concat_reducer` (append). In a retry loop, each iteration appended to the previous result — after N loops the field contained N× the data.
 - Fix: Added `reducer: Literal["append", "replace"]` field to `StateFieldConfig` (default: `"append"`, fully backward-compatible). Users declare `reducer: replace` on any list field that represents "current result" rather than "accumulated history".

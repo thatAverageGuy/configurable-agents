@@ -678,18 +678,8 @@ def execute_node(
                     "status": "completed",
                 }
 
-                # Add cost if available from cost estimator
-                try:
-                    from configurable_agents.observability.cost_estimator import CostEstimator
-                    estimator = CostEstimator()
-                    cost = estimator.estimate_cost(
-                        model=model_name,
-                        input_tokens=usage.input_tokens,
-                        output_tokens=usage.output_tokens,
-                    )
-                    state_snapshot["cost_usd"] = cost
-                except Exception:
-                    state_snapshot["cost_usd"] = 0.0
+                # Reuse cost_usd calculated above (single CostEstimator call per node)
+                state_snapshot["cost_usd"] = cost_usd
 
                 # Include the output state values (for trace inspection)
                 output_values = {}
