@@ -247,6 +247,7 @@ HARD CONSTRAINTS
 9. reducer=replace only valid on list-type state fields
 10. Loop edges require condition_field to be a bool state field
 11. Parallel fan-out requires all branches to eventually fan-in to the same node
+12. output_schema field names MUST exactly match the outputs list entries — the runtime maps by name identity, not by position. If the state field is `article`, the output_schema field must also be named `article`. Never use a descriptive name in output_schema (e.g., `article_content`) and a different state name (e.g., `article`) in outputs — this will fail at runtime.
 12. Memory scope: 'agent' persists across runs, 'workflow' for this run only, 'node' isolated
 13. extract_facts: false by default — set to true only if you explicitly need fact extraction (doubles LLM cost)
 
@@ -492,19 +493,15 @@ class GradioChatUI:
         except Exception:
             return []
 
-    def _load_session_history(self, session_id: str) -> List[List[str]]:
-        """Load chat history for a session as [[user, assistant], ...]."""
+    def _load_session_history(self, session_id: str) -> List[Dict[str, str]]:
+        """Load chat history for a session as Gradio 6 messages format."""
         try:
             messages = self.session_repo.get_messages(session_id)
-            history = []
-            for msg in messages:
-                role = msg.get("role", "")
-                content = msg.get("content", "")
-                if role == "user":
-                    history.append([content, None])
-                elif role == "assistant" and history:
-                    history[-1][1] = content
-            return history
+            return [
+                {"role": msg.get("role", "user"), "content": msg.get("content", "")}
+                for msg in messages
+                if msg.get("role") in ("user", "assistant")
+            ]
         except Exception:
             return []
 
@@ -525,7 +522,7 @@ class GradioChatUI:
     async def respond(
         self,
         message: str,
-        history: List[List[str]],
+        history: List[Dict[str, str]],
         session_id: str,
         llm_client_state: Dict[str, Any],
     ) -> AsyncGenerator:
@@ -543,10 +540,22 @@ class GradioChatUI:
         except Exception:
             pass
 
-        history = history + [[message, None]]
+        # Append user message in Gradio 6 messages format
+        history = list(history) + [{"role": "user", "content": message}]
 
         # First yield: clear input, show user bubble
         yield history, "", gr.update(), gr.update()
+
+        # Build (user, assistant) tuple history for stream_chat (excludes current message)
+        prior = history[:-1]
+        stream_history = []
+        for i in range(0, len(prior) - 1, 2):
+            u = prior[i].get("content", "") if prior[i].get("role") == "user" else ""
+            a = prior[i + 1].get("content", "") if i + 1 < len(prior) and prior[i + 1].get("role") == "assistant" else ""
+            stream_history.append((u, a))
+
+        # Append placeholder assistant message for streaming
+        history = history + [{"role": "assistant", "content": ""}]
 
         # Stream response token by token
         response = ""
@@ -554,15 +563,15 @@ class GradioChatUI:
             async for chunk in stream_chat(
                 llm,
                 message,
-                history[:-1],   # exclude the pending pair
+                stream_history,
                 system_prompt=CONFIG_GENERATION_PROMPT,
             ):
                 response += chunk
-                history[-1][1] = response
+                history[-1]["content"] = response
                 yield history, gr.update(), gr.update(), gr.update()
         except Exception as e:
             response = f"⚠️ LLM error: {e}"
-            history[-1][1] = response
+            history[-1]["content"] = response
             yield history, gr.update(), gr.update(), gr.update()
             return
 
@@ -778,13 +787,14 @@ class GradioChatUI:
         try:
             from configurable_agents.deploy import generate_deployment_artifacts
 
-            artifacts = generate_deployment_artifacts(
+            artifacts = await asyncio.to_thread(
+                generate_deployment_artifacts,
                 config_path=temp_path,
                 output_dir=output_dir,
                 api_port=int(api_port),
                 container_name=container_name or None,
             )
-            yield f"✅ Artifacts generated at:\n`{output_dir}`\n\nFiles: {', '.join(p.name for p in artifacts.values())}\n\n⏳ Building Docker image..."
+            yield f"✅ Artifacts generated at:\n`{output_dir}`\n\nFiles: {', '.join(p.name for p in artifacts.values())}\n\n⏳ Checking Docker..."
         except Exception as e:
             yield f"❌ Artifact generation failed:\n```\n{e}\n```"
             try:
@@ -802,9 +812,10 @@ class GradioChatUI:
         except Exception:
             pass
 
-        # Check Docker is available
+        # Check Docker is available (run in thread — blocking)
         try:
-            subprocess.run(
+            await asyncio.to_thread(
+                subprocess.run,
                 ["docker", "info"],
                 check=True,
                 capture_output=True,
@@ -824,11 +835,12 @@ class GradioChatUI:
             )
             return
 
-        # Build and run
+        # Build and run (both blocking — run in thread)
         img_name = (container_name or "workflow").lower().replace("_", "-")
         yield f"⏳ Building image `{img_name}`..."
         try:
-            build_result = subprocess.run(
+            build_result = await asyncio.to_thread(
+                subprocess.run,
                 ["docker", "build", "-t", img_name, "."],
                 cwd=str(output_dir),
                 capture_output=True,
@@ -855,7 +867,8 @@ class GradioChatUI:
                 "--env-file", str(env_file_path),
                 img_name,
             ]
-            run_result = subprocess.run(
+            run_result = await asyncio.to_thread(
+                subprocess.run,
                 run_cmd,
                 capture_output=True,
                 text=True,
@@ -896,18 +909,7 @@ class GradioChatUI:
         initial_model = PROVIDER_CATALOGUE[initial_provider]["default"]
         all_providers = list(PROVIDER_CATALOGUE.keys())
 
-        with gr.Blocks(
-            title="Configurable Agents — Config Generator",
-            theme=gr.themes.Soft(),
-            css="""
-            .panel-header { font-size: 1.1rem; font-weight: 600; margin-bottom: 0.5rem; }
-            .session-label { font-size: 0.75rem; color: #6b7280; }
-            .config-actions { display: flex; gap: 0.5rem; flex-wrap: wrap; }
-            #run-dialog, #deploy-dialog { border: 1px solid #e5e7eb; border-radius: 8px; padding: 1rem; background: #f9fafb; }
-            .status-ok { color: #059669; }
-            .status-err { color: #dc2626; }
-            """,
-        ) as interface:
+        with gr.Blocks(title="Configurable Agents — Config Generator") as interface:
 
             # ── Hidden state ────────────────────────────────────────────
             session_id_state = gr.State(self._new_session_id())
@@ -946,7 +948,8 @@ class GradioChatUI:
                     scale=2,
                 )
                 apply_btn = gr.Button("Apply", variant="primary", scale=1)
-                llm_status = gr.Markdown("_Using default LLM_", scale=2)
+                with gr.Column(scale=2):
+                    llm_status = gr.Markdown("_Using default LLM_")
 
             # ── Main 3-column layout ────────────────────────────────────
             with gr.Row():
@@ -969,7 +972,6 @@ class GradioChatUI:
                         label="Conversation",
                         height=480,
                         show_label=False,
-                        bubble_full_width=False,
                     )
                     msg_input = gr.Textbox(
                         placeholder="Describe your workflow… (Shift+Enter for newline)",
@@ -1192,6 +1194,15 @@ class GradioChatUI:
             server_name=server_name,
             server_port=server_port,
             share=share,
+            theme=gr.themes.Soft(),
+            css="""
+            .panel-header { font-size: 1.1rem; font-weight: 600; margin-bottom: 0.5rem; }
+            .session-label { font-size: 0.75rem; color: #6b7280; }
+            .config-actions { display: flex; gap: 0.5rem; flex-wrap: wrap; }
+            #run-dialog, #deploy-dialog { border: 1px solid #e5e7eb; border-radius: 8px; padding: 1rem; background: #f9fafb; }
+            .status-ok { color: #059669; }
+            .status-err { color: #dc2626; }
+            """,
             **kwargs,
         )
 
