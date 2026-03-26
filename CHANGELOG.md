@@ -9,6 +9,32 @@ For detailed task-by-task implementation notes, see [implementation logs](docs/d
 
 ---
 
+## [Unreleased] — v1.2 UI Overhaul
+
+### In Progress (2026-03-26)
+
+**T-017: UI Audit and Overhaul — Chat UI phase complete**
+- Full audit of all UI surfaces completed (2026-03-26): 14 issues found across Chat UI (6), Dashboard (7), Webhooks (1)
+- **Chat UI — full rewrite** (`src/configurable_agents/ui/gradio_chat.py`):
+  - Fixed C1: Download YAML button now works — `gr.File(visible=False)` declared in layout
+  - Fixed C2: Real token-by-token streaming via async generator (was fake chunking before)
+  - Fixed C3: Complete `CONFIG_GENERATION_PROMPT` rewrite — accurate v1.0 schema, all tools/providers, explicit unsupported list
+  - Fixed C4: Session ID is now UUID per page load via `gr.State` (was IP-based)
+  - Fixed C5: `asyncio.get_event_loop()` usage eliminated entirely
+  - Fixed C6: Duplicate CSS removed
+  - New 3-column layout: session history sidebar | chat area | config preview panel
+  - LLM provider/model/API-key switcher bar at top of UI
+  - Dashboard button in header (top-right, `gr.Button(link=...)`)
+  - Run Ephemeral dialog: auto-detects required ENV vars and workflow input fields from config
+  - Deploy dialog: Docker build/run with graceful fallback to manual instructions if Docker unavailable
+  - Session history: recent sessions listed in sidebar, loading restores chat + config
+- Dashboard (D1–D7), Webhook (W1), Cleanup (S1) — pending
+- Details: `docs/development/implementation_logs/phase_7_ui_overhaul/T-017_ui_audit_and_overhaul.md`
+
+---
+
+## [v1.1] — Hardening & Usability (Complete 2026-03-26)
+
 ## [Unreleased] — v1.1 Hardening & Usability
 
 ### Added (2026-03-26)

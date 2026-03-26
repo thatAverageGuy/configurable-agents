@@ -1,13 +1,51 @@
 # Requirements: Configurable Agent Orchestration Platform
 
-**Version**: v1.1 In Progress | v1.0 Shipped (2026-02-04)
-**Last Updated**: 2026-03-23
+**Version**: v1.2 In Progress | v1.1 Complete (2026-03-26) | v1.0 Shipped (2026-02-04)
+**Last Updated**: 2026-03-26
 
 ---
 
-## v1.1 Active Tasks — Hardening & Usability
+## v1.2 Active Tasks — UI Overhaul
 
-> **Context**: A detailed code audit (2026-03-23) surfaced bugs and design gaps in the v1.0 implementation. This section tracks all v1.1 work. Phase 2 (autonomous vision) is fully deferred — see [VISION_AUTONOMOUS.md](VISION_AUTONOMOUS.md) and the Phase 2 section below.
+> **Context**: Full audit (2026-03-26) of all UI surfaces surfaced critical bugs and design gaps. Work proceeds surface-by-surface: Chat UI first, then Dashboard, then Webhooks, then cleanup.
+
+---
+
+### T-017: UI Audit and Overhaul
+
+**Status**: IN_PROGRESS (2026-03-26)
+**Priority**: HIGH
+**Phase**: Dashboard (Phase 2 of 4) — Chat UI complete, awaiting commit
+
+**Summary**: Full audit of all UI surfaces. 14 issues found across Chat UI, Dashboard, and Webhooks. Streamlit confirmed dead and to be removed.
+
+**Issues**:
+
+| ID | Surface | Severity | Description |
+|----|---------|----------|-------------|
+| C1 | Chat UI | CRITICAL | Download YAML button broken — `gr.File()` not in layout |
+| C2 | Chat UI | HIGH | Fake streaming — full response collected before yielding |
+| C3 | Chat UI | HIGH | System prompt stale — describes removed features, silent on v1.x additions |
+| C4 | Chat UI | MEDIUM | Session ID is IP-based — tabs share sessions |
+| C5 | Chat UI | LOW | `asyncio.get_event_loop()` deprecated (Python 3.10+) |
+| C6 | Chat UI | LOW | CSS defined twice, once unused |
+| D1 | Dashboard | CRITICAL | Deregister button breaks page — DELETE returns JSON, not HTML |
+| D2 | Dashboard | HIGH | Deployment ID column shows workflow_name via wrong heuristic |
+| D3 | Dashboard | HIGH | No deployment registration form in UI |
+| D4 | Dashboard | MEDIUM | Dead SSE code in frontend — polling does the actual refresh |
+| D5 | Dashboard | LOW | Cancel button doesn't refresh table immediately |
+| D6 | Dashboard | LOW | Restart endpoint exists but no button in UI |
+| D7 | Dashboard | LOW | psutil missing shows 0% with no indicator |
+| W1 | Webhooks | HIGH | `WebhookError` referenced but not imported — NameError on that path |
+| S1 | Streamlit | — | Dead — delete `streamlit_app.py` |
+
+**Details**: [T-017 Implementation Log](implementation_logs/phase_7_ui_overhaul/T-017_ui_audit_and_overhaul.md)
+
+---
+
+## v1.1 Completed Tasks — Hardening & Usability
+
+> **Context**: A detailed code audit (2026-03-23) surfaced bugs and design gaps in the v1.0 implementation. All v1.1 work is now complete. Phase 2 (autonomous vision) is fully deferred — see [VISION_AUTONOMOUS.md](VISION_AUTONOMOUS.md) and the Phase 2 section below.
 
 ---
 
@@ -102,6 +140,21 @@
 **Fix**: Add retry with backoff, provider fallback, SQLite-backed query cache (TTL=1h, on by default), minimum result validation.
 
 **Details**: [T-016 Implementation Log](implementation_logs/phase_6_v1_1_hardening/T-016_web_search_hardening.md)
+
+---
+
+---
+
+### AX-017: YAML Per-Node Tool Config
+
+**Status**: DEFERRED (2026-03-26)
+**Priority**: LOW
+
+**Problem**: `ToolConfig.config` dict exists in schema but is never passed to tool factories. `ToolFactory = Callable[[], BaseTool]` accepts no config. Per-node tool configuration in YAML is silently ignored.
+
+**Proposed Fix**: Change `ToolFactory` to `Callable[[Optional[Dict]], BaseTool]`, update `get_tool(name, config=None)`, update `node_executor.py` to pass config dict, update `create_web_search()` to apply overrides.
+
+**Why deferred**: `web_search` is the only tool with meaningful runtime knobs, and all of them are already covered by env vars (`WEB_SEARCH_MAX_ATTEMPTS`, `WEB_SEARCH_CACHE_TTL`, etc.). No concrete per-node config use case exists today. Registry contract change carries real risk for no current gain. Revisit when a production scenario actually requires different tool settings per node in the same workflow.
 
 ---
 
