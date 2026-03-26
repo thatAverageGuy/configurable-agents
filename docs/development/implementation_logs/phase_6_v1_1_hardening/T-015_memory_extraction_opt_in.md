@@ -1,8 +1,9 @@
 # T-015: Memory Fact Extraction — Make Opt-In
 
-**Status**: TODO
+**Status**: DONE
 **Priority**: HIGH
 **Created**: 2026-03-23
+**Completed**: 2026-03-26
 
 ---
 
@@ -136,3 +137,34 @@ def _build_extraction_llm_config(model_name: str, base_config) -> LLMConfig:
 - **Breaking change for existing memory users**: If you currently rely on automatic fact extraction, add `extract_facts: true` to your `memory` config block.
 - The extraction behavior was undocumented and carried hidden cost — making it opt-in is the correct default.
 - This change is composable with T-014: `--memory-scope none` disables memory entirely; this controls whether extraction runs when memory IS enabled.
+
+---
+
+## Actual Implementation (2026-03-26)
+
+### What Was Done
+
+**`config/schema.py`**: Added `extract_facts: bool = Field(False)` and `extraction_model: Optional[str] = Field(None)` to `MemoryConfig`.
+
+**`core/node_executor.py`**:
+- Added `_build_extraction_llm(extraction_model, base_llm_config)` helper — infers provider from model name prefix (`gpt`→openai, `claude`→anthropic, `gemini`→google), builds LLMConfig override.
+- Replaced unconditional extraction call with `if memory_config and memory_config.extract_facts:` guard.
+- When `extract_facts=False` (default): logs DEBUG message, skips extraction.
+- When `extract_facts=True` + `extraction_model` set: builds a separate LLM for extraction with the cheaper model.
+- All extraction failures remain non-blocking (wrapped in try/except + WARNING log).
+
+**`tests/core/test_memory_extraction_opt_in.py`** (new — 13 tests):
+- `TestMemoryConfigSchema` (5): default false, opt-in true, extraction_model optional, cheaper model field, invalid field rejection
+- `TestBuildExtractionLlm` (5): openai/anthropic/google prefix inference, no-prefix fallback, model override, provider propagation
+- `TestExecuteNodeExtractionGuard` (3): extract_facts=False skips call, extract_facts=True triggers call, extraction_model uses different LLM
+
+### Issues Encountered and Fixed
+
+- `OutputSchema` needed `type="object"` — added to test helper
+- `NodeConfig` needed `outputs=["result"]` field — added to test helper
+- `execute_node` requires Pydantic `BaseModel` state, not plain dict — added `_SimpleState(BaseModel)` helper
+- `execute_node` accesses `memory_repo` via `tracker.memory_repo`, not as direct kwarg — fixed to pass `tracker=mock_tracker` with `mock_tracker.memory_repo = mock_memory_repo`
+
+### Test Results
+
+All 13 new T-015 tests pass. Full suite: 1078 passed, 6 skipped.

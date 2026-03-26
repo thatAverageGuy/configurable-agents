@@ -386,32 +386,33 @@ class TestGenerateCostReport:
     @patch("configurable_agents.observability.multi_provider_tracker.MlflowClient")
     def test_generate_cost_report_success(self, mock_client_class, mock_mlflow):
         """Test successful cost report generation."""
-        # Mock experiment
-        mock_experiment = Mock()
-        mock_experiment.experiment_id = "exp-123"
-        mock_mlflow.get_experiment_by_name.return_value = mock_experiment
-
-        # Mock client
+        # generate_cost_report creates MlflowClient() → mock_client_class.return_value
         mock_client = Mock()
         mock_client_class.return_value = mock_client
 
-        # Mock runs with provider/model params and metrics
-        mock_run = Mock()
-        mock_run.data.params = {
-            "provider": "openai",
-            "model": "gpt-4o",
+        # generate_report uses client.get_experiment_by_name (NOT mlflow.get_experiment_by_name)
+        mock_experiment = Mock()
+        mock_experiment.experiment_id = "exp-123"
+        mock_client.get_experiment_by_name.return_value = mock_experiment
+
+        # generate_report uses mlflow.search_traces (GenAI traces paradigm)
+        mock_span = Mock()
+        mock_span.attributes = {
+            "mlflow.chat.tokenUsage": {
+                "prompt_tokens": 600,
+                "completion_tokens": 400,
+                "total_tokens": 1000,
+            },
+            "ai.model.name": "gpt-4o",
         }
-        mock_run.data.metrics = {
-            "total_cost_usd": 0.001,
-            "total_tokens": 1000,
-        }
-        mock_client.search_runs.return_value = [mock_run]
+        mock_trace = Mock()
+        mock_trace.data.spans = [mock_span]
+        mock_mlflow.search_traces.return_value = [mock_trace]
 
         result = generate_cost_report("test_experiment")
 
         assert result["experiment"] == "test_experiment"
         assert result["experiment_id"] == "exp-123"
-        assert result["total_cost_usd"] == 0.001
         assert result["total_tokens"] == 1000
         assert "by_provider" in result
         assert "openai" in result["by_provider"]

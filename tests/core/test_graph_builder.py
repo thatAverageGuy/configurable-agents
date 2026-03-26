@@ -726,7 +726,7 @@ def test_fork_join_edge_supported(mock_execute):
 
 
 def test_get_loop_counter_fields_returns_counter_for_loop_edge():
-    """Should return one __loop_counter_ field per loop edge."""
+    """Should return one lc_ field per loop edge."""
     from configurable_agents.config.schema import LoopConfig
 
     config = WorkflowConfig(
@@ -757,9 +757,9 @@ def test_get_loop_counter_fields_returns_counter_for_loop_edge():
 
     fields = get_loop_counter_fields(config)
 
-    assert "__loop_counter_search" in fields
-    assert fields["__loop_counter_search"].type == "int"
-    assert fields["__loop_counter_search"].default == 0
+    assert "lc_search" in fields
+    assert fields["lc_search"].type == "int"
+    assert fields["lc_search"].default == 0
 
 
 def test_get_loop_counter_fields_no_loops_returns_empty():
@@ -830,6 +830,6 @@ def test_get_loop_counter_fields_multiple_loops():
     )
 
     fields = get_loop_counter_fields(config)
-    assert "__loop_counter_node_a" in fields
-    assert "__loop_counter_node_b" in fields
+    assert "lc_node_a" in fields
+    assert "lc_node_b" in fields
     assert len(fields) == 2

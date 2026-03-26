@@ -231,6 +231,20 @@ class MemoryConfig(BaseModel):
         50,
         description="Max memory entries to inject into prompt context. Prevents prompt bloat as memory accumulates.",
     )
+    extract_facts: bool = Field(
+        False,
+        description=(
+            "Enable automatic fact extraction from node outputs via an extra LLM call. "
+            "Default: False (opt-in). Set to true only when learning from outputs is desired."
+        ),
+    )
+    extraction_model: Optional[str] = Field(
+        None,
+        description=(
+            "Model to use for fact extraction (e.g., 'gpt-4o-mini'). "
+            "If None, uses the node's configured LLM. A cheaper model is recommended."
+        ),
+    )
 
 
 class ToolConfig(BaseModel):

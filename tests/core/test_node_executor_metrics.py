@@ -104,7 +104,7 @@ def test_node_saves_execution_state(
     assert "cost_usd" in state_data
 
 
-@patch("configurable_agents.observability.cost_estimator.CostEstimator")
+@patch("configurable_agents.core.node_executor.CostEstimator")
 @patch("configurable_agents.core.node_executor.call_llm_structured")
 @patch("configurable_agents.core.node_executor.create_llm")
 @patch("configurable_agents.core.node_executor.build_output_model")

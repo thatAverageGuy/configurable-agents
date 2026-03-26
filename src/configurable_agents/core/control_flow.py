@@ -333,7 +333,7 @@ def create_loop_router(loop_config: LoopConfig, from_node: str) -> Callable:
 
 def get_loop_iteration_key(from_node: str) -> str:
     """Get the state key for tracking loop iterations."""
-    return f"__loop_counter_{from_node}"
+    return f"lc_{from_node}"
 
 
 def increment_loop_iteration(state: Dict[str, Any], from_node: str) -> int:

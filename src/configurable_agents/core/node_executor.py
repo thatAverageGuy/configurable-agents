@@ -143,6 +143,33 @@ class _MemoryExtraction(BaseModel):
     facts: _List[_MemoryFact] = []
 
 
+def _build_extraction_llm(extraction_model: str, base_llm_config):
+    """Create an LLM for fact extraction using a (cheaper) model override.
+
+    Inherits all settings from base_llm_config except model and provider,
+    which are derived from the extraction_model name.
+    """
+    provider_map = {
+        "gpt": "openai",
+        "o1": "openai",
+        "o3": "openai",
+        "claude": "anthropic",
+        "gemini": "google",
+    }
+    inferred_provider = None
+    for prefix, provider in provider_map.items():
+        if extraction_model.startswith(prefix):
+            inferred_provider = provider
+            break
+
+    overrides = {"model": extraction_model}
+    if inferred_provider:
+        overrides["provider"] = inferred_provider
+
+    extraction_config = base_llm_config.model_copy(update=overrides)
+    return create_llm(extraction_config)
+
+
 def _extract_memory_facts(
     llm,
     user_input: str,
@@ -643,25 +670,41 @@ def execute_node(
             )
 
         # ========================================
-        # 7.6: EXTRACT FACTS AND WRITE TO MEMORY
+        # 7.6: EXTRACT FACTS AND WRITE TO MEMORY (opt-in)
         # ========================================
         if agent_memory is not None:
-            try:
-                # Build a summary of the agent's output for fact extraction
-                output_summary = "; ".join(
-                    f"{k}={v}" for k, v in updates.items() if v
-                )
-                facts = _extract_memory_facts(llm, resolved_prompt, output_summary)
-                if facts:
-                    for key, value in facts:
-                        agent_memory.write(key, value)
-                    logger.info(
-                        f"Node '{node_id}': Extracted and stored {len(facts)} memory facts"
+            if memory_config and memory_config.extract_facts:
+                try:
+                    # Use cheaper extraction model if specified, else fall back to node LLM
+                    if memory_config.extraction_model:
+                        extraction_llm = _build_extraction_llm(
+                            memory_config.extraction_model, merged_llm_config
+                        )
+                        extraction_model_label = memory_config.extraction_model
+                    else:
+                        extraction_llm = llm
+                        extraction_model_label = merged_llm_config.model or "node LLM"
+
+                    output_summary = "; ".join(
+                        f"{k}={v}" for k, v in updates.items() if v
                     )
-                else:
-                    logger.debug(f"Node '{node_id}': No facts extracted for memory")
-            except Exception as e:
-                logger.warning(f"Node '{node_id}': Memory write failed (non-blocking): {e}")
+                    facts = _extract_memory_facts(extraction_llm, resolved_prompt, output_summary)
+                    if facts:
+                        for key, value in facts:
+                            agent_memory.write(key, value)
+                        logger.info(
+                            f"Node '{node_id}': Extracted and stored {len(facts)} memory facts "
+                            f"(model: {extraction_model_label})"
+                        )
+                    else:
+                        logger.debug(f"Node '{node_id}': No facts extracted for memory")
+                except Exception as e:
+                    logger.warning(f"Node '{node_id}': Memory fact extraction failed (non-blocking): {e}")
+            else:
+                logger.debug(
+                    f"Node '{node_id}': Memory enabled but extract_facts=False — "
+                    "skipping fact extraction. Set memory.extract_facts: true to enable."
+                )
 
         # ========================================
         # 8: PERSIST EXECUTION STATE (if storage available)

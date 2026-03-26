@@ -7,56 +7,53 @@
 
 ---
 
-**Last Updated**: 2026-03-24
+**Last Updated**: 2026-03-26
 
 ---
 
 ## Current State
 
-**Task**: T-015 | **Phase**: Not Started | **Status**: READY TO IMPLEMENT
+**Task**: T-016 | **Phase**: Not Started | **Status**: READY TO START
 
-### What Was Done This Session
+### What Was Done This Session (2026-03-26)
 
-**2026-03-24 — T-014 implemented:**
-- Added `RuntimeOverrides` + `MemoryRuntimeOverride` models to `config/schema.py`
-- Added `_apply_runtime_overrides()` to `runtime/executor.py`; wired into `run_workflow()`, `run_workflow_from_config()`, `run_workflow_async()`
-- `--memory-scope {none,workflow,agent}` flag added to `cli.py run` command
-- Webhook `_process_generic_webhook` extracts `"runtime"` key and threads it through
-- `storage/models.py`: added `runtime_overrides TEXT` (nullable) to `Execution`
-- `storage/factory.py`: `_apply_column_migrations()` runs `ALTER TABLE` on startup for existing DBs
-- 13 unit tests in `tests/runtime/test_runtime_overrides.py` — all pass syntax check; live execution blocked
+**T-015 — Memory extraction opt-in**: DONE
+- `extract_facts: bool = False` + `extraction_model: Optional[str]` added to `MemoryConfig`
+- `_build_extraction_llm()` helper + extraction guard in `node_executor.py`
+- 13 tests in `tests/core/test_memory_extraction_opt_in.py` — all pass
 
-**2026-03-24 — BF-013 implemented:**
-- Added `import logging` + `logger = getLogger(__name__)` to `control_flow.py`
-- `except ControlFlowError` now calls `logger.warning(...)` with condition text, error, and state field list
-- Added `logger.debug(...)` when no condition matches and default route is taken
-- Pure observability fix — no behavior change
+**BF-010 Pydantic 2.12 fix**: DONE
+- `__loop_counter_{node_id}` → `lc_{node_id}` (Pydantic 2.12 rejects `__` prefixed fields)
+- Fixed in `control_flow.py` + all 3 affected test files
 
-**2026-03-24 — BF-011 implemented:**
-- Added `reducer: Literal["append", "replace"]` field to `StateFieldConfig` (default: `append`, fully backward-compatible)
-- Added `validate_reducer_for_list_only` validator — rejects `replace` on non-list types
-- Added `_replace_reducer` to `state_builder.py`; replaced `_get_reducer_for_type` with `_get_reducer_for_field(python_type, field_config)`
-- Tests: 4 reducer unit tests + 4 model tests + 7 schema validator tests
-- Docs: `CONFIG_REFERENCE.md` updated with `reducer` field docs
+**T-014 scope guard bug**: FIXED
+- `_apply_runtime_overrides` no longer creates `MemoryConfig` on nodes with `memory=None` for `scope=workflow/agent`
 
-**2026-03-24 — BF-010 implemented:**
-- Fixed loop `max_iterations` guard (was always 0 due to Pydantic dropping unknown fields)
-- Added `extra_fields` param to `build_state_model()`; added `get_loop_counter_fields()` helper
-- Tests written but not executed — `litellm` PyPI package quarantined (supply chain compromise), dev environment cannot be set up until dependency is resolved
+**BF-012 mock path**: FIXED
+- `test_node_executor_metrics.py` patch path corrected to `configurable_agents.core.node_executor.CostEstimator`
+
+**MLflow API drift tests**: FIXED
+- `test_cost_reporter.py`: rewrote 11 methods — `make_mock_run` → `make_mock_trace`, old runs API → traces API mocks
+- `test_multi_provider_tracker.py`: fixed `test_generate_cost_report_success` — `client.get_experiment_by_name` + `mlflow.search_traces`
+
+**Dependency pinning**: DONE
+- All deps pinned to exact `==` versions from `uv.lock`; `litellm==1.80.0` (pre-compromise)
+
+**Full test suite**: 1078 passed, 6 skipped
 
 ### Next Steps
 
 1. [x] **BF-010**: Fix loop `max_iterations` — DONE
-2. [x] **BF-011**: Fix list field reducer — add `replace` semantics — DONE
+2. [x] **BF-011**: Fix list field reducer — DONE
 3. [x] **BF-012**: Fix double CostEstimator call — DONE
-4. [x] **BF-013**: Fix silent route condition failure logging — DONE
-5. [x] **T-014**: Runtime memory override (`--memory-scope` CLI flag) — DONE
-6. [ ] **T-015**: Memory extraction opt-in (`extract_facts: false` default) — HIGH
+4. [x] **BF-013**: Fix silent route condition logging — DONE
+5. [x] **T-014**: Runtime memory override — DONE
+6. [x] **T-015**: Memory extraction opt-in — DONE
 7. [ ] **T-016**: Web search hardening (retry, fallback, cache) — MEDIUM
-8. [ ] Dashboard scope definition + tasks (separate session)
+8. [ ] Dashboard scope definition (separate session)
 
 ### Blockers
-- `litellm` PyPI package quarantined — live test execution blocked until resolved
+- None
 
 ---
 
@@ -64,12 +61,7 @@
 
 | Task | Summary | Details |
 |------|---------|---------|
-| BF-010 | Fix loop max_iterations — counter never persists | [BF-010 Log](docs/development/implementation_logs/phase_6_v1_1_hardening/BF-010_loop_max_iterations.md) |
-| BF-011 | Fix list reducer — loops accumulate stale data | [BF-011 Log](docs/development/implementation_logs/phase_6_v1_1_hardening/BF-011_list_reducer.md) |
-| BF-012 | Fix double CostEstimator call per node | [BF-012 Log](docs/development/implementation_logs/phase_6_v1_1_hardening/BF-012_cost_estimator_double_call.md) |
-| BF-013 | Fix silent route condition failure | [BF-013 Log](docs/development/implementation_logs/phase_6_v1_1_hardening/BF-013_silent_route_condition_logging.md) |
-| T-015 | Memory extraction opt-in | [T-015 Log](docs/development/implementation_logs/phase_6_v1_1_hardening/T-015_memory_extraction_opt_in.md) |
-| T-016 | Web search hardening | [T-016 Log](docs/development/implementation_logs/phase_6_v1_1_hardening/T-016_web_search_hardening.md) |
+| T-016 | Web search hardening (retry, fallback, cache) | [T-016 Log](docs/development/implementation_logs/phase_6_v1_1_hardening/T-016_web_search_hardening.md) |
 | Dashboard | Scope TBD | Separate session |
 
 ## Session History
@@ -88,4 +80,4 @@
 
 ---
 
-*Last Updated: 2026-03-23 | v1.1 planning complete. All docs ready. Start with BF-010.*
+*Last Updated: 2026-03-26 | BF-010 through T-015 complete. All v1.1 fixes landed. Next: T-016 web search hardening.*

@@ -81,7 +81,7 @@
 
 ### T-015: Memory Fact Extraction — Make Opt-In
 
-**Status**: TODO
+**Status**: DONE
 **Priority**: HIGH
 
 **Problem**: Every memory-enabled node makes an extra full LLM API call for fact extraction. Always-on, undocumented, doubles cost and latency. No user visibility into these extra calls.

@@ -25,45 +25,47 @@ def mock_mlflow():
                 yield mock, mock_client
 
 
-def make_mock_run(
-    run_id: str = "run_001",
-    run_name: str = "test_run",
-    workflow_name: str = "test_workflow",
+def make_mock_trace(
+    trace_id: str = "trace_001",
+    trace_name: str = "workflow_test_workflow",
     start_time: Optional[datetime] = None,
-    total_cost: float = 0.001,
     input_tokens: int = 150,
     output_tokens: int = 500,
-    duration: float = 12.5,
-    node_count: int = 3,
-    status: str = "success",
-    model: Optional[str] = "gemini-1.5-flash",
+    duration_ms: float = 12500.0,
+    node_count: int = 0,
+    status: str = "OK",
+    model: Optional[str] = None,
 ) -> Mock:
-    """Create a mock MLFlow run object."""
+    """Create a mock MLFlow trace object (GenAI traces paradigm)."""
     if start_time is None:
         start_time = datetime.now()
 
-    run = Mock()
-    run.info = Mock()
-    run.info.run_id = run_id
-    run.info.run_name = run_name
-    run.info.start_time = int(start_time.timestamp() * 1000)  # milliseconds
+    trace = Mock()
+    trace.info = Mock()
+    trace.info.request_id = trace_id
+    trace.info.timestamp_ms = int(start_time.timestamp() * 1000)
+    trace.info.execution_time_ms = duration_ms
+    trace.info.status = status
+    trace.info.tags = {"mlflow.traceName": trace_name}
 
-    run.data = Mock()
-    run.data.metrics = {
-        "total_cost_usd": total_cost,
-        "total_input_tokens": float(input_tokens),
-        "total_output_tokens": float(output_tokens),
-        "duration_seconds": duration,
-        "node_count": float(node_count),
-        "status": 1.0 if status == "success" else 0.0,
-    }
-    run.data.params = {
-        "workflow_name": workflow_name,
-    }
-    if model:
-        run.data.params["global_model"] = model
+    spans = []
+    if model and node_count > 0:
+        per_span_input = input_tokens // node_count
+        per_span_output = output_tokens // node_count
+        for _ in range(node_count):
+            span = Mock()
+            span.attributes = {
+                "mlflow.chat.tokenUsage": {
+                    "prompt_tokens": per_span_input,
+                    "completion_tokens": per_span_output,
+                },
+                "ai.model.name": model,
+            }
+            spans.append(span)
 
-    return run
+    trace.data = Mock()
+    trace.data.spans = spans
+    return trace
 
 
 class TestCostReporter:
@@ -85,177 +87,177 @@ class TestCostReporter:
             with pytest.raises(RuntimeError, match="MLFlow is not installed"):
                 CostReporter()
 
-    def test_run_to_cost_entry_success(self, mock_mlflow):
-        """Test conversion of MLFlow run to CostEntry."""
+    def test_trace_to_cost_entry_success(self, mock_mlflow):
+        """Test conversion of MLFlow trace to CostEntry."""
         reporter = CostReporter()
-        mock_run = make_mock_run(
-            run_id="run_123",
-            run_name="my_run",
-            workflow_name="article_writer",
-            total_cost=0.002,
+        mock_trace = make_mock_trace(
+            trace_id="trace_123",
+            trace_name="workflow_article_writer",
             input_tokens=200,
             output_tokens=800,
-            duration=15.5,
+            duration_ms=15500.0,
             node_count=4,
-            status="success",
+            status="OK",
             model="gemini-2.5-flash",
         )
+        mock_estimator = Mock()
+        mock_estimator.estimate_cost.return_value = 0.0005  # per span
+        mock_extract_provider = Mock(return_value="google")
 
-        entry = reporter._run_to_cost_entry(mock_run)
+        entry = reporter._trace_to_cost_entry(mock_trace, mock_estimator, mock_extract_provider)
 
-        assert entry.run_id == "run_123"
-        assert entry.run_name == "my_run"
+        assert entry.run_id == "trace_123"
         assert entry.workflow_name == "article_writer"
-        assert entry.total_cost_usd == 0.002
-        assert entry.input_tokens == 200
-        assert entry.output_tokens == 800
-        assert entry.duration_seconds == 15.5
+        assert entry.input_tokens == 200   # 50 per span * 4 spans
+        assert entry.output_tokens == 800  # 200 per span * 4 spans
+        assert entry.duration_seconds == pytest.approx(15.5)
         assert entry.node_count == 4
         assert entry.status == "success"
         assert entry.model == "gemini-2.5-flash"
+        assert entry.total_cost_usd == pytest.approx(0.002)  # 0.0005 * 4 spans
 
-    def test_run_to_cost_entry_failure_status(self, mock_mlflow):
-        """Test CostEntry with failure status."""
+    def test_trace_to_cost_entry_failure_status(self, mock_mlflow):
+        """Test CostEntry with failure status (non-OK trace)."""
         reporter = CostReporter()
-        mock_run = make_mock_run(status="failure")
+        mock_trace = make_mock_trace(status="ERROR")
+        mock_estimator = Mock()
+        mock_estimator.estimate_cost.return_value = 0.0
 
-        entry = reporter._run_to_cost_entry(mock_run)
+        entry = reporter._trace_to_cost_entry(mock_trace, mock_estimator, Mock())
 
         assert entry.status == "failure"
 
-    def test_run_to_cost_entry_missing_model(self, mock_mlflow):
-        """Test CostEntry when global_model is not set."""
+    def test_trace_to_cost_entry_no_spans(self, mock_mlflow):
+        """Test CostEntry when trace has no CHAT_MODEL spans — zero tokens, no model."""
         reporter = CostReporter()
-        mock_run = make_mock_run(model=None)
+        mock_trace = make_mock_trace(node_count=0, model=None)
+        mock_estimator = Mock()
 
-        entry = reporter._run_to_cost_entry(mock_run)
+        entry = reporter._trace_to_cost_entry(mock_trace, mock_estimator, Mock())
 
+        assert entry.input_tokens == 0
+        assert entry.output_tokens == 0
         assert entry.model is None
+        assert entry.total_cost_usd == 0.0
 
-    def test_run_to_cost_entry_missing_required_field(self, mock_mlflow):
-        """Test fail-fast when required metrics are missing."""
+    def test_trace_to_cost_entry_empty_attributes(self, mock_mlflow):
+        """Test CostEntry when spans have no tokenUsage attribute — gracefully skipped."""
         reporter = CostReporter()
-        mock_run = Mock()
-        mock_run.info = Mock()
-        mock_run.info.run_id = "run_001"
-        mock_run.info.run_name = "test"
-        mock_run.info.start_time = int(datetime.now().timestamp() * 1000)
-        mock_run.data = Mock()
-        mock_run.data.metrics = {}  # Missing metrics - should fail fast
-        mock_run.data.params = {}
+        mock_trace = make_mock_trace()
+        # Add a span with no token usage
+        span = Mock()
+        span.attributes = {}  # no mlflow.chat.tokenUsage
+        mock_trace.data.spans = [span]
+        mock_estimator = Mock()
 
-        with pytest.raises(ValueError, match="Missing required metrics"):
-            reporter._run_to_cost_entry(mock_run)
+        entry = reporter._trace_to_cost_entry(mock_trace, mock_estimator, Mock())
+
+        assert entry.input_tokens == 0
+        assert entry.output_tokens == 0
+        mock_estimator.estimate_cost.assert_not_called()
 
     def test_get_cost_entries_single_experiment(self, mock_mlflow):
         """Test querying cost entries from a single experiment."""
         mock_mlflow_module, mock_client_class = mock_mlflow
 
-        # Mock experiment
         mock_experiment = Mock()
         mock_experiment.experiment_id = "exp_001"
-        mock_mlflow_module.get_experiment_by_name.return_value = mock_experiment
-
-        # Mock runs
-        mock_runs = [
-            make_mock_run(run_id=f"run_{i}", workflow_name="workflow_a")
-            for i in range(3)
-        ]
 
         reporter = CostReporter()
-        reporter.client.search_runs = Mock(return_value=mock_runs)
+        reporter.client.get_experiment_by_name = Mock(return_value=mock_experiment)
+
+        mock_traces = [make_mock_trace(trace_id=f"t{i}") for i in range(3)]
+        mock_mlflow_module.search_traces.return_value = mock_traces
 
         entries = reporter.get_cost_entries(experiment_name="my_experiment")
 
         assert len(entries) == 3
         assert all(isinstance(e, CostEntry) for e in entries)
-        mock_mlflow_module.get_experiment_by_name.assert_called_once_with("my_experiment")
-        reporter.client.search_runs.assert_called_once()
+        reporter.client.get_experiment_by_name.assert_called_once_with("my_experiment")
+        mock_mlflow_module.search_traces.assert_called_once()
 
     def test_get_cost_entries_nonexistent_experiment(self, mock_mlflow):
         """Test error when experiment doesn't exist."""
-        mock_mlflow_module, mock_client_class = mock_mlflow
-        mock_mlflow_module.get_experiment_by_name.return_value = None
-
         reporter = CostReporter()
+        reporter.client.get_experiment_by_name = Mock(return_value=None)
 
         with pytest.raises(ValueError, match="Experiment not found"):
             reporter.get_cost_entries(experiment_name="nonexistent")
 
     def test_get_cost_entries_workflow_filter(self, mock_mlflow):
-        """Test filtering by workflow name."""
+        """Test Python-level filtering by workflow name."""
         mock_mlflow_module, mock_client_class = mock_mlflow
-
-        # Mock runs with different workflows
-        mock_runs = [
-            make_mock_run(run_id="run_1", workflow_name="workflow_a"),
-            make_mock_run(run_id="run_2", workflow_name="workflow_b"),
-            make_mock_run(run_id="run_3", workflow_name="workflow_a"),
-        ]
 
         reporter = CostReporter()
         reporter.client.search_experiments = Mock(return_value=[Mock(experiment_id="exp_1")])
-        reporter.client.search_runs = Mock(return_value=mock_runs)
 
-        entries = reporter.get_cost_entries(workflow_name="workflow_a")
+        # trace_name "workflow_article_writer" → workflow_name "article_writer"
+        mock_traces = [
+            make_mock_trace(trace_id="t1", trace_name="workflow_article_writer"),
+            make_mock_trace(trace_id="t2", trace_name="workflow_summarizer"),
+            make_mock_trace(trace_id="t3", trace_name="workflow_article_writer"),
+        ]
+        mock_mlflow_module.search_traces.return_value = mock_traces
+
+        entries = reporter.get_cost_entries(workflow_name="article_writer")
 
         assert len(entries) == 2
-        assert all(e.workflow_name == "workflow_a" for e in entries)
+        assert all(e.workflow_name == "article_writer" for e in entries)
 
     def test_get_cost_entries_date_range_filter(self, mock_mlflow):
-        """Test filtering by date range."""
+        """Test that date range is passed as filter_string to mlflow.search_traces."""
         mock_mlflow_module, mock_client_class = mock_mlflow
 
         reporter = CostReporter()
         reporter.client.search_experiments = Mock(return_value=[Mock(experiment_id="exp_1")])
-        reporter.client.search_runs = Mock(return_value=[])
+        mock_mlflow_module.search_traces.return_value = []
 
         start_date = datetime(2026, 1, 1)
         end_date = datetime(2026, 1, 31)
 
         reporter.get_cost_entries(start_date=start_date, end_date=end_date)
 
-        # Verify filter string contains timestamp filters
-        call_args = reporter.client.search_runs.call_args
+        call_args = mock_mlflow_module.search_traces.call_args
         filter_string = call_args[1].get("filter_string", "")
-        assert "attributes.start_time >=" in filter_string
-        assert "attributes.start_time <=" in filter_string
+        assert "trace.timestamp_ms >=" in filter_string
+        assert "trace.timestamp_ms <=" in filter_string
 
     def test_get_cost_entries_status_filter_success(self, mock_mlflow):
-        """Test filtering by success status."""
+        """Test Python-level filtering by success status."""
         mock_mlflow_module, mock_client_class = mock_mlflow
 
         reporter = CostReporter()
         reporter.client.search_experiments = Mock(return_value=[Mock(experiment_id="exp_1")])
-        reporter.client.search_runs = Mock(return_value=[])
 
-        reporter.get_cost_entries(status_filter="success")
+        mock_traces = [
+            make_mock_trace(trace_id="t1", status="OK"),
+            make_mock_trace(trace_id="t2", status="ERROR"),
+            make_mock_trace(trace_id="t3", status="OK"),
+        ]
+        mock_mlflow_module.search_traces.return_value = mock_traces
 
-        call_args = reporter.client.search_runs.call_args
-        filter_string = call_args[1].get("filter_string", "")
-        assert "metrics.status = 1" in filter_string
+        entries = reporter.get_cost_entries(status_filter="success")
+
+        assert len(entries) == 2
+        assert all(e.status == "success" for e in entries)
 
     def test_get_cost_entries_status_filter_failure(self, mock_mlflow):
-        """Test filtering by failure status."""
+        """Test Python-level filtering by failure status."""
         mock_mlflow_module, mock_client_class = mock_mlflow
 
         reporter = CostReporter()
         reporter.client.search_experiments = Mock(return_value=[Mock(experiment_id="exp_1")])
-        reporter.client.search_runs = Mock(return_value=[])
 
-        reporter.get_cost_entries(status_filter="failure")
+        mock_traces = [
+            make_mock_trace(trace_id="t1", status="OK"),
+            make_mock_trace(trace_id="t2", status="ERROR"),
+        ]
+        mock_mlflow_module.search_traces.return_value = mock_traces
 
-        call_args = reporter.client.search_runs.call_args
-        filter_string = call_args[1].get("filter_string", "")
-        assert "metrics.status = 0" in filter_string
+        entries = reporter.get_cost_entries(status_filter="failure")
 
-    def test_get_cost_entries_invalid_status(self, mock_mlflow):
-        """Test error on invalid status filter."""
-        reporter = CostReporter()
-        reporter.client.search_experiments = Mock(return_value=[Mock(experiment_id="exp_1")])
-
-        with pytest.raises(ValueError, match="Invalid status_filter"):
-            reporter.get_cost_entries(status_filter="invalid")
+        assert len(entries) == 1
+        assert entries[0].status == "failure"
 
 
 class TestCostSummary:

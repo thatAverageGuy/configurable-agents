@@ -97,7 +97,15 @@ def _apply_runtime_overrides(
     for node in config.nodes:
         # Ensure the node has a MemoryConfig object to modify
         if node.memory is None:
-            if mem_override.enabled is None and mem_override.scope is None:
+            if mem_override.scope == "none":
+                # Explicitly disable for this run: inject a disabled MemoryConfig
+                # so downstream code cannot accidentally create memory.
+                node.memory = MemoryConfig(enabled=False)
+                continue
+            # For scope=workflow/agent: do not create a MemoryConfig on nodes
+            # that had none — there is nothing to re-scope.
+            # Only create one if memory is being explicitly enabled.
+            if mem_override.enabled is not True:
                 continue
             node.memory = MemoryConfig()
 

@@ -11,6 +11,38 @@ For detailed task-by-task implementation notes, see [implementation logs](docs/d
 
 ## [Unreleased] — v1.1 Hardening & Usability
 
+### Added (2026-03-26)
+
+**T-015: Memory fact extraction — opt-in via `extract_facts` flag**
+- Added `extract_facts: bool = False` to `MemoryConfig` — extraction is now opt-in (was always-on, doubling LLM cost per memory-enabled node).
+- Added `extraction_model: Optional[str] = None` — allows specifying a cheaper model (e.g. `gpt-4o-mini`) for extraction when enabled, independent of the node's main LLM.
+- Added `_build_extraction_llm()` helper in `node_executor.py` — infers provider from model name prefix (`gpt`→openai, `claude`→anthropic, `gemini`→google).
+- When `extract_facts=False`: logs DEBUG, skips extraction entirely. When `extract_facts=True`: logs INFO with model used and fact count.
+- 13 unit tests in `tests/core/test_memory_extraction_opt_in.py` — all pass.
+- **Migration**: existing `memory.enabled: true` configs default to `extract_facts: false` — add `extract_facts: true` explicitly to restore previous behaviour.
+
+### Fixed (2026-03-26)
+
+**BF-010 (Pydantic 2.12 field name rejection)**
+- Pydantic 2.12 rejects field names with leading double underscores. `__loop_counter_{node_id}` renamed to `lc_{node_id}` throughout (`control_flow.py`, `test_state_builder.py`, `test_control_flow.py`, `test_graph_builder.py`).
+
+**T-014 runtime override — scope guard bug**
+- `_apply_runtime_overrides()` incorrectly created `MemoryConfig()` for nodes with `memory=None` when `scope=workflow` or `scope=agent`. Fixed to only inject `MemoryConfig(enabled=False)` for `scope=none`; workflow/agent scope skips nodes with no existing memory config.
+
+**BF-012 mock path in `test_node_executor_metrics.py`**
+- `@patch("configurable_agents.observability.cost_estimator.CostEstimator")` → `@patch("configurable_agents.core.node_executor.CostEstimator")` — patches the symbol at import site, not definition site.
+
+**MLflow API drift — `test_cost_reporter.py` and `test_multi_provider_tracker.py`**
+- `cost_reporter.py` was migrated from MLflow runs API to traces API (3.9→3.10 change). Tests still used old API (`_run_to_cost_entry`, `client.search_runs`, `mlflow.get_experiment_by_name`, SQL filter strings).
+- Rewrote 11 test methods in `TestCostReporter`: replaced `make_mock_run()` with `make_mock_trace()` (GenAI trace structure), updated mocks to `client.get_experiment_by_name` + `mlflow.search_traces`, updated filter string key (`attributes.start_time` → `trace.timestamp_ms`), rewrote status filter tests (now Python-level, not SQL), removed invalid-status ValueError test (no such validation in current impl).
+- Fixed `test_generate_cost_report_success` in `test_multi_provider_tracker.py`: mock `client.get_experiment_by_name` (not `mlflow.get_experiment_by_name`), use `mlflow.search_traces` returning trace objects with `span.attributes["mlflow.chat.tokenUsage"]`.
+
+**Dependency pinning — supply chain hardening**
+- All `>=` version constraints in `pyproject.toml` replaced with exact `==` pins matching installed versions from `uv.lock`.
+- `litellm` pinned to `==1.80.0` (last safe version before the quarantined releases).
+- `requires-python` narrowed from `>=3.10` to `>=3.12,<3.13`.
+- Removed invalid `docs:build`, `docs:serve`, `docs:clean` script entries (`:` not valid in script names).
+
 ### Added (2026-03-24)
 
 **T-014: Runtime memory override — per-invocation `--memory-scope` CLI flag**

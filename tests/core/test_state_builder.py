@@ -563,37 +563,37 @@ class TestExtraFields:
         state_config = StateSchema(
             fields={"topic": StateFieldConfig(type="str", required=True)}
         )
-        extra = {"__loop_counter_search": StateFieldConfig(type="int", default=0)}
+        extra = {"lc_search": StateFieldConfig(type="int", default=0)}
         Model = build_state_model(state_config, extra_fields=extra)
 
         state = Model(topic="AI")
-        assert hasattr(state, "__loop_counter_search")
-        assert state.__loop_counter_search == 0
+        assert hasattr(state, "lc_search")
+        assert state.lc_search == 0
 
     def test_extra_field_correct_type(self):
         """Extra int field should accept int values."""
         state_config = StateSchema(
             fields={"topic": StateFieldConfig(type="str", required=True)}
         )
-        extra = {"__loop_counter_x": StateFieldConfig(type="int", default=0)}
+        extra = {"lc_x": StateFieldConfig(type="int", default=0)}
         Model = build_state_model(state_config, extra_fields=extra)
 
-        state = Model(topic="test", **{"__loop_counter_x": 3})
-        assert state.__loop_counter_x == 3
+        state = Model(topic="test", **{"lc_x": 3})
+        assert state.lc_x == 3
 
     def test_extra_field_persists_via_reducer(self):
         """Counter update returned in a dict should be accepted by the model (not dropped)."""
         state_config = StateSchema(
             fields={"topic": StateFieldConfig(type="str", required=True)}
         )
-        extra = {"__loop_counter_node": StateFieldConfig(type="int", default=0)}
+        extra = {"lc_node": StateFieldConfig(type="int", default=0)}
         Model = build_state_model(state_config, extra_fields=extra)
 
         # Simulate what LangGraph does: start from initial, apply update dict
         initial = Model(topic="AI")
-        update = {"__loop_counter_node": 1}
+        update = {"lc_node": 1}
         updated = initial.model_copy(update=update)
-        assert updated.__loop_counter_node == 1
+        assert updated.lc_node == 1
 
     def test_no_extra_fields_unchanged_behavior(self):
         """Calling without extra_fields should behave identically to before."""
@@ -619,13 +619,13 @@ class TestExtraFields:
             fields={"topic": StateFieldConfig(type="str", required=True)}
         )
         extra = {
-            "__loop_counter_a": StateFieldConfig(type="int", default=0),
-            "__loop_counter_b": StateFieldConfig(type="int", default=0),
+            "lc_a": StateFieldConfig(type="int", default=0),
+            "lc_b": StateFieldConfig(type="int", default=0),
         }
         Model = build_state_model(state_config, extra_fields=extra)
         state = Model(topic="test")
-        assert state.__loop_counter_a == 0
-        assert state.__loop_counter_b == 0
+        assert state.lc_a == 0
+        assert state.lc_b == 0
 
 
 # ============================================
