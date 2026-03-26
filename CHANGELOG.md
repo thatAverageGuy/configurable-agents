@@ -13,6 +13,20 @@ For detailed task-by-task implementation notes, see [implementation logs](docs/d
 
 ### Added (2026-03-26)
 
+**T-016: Web search enterprise hardening**
+- Added exponential-backoff retry to `_serper_search` / `_tavily_search` (env: `WEB_SEARCH_MAX_ATTEMPTS=3`, `WEB_SEARCH_BACKOFF_FACTOR=1.5`). `ToolConfigError` (missing key) propagates immediately; network errors retry.
+- Added provider fallback: if primary exhausts retries and `WEB_SEARCH_FALLBACK_PROVIDER` is set, the secondary provider is tried. `ToolConfigError` on the fallback logs a warning and preserves the primary error.
+- Added SQLite-backed result cache (`web_search_cache.py`), on by default with TTL=1h. Same `(query, num_results, provider)` within TTL skips the API entirely. Env vars: `WEB_SEARCH_CACHE_ENABLED`, `WEB_SEARCH_CACHE_TTL`, `WEB_SEARCH_CACHE_PATH`.
+- Added minimum result validation: if result count < `WEB_SEARCH_MIN_RESULTS` (default 1), `error` key is added and a WARNING is logged.
+- 7 unit tests in `tests/tools/test_web_search_cache.py` + 11 new tests in `TestWebSearchRetryAndFallback`. 41 tool tests pass.
+
+### Fixed (2026-03-26, bundled with T-016)
+
+**BF-014: Fix MLflow integration tests — migrate from runs API to traces API**
+- All 4 `@pytest.mark.integration` tests in `test_cost_reporter_integration.py` used `mlflow.start_run()` + `log_metric()` (legacy runs), but `CostReporter.get_cost_entries()` had already migrated to `mlflow.search_traces()`. Tests returned 0 entries silently.
+- Rewrote tests to use `mlflow.start_span()` with a `sqlite:///` backend (file:/// does not support trace storage).
+- Cost assertions updated from hardcoded metric values to `> 0` (cost now computed dynamically by CostEstimator from CHAT_MODEL span token usage).
+
 **T-015: Memory fact extraction — opt-in via `extract_facts` flag**
 - Added `extract_facts: bool = False` to `MemoryConfig` — extraction is now opt-in (was always-on, doubling LLM cost per memory-enabled node).
 - Added `extraction_model: Optional[str] = None` — allows specifying a cheaper model (e.g. `gpt-4o-mini`) for extraction when enabled, independent of the node's main LLM.

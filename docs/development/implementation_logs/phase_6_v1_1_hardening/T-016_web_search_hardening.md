@@ -1,6 +1,6 @@
 # T-016: Web Search Enterprise Hardening
 
-**Status**: TODO
+**Status**: DONE (2026-03-26)
 **Priority**: MEDIUM
 **Created**: 2026-03-23
 
@@ -191,8 +191,28 @@ Can ship retry + validation first in one PR, then fallback + cache in a second.
 
 - Environment variables for quick configuration without YAML changes:
   - `WEB_SEARCH_MAX_ATTEMPTS=3`
+  - `WEB_SEARCH_BACKOFF_FACTOR=1.5`
   - `WEB_SEARCH_FALLBACK_PROVIDER=tavily`
-  - `WEB_SEARCH_CACHE_ENABLED=true`
+  - `WEB_SEARCH_CACHE_ENABLED=true`  ← ON by default; set to `false` to opt-out
   - `WEB_SEARCH_CACHE_TTL=3600`
+  - `WEB_SEARCH_CACHE_PATH=~/.configurable_agents/web_search_cache.db`
   - `WEB_SEARCH_MIN_RESULTS=1`
 - The cache significantly reduces development cost — iterating on a research workflow with the same test topic won't hit Serper on every test run
+- YAML per-node tool config (Step 5) deferred to AX-017 — requires changing the registry's `ToolFactory` signature
+
+## Actual Implementation (2026-03-26)
+
+**Files changed**:
+- `src/configurable_agents/tools/web_search_cache.py` — NEW. `WebSearchCache` class with sqlite3 backend (get/set/clear_expired). Standalone DB file, decoupled from SQLAlchemy storage layer.
+- `src/configurable_agents/tools/web_tools.py` — Added `_search_with_retry()`, `_get_cache()`, `_reset_cache()`, updated `web_search()` with retry→fallback→cache→validation flow.
+- `tests/tools/test_web_search_cache.py` — NEW. 7 unit tests (miss, hit, expiry, key isolation, upsert).
+- `tests/tools/test_web_tools.py` — Added `TestWebSearchRetryAndFallback` with 11 tests.
+
+**Key decisions made**:
+- Cache ON by default (TTL=1h) — high dev iteration value
+- Cache uses standalone sqlite3 (not SQLAlchemy) — keeps tools layer decoupled
+- `ToolConfigError` never retried — propagates immediately from `_search_with_retry`
+- Fallback `ToolConfigError` is caught and logged — primary error is preserved
+- YAML tool config deferred to AX-017
+
+**Test results**: 358 tools+core tests pass (0 failures)

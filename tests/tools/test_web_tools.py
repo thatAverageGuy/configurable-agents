@@ -1,6 +1,6 @@
 """Tests for web tools implementation."""
 
-from unittest.mock import Mock, patch
+from unittest.mock import MagicMock, Mock, patch, call
 
 import pytest
 
@@ -13,6 +13,7 @@ from configurable_agents.tools.web_tools import (
     create_web_search,
     create_web_scrape,
     create_http_client,
+    _reset_cache,
 )
 
 
@@ -299,6 +300,252 @@ class TestHttpClientTool:
 
         assert result["status_code"] == 0
         assert result["error"] is not None
+
+
+class TestWebSearchRetryAndFallback:
+    """Tests for retry, fallback, validation, and cache integration in web_search."""
+
+    def setup_method(self):
+        _reset_cache()
+
+    def _make_mock_response(self, organic=None, raise_exc=None):
+        """Build a mock requests.Response for Serper."""
+        class MockResponse:
+            status_code = 200
+            def json(self):
+                return {"organic": organic or []}
+            def raise_for_status(self):
+                if raise_exc:
+                    raise raise_exc
+
+        return MockResponse()
+
+    @patch("configurable_agents.tools.web_tools.time.sleep")
+    @patch("configurable_agents.tools.web_tools.requests.post")
+    def test_retry_succeeds_on_third_attempt(self, mock_post, mock_sleep, monkeypatch):
+        """Fails twice then succeeds — result from third attempt returned."""
+        import requests as req
+
+        monkeypatch.setenv("SERPER_API_KEY", "test-key")
+        monkeypatch.setenv("WEB_SEARCH_PROVIDER", "serper")
+        monkeypatch.setenv("WEB_SEARCH_MAX_ATTEMPTS", "3")
+        monkeypatch.setenv("WEB_SEARCH_CACHE_ENABLED", "false")
+
+        mock_post.side_effect = [
+            req.RequestException("timeout"),
+            req.RequestException("timeout"),
+            self._make_mock_response(organic=[
+                {"title": "Ok", "link": "https://ok.com", "snippet": "ok"}
+            ]),
+        ]
+
+        result = web_search("python", num_results=1)
+
+        assert result.get("error") is None
+        assert result["results"][0]["title"] == "Ok"
+        assert mock_post.call_count == 3
+        assert mock_sleep.call_count == 2
+
+    @patch("configurable_agents.tools.web_tools.time.sleep")
+    @patch("configurable_agents.tools.web_tools.requests.post")
+    def test_retry_exhausted_returns_error(self, mock_post, mock_sleep, monkeypatch):
+        """All attempts fail — error dict returned (no exception raised)."""
+        import requests as req
+
+        monkeypatch.setenv("SERPER_API_KEY", "test-key")
+        monkeypatch.setenv("WEB_SEARCH_PROVIDER", "serper")
+        monkeypatch.setenv("WEB_SEARCH_MAX_ATTEMPTS", "3")
+        monkeypatch.setenv("WEB_SEARCH_CACHE_ENABLED", "false")
+        monkeypatch.delenv("WEB_SEARCH_FALLBACK_PROVIDER", raising=False)
+
+        mock_post.side_effect = req.RequestException("network down")
+
+        result = web_search("python", num_results=5)
+
+        assert result.get("error") is not None
+        assert result["results"] == []
+        assert mock_post.call_count == 3
+
+    @patch("configurable_agents.tools.web_tools.time.sleep")
+    @patch("configurable_agents.tools.web_tools.requests.post")
+    def test_no_sleep_on_single_attempt(self, mock_post, mock_sleep, monkeypatch):
+        """With max_attempts=1 no retry sleep should occur."""
+        import requests as req
+
+        monkeypatch.setenv("SERPER_API_KEY", "test-key")
+        monkeypatch.setenv("WEB_SEARCH_PROVIDER", "serper")
+        monkeypatch.setenv("WEB_SEARCH_MAX_ATTEMPTS", "1")
+        monkeypatch.setenv("WEB_SEARCH_CACHE_ENABLED", "false")
+        monkeypatch.delenv("WEB_SEARCH_FALLBACK_PROVIDER", raising=False)
+
+        mock_post.side_effect = req.RequestException("fail")
+
+        web_search("python")
+
+        mock_sleep.assert_not_called()
+
+    @patch("configurable_agents.tools.web_tools.time.sleep")
+    @patch("configurable_agents.tools.web_tools.requests.post")
+    def test_fallback_used_when_primary_fails(self, mock_post, mock_sleep, monkeypatch):
+        """Primary (serper) exhausts retries; fallback (tavily) succeeds."""
+        import requests as req
+
+        monkeypatch.setenv("SERPER_API_KEY", "test-key")
+        monkeypatch.setenv("WEB_SEARCH_PROVIDER", "serper")
+        monkeypatch.setenv("WEB_SEARCH_MAX_ATTEMPTS", "1")
+        monkeypatch.setenv("WEB_SEARCH_FALLBACK_PROVIDER", "tavily")
+        monkeypatch.setenv("WEB_SEARCH_CACHE_ENABLED", "false")
+
+        mock_post.side_effect = req.RequestException("serper down")
+
+        tavily_result = {"results": [{"title": "Tavily", "url": "https://t.com", "snippet": "t"}], "provider": "tavily"}
+
+        with patch("configurable_agents.tools.web_tools._tavily_search", return_value=tavily_result):
+            result = web_search("python")
+
+        assert result["provider"] == "tavily"
+        assert result.get("error") is None
+
+    @patch("configurable_agents.tools.web_tools.time.sleep")
+    @patch("configurable_agents.tools.web_tools.requests.post")
+    def test_no_fallback_when_not_configured(self, mock_post, mock_sleep, monkeypatch):
+        """Primary fails, no fallback env var — primary error is returned."""
+        import requests as req
+
+        monkeypatch.setenv("SERPER_API_KEY", "test-key")
+        monkeypatch.setenv("WEB_SEARCH_PROVIDER", "serper")
+        monkeypatch.setenv("WEB_SEARCH_MAX_ATTEMPTS", "1")
+        monkeypatch.delenv("WEB_SEARCH_FALLBACK_PROVIDER", raising=False)
+        monkeypatch.setenv("WEB_SEARCH_CACHE_ENABLED", "false")
+
+        mock_post.side_effect = req.RequestException("serper down")
+
+        with patch("configurable_agents.tools.web_tools._tavily_search") as mock_tavily:
+            result = web_search("python")
+            mock_tavily.assert_not_called()
+
+        assert result.get("error") is not None
+
+    @patch("configurable_agents.tools.web_tools.requests.post")
+    def test_fallback_toolconfigerror_keeps_primary_error(self, mock_post, monkeypatch):
+        """Fallback raises ToolConfigError (not configured) — primary error kept."""
+        import requests as req
+
+        monkeypatch.setenv("SERPER_API_KEY", "test-key")
+        monkeypatch.setenv("WEB_SEARCH_PROVIDER", "serper")
+        monkeypatch.setenv("WEB_SEARCH_MAX_ATTEMPTS", "1")
+        monkeypatch.setenv("WEB_SEARCH_FALLBACK_PROVIDER", "tavily")
+        monkeypatch.setenv("WEB_SEARCH_CACHE_ENABLED", "false")
+
+        mock_post.side_effect = req.RequestException("serper down")
+
+        with patch(
+            "configurable_agents.tools.web_tools._tavily_search",
+            side_effect=ToolConfigError("web_search", "TAVILY_API_KEY not set", "TAVILY_API_KEY"),
+        ):
+            result = web_search("python")
+
+        assert result.get("error") is not None
+        assert "serper" in result.get("provider", "")
+
+    @patch("configurable_agents.tools.web_tools.requests.post")
+    def test_min_results_validation_adds_error(self, mock_post, monkeypatch):
+        """Empty results below min_results threshold → error key added."""
+        monkeypatch.setenv("SERPER_API_KEY", "test-key")
+        monkeypatch.setenv("WEB_SEARCH_PROVIDER", "serper")
+        monkeypatch.setenv("WEB_SEARCH_MAX_ATTEMPTS", "1")
+        monkeypatch.setenv("WEB_SEARCH_MIN_RESULTS", "3")
+        monkeypatch.setenv("WEB_SEARCH_CACHE_ENABLED", "false")
+
+        mock_post.return_value = self._make_mock_response(organic=[
+            {"title": "Only one", "link": "https://x.com", "snippet": "x"}
+        ])
+
+        result = web_search("python", num_results=1)
+
+        assert result.get("error") is not None
+        assert "minimum required: 3" in result["error"]
+
+    @patch("configurable_agents.tools.web_tools.requests.post")
+    def test_min_results_validation_passes(self, mock_post, monkeypatch):
+        """Results at or above threshold → no error added."""
+        monkeypatch.setenv("SERPER_API_KEY", "test-key")
+        monkeypatch.setenv("WEB_SEARCH_PROVIDER", "serper")
+        monkeypatch.setenv("WEB_SEARCH_MAX_ATTEMPTS", "1")
+        monkeypatch.setenv("WEB_SEARCH_MIN_RESULTS", "1")
+        monkeypatch.setenv("WEB_SEARCH_CACHE_ENABLED", "false")
+
+        mock_post.return_value = self._make_mock_response(organic=[
+            {"title": "Result", "link": "https://x.com", "snippet": "x"}
+        ])
+
+        result = web_search("python", num_results=1)
+
+        assert result.get("error") is None
+
+    @patch("configurable_agents.tools.web_tools.requests.post")
+    def test_cache_hit_skips_api_call(self, mock_post, monkeypatch, tmp_path):
+        """Second identical call hits cache — API not called again."""
+        monkeypatch.setenv("SERPER_API_KEY", "test-key")
+        monkeypatch.setenv("WEB_SEARCH_PROVIDER", "serper")
+        monkeypatch.setenv("WEB_SEARCH_MAX_ATTEMPTS", "1")
+        monkeypatch.setenv("WEB_SEARCH_CACHE_ENABLED", "true")
+        monkeypatch.setenv("WEB_SEARCH_CACHE_PATH", str(tmp_path / "cache.db"))
+        monkeypatch.setenv("WEB_SEARCH_MIN_RESULTS", "1")
+
+        mock_post.return_value = self._make_mock_response(organic=[
+            {"title": "Cached", "link": "https://x.com", "snippet": "x"}
+        ])
+
+        # First call — hits API
+        r1 = web_search("python", num_results=5)
+        # Second call — should be served from cache
+        r2 = web_search("python", num_results=5)
+
+        assert mock_post.call_count == 1
+        assert r1 == r2
+
+    @patch("configurable_agents.tools.web_tools.requests.post")
+    def test_cache_miss_populates_cache(self, mock_post, monkeypatch, tmp_path):
+        """Successful API call is stored so the next call is a cache hit."""
+        monkeypatch.setenv("SERPER_API_KEY", "test-key")
+        monkeypatch.setenv("WEB_SEARCH_PROVIDER", "serper")
+        monkeypatch.setenv("WEB_SEARCH_MAX_ATTEMPTS", "1")
+        monkeypatch.setenv("WEB_SEARCH_CACHE_ENABLED", "true")
+        monkeypatch.setenv("WEB_SEARCH_CACHE_PATH", str(tmp_path / "cache.db"))
+        monkeypatch.setenv("WEB_SEARCH_MIN_RESULTS", "1")
+
+        mock_post.return_value = self._make_mock_response(organic=[
+            {"title": "New", "link": "https://x.com", "snippet": "x"}
+        ])
+
+        web_search("unique query abc", num_results=3)
+        assert mock_post.call_count == 1
+
+        # Directly verify the cache holds the entry
+        from configurable_agents.tools.web_search_cache import WebSearchCache
+        cache = WebSearchCache(db_path=str(tmp_path / "cache.db"))
+        assert cache.get("unique query abc", 3, "serper") is not None
+
+    @patch("configurable_agents.tools.web_tools.requests.post")
+    def test_failed_result_not_cached(self, mock_post, monkeypatch, tmp_path):
+        """Error results are not stored in the cache."""
+        import requests as req
+
+        monkeypatch.setenv("SERPER_API_KEY", "test-key")
+        monkeypatch.setenv("WEB_SEARCH_PROVIDER", "serper")
+        monkeypatch.setenv("WEB_SEARCH_MAX_ATTEMPTS", "1")
+        monkeypatch.setenv("WEB_SEARCH_CACHE_ENABLED", "true")
+        monkeypatch.setenv("WEB_SEARCH_CACHE_PATH", str(tmp_path / "cache.db"))
+        monkeypatch.delenv("WEB_SEARCH_FALLBACK_PROVIDER", raising=False)
+
+        mock_post.side_effect = req.RequestException("fail")
+
+        web_search("error query", num_results=5)
+
+        from configurable_agents.tools.web_search_cache import WebSearchCache
+        cache = WebSearchCache(db_path=str(tmp_path / "cache.db"))
+        assert cache.get("error query", 5, "serper") is None
 
 
 class TestToolCreation:

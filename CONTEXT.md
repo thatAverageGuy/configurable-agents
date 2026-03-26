@@ -13,33 +13,19 @@
 
 ## Current State
 
-**Task**: T-016 | **Phase**: Not Started | **Status**: READY TO START
+**Task**: T-016 | **Phase**: Done | **Status**: COMPLETE
 
 ### What Was Done This Session (2026-03-26)
 
-**T-015 — Memory extraction opt-in**: DONE
-- `extract_facts: bool = False` + `extraction_model: Optional[str]` added to `MemoryConfig`
-- `_build_extraction_llm()` helper + extraction guard in `node_executor.py`
-- 13 tests in `tests/core/test_memory_extraction_opt_in.py` — all pass
+**T-016 — Web search enterprise hardening**: DONE
+- Retry with exponential backoff (`WEB_SEARCH_MAX_ATTEMPTS`, `WEB_SEARCH_BACKOFF_FACTOR`)
+- Provider fallback (`WEB_SEARCH_FALLBACK_PROVIDER`)
+- SQLite result cache, on by default, TTL=1h (`WEB_SEARCH_CACHE_ENABLED`, `WEB_SEARCH_CACHE_TTL`, `WEB_SEARCH_CACHE_PATH`)
+- Minimum result validation (`WEB_SEARCH_MIN_RESULTS`)
+- New file: `src/configurable_agents/tools/web_search_cache.py`
+- 18 new tests (7 cache + 11 retry/fallback/validation); 358 tools+core tests pass
 
-**BF-010 Pydantic 2.12 fix**: DONE
-- `__loop_counter_{node_id}` → `lc_{node_id}` (Pydantic 2.12 rejects `__` prefixed fields)
-- Fixed in `control_flow.py` + all 3 affected test files
-
-**T-014 scope guard bug**: FIXED
-- `_apply_runtime_overrides` no longer creates `MemoryConfig` on nodes with `memory=None` for `scope=workflow/agent`
-
-**BF-012 mock path**: FIXED
-- `test_node_executor_metrics.py` patch path corrected to `configurable_agents.core.node_executor.CostEstimator`
-
-**MLflow API drift tests**: FIXED
-- `test_cost_reporter.py`: rewrote 11 methods — `make_mock_run` → `make_mock_trace`, old runs API → traces API mocks
-- `test_multi_provider_tracker.py`: fixed `test_generate_cost_report_success` — `client.get_experiment_by_name` + `mlflow.search_traces`
-
-**Dependency pinning**: DONE
-- All deps pinned to exact `==` versions from `uv.lock`; `litellm==1.80.0` (pre-compromise)
-
-**Full test suite**: 1078 passed, 6 skipped
+**Previous session**: T-015, BF-010–013, T-014 all DONE. 1078 tests passed.
 
 ### Next Steps
 
@@ -49,8 +35,9 @@
 4. [x] **BF-013**: Fix silent route condition logging — DONE
 5. [x] **T-014**: Runtime memory override — DONE
 6. [x] **T-015**: Memory extraction opt-in — DONE
-7. [ ] **T-016**: Web search hardening (retry, fallback, cache) — MEDIUM
-8. [ ] Dashboard scope definition (separate session)
+7. [x] **T-016**: Web search hardening (retry, fallback, cache) — DONE
+8. [ ] **AX-017**: YAML per-node tool config (deferred from T-016 — registry contract change)
+9. [ ] Dashboard scope definition (separate session)
 
 ### Blockers
 - None
@@ -61,7 +48,7 @@
 
 | Task | Summary | Details |
 |------|---------|---------|
-| T-016 | Web search hardening (retry, fallback, cache) | [T-016 Log](docs/development/implementation_logs/phase_6_v1_1_hardening/T-016_web_search_hardening.md) |
+| AX-017 | YAML per-node tool config (registry `factory(config=dict)`) | Deferred from T-016 |
 | Dashboard | Scope TBD | Separate session |
 
 ## Session History
@@ -80,4 +67,4 @@
 
 ---
 
-*Last Updated: 2026-03-26 | BF-010 through T-015 complete. All v1.1 fixes landed. Next: T-016 web search hardening.*
+*Last Updated: 2026-03-26 | T-016 complete. All v1.1 hardening tasks done. Next: AX-017 (YAML tool config) or dashboard scoping.*

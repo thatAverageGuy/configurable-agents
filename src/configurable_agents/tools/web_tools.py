@@ -5,6 +5,12 @@ Provides three main tools:
 - web_scrape: Extract text content from web pages
 - http_client: Make HTTP requests with full control
 
+web_search hardening (T-016):
+- Retry on transient failures (WEB_SEARCH_MAX_ATTEMPTS, WEB_SEARCH_BACKOFF_FACTOR)
+- Provider fallback if primary exhausts retries (WEB_SEARCH_FALLBACK_PROVIDER)
+- SQLite-backed result cache, on by default (WEB_SEARCH_CACHE_ENABLED, WEB_SEARCH_CACHE_TTL, WEB_SEARCH_CACHE_PATH)
+- Minimum result count validation (WEB_SEARCH_MIN_RESULTS)
+
 Example:
     >>> from configurable_agents.tools import get_tool
     >>> search = get_tool("web_search")
@@ -13,6 +19,8 @@ Example:
 
 import logging
 import os
+import time
+from pathlib import Path
 from typing import Any, Dict, List, Optional
 
 import requests
@@ -27,6 +35,9 @@ logger = logging.getLogger(__name__)
 SEARCH_PROVIDERS = ["serper", "tavily"]
 DEFAULT_PROVIDER = "serper"
 
+# Module-level cache singleton — reset via _reset_cache() in tests
+_cache_instance: Optional[Any] = None
+
 
 def _get_search_provider() -> str:
     """Get the configured web search provider.
@@ -39,18 +50,113 @@ def _get_search_provider() -> str:
     return os.getenv("WEB_SEARCH_PROVIDER", DEFAULT_PROVIDER).lower()
 
 
+def _get_cache() -> Optional[Any]:
+    """Return the active WebSearchCache instance, or None if caching is disabled.
+
+    Cache is enabled by default. Set WEB_SEARCH_CACHE_ENABLED=false to opt out.
+    """
+    if os.getenv("WEB_SEARCH_CACHE_ENABLED", "true").lower() == "false":
+        return None
+
+    global _cache_instance
+    if _cache_instance is None:
+        from configurable_agents.tools.web_search_cache import WebSearchCache
+
+        default_path = str(Path.home() / ".configurable_agents" / "web_search_cache.db")
+        db_path = os.getenv("WEB_SEARCH_CACHE_PATH", default_path)
+        ttl = int(os.getenv("WEB_SEARCH_CACHE_TTL", "3600"))
+        _cache_instance = WebSearchCache(db_path=db_path, ttl_seconds=ttl)
+
+    return _cache_instance
+
+
+def _reset_cache() -> None:
+    """Reset the cache singleton. Intended for use in tests only."""
+    global _cache_instance
+    _cache_instance = None
+
+
+def _search_with_retry(
+    provider: str,
+    query: str,
+    num_results: int,
+    max_attempts: int,
+    backoff_factor: float,
+) -> Dict[str, Any]:
+    """Call the given provider with exponential-backoff retry.
+
+    ToolConfigError (missing API key, missing package) propagates immediately
+    — it is a configuration problem, not a transient failure, and retrying
+    would never help.
+
+    Args:
+        provider: "serper" or "tavily"
+        query: Search query string
+        num_results: Number of results requested
+        max_attempts: Maximum number of attempts (1 = no retry)
+        backoff_factor: Sleep multiplier between attempts (attempt 0 → factor^0 s, etc.)
+
+    Returns:
+        Result dict from the provider (may contain "error" key on failure)
+
+    Raises:
+        ToolConfigError: Immediately if the provider is mis-configured.
+    """
+    if provider == "serper":
+        search_fn = _serper_search
+    elif provider == "tavily":
+        search_fn = _tavily_search
+    else:
+        raise ToolConfigError(
+            tool_name="web_search",
+            reason=f"Unsupported search provider: {provider}",
+            env_var="WEB_SEARCH_PROVIDER",
+        )
+
+    last_result: Dict[str, Any] = {"results": [], "error": f"No attempts made", "provider": provider}
+
+    for attempt in range(max_attempts):
+        # ToolConfigError propagates immediately (not caught here)
+        result = search_fn(query, num_results)
+
+        if not result.get("error"):
+            return result
+
+        last_result = result
+
+        if attempt < max_attempts - 1:
+            wait = backoff_factor ** attempt
+            logger.warning(
+                f"[web_search/{provider}] Attempt {attempt + 1}/{max_attempts} failed: "
+                f"{result.get('error')}. Retrying in {wait:.1f}s..."
+            )
+            time.sleep(wait)
+        else:
+            logger.error(
+                f"[web_search/{provider}] All {max_attempts} attempts failed: "
+                f"{result.get('error')}"
+            )
+
+    return last_result
+
+
 def web_search(query: str, num_results: int = 10) -> Dict[str, Any]:
     """Search the web using configured provider.
+
+    Applies retry, provider fallback, result caching, and minimum result
+    validation. All behaviour is controlled via environment variables —
+    see module docstring for the full list.
 
     Args:
         query: Search query string
         num_results: Number of results to return (default: 10)
 
     Returns:
-        Dict with results list containing {title, url, snippet}
+        Dict with results list containing {title, url, snippet}.
+        On failure: dict with empty "results" list and populated "error" key.
 
     Raises:
-        ToolConfigError: If API key not configured
+        ToolConfigError: If primary provider API key is not configured.
 
     Example:
         >>> result = web_search("Python best practices", num_results=5)
@@ -58,17 +164,53 @@ def web_search(query: str, num_results: int = 10) -> Dict[str, Any]:
         ...     print(f"{item['title']}: {item['url']}")
     """
     provider = _get_search_provider()
+    max_attempts = int(os.getenv("WEB_SEARCH_MAX_ATTEMPTS", "3"))
+    backoff_factor = float(os.getenv("WEB_SEARCH_BACKOFF_FACTOR", "1.5"))
+    min_results = int(os.getenv("WEB_SEARCH_MIN_RESULTS", "1"))
 
-    if provider == "serper":
-        return _serper_search(query, num_results)
-    elif provider == "tavily":
-        return _tavily_search(query, num_results)
-    else:
-        raise ToolConfigError(
-            tool_name="web_search",
-            reason=f"Unsupported search provider: {provider}",
-            env_var="WEB_SEARCH_PROVIDER",
+    # --- Cache check ---
+    cache = _get_cache()
+    if cache is not None:
+        cached = cache.get(query, num_results, provider)
+        if cached is not None:
+            logger.debug(f"[web_search] Cache hit: query='{query}' provider={provider}")
+            return cached
+
+    # --- Primary provider with retry ---
+    result = _search_with_retry(provider, query, num_results, max_attempts, backoff_factor)
+
+    # --- Fallback provider ---
+    if result.get("error"):
+        fallback = os.getenv("WEB_SEARCH_FALLBACK_PROVIDER", "").strip().lower()
+        if fallback and fallback != provider and fallback in SEARCH_PROVIDERS:
+            logger.warning(
+                f"[web_search] Primary '{provider}' failed, trying fallback '{fallback}'"
+            )
+            try:
+                fallback_result = _search_with_retry(
+                    fallback, query, num_results, max_attempts, backoff_factor
+                )
+                result = fallback_result
+            except ToolConfigError as e:
+                logger.warning(
+                    f"[web_search] Fallback '{fallback}' not configured: {e}"
+                )
+
+    # --- Cache successful result ---
+    if cache is not None and not result.get("error"):
+        cache.set(query, num_results, result.get("provider", provider), result)
+
+    # --- Minimum result validation ---
+    actual_count = len(result.get("results", []))
+    if not result.get("error") and actual_count < min_results:
+        msg = (
+            f"Search returned {actual_count} result(s), minimum required: {min_results}. "
+            f"Query: '{query}'"
         )
+        logger.warning(f"[web_search] {msg}")
+        result["error"] = msg
+
+    return result
 
 
 def _serper_search(query: str, num_results: int) -> Dict[str, Any]:
@@ -418,4 +560,5 @@ __all__ = [
     "create_web_scrape",
     "create_http_client",
     "register_tools",
+    "_reset_cache",
 ]

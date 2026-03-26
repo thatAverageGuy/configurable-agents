@@ -94,7 +94,7 @@
 
 ### T-016: Web Search Enterprise Hardening
 
-**Status**: TODO
+**Status**: DONE (2026-03-26)
 **Priority**: MEDIUM
 
 **Problem**: Single attempt, no retry, no fallback, no caching, no result validation. Transient API failures abort workflows. Same query costs money on every run even if recently fetched.
